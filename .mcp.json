@@ -2,18 +2,6 @@
   "mcpServers": {
     "konnect": {
       "command": "/home/limeskey/.local/share/kicad/10.0/3rdparty/plugins/com_github_mixelpixx_konnect/bin/konnect"
-    },
-    "freerouting": {
-      "command": "java",
-      "args": [
-        "-jar", "/home/limeskey/.local/share/freerouting/freerouting-2.4.1.jar",
-        "--api_server.enabled=true",
-        "--api_server.authentication.enabled=false",
-        "--mcp_server.enabled=true",
-        "--mcp_server.authentication.enabled=false",
-        "--mcp_server.stdio=true",
-        "--gui.enabled=false"
-      ]
     }
   }
 }

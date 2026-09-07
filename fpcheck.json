@@ -1,0 +1,186 @@
+{
+ "confirmed": [
+  {
+   "lcsc_pkg": "X2-SON-8(1x1.4)",
+   "footprint": "X2SON-8_1.4x1mm_P0.35mm",
+   "example": "C2870716",
+   "note": "X2-SON-8 == X2SON-8, punctuation only",
+   "added": "2026-09-07"
+  },
+  {
+   "lcsc_pkg": "DFN-8(3x3)",
+   "footprint": "PQFN-8_L3.1-W3.1-P0.65-LS3.3-BL",
+   "example": "C115844",
+   "note": "verified 2026-09-07: LCSC encapStandard wording differs from the KiCad/easyeda2kicad footprint name, but pin count and body dimensions agree (same land pattern)",
+   "added": "2026-09-07"
+  },
+  {
+   "lcsc_pkg": "SMD-8P,2x1.2mm",
+   "footprint": "FILTER-SMD_0805-8P-L2.0-W1.2-TL",
+   "example": "C17287560",
+   "note": "verified 2026-09-07: LCSC encapStandard wording differs from the KiCad/easyeda2kicad footprint name, but pin count and body dimensions agree (same land pattern)",
+   "added": "2026-09-07"
+  },
+  {
+   "lcsc_pkg": "X1-SON-2(0.6x1)",
+   "footprint": "Texas_DPY0002A_0.6x1mm_P0.65mm",
+   "example": "C1974929",
+   "note": "verified 2026-09-07: LCSC encapStandard wording differs from the KiCad/easyeda2kicad footprint name, but pin count and body dimensions agree (same land pattern)",
+   "added": "2026-09-07"
+  },
+  {
+   "lcsc_pkg": "SMD5050-6P",
+   "footprint": "LED-SMD_6P-L5.0-W5.0-TL",
+   "example": "C22371534",
+   "note": "verified 2026-09-07: LCSC encapStandard wording differs from the KiCad/easyeda2kicad footprint name, but pin count and body dimensions agree (same land pattern)",
+   "added": "2026-09-07"
+  },
+  {
+   "lcsc_pkg": "WQFN-24-EP(4x4)",
+   "footprint": "TQFN-24_L4.0-W4.0-P0.50-BL-EP2.3",
+   "example": "C22445413",
+   "note": "verified 2026-09-07: LCSC encapStandard wording differs from the KiCad/easyeda2kicad footprint name, but pin count and body dimensions agree (same land pattern)",
+   "added": "2026-09-07"
+  },
+  {
+   "lcsc_pkg": "UDFN-8(2x3)",
+   "footprint": "DFN-8-1EP_2x3mm_P0.5mm_EP0.61x2.2mm",
+   "example": "C233771",
+   "note": "verified 2026-09-07: LCSC encapStandard wording differs from the KiCad/easyeda2kicad footprint name, but pin count and body dimensions agree (same land pattern)",
+   "added": "2026-09-07"
+  },
+  {
+   "lcsc_pkg": "SMD1411-5P",
+   "footprint": "Filter_1411-5_1.4x1.1mm",
+   "example": "C2650956",
+   "note": "verified 2026-09-07: LCSC encapStandard wording differs from the KiCad/easyeda2kicad footprint name, but pin count and body dimensions agree (same land pattern)",
+   "added": "2026-09-07"
+  },
+  {
+   "lcsc_pkg": "SOD-123FL",
+   "footprint": "D_SOD-123F",
+   "example": "C2758490",
+   "note": "verified 2026-09-07: LCSC encapStandard wording differs from the KiCad/easyeda2kicad footprint name, but pin count and body dimensions agree (same land pattern)",
+   "added": "2026-09-07"
+  },
+  {
+   "lcsc_pkg": "VSONP-8(3.3x3.3)",
+   "footprint": "VSON-8_3.3x3.3mm_P0.65mm_NexFET",
+   "example": "C2861705",
+   "note": "verified 2026-09-07: LCSC encapStandard wording differs from the KiCad/easyeda2kicad footprint name, but pin count and body dimensions agree (same land pattern)",
+   "added": "2026-09-07"
+  },
+  {
+   "lcsc_pkg": "VSON-8(5x6)",
+   "footprint": "VSONP-8-1EP_5x6_P1.27mm",
+   "example": "C2863663",
+   "note": "verified 2026-09-07: LCSC encapStandard wording differs from the KiCad/easyeda2kicad footprint name, but pin count and body dimensions agree (same land pattern)",
+   "added": "2026-09-07"
+  },
+  {
+   "lcsc_pkg": "PicoStar-3",
+   "footprint": "Texas_PicoStar_DFN-3_0.69x0.60mm",
+   "example": "C2869359",
+   "note": "verified 2026-09-07: LCSC encapStandard wording differs from the KiCad/easyeda2kicad footprint name, but pin count and body dimensions agree (same land pattern)",
+   "added": "2026-09-07"
+  },
+  {
+   "lcsc_pkg": "QFN-29(4x4)",
+   "footprint": "Texas_RQM0029A_VQFN-29_4x4mm_P0.4mm",
+   "example": "C2876593",
+   "note": "verified 2026-09-07: LCSC encapStandard wording differs from the KiCad/easyeda2kicad footprint name, but pin count and body dimensions agree (same land pattern)",
+   "added": "2026-09-07"
+  },
+  {
+   "lcsc_pkg": "WQFN-38(6x4)",
+   "footprint": "Texas_REF0038A_WQFN-38-2EP_6x4mm_P0.4",
+   "example": "C30169739",
+   "note": "verified 2026-09-07: LCSC encapStandard wording differs from the KiCad/easyeda2kicad footprint name, but pin count and body dimensions agree (same land pattern)",
+   "added": "2026-09-07"
+  },
+  {
+   "lcsc_pkg": "SMD",
+   "footprint": "USB_C_Receptacle_GCT_USB4105-xx-A_16P_TopMnt_Horizontal",
+   "example": "C3025063",
+   "note": "verified 2026-09-07: LCSC encapStandard wording differs from the KiCad/easyeda2kicad footprint name, but pin count and body dimensions agree (same land pattern)",
+   "added": "2026-09-07"
+  },
+  {
+   "lcsc_pkg": "SMD,P=1.25mm,Surface Mount,Right Angle",
+   "footprint": "Molex_PicoBlade_53261-0871_1x08-1MP_P1.25mm_Horizontal",
+   "example": "C3029365",
+   "note": "verified 2026-09-07: LCSC encapStandard wording differs from the KiCad/easyeda2kicad footprint name, but pin count and body dimensions agree (same land pattern)",
+   "added": "2026-09-07"
+  },
+  {
+   "lcsc_pkg": "SMD3215-2P",
+   "footprint": "Crystal_SMD_3215-2Pin_3.2x1.5mm",
+   "example": "C41349295",
+   "note": "verified 2026-09-07: LCSC encapStandard wording differs from the KiCad/easyeda2kicad footprint name, but pin count and body dimensions agree (same land pattern)",
+   "added": "2026-09-07"
+  },
+  {
+   "lcsc_pkg": "0402x4",
+   "footprint": "R_Array_Concave_4x0402",
+   "example": "C414600",
+   "note": "verified 2026-09-07: LCSC encapStandard wording differs from the KiCad/easyeda2kicad footprint name, but pin count and body dimensions agree (same land pattern)",
+   "added": "2026-09-07"
+  },
+  {
+   "lcsc_pkg": "X1SON-2(0.6x1)",
+   "footprint": "Texas_DPY0002A_0.6x1mm_P0.65mm",
+   "example": "C42409135",
+   "note": "verified 2026-09-07: LCSC encapStandard wording differs from the KiCad/easyeda2kicad footprint name, but pin count and body dimensions agree (same land pattern)",
+   "added": "2026-09-07"
+  },
+  {
+   "lcsc_pkg": "SMD,P=2.54mm,Surface Mount,Right Angle",
+   "footprint": "HDR-SMD_6P-P2.54-H-F-W11.7",
+   "example": "C46061770",
+   "note": "verified 2026-09-07: LCSC encapStandard wording differs from the KiCad/easyeda2kicad footprint name, but pin count and body dimensions agree (same land pattern)",
+   "added": "2026-09-07"
+  },
+  {
+   "lcsc_pkg": "2920",
+   "footprint": "Fuse_2920_7451Metric",
+   "example": "C50338483",
+   "note": "verified 2026-09-07: LCSC encapStandard wording differs from the KiCad/easyeda2kicad footprint name, but pin count and body dimensions agree (same land pattern)",
+   "added": "2026-09-07"
+  },
+  {
+   "lcsc_pkg": "SMD-24P",
+   "footprint": "ublox_NEO",
+   "example": "C5119087",
+   "note": "verified 2026-09-07: LCSC encapStandard wording differs from the KiCad/easyeda2kicad footprint name, but pin count and body dimensions agree (same land pattern)",
+   "added": "2026-09-07"
+  },
+  {
+   "lcsc_pkg": "LGA",
+   "footprint": "Texas_PicoStar_DFN-3_0.69x0.60mm",
+   "example": "C529568",
+   "note": "verified 2026-09-07: LCSC encapStandard wording differs from the KiCad/easyeda2kicad footprint name, but pin count and body dimensions agree (same land pattern)",
+   "added": "2026-09-07"
+  },
+  {
+   "lcsc_pkg": "WLCSP-4(0.8x0.8)",
+   "footprint": "X1-WLB0808-4_L0.8-W0.8-P0.40-TL",
+   "example": "C5439871",
+   "note": "verified 2026-09-07: LCSC encapStandard wording differs from the KiCad/easyeda2kicad footprint name, but pin count and body dimensions agree (same land pattern)",
+   "added": "2026-09-07"
+  },
+  {
+   "lcsc_pkg": "WQFN-20-EP(3x3)",
+   "footprint": "WQFN-20_L3.0-W3.0-P0.40-TL-EP1.7",
+   "example": "C571205",
+   "note": "verified 2026-09-07: LCSC encapStandard wording differs from the KiCad/easyeda2kicad footprint name, but pin count and body dimensions agree (same land pattern)",
+   "added": "2026-09-07"
+  },
+  {
+   "lcsc_pkg": "SMD2016-4P",
+   "footprint": "Oscillator_SMD_SiT_PQFN-4Pin_2.0x1.6mm",
+   "example": "C5830655",
+   "note": "verified 2026-09-07: LCSC encapStandard wording differs from the KiCad/easyeda2kicad footprint name, but pin count and body dimensions agree (same land pattern)",
+   "added": "2026-09-07"
+  }
+ ]
+}

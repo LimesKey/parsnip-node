@@ -1,72 +1,54 @@
 # For PCBs designed using KiCad: https://www.kicad.org/
 # Format documentation: https://kicad.org/help/file-formats/
+#
+# NOTE: this repo DELIBERATELY tracks fab outputs (*.gbr, *.drl) and 3D models
+# (*.wrl, *.step). Do not add ignores for those.
 
-# Temporary files
+# ---------------------------------------------------------------------------
+# KiCad temporary / backup / autosave
+# ---------------------------------------------------------------------------
 *.000
-*.bak
-*.bck
-*.kicad_pcb-bak
-*.kicad_sch-bak
-*-backups
-*-cache*
-*-bak
-*-bak*
+*.tmp
+*.orig
+*.rej
 *~
 ~*
-_autosave-*
-\#auto_saved_files\#
-*.tmp
-*-save.pro
-*-save.kicad_pcb
+*.bak
+*-bak*
+*-cache*
+*-backups
 fp-info-cache
-~*.lck
-\#auto_saved_files#
+_autosave*
+\#auto_saved_files\#
+*.lck
 
-# Netlist files (exported from Eeschema)
+# ---------------------------------------------------------------------------
+# KiCad generated exports (netlist, autorouter, BOM, reports)
+# ---------------------------------------------------------------------------
 *.net
-
-# Autorouter files (exported from Pcbnew)
 *.dsn
 *.ses
-
-# Exported BOM files
 *.xml
 *.csv
-
-# Archived Backups (KiCad 6.0)
-**/*-backups/*.zip
-
-# Local git-based history (KiCad 9.0+)
-.history
-
-# Local project settings
-*.kicad_prl
-
-/dfm
-
-ibom.html
-
-*.csv
-
-*.zip
-
-ordered.zip
-
-.serena
-
-# ---------------------------------------------------------------------------
-# KiCad reports and exports not covered above
-# ---------------------------------------------------------------------------
 *.rpt
 *.drc
 *.erc
 *.pos
-*.lck
-_autosave*
-*.orig
-*.rej
 
-# Other archive formats (matches the *.zip rule above)
+# ---------------------------------------------------------------------------
+# KiCad local (per-user, not shared)
+# ---------------------------------------------------------------------------
+*.kicad_prl
+*-save.pro
+*-save.kicad_pcb
+.history
+
+# ---------------------------------------------------------------------------
+# Fab / assembly bundles
+# ---------------------------------------------------------------------------
+/dfm
+ibom.html
+*.zip
 *.7z
 *.rar
 *.tar
@@ -138,5 +120,9 @@ npm-debug.log*
 .claude/settings.local.json
 CLAUDE.local.md
 .aider*
+.serena
+freerouting-*.jar
 CLAUDE.md
 TODO.md
+SKILL-BACKLOG.md
+DESIGN-INTENT.md
