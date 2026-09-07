@@ -1,9 +1,56 @@
 # parsnip-node
-A battery-powered, portable Meshtastic/Meshcore node built around a Seeed XIAO ESP32-C6, an Ebyte E22P-915M30S LoRa front end, and a u-blox NEO-M9N GNSS receiver. Designed in KiCad, it targets 915 MHz operation in Canada under ISED RSS-247.
+A battery-powered, portable Meshtastic/Meshcore node built around the ESP32-S3, an Ebyte E22P-915M30S LoRa front end, and a u-blox NEO-M9N GNSS receiver. Designed in KiCad, it targets 915 MHz operation in Canada under ISED RSS-247.
 
 ## Overview
 
-The goal is a self-contained LoRa node that pairs one of the longest range, best value LoRa modules, with an accurate GNSS reciever, running off a single 18650 cell, to connect to other people on the LoRa mesh network community.
+The goal is a self-contained LoRa node that pairs one of the longest range, best value LoRa modules, with an accurate GNSS reciever, running off two 21700 cells in series, to connect to other people on the LoRa mesh network community.
+
+### Schematic - v2
+
+<table>
+  <tr>
+    <td align="center" width="33%">
+      <a href="lib/img/schematic-gnss.png"><img src="lib/img/schematic-gnss.png" alt="GNSS / active antenna schematic" width="300"></a>
+      <br><sub><b>GNSS / active antenna</b></sub>
+    </td>
+    <td align="center" width="33%">
+      <a href="lib/img/schematic-lora.png"><img src="lib/img/schematic-lora.png" alt="LoRa front end schematic" width="300"></a>
+      <br><sub><b>LoRa front end</b></sub>
+    </td>
+    <td align="center" width="33%">
+      <a href="lib/img/schematic-rails.png"><img src="lib/img/schematic-rails.png" alt="Power rails schematic" width="300"></a>
+      <br><sub><b>Power rails</b></sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" width="33%">
+      <a href="lib/img/schematic-charger.png"><img src="lib/img/schematic-charger.png" alt="Charger and BMS schematic" width="300"></a>
+      <br><sub><b>Charger / BMS</b></sub>
+    </td>
+    <td align="center" width="33%">
+      <a href="lib/img/schematic-usb.png"><img src="lib/img/schematic-usb.png" alt="USB-C / PD schematic" width="300"></a>
+      <br><sub><b>USB-C / PD</b></sub>
+    </td>
+    <td align="center" width="33%">
+      <a href="lib/img/schematic-peripherals.png"><img src="lib/img/schematic-peripherals.png" alt="Peripherals schematic" width="300"></a>
+      <br><sub><b>Peripherals</b></sub>
+    </td>
+  </tr>
+</table>
+
+### PCB - v2
+
+<p align="center">
+  <img src="lib/img/pcb-layout.png" alt="parsnip-node PCB layout, all layers" width="330">
+</p>
+
+### 3D Render - v2
+
+<p align="center">
+  <img src="lib/img/3d-render.png" alt="parsnip-node board 3D render, front" width="330">
+</p>
+
+### In the field - v1
 
 <table>
   <tr>

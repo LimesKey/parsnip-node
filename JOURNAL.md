@@ -129,3 +129,11 @@ Worked today on the PCB, finally moving on from the schematic. Hopefully I can g
 ## Layout done - working on routing - 4 hours (2026-09-01)
 
 Went to a local makerspace, Hacklab, to work on the PCB some more. Now that I'm on my laptop, I didn't have the 3D Models transfer over, since I was using easyeda2kicad and that put the models inside a local directory on my computer - not in the repo. I re-downloaded all the 3D Models and moved them into `lib/3d-models` and then changed the 3D model location for all missing components. Now when someone opens my PCB and checks the 3D View, all the components should show up nicely. A couple parts had incorrect footprints for the part, and I was able to fix this after seeing the 3D Model was obviously different from the footprint. That's one reason I like 3D Models so much.
+
+## Routing done - 8 hours (2026-09-07)
+
+Spent the last several days routing, it has been pretty awful. I don't know why I thought the routing would be easy to complete in a few days if the schematic took a month and a half to do. It would have been so much nicer if the board was larger. Difficult parts were ensuring my traces were wide enough, there's so many different nets all requiring 3A+,then routing the communication lines & USB data pairs. There's so many communication lines going all over the board, it's atrocious. I'm so glad to be mostly finished.
+
+Credit to @spheresva for helping a bit with layout.
+
+![PCB KiCad Routing](/docs/img/routing-pcb.png)
