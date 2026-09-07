@@ -4769,12 +4769,6 @@
 		(uuid "10c2c486-d505-43c1-9a40-9da125e1584c")
 	)
 	(junction
-		(at 83.82 36.83)
-		(diameter 0)
-		(color 0 0 0 0)
-		(uuid "207202f9-e47a-4042-8970-0697e2df45f8")
-	)
-	(junction
 		(at 30.48 170.18)
 		(diameter 0)
 		(color 0 0 0 0)
@@ -4845,12 +4839,6 @@
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "7ca00574-411c-4206-a75b-d2e6e639a84d")
-	)
-	(junction
-		(at 76.2 43.18)
-		(diameter 0)
-		(color 0 0 0 0)
-		(uuid "80f4aa42-a453-479d-95c7-e9ad2bed9aed")
 	)
 	(junction
 		(at 269.24 121.92)
@@ -5492,7 +5480,7 @@
 	)
 	(wire
 		(pts
-			(xy 76.2 36.83) (xy 83.82 36.83)
+			(xy 76.2 36.83) (xy 88.9 36.83)
 		)
 		(stroke
 			(width 0)
@@ -5792,16 +5780,6 @@
 	)
 	(wire
 		(pts
-			(xy 76.2 43.18) (xy 83.82 43.18)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "870d10e3-9d01-400d-96f6-736d8d993498")
-	)
-	(wire
-		(pts
 			(xy 236.22 49.53) (xy 248.92 49.53)
 		)
 		(stroke
@@ -5862,16 +5840,6 @@
 	)
 	(wire
 		(pts
-			(xy 83.82 43.18) (xy 83.82 41.91)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "931eb2c2-83df-41a9-af10-df9d3972042d")
-	)
-	(wire
-		(pts
 			(xy 30.48 170.18) (xy 30.48 173.99)
 		)
 		(stroke
@@ -5899,16 +5867,6 @@
 			(type default)
 		)
 		(uuid "9972dd20-b1d3-4d8a-9e2f-bc3e975bdcf4")
-	)
-	(wire
-		(pts
-			(xy 83.82 36.83) (xy 88.9 36.83)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "9b6bc662-12aa-4692-b4ef-28ee066d4933")
 	)
 	(wire
 		(pts
@@ -12471,7 +12429,7 @@
 				)
 			)
 		)
-		(property "LCSC Part" "C2681476"
+		(property "LCSC Part" "C202388"
 			(at 177.8 29.21 0)
 			(hide yes)
 			(show_name no)
@@ -13691,164 +13649,6 @@
 			(project "parsnip"
 				(path "/fe9d4a31-2311-442f-997c-52ad8ca5cfe9"
 					(reference "C14")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "Device:C_Small")
-		(at 83.82 39.37 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "716fe658-bfbb-4d72-8812-56492f96b5f7")
-		(property "Reference" "C12"
-			(at 81.788 33.782 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Value" "1uF"
-			(at 84.582 42.164 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Footprint" "Capacitor_SMD:C_0402_1005Metric"
-			(at 83.82 39.37 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 83.82 39.37 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "Unpolarized capacitor, small symbol"
-			(at 83.82 39.37 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "LCSC Part" "C53426846"
-			(at 83.82 39.37 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Voltage Rating" "25V"
-			(at 81.026 38.862 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Tolerance" ""
-			(at 83.82 39.37 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "LCSC" ""
-			(at 83.82 39.37 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "KLC_S3.3" ""
-			(at 83.82 39.37 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "KLC_S5.1" ""
-			(at 83.82 39.37 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Capacitor Rating" "X7R"
-			(at 83.82 39.37 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "2"
-			(uuid "60892dba-50d2-47a5-900a-6dd28894f040")
-		)
-		(pin "1"
-			(uuid "1de02896-205d-407d-b953-48a7d665f07d")
-		)
-		(instances
-			(project "parsnip"
-				(path "/fe9d4a31-2311-442f-997c-52ad8ca5cfe9"
-					(reference "C12")
 					(unit 1)
 				)
 			)
@@ -16763,7 +16563,7 @@
 				)
 			)
 		)
-		(property "LCSC Part" "C2681476"
+		(property "LCSC Part" "C202388"
 			(at 139.7 29.21 0)
 			(hide yes)
 			(show_name no)

@@ -8628,7 +8628,7 @@
 				)
 			)
 		)
-		(property "LCSC Part" "C2681476"
+		(property "LCSC Part" "C202388"
 			(at 90.17 92.71 0)
 			(hide yes)
 			(show_name no)
@@ -11757,7 +11757,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Resistor_SMD:R_0603_1608Metric_Pad0.98x0.95mm_HandSolder"
+		(property "Footprint" "Resistor_SMD:R_0402_1005Metric_Pad0.72x0.64mm_HandSolder"
 			(at 204.47 45.72 0)
 			(hide yes)
 			(show_name no)
@@ -15547,7 +15547,7 @@
 				)
 			)
 		)
-		(property "LCSC Part" "C2681476"
+		(property "LCSC Part" "C202388"
 			(at 92.71 82.55 0)
 			(hide yes)
 			(show_name no)
@@ -17865,7 +17865,7 @@
 				)
 			)
 		)
-		(property "LCSC Part" "C49275310"
+		(property "LCSC Part" "C316909"
 			(at 130.81 149.86 0)
 			(hide yes)
 			(show_name no)

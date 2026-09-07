@@ -1,8 +1,15 @@
 (version 1)
-# JLCPCB 4-layer, 1oz outer/inner, standard (no-surcharge) capabilities
+# parsnip-node custom DRC - valid at BOTH JLCPCB and PCBWay.
+# 4-layer FR-4, 1oz outer + 1oz inner, ENIG, impedance-controlled stackup,
+# double-sided assembly. Every value below is the STRICTER of the two fabs'
+# capability, so the board is buildable at either without a design change.
+# Cost-tier surcharges (finer vias/traces) are deliberately NOT encoded here:
+# DRC gates manufacturability, not price, and the fab house is not settled.
+#
 # Target: KiCad 10.0. Paste into Board Setup > Design Rules > Custom Rules,
 # click "Check Rule Syntax", then run Inspect > Design Rules Checker (F8).
-# Also set the Constraints page minimums (see notes at the bottom of this file).
+# The Constraints-page and Net-Class minimums live in parsnip.kicad_pro, NOT
+# here - set them to the values in the NOTES block at the bottom of this file.
 #
 # NOTE ON ORDERING: KiCad evaluates rules in REVERSE (last first) and stops at
 # the first match for any object pair. General rules are placed EARLIER, more
@@ -21,19 +28,20 @@
     (condition "A.Type == 'Pad' && B.Type == 'Track'"))
 
 # ================= TRACES =====================================================
-# Inner copper: 0.09/0.09mm multilayer standard.
+# Inner copper: 0.10/0.10mm. JLC multilayer allows 0.09; PCBWay's standard tier
+# is 0.10mm (4 mil). 0.10 keeps BOTH fabs at no-surcharge.
 (rule "Min Trace Width (inner)"
     (layer inner)
-    (constraint track_width (min 0.09mm))
+    (constraint track_width (min 0.1mm))
     (condition "A.Type == 'Track'"))
 
 (rule "Min Trace Spacing (inner)"
     (layer inner)
-    (constraint clearance (min 0.09mm))
+    (constraint clearance (min 0.1mm))
     (condition "A.Type == 'Track' && B.Type == 'Track'"))
 
-# Outer copper: 0.127mm (5 mil) conservative no-surcharge value.
-# JLC technically allows 0.09mm outer, but outer etches less predictably.
+# Outer copper: 0.127mm (5 mil). Both fabs build 0.09-0.10mm outer, but outer
+# etches less predictably; 5 mil is a deliberate yield margin above both.
 (rule "Min Trace Width (outer)"
     (layer outer)
     (constraint track_width (min 0.127mm))
@@ -84,7 +92,10 @@
     (condition "A.Fabrication_Property == 'Castellated pad'"))
 
 # ================= ANNULAR RING ===============================================
-# JLC multilayer 1oz: 0.15mm min ring on vias and PTH pads.
+# Both fabs: 0.15mm absolute min ring on multilayer 1oz vias and PTH pads
+# (both also *recommend* 0.20mm). NOTE: the 0.3mm-drill / 0.5mm-pad vias placed
+# on the board sit at a 0.10mm ring and WILL fail this - enlarge those via pads
+# to >=0.6mm (a 0.6mm pad on a 0.3mm drill gives the recommended 0.15mm ring).
 # Excludes castellated pads (half-holes have unusual ring geometry).
 (rule "Min Annular Ring"
     (constraint annular_width (min 0.15mm))
@@ -128,7 +139,47 @@
     (condition "A.Type == 'Pad' && (B.Type == 'Text' || B.Type == 'Graphic')"))
 
 # ================= BOARD OUTLINE ==============================================
-# Copper to routed board edge / slot: 0.3mm (includes router tolerance)
+# Copper to routed board edge / slot: 0.3mm (includes router tolerance).
+# JLC min 0.2mm, PCBWay min 0.25mm - 0.3mm clears both with margin.
 (rule "Copper to Board Edge"
     (constraint edge_clearance (min 0.3mm))
     (condition "A.Type == 'Track' || A.Type == 'Pad' || A.Type == 'Via' || A.Type == 'Zone'"))
+
+# ================= NOTES: values that live in parsnip.kicad_pro ===============
+# The .dru cannot set the Constraints-page floors, the solder-mask web width, or
+# the net-class widths - those are in parsnip.kicad_pro. Set them in Board Setup
+# to the values below (stricter of JLCPCB/PCBWay). Current .pro values that are
+# looser than a fab standard are flagged [FIX].
+#
+# Board Setup > Constraints:
+#   Min track width ............ 0.10 mm   [FIX: .pro = 0.09; PCBWay std is 0.10]
+#   Min clearance .............. 0.10 mm   [FIX: .pro = 0.09; PCBWay std is 0.10]
+#   Min connection width ....... 0.10 mm   [FIX: .pro = 0.09]
+#   Copper to edge ............. 0.25 mm   (.pro = 0.20; DRU rule already 0.30)
+#   Min via diameter ........... 0.50 mm   (drill floor 0.20; board uses 0.30)
+#   Min through-hole diameter .. 0.20 mm
+#   Min via annular width ...... 0.15 mm
+#   Min hole-to-hole ........... 0.20 mm
+#   Min hole clearance ......... 0.20 mm
+#   Blind/buried/micro vias .... disallow  (neither fab supports them)
+#
+# Board Setup > Solder Mask/Paste:
+#   Solder mask min web width .. 0.10 mm   (JLC/PCBWay mask bridge on 1oz green;
+#                                            use 0.13 mm if you pick black/white)
+#
+# Board Setup > Physical Stackup (already correct, do not regress):
+#   Surface finish ............. ENIG      (required by the 0.35mm X2SON /
+#                                            0.4mm QFN fine pitch - HASL can't)
+#   Impedance controlled ....... yes       (order the impedance option; hold
+#                                            RF_50OHM = 0.40mm microstrip)
+#
+# Net classes (Board Setup > Net Classes) - already both-fab-safe, no change:
+#   RF_50OHM  track 0.40 / clearance 0.20   PWR_RAIL 0.60   PWR_HIGH 1.50
+#
+# NOT DRC-checkable, but required for DOUBLE-SIDED ASSEMBLY at either house:
+#   - Fiducials: >=3 global fiducials (1mm copper / 2mm mask), both sides if
+#     both sides are placed. PCBWay assembly requires them; JLC strongly prefers.
+#   - Edge rails / tooling strip: PCBWay assembly requires rails; JLC SMT wants
+#     5mm tooling edges + 2mm tooling holes + 1mm fiducials for a panel.
+#   - Fine pitch: the 0.35mm-pitch X2SON exceeds JLC *Economic* assembly
+#     (0.4mm min IC pitch). It needs JLC *Standard* assembly or PCBWay (0.35mm).

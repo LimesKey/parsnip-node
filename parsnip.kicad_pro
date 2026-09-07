@@ -46,7 +46,7 @@
         "silk_line_width": 0.15,
         "silk_text_italic": false,
         "silk_text_size_h": 0.85,
-        "silk_text_size_v": 1.0,
+        "silk_text_size_v": 0.9,
         "silk_text_thickness": 0.15,
         "silk_text_upright": false,
         "zones": {
@@ -146,8 +146,8 @@
       },
       "rules": {
         "max_error": 0.005,
-        "min_clearance": 0.09,
-        "min_connection": 0.09,
+        "min_clearance": 0.1,
+        "min_connection": 0.1,
         "min_copper_edge_clearance": 0.2,
         "min_groove_width": 0.0,
         "min_hole_clearance": 0.2,
@@ -156,10 +156,10 @@
         "min_microvia_drill": 0.15,
         "min_resolved_spokes": 2,
         "min_silk_clearance": 0.15,
-        "min_text_height": 1.0,
-        "min_text_thickness": 0.15,
+        "min_text_height": 0.8,
+        "min_text_thickness": 0.1,
         "min_through_hole_diameter": 0.2,
-        "min_track_width": 0.09,
+        "min_track_width": 0.1,
         "min_via_annular_width": 0.15,
         "min_via_diameter": 0.5,
         "solder_mask_to_copper_clearance": 0.005,
@@ -564,7 +564,7 @@
         "pcb_color": "rgba(0, 0, 0, 0.000)",
         "priority": 2,
         "schematic_color": "rgba(0, 0, 0, 0.000)",
-        "track_width": 0.4,
+        "track_width": 0.36,
         "tuning_profile": ""
       }
     ],
@@ -647,7 +647,7 @@
       "plot": "/home/limeskey/Downloads/",
       "specctra_dsn": "../../../Downloads/parsnip.dsn",
       "step": "",
-      "vrml": "meshtastic.wrl"
+      "vrml": "parsnip.wrl"
     },
     "page_layout_descr_file": ""
   },
@@ -869,7 +869,7 @@
         "uuid": "c8087976-4958-4446-b419-5a0b61d5634f"
       }
     ],
-    "used_designators": "#PWR1-185,Y1-2,FL1-2,FB1-3,L1-7,SW1-6,NT1-6,RN1-2,Q1-16,F1-9,BT1-5,H1-4,TH1-6,#FLG1-7,TP1-20,R1-137,JP1-18,J1-15,C1-199,U1-20,D1-23",
+    "used_designators": "SW1-6,L1-7,FB1-3,Y1-2,#PWR1-185,FL1-2,TP1-20,R1-137,TH1-6,#FLG1-7,H1-4,BT1-5,F1-9,Q1-16,RN1-2,NT1-6,C1-199,U1-20,D1-23,J1-15,JP1-18",
     "variants": []
   },
   "sheets": [
