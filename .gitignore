@@ -115,6 +115,13 @@ npm-debug.log*
 *.key
 
 # ---------------------------------------------------------------------------
+# Production fab bundle - tracked for grant/fab submission
+# (overrides *.csv line 32 and *.zip line 51 above, scoped to production/ only)
+# ---------------------------------------------------------------------------
+!production/*.csv
+!production/*.zip
+
+# ---------------------------------------------------------------------------
 # AI tooling local state
 # ---------------------------------------------------------------------------
 .claude/settings.local.json
