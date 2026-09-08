@@ -14274,7 +14274,7 @@
 				(justify right)
 			)
 		)
-		(property "Value" "RB531SM-30T2R"
+		(property "Value" "RB531SM-30"
 			(at 170.18 142.5574 90)
 			(show_name no)
 			(do_not_autoplace no)
@@ -16875,7 +16875,7 @@
 				(justify right)
 			)
 		)
-		(property "Value" "TI ESD501"
+		(property "Value" "ESD501"
 			(at 19.558 150.622 90)
 			(show_name no)
 			(do_not_autoplace no)
