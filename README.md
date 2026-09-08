@@ -71,21 +71,16 @@ The goal is a self-contained LoRa node that pairs one of the longest range, best
 
 ## Hardware
  
-| Function | Part | Notes |
-| --- | --- | --- |
-| MCU / radio host | Seeed XIAO ESP32-C6 | Used as an SMD/castellated module for easy soldering|
-| LoRa | Ebyte E22P-915M30S | SX1262 + external PA, up to 30 dBm |
-| GNSS | u-blox NEO-M9N | GPS / GLONASS / Galileo / BeiDou |
-| Boost | TI TPS61033 |  |
-| Power mux | TI TPS2116 | USB / battery source selection |
-| Battery protection | TI BQ29700 | Single-cell protection |
-| Reverse polarity | AO3401A P-channel MOSFET | Input protection |
-| Cell | 18650 3500mAh Li-ion | Single cell |
+| Part | Price |
+| --- | --- |
+| JLCPCB PCB w/ Assembly | $1098.04 CAD |
+| 21700 Cells [18650batterystore.com](https://www.18650batterystore.com/products/samsung-58e-21700-battery)| $40 CAD  |
+| 3.7" E-Ink [AliExpress](https://www.aliexpress.com/item/1005009712001279.html?mp=1)| 24$ CAD |
  
 ### Board
  
-- 4-layer, 55 x 100 mm
-- JLCPCB `JLC04161H-7628` stackup, 1 oz copper
+- 4-layer, 60 x 130 mm
+- JLCPCB `JLC04161H-7628` stackup, 2 oz copper outer, 1 oz copper inner
 - L1-L2 prepreg 0.2104 mm, Dk 4.4
 - RF: 0.36mm trace width for ~50 Ω CPWG on this stackup, ground rails stitched with 0.3 mm / 0.6 mm vias at roughly 1.5 to 2 mm pitch
   
