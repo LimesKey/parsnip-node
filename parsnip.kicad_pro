@@ -251,6 +251,10 @@
           "drill": 0.0
         },
         {
+          "diameter": 0.5,
+          "drill": 0.2
+        },
+        {
           "diameter": 0.6,
           "drill": 0.3
         },
@@ -869,7 +873,7 @@
         "uuid": "c8087976-4958-4446-b419-5a0b61d5634f"
       }
     ],
-    "used_designators": "JP1-18,J1-15,D1-23,U1-20,C1-199,RN1-2,NT1-6,F1-9,SW1-6,L1-7,FB1-3,Y1-2,#PWR1-185,FL1-2,R1-137,TP1-20,#FLG1-7,TH1-6,H1-4,BT1-5,Q1-16",
+    "used_designators": "JP1-18,J1-15,D1-23,U1-20,C1-199,NT1-6,RN1-2,Q1-16,SW1-6,L1-7,FB1-3,Y1-2,#PWR1-185,FL1-2,TP1-20,R1-137,TH1-6,#FLG1-7,H1-4,BT1-5,F1-9",
     "variants": []
   },
   "sheets": [

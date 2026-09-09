@@ -1,6 +1,7 @@
 (version 1)
 # parsnip-node custom DRC - valid at BOTH JLCPCB and PCBWay.
-# 4-layer FR-4, 1oz outer + 1oz inner, ENIG, impedance-controlled stackup,
+# 4-layer FR-4, 2oz outer + 1oz inner (both doubled, no JLCPCB surcharge; see the
+# "2oz OUTER" note at the bottom), ENIG, impedance-controlled stackup,
 # double-sided assembly. Every value below is the STRICTER of the two fabs'
 # capability, so the board is buildable at either without a design change.
 # Cost-tier surcharges (finer vias/traces) are deliberately NOT encoded here:
@@ -51,6 +52,32 @@
     (layer outer)
     (constraint clearance (min 0.127mm))
     (condition "A.Type == 'Track' && B.Type == 'Track'"))
+
+# ================= NET-CLASS WIDTH FLOORS (placed after the general trace rules
+# so they WIN for these classes; KiCad evaluates last-first) ===================
+# The net-class widths in parsnip.kicad_pro are only the ROUTER default. KiCad's
+# TRACK_WIDTH DRC checks the board/outer minimum (0.127mm), NOT the class width,
+# so a power or RF net necked below its class width passes DRC silently. These
+# rules turn that into a hard error.
+
+# Charge / PD path: never neck below 1.0mm (PWR_HIGH class target is 1.5mm; this
+# is the floor, route the trunks at 1.5mm). Covers VSYS, VBUS, +PACK, +BATT,
+# -BATT, PPHV per the netclass_patterns in parsnip.kicad_pro.
+(rule "pwr_min_width"
+    (constraint track_width (min 1.0mm))
+    (condition "A.NetClass == 'PWR_HIGH'"))
+
+# Controlled-impedance RF: hold the trace at its 50-ohm width (necking OR
+# ballooning both shift Zo). The bracket below is a GROSS-ERROR GUARD only.
+# TODO: the exact 50-ohm microstrip width MUST be recomputed from the fab's
+# impedance calculator for THIS stackup (2oz outer changes it - thicker copper
+# lowers Zo, so the 50-ohm width is not the old 0.40mm target). Once known, set
+# BOTH the RF_50OHM net class (.pro) and this min/max to that value +/-0.02mm.
+# Current RF_50OHM class = 0.36mm; .dru notes historically said 0.40mm - resolve
+# that with the impedance calc.
+(rule "rf_50ohm_width"
+    (constraint track_width (min 0.34mm) (max 0.44mm))
+    (condition "A.NetClass == 'RF_50OHM'"))
 
 # ================= DRILL / VIAS ===============================================
 # Standard no-surcharge via: 0.2mm hole, 0.5mm diameter -> 0.15mm ring.
@@ -175,6 +202,22 @@
 #
 # Net classes (Board Setup > Net Classes) - already both-fab-safe, no change:
 #   RF_50OHM  track 0.40 / clearance 0.20   PWR_RAIL 0.60   PWR_HIGH 1.50
+#   (NB: the actual .pro RF_50OHM track is 0.36mm, not 0.40 - see 2oz note.)
+#
+# ================= 2oz OUTER (stackup change, action required) ================
+# Outer copper is now 2oz (inner 1oz), both doubled at no JLCPCB surcharge.
+# Two things the rules above do NOT yet reflect - confirm the exact number with
+# your chosen fab and update, then re-run DRC:
+#   1. Min outer trace/space: 2oz cannot etch as fine as 1oz. JLCPCB 2oz outer
+#      min is ~0.15mm/0.15mm (6mil), PCBWay similar - vs the 0.127mm outer rules
+#      above (sized for 1oz). Bump "Min Trace Width (outer)" and "Min Trace
+#      Spacing (outer)" to 0.15mm for 2oz. This makes the 167 outer 0.10mm tracks
+#      even more out-of-spec (re-width to >=0.15mm, not the old 0.127mm).
+#   2. 50-ohm width: 2oz outer lowers microstrip Zo for a given width, so the
+#      50-ohm width shifts off the old 0.40mm target. Recompute with the fab
+#      impedance calculator for this stackup, set RF_50OHM (.pro) + the
+#      rf_50ohm_width rule to it. Upside: 2oz ~doubles copper ampacity, so the
+#      0.20mm power necks are less catastrophic - but still widen to class.
 #
 # NOT DRC-checkable, but required for DOUBLE-SIDED ASSEMBLY at either house:
 #   - Fiducials: >=3 global fiducials (1mm copper / 2mm mask), both sides if
