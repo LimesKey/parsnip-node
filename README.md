@@ -73,31 +73,67 @@ The goal is a self-contained LoRa node that pairs one of the longest range, best
  
 | Part | Price |
 | --- | --- |
-| JLCPCB PCB w/ Assembly | $1098.04 CAD |
+| JLCPCB PCB w/ Assembly (to-be changed [BOM](production/bom.csv)) | $1098.04 CAD (est) |
 | 21700 Cells [18650batterystore.com](https://www.18650batterystore.com/products/samsung-58e-21700-battery)| $40 CAD  |
 | 3.7" E-Ink [AliExpress](https://www.aliexpress.com/item/1005009712001279.html?mp=1)| 24$ CAD |
  
 ### Board
  
-- 4-layer, 60 x 130 mm
-- JLCPCB `JLC04161H-7628` stackup, 2 oz copper outer, 1 oz copper inner
+- 4-layer with ENIG, 60 x 130 mm
+- JLCPCB `JLC04161H-7628` stackup, 2 oz copper outer, 2 oz copper inner
 - L1-L2 prepreg 0.2104 mm, Dk 4.4
 - RF: 0.36mm trace width for ~50 Ω CPWG on this stackup, ground rails stitched with 0.3 mm / 0.6 mm vias at roughly 1.5 to 2 mm pitch
   
-### SX1262 to ESP32-C6 pin map
- 
+### ESP32-S3 GPIO pin map
+
+Host: ESP32-S3-WROOM-1-N16R8 (U1). GPIO numbers are ESP32-S3 GPIO, not module pins.
+
+#### LoRa - E22P-915M30S (U12)
+
 | Signal | GPIO |
 | --- | --- |
-| NSS | 21 |
-| SCK | 19 |
-| MISO | 20 |
-| MOSI | 18 |
-| DIO1 | 1 |
-| BUSY | 7 |
-| NRST | 16 |
-| EN | 17 |
- 
-The E22P `EN` (module pin 6) is held high for both RX and TX. The T/R switch (pin 7) is driven automatically from the SX1262 DIO2 line, so the firmware sets `setDio2AsRfSwitch(true)`.
+| NSS | 10 |
+| SCK | 12 |
+| MOSI | 11 |
+| MISO | 13 |
+| BUSY | 14 |
+| DIO1 | 4 |
+| NRST | 40 |
+| EN | 41 |
+
+#### GNSS - NEO-M9N (U9)
+
+| Signal | GPIO |
+| --- | --- |
+| TXD | 1 |
+| RXD | 2 |
+| TIMEPULSE | 3 |
+| EXTINT | 48 |
+| SDA | 8 |
+| SCL | 9 |
+
+#### Other peripherals
+
+| Function | GPIO |
+| --- | --- |
+| I2C SDA | 8 |
+| I2C SCL | 9 |
+| I2C IRQ | 7 |
+| E-Ink BUSY | 5 |
+| E-Ink RESET | 6 |
+| E-Ink D/C | 18 |
+| E-Ink CS | 17 |
+| Bus CS | 38 |
+| USB D- / D+ | 19 / 20 |
+| UART0 TX / RX | 43 / 44 |
+| RTC 32 kHz xtal | 15 / 16 |
+| BOOT | 0 |
+| eFuse PG | 39 / 42 |
+| EMI osc gate | 47 |
+| Level shifter | 46 |
+| Load switch | 21 |
+| PSRAM (reserved) | 35 / 36 / 37 |
+| VDD_SPI (reserved) | 45 |
  
 ## Firmware
  

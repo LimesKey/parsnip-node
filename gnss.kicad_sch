@@ -8572,7 +8572,7 @@
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
-		(in_pos_files no)
+		(in_pos_files yes)
 		(dnp no)
 		(uuid "07283a37-3567-4eb8-ac0a-e123d6e918d5")
 		(property "Reference" "SW4"
@@ -15491,7 +15491,7 @@
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
-		(in_pos_files no)
+		(in_pos_files yes)
 		(dnp no)
 		(uuid "91a57815-f154-4a09-8fae-2942f97f1aba")
 		(property "Reference" "SW5"
