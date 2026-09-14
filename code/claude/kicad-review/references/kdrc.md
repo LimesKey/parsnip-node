@@ -50,6 +50,7 @@ DRC has no such blind spot - it is one board file.
 | `--no-suppress` | ignore kdrc.json |
 | `--rules` | print the rule legend |
 | `--json` | machine-readable findings |
+| `--selftest` | run the offline suppression-logic self-test and exit (no board or kicad-cli needed) |
 
 ## kdrc.json (beside the board)
 
@@ -69,6 +70,12 @@ that join across the three roots and so look single-use per root;
 `FOUR_WAY_JUNCTION` = drawing style. `pin_to_pin`, `power_pin_not_driven` and
 `footprint_filter` are left visible on purpose - triage them, then add the
 confirmed-benign ones here.
+
+A `DRC:CLEARANCE` finding at an actual **0.0 mm** (copper touching, a real
+short) is never suppressed no matter what matches it here - it always shows,
+tagged `0.0mm ACTUAL!` at the front of the line so 70-char truncation can't
+hide the number. If a suppress rule would otherwise have caught it, the run
+prints how many were forced visible this way.
 
 ## Notes
 

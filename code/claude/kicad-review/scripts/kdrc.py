@@ -36,6 +36,14 @@ A bare "ERC:RULE" mutes the whole rule; "ERC:RULE:TOKEN" mutes only findings
 whose refs or message contain TOKEN. Rule names are the kicad-cli violation
 `type`, upper-cased, prefixed DRC: or ERC:.
 
+A DRC:CLEARANCE finding at an actual 0.0 mm (copper touching, a real short) is
+NEVER suppressed, no matter what kdrc.json says - a mid-layout suppress rule
+that happens to also catch a real short must not hide it pre-fab. Its message
+is tagged "0.0mm ACTUAL!" up front so it survives the 70-char line truncation.
+
+`kdrc.py --selftest` runs the offline suppression-logic check (no board or
+kicad-cli needed).
+
 Exit: 0 clean, 2 an ERROR-severity finding survived suppression, 3 bad input /
 kicad-cli failure.
 """
@@ -76,6 +84,7 @@ LEGEND = {
 }
 
 REF = re.compile(r'\b([A-Z]{1,3}\d+)\b')                # J15, U1, C133, TH5...
+ZERO_CLEAR_RE = re.compile(r'actual\s+0(?:\.0+)?\s*mm', re.I)
 
 
 def refs_of(items):
@@ -104,9 +113,14 @@ def vio_finding(v, prefix):
     items = v.get('items', [])
     refs = refs_of(items)
     parts = [it.get('description', '') for it in items[:2]]
-    body = trunc(v.get('description', rule), 70)
+    raw_desc = v.get('description', '') or ''
+    zero_clear = bool(ZERO_CLEAR_RE.search(raw_desc))
+    body = trunc(raw_desc or rule, 70)
     tail = '; '.join(trunc(p, 34) for p in parts if p)
-    msg = body
+    # the 70-char truncation above can cut "actual N mm" off a long rule name
+    # before it reaches the reader - a 0.0 mm hit is a real short, so tag it
+    # where truncation can never remove it (everything below is post-trunc).
+    msg = ('0.0mm ACTUAL! ' if zero_clear else '') + body
     if refs:
         msg += ' [' + ' '.join(refs[:4]) + ']'
     if prefix == 'DRC':                       # board coords locate a violation;
@@ -115,7 +129,7 @@ def vio_finding(v, prefix):
             msg += ' ' + loc
     if tail and not refs:
         msg += ' - ' + tail
-    return {'severity': sev, 'rule': rule, 'msg': msg, 'refs': refs}
+    return {'severity': sev, 'rule': rule, 'msg': msg, 'refs': refs, 'zero_clear': zero_clear}
 
 
 def run_cli(args, tag):
@@ -196,6 +210,43 @@ def do_erc(board, a):
     return F, roots
 
 
+def apply_suppress(F, supp):
+    """Split findings by the kdrc.json suppress config, except an actual-0.0mm
+    clearance finding is never suppressed - a real short must never go silent
+    pre-fab regardless of what a suppress rule happens to match. Returns
+    (kept, n_suppressed, forced) where `forced` is the zero-clearance findings
+    that a rule would have hidden but didn't."""
+    would_supp = [f for f in F if suppressed(f, supp)]
+    forced = [f for f in would_supp if f.get('zero_clear')]
+    kept = [f for f in F if f.get('zero_clear') or not suppressed(f, supp)]
+    return kept, len(would_supp) - len(forced), forced
+
+
+def _selftest():
+    """Offline check of the suppression logic - no kicad-cli or board needed."""
+    mk = lambda actual: {'description':
+        f"Clearance violation (rule 'Pad to Track' clearance 0.1000 mm; actual {actual} mm)",
+        'severity': 'error', 'type': 'clearance', 'items': []}
+    fz = vio_finding(mk('0.0000'), 'DRC')
+    fn = vio_finding(mk('0.0750'), 'DRC')
+    checks = [
+        (fz['zero_clear'] is True, "0.0000 mm not flagged zero_clear"),
+        (fn['zero_clear'] is False, "0.0750 mm wrongly flagged zero_clear"),
+        (fz['msg'].startswith('0.0mm ACTUAL!'), "zero-clear tag missing from msg"),
+    ]
+    supp_all = {'DRC:CLEARANCE': {''}}          # a bare-rule suppress: mutes everything
+    kept, n_supp, forced = apply_suppress([fz, fn], supp_all)
+    checks += [
+        (fz in kept and fn not in kept, "zero-clearance finding was suppressed"),
+        (n_supp == 1 and len(forced) == 1, "suppressed/forced counts wrong"),
+    ]
+    fails = [msg for ok, msg in checks if not ok]
+    for msg in fails:
+        print(f"FAIL  {msg}")
+    print(f"kdrc selftest: {len(checks) - len(fails)}/{len(checks)} passed")
+    return 1 if fails else 0
+
+
 def load_cfg(board):
     cp = os.path.join(os.path.dirname(os.path.abspath(board)), 'kdrc.json')
     try:
@@ -205,6 +256,8 @@ def load_cfg(board):
 
 
 def main():
+    if '--selftest' in sys.argv[1:]:            # no board needed, so check before argparse
+        return _selftest()
     import argparse
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -222,6 +275,8 @@ def main():
     ap.add_argument('--no-suppress', action='store_true', help='ignore kdrc.json suppress list')
     ap.add_argument('--rules', action='store_true', help='print the rule legend')
     ap.add_argument('--json', action='store_true')
+    ap.add_argument('--selftest', action='store_true',
+                    help='run the offline suppression-logic self-test and exit (no board needed)')
     a = ap.parse_args()
 
     if not os.path.exists(a.file):
@@ -257,8 +312,7 @@ def main():
         F = [f for f in F if f['rule'] in only]
     if skip:
         F = [f for f in F if f['rule'] not in skip]
-    supp = sum(1 for f in F if suppressed(f, a.suppress))
-    F = [f for f in F if not suppressed(f, a.suppress)]
+    F, supp, forced = apply_suppress(F, a.suppress)
 
     if a.json:
         print(json.dumps(F, indent=1))
@@ -279,6 +333,10 @@ def main():
         print("no findings")
     if supp:
         print(f"\n({supp} finding(s) suppressed via kdrc.json - `--no-suppress` to see them)")
+    if forced:
+        print(f"\n!! {len(forced)} finding(s) matched a kdrc.json suppress rule but are shown "
+              f"anyway: actual 0.0 mm clearance (copper touching / a real short) is never "
+              f"hidden pre-fab.")
     if a.rules or not F:
         print("\nrules: " + ', '.join(f"{k}={v}" for k, v in sorted(LEGEND.items())))
     if a.cmd in ('both', 'erc'):

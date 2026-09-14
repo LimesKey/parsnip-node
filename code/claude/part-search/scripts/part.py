@@ -676,19 +676,8 @@ def c_bom(a):
     want, nocode = {}, []
     if src.endswith('.net'):
         parsed = False
-        try:                       # prefer kcommon.py's real S-expression parser
-            import glob as _g
-            cands = [os.path.dirname(os.path.abspath(__file__)),
-                     os.path.dirname(os.path.abspath(src)), os.getcwd()]
-            cands += [os.path.dirname(x) for x in
-                      _g.glob('/mnt/skills/*/*/scripts/kcommon.py') +
-                      _g.glob('/mnt/skills/*/*/kcommon.py') +
-                      _g.glob('/mnt/project/kcommon.py')]
-            for c in cands:
-                if c and c not in sys.path:
-                    sys.path.insert(0, c)
-            import kcommon
-            nl = kcommon.Netlist(src)
+        nl = load_knet(src)        # prefer kcommon.py's real S-expression parser
+        if nl is not None:
             for ref, c in nl.comps.items():
                 if c['dnp'] or not c['in_bom']:
                     continue
@@ -697,8 +686,8 @@ def c_bom(a):
                 elif c['prefix'] not in ('H', 'TP'):
                     nocode.append(ref)
             parsed = True
-        except Exception as e:
-            print(f"(kcommon.py not importable, falling back to regex: {trunc(e,60)})", file=sys.stderr)
+        else:
+            print("(kcommon.py not importable, falling back to regex)", file=sys.stderr)
         if not parsed:
             for m in re.finditer(r'\(comp\s+\(ref "([^"]+)"\)(.*?)(?=\(comp\s+\(ref|\(libparts)', txt, re.S):
                 ref, blob = m.group(1), m.group(2)
@@ -1475,13 +1464,20 @@ def _fp_base(fp):
 
 def _fam(tok):
     """('SOT-23',5) for SOT-23-5; ('SOT-23',None) for SOT-23; ('SOIC',8) for
-    SOIC-8; ('QFN',32) for QFN-32-...; None if not a recognised leaded family."""
-    m = re.match(r'^(SOT-\d+|SC-\d+|SOIC|SO|TSSOP|HTSSOP|SSOP|VSSOP|MSOP|TSOP'
-                 r'|QFN|VQFN|UQFN|DFN|WSON|TQFP|LQFP|QFP|PSOP|HSOP|SOP)'
+    SOIC-8; ('QFN',32) for QFN-32-.... U/V/T/W/P-QFN all canonicalise to plain
+    QFN: those lead-in letters are body-THICKNESS/finish marketing variants
+    (JEDEC/vendor nomenclature, e.g. ON Semi's QFN/VQFN/TQFN/UQFN/WQFN guide),
+    never a land-pattern difference for the same lead count and body size - so
+    unifying them cannot hide a real footprint bug the way merging unrelated
+    lead-frame families (DFN/SON vs QFN) could. None if not a recognised
+    leaded family."""
+    m = re.match(r'^([UVTWP]?QFN|SOT-\d+|SC-\d+|SOIC|SO|TSSOP|HTSSOP|SSOP|VSSOP'
+                 r'|MSOP|TSOP|DFN|WSON|TQFP|LQFP|QFP|PSOP|HSOP|SOP)'
                  r'[-_]?(\d+)?', tok)
     if not m:
         return None
-    return (m.group(1), int(m.group(2)) if m.group(2) else None)
+    fam = 'QFN' if re.fullmatch(r'[UVTWP]?QFN', m.group(1)) else m.group(1)
+    return (fam, int(m.group(2)) if m.group(2) else None)
 
 def _bcontains(hay, needle):
     """needle sits in hay on a token boundary and is NOT immediately followed by
@@ -1581,6 +1577,12 @@ def _fpcheck_selftest():
         ('SOIC-8', 'Package_SO:SOIC-8_3.9x4.9mm_P1.27mm', 'ok'),
         ('TSSOP-16', 'Package_SO:TSSOP-16_4.4x5mm_P0.65mm', 'ok'),
         ('QFN-32', 'Package_DFN_QFN:QFN-32-1EP_5x5mm_P0.5mm', 'ok'),
+        # QFN thickness/finish prefixes (V/T/U/W/P) are marketing variants of
+        # the same land pattern, not a footprint difference - SKILL-BACKLOG.md
+        ('WQFN-24', 'Package_DFN_QFN:VQFN-24_4x4mm_P0.5mm', 'ok'),
+        ('TQFN-16', 'Package_DFN_QFN:QFN-16-1EP_3x3mm_P0.5mm', 'ok'),
+        ('UQFN-20', 'Package_DFN_QFN:WQFN-20-1EP_4x4mm_P0.5mm', 'ok'),
+        ('WQFN-24', 'Package_DFN_QFN:QFN-32-1EP_5x5mm_P0.5mm', 'mismatch'),  # lead count still enforced
         ('SC-70', 'Package_TO_SOT_SMD:SOT-323_SC-70', 'ok'),
         ('', 'Diode_SMD:D_SOD-123', 'review'),
         ('WEIRD-99', 'Foo:Bar_XYZ', 'review'),

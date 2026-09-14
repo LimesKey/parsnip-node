@@ -17,6 +17,8 @@ everything here is checkable the moment a footprint is dropped.
 | `sync [board.net]` | **run this first.** Board vs netlist: same parts, footprints, values, DNP flags and net on every pad. Finds a `.net` beside the board automatically. |
 | `review [board.net]` | one call for a fresh session: sync, summary, check, longest nets, then the specific next calls worth making. |
 | `ampacity [NET...]` | current a routed net can carry (IPC-2221): narrowest segment per layer, via bound, length -> R/Vdrop. With `--amps X` or a kpcb.json budget it warns TRACE-THIN / VIA-FEW / LONG-DROP. See below. |
+| `zones` | pour coverage per layer from the last saved fill: area%, island count, edge margins. |
+| `zones REF...` | does a net's fill actually cover THIS footprint's courtyard - point-sampled, not just the fill's bounding box. Closes "is GND continuous under U9" without a KiCad render. See below. |
 
 ## Flags
 
@@ -27,8 +29,9 @@ everything here is checkable the moment a footprint is dropped.
 `--tol 1` `--span 0` (all mm; `--span 0` means half the board diagonal), plus
 `--fanout 8`. For `ic`: `--anchor REF`, `--cin REF,REF`, `--cout REF,REF`,
 `--ncin 3`, `--ncout 3`, `--assoc 6`. For `ampacity`: `--amps X` (required
-current on the named net), `--dt 10` (allowed temp rise, C), `--plating 20`
-(via barrel copper, um), `--vdrop 0.25` (V-drop flag threshold).
+current on the named net), `--net=NAME` (repeatable, for a net name that starts
+with `-`), `--dt 10` (allowed temp rise, C), `--plating 20` (via barrel copper,
+um), `--vdrop 0.25` (V-drop flag threshold).
 
 ## Project config
 
@@ -85,8 +88,10 @@ re-reads on every save. Three ways to call it:
   a budget file.
 
 A net name that starts with `-` (e.g. `-BATT`) looks like an option to argparse;
-pass it as `ampacity --amps 2.7 -- -BATT +PACK` (flags first, then `--`, then the
-nets), or put it in the kpcb.json `current{}` budget where the dash is harmless.
+pass it as `ampacity --amps 2.7 --net=-BATT` (repeatable, `=` required - a space
+before the dash still confuses argparse), as `ampacity --amps 2.7 -- -BATT +PACK`
+(flags first, then `--`, then the nets), or put it in the kpcb.json `current{}`
+budget where the dash is harmless.
 
 To make a finding fixable it prints, per net: a **`find it:`** line listing the
 components on the net (ICs/connectors first) - click any in KiCad to highlight the
@@ -116,18 +121,52 @@ mandatory-bridge ampacity and the `narrowest single seg` value.
 Warnings (each fires only with a known current; exit 2 on TRACE-THIN or VIA-FEW):
 
 - **TRACE-THIN** - narrowest-bridge ampacity below the required current. It names
-  the bridge segment and the nearest pin. Widen it, or move it to an outer layer.
+  the bridge segment and the nearest pin. Widen it, or move it to an outer layer -
+  when the bottleneck is an inner layer and the needed width exceeds 2 mm
+  (impractical), the message also gives the width an outer layer would need instead.
 - **VIA-FEW** - the net's vias can't carry the current even in parallel.
 - **LONG-DROP** - series-bound voltage drop over `--vdrop` (0.25 V). Advisory.
 - **PARALLEL-CHECK** (advisory) - a thinner segment exists but is paralleled, so
   it is not mandatory; fine only if its parallel group's widths sum to the current.
 - **MESH-CHECK** (advisory) - the net is a full mesh with no single mandatory
   segment; confirm the parallel copper sums to the current.
+- **PAD-NECK** (advisory) - the picked bottleneck is a short (< 2x its width), wide
+  stub landing right on a pad. IPC-2221's long-trace formula overstates the risk
+  here because the pad copper sinks heat locally; not a real limiter unless the
+  copper stays that narrow past the pad.
+- **MIXED-NET** (advisory) - a bridge is excluded from bottleneck-picking when its
+  only far-side pads are sense taps (a thermistor `TH*`, a test point `TP*`, or a
+  resistor >= 1k ohm - never a real power path). If *every* bridge on the net turns
+  out to be a tap this way, there is no real series bottleneck left to name, and
+  MIXED-NET fires instead of TRACE-THIN: the budgeted current almost certainly runs
+  through copper this net mixes with a sense path, so verify visually rather than
+  trusting the (near-zero) tap current as the net's real bottleneck.
 
 What it still can't see: two traces that only **cross mid-span** with no shared
 end/via/pad are separate copper here (KiCad would merge them); a parallel group
 that individually passes but **sums short** is left to you (PARALLEL-CHECK). And
 IPC-2221 internal ampacity is conservative for a planed board (see the footer).
+
+## `zones REF...` - does the plane actually reach under this part
+
+`zones` alone reports per-layer coverage for the WHOLE board (area%, islands,
+edge margins) - useful for "is the pour fragmented", useless for "is GND solid
+under this one RF part", since a dominant island and all-edges-reached can both
+be true while the fill still has a hole right where it matters. `zones REF...`
+answers that directly: an 11x11 grid of sample points inside the footprint's
+courtyard, each tested against every net's fill that could plausibly reach
+there (a bbox prefilter, then discarded if the net scores zero real hits - a
+net's overall pour can be substantial elsewhere and still never actually touch
+this courtyard, which the prefilter alone can't tell apart from touching).
+
+Coverage is reported per (layer, net): **continuous** (100%), **has gaps**
+(>=50% - normal, since every non-plane pad or via under the part carries its
+own clearance moat, so this is not itself a finding), or **MOSTLY MISSING**
+(<50%, or no net reaches the courtyard on that layer at all) - the last is the
+one worth exit code 2 and a look, listing a few uncovered sample coordinates so
+you know where to click. Only trust a MOSTLY MISSING verdict, or a large
+contiguous run of misses inside a "has gaps" layer, as a real broken reference;
+a handful of scattered misses next to signal pads is expected and not a defect.
 
 ## check rules
 

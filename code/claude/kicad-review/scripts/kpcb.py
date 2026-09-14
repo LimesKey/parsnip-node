@@ -132,6 +132,30 @@ def poly_area(pts):
             for i in range(n))
     return abs(s) / 2.0
 
+def point_in_poly(pt, pts):
+    """Ray-casting point-in-polygon test; pts is a ring of (x, y). Used to
+    point-sample whether a zone fill actually covers a rectangle, since a
+    fill's bbox can be misleadingly solid-looking (see `zones REF`)."""
+    x, y = pt
+    inside = False
+    n = len(pts)
+    for i in range(n):
+        x1, y1 = pts[i]
+        x2, y2 = pts[(i + 1) % n]
+        if (y1 > y) != (y2 > y):
+            xint = x1 + (y - y1) * (x2 - x1) / (y2 - y1)
+            if x < xint:
+                inside = not inside
+    return inside
+
+def _sample_grid(rect, n=11):
+    """n x n sample points spread evenly inside a rectangle (never on its
+    edge, so a fill boundary doesn't produce a coin-flip result)."""
+    x0, y0, x1, y1 = rect
+    xs = [x0 + (x1 - x0) * (i + 0.5) / n for i in range(n)]
+    ys = [y0 + (y1 - y0) * (j + 0.5) / n for j in range(n)]
+    return [(x, y) for y in ys for x in xs]
+
 def ctr(b):
     return ((b[0] + b[2]) / 2, (b[1] + b[3]) / 2)
 
@@ -1935,6 +1959,71 @@ def c_review(b, a):
     print("\n### next\n" + '\n'.join('  ' + x for x in nxt))
     return rc
 
+def _zones_under(b, a):
+    """`zones REF...`: point-sample whether a filled net actually covers a
+    footprint's courtyard, instead of just eyeballing the whole-board table.
+    Closes the RF-reference-plane question ("is GND continuous under U9")
+    that the bbox-margin view can only infer from dominant-island + all-edges-
+    reached. 11x11 samples per footprint; each sample tests every fill whose
+    own bbox overlaps the courtyard, so a plane broken into several polygons
+    still counts as covered wherever any piece of it reaches."""
+    fail = 0
+    for ref in a.args:
+        f = b.fps.get(ref)
+        if not f:
+            print(f"{ref}: no such footprint"); fail = 1; continue
+        rect = f.crtyd
+        pts = _sample_grid(rect, 11)
+        print(f"{ref}: courtyard {rect[2]-rect[0]:.1f} x {rect[3]-rect[1]:.1f} mm "
+              f"@ {ctr(rect)[0]:.1f},{ctr(rect)[1]:.1f}")
+        for ly in b.copper:
+            # bbox overlap is only a coarse prefilter: a net's OWN pour can be
+            # substantial yet still never actually reach this courtyard (its
+            # island bbox just happens to graze it), so score every candidate
+            # net and only report ones that land at least one real sample -
+            # otherwise "the plane exists somewhere nearby" reads as "broken".
+            fills_here = [fl for fl in b.fills if fl['layer'] == ly and hit(fl['bbox'], rect)]
+            cand = sorted({fl['net'] for fl in fills_here})
+            scored = []
+            for net in cand:
+                fs = [fl for fl in fills_here if fl['net'] == net]
+                hit_n, holes = 0, []
+                for p in pts:
+                    if any(point_in_poly(p, fl['pts']) for fl in fs):
+                        hit_n += 1
+                    else:
+                        holes.append(p)
+                if hit_n:
+                    scored.append((net, hit_n, holes))
+            if not scored:
+                print(f"    {ly:<8} no fill actually reaches this footprint's courtyard")
+                fail = 1
+                continue
+            for net, hit_n, holes in scored:
+                pct = 100 * hit_n / len(pts)
+                # a handful of misses is normal: every non-plane pad/via under
+                # the part carries its own clearance moat. Only a MAJORITY
+                # miss (a genuinely broken or absent reference) fails the exit
+                # code; a few holes just get listed for a look, not a verdict.
+                if hit_n == len(pts):
+                    tag = 'continuous'
+                elif pct >= 50:
+                    tag = 'has gaps (normal near non-plane pads/vias unless clustered)'
+                else:
+                    tag = 'MOSTLY MISSING'
+                    fail = 1
+                print(f"    {ly:<8} {net:<10} {pct:5.0f}% of samples covered  ({tag})")
+                if holes:
+                    shown = ' '.join(f'{x:.1f},{y:.1f}' for x, y in holes[:4])
+                    more = f' ...+{len(holes)-4}' if len(holes) > 4 else ''
+                    print(f"        uncovered near: {shown}{more}")
+    print("\nSamples are an 11x11 grid inside the courtyard, not the whole fill - a scattered few\n"
+          "misses are the normal clearance moat around any non-plane pad or via under the part,\n"
+          "not a defect; only a large contiguous run of misses or <50% total is flagged. 100% is\n"
+          "on this footprint only, not a guarantee elsewhere on the plane. Fills are the LAST\n"
+          "SAVED state (see `zones` with no args).")
+    return 2 if fail else 0
+
 def c_zones(b, a):
     """Zone-fill coverage per copper layer, from the fills cached in the board.
 
@@ -1942,7 +2031,12 @@ def c_zones(b, a):
     share, and the fill's bounding-box margins to each board edge - enough to
     catch a pour that is fragmented, missing a layer, or nowhere near an edge.
     It is geometry on the LAST SAVED fill, not a live refill: a zone shows 0
-    if it was never filled or a part moved after the last Fill All Zones."""
+    if it was never filled or a part moved after the last Fill All Zones.
+
+    `zones REF...` instead point-samples whether a net's fill actually covers
+    that footprint's courtyard - see `_zones_under`."""
+    if a.args:
+        return _zones_under(b, a)
     o = b.outline
     board_area = max((poly_area(r) for r in b.rings), default=0.0) or \
         ((o[2] - o[0]) * (o[3] - o[1]) if o else 0.0)
@@ -2014,13 +2108,17 @@ def _net_pads(b, net):
     return [(f.ref, p['num'], p['x'], p['y'])
             for f in b.fps.values() for p in f.pads if p['net'] == net]
 
+def _nearest_pad_dist(pads, pt):
+    """(ref, pin, distance mm) for the pad closest to a point, or None."""
+    if not pt or not pads:
+        return None
+    return min(((r, n, math.hypot(x - pt[0], y - pt[1])) for r, n, x, y in pads),
+               key=lambda t: t[2])
+
 def _nearest_pad(pads, pt):
     """The pad closest to a point, as 'REF.PIN (D.D mm)', or '' if none."""
-    if not pt or not pads:
-        return ''
-    r, n, d = min(((r, n, math.hypot(x - pt[0], y - pt[1])) for r, n, x, y in pads),
-                  key=lambda t: t[2])
-    return f"{r}.{n} ({d:.1f} mm away)"
+    t = _nearest_pad_dist(pads, pt)
+    return f"{t[0]}.{t[1]} ({t[2]:.1f} mm away)" if t else ''
 
 def _net_graph(b, net, tol=0.05):
     """Connectivity graph of one net's routed copper, so width is read in context
@@ -2071,6 +2169,7 @@ def _net_graph(b, net, tol=0.05):
             ks = near(*q((v['x'], v['y'])))
             for k in ks[1:]:
                 union(ks[0], k)
+    pad_key = {}                                       # ref -> a grid key at one of its pads
     for f in b.fps.values():                          # a pad bridges tracks on it
         for p in f.pads:
             if p['net'] != net:
@@ -2079,6 +2178,8 @@ def _net_graph(b, net, tol=0.05):
             ks = near(*q((p['x'], p['y'])), r=max(1, int(p['w'] / 2 / tol)))
             if not th:
                 ks = [k for k in ks if k[0] in p['layers']]
+            if ks:
+                pad_key[f.ref] = ks[0]
             for k in ks[1:]:
                 union(ks[0], k)
 
@@ -2136,7 +2237,9 @@ def _net_graph(b, net, tol=0.05):
                     if low[u] > disc[pu]:
                         bridges.add(pe)
     main_bridges = {i for i in bridges if cid[enode[i][0]] == main}
-    return {'segs': segs, 'nodes': n, 'comp': comp, 'bridges': main_bridges}
+    pad_node = {ref: nid(find(k)) for ref, k in pad_key.items()}
+    return {'segs': segs, 'nodes': n, 'comp': comp, 'bridges': main_bridges,
+            'adj': adj, 'enode': enode, 'cid': cid, 'pad_node': pad_node}
 
 def _net_geo(b, net):
     """One net's routed copper in a single pass: {layer: [minw, len]}, total
@@ -2156,6 +2259,46 @@ def _net_geo(b, net):
 
 def _seg_amp(b, t, dt):
     return ipc_current(t['w'], thick_of(b, t['layer']), t['layer'] in b.outer, dt)
+
+def _is_tap_ref(b, ref):
+    """A part that can only be a current SENSE tap, never a series power path:
+    a thermistor/test point outright, or a resistor whose value is too high to
+    be a power-path element (a shunt/current-sense R is <<1 ohm; a divider/pull
+    tap is typically >=1k)."""
+    p = prefix(ref)
+    if p in ('TH', 'TP'):
+        return True
+    if p == 'R':
+        fp = b.fps.get(ref)
+        val = parse_value(fp.value, 'R') if fp else None
+        return val is not None and val >= 1000.0
+    return False
+
+def _bridge_is_tap(b, g, i):
+    """True if bridge edge `i` isolates a pendant sub-branch, on EITHER side,
+    whose sole pads belong to sense-tap parts (see `_is_tap_ref`). Such a
+    bridge is a false series bottleneck: the net's full budgeted current has
+    no reason to detour down a thermistor or pull-up leg, so it should not be
+    picked as the mandatory bridge for a TRACE-THIN verdict. Checking both
+    sides (not just the smaller one) sidesteps a tie when a 2-node net splits
+    1-vs-1."""
+    u, w = g['enode'][i]
+    seen = {u}
+    stack = [u]
+    while stack:
+        x = stack.pop()
+        for y, ei in g['adj'][x]:
+            if ei == i or y in seen:
+                continue
+            seen.add(y)
+            stack.append(y)
+    comp_nodes = {n for n, c in g['cid'].items() if c == g['cid'][u]}
+    other = comp_nodes - seen
+    for side in (seen, other):
+        refs = {ref for ref, nd in g['pad_node'].items() if nd in side}
+        if refs and all(_is_tap_ref(b, ref) for ref in refs):
+            return True
+    return False
 
 def _bott_fields(b, t, dt):
     """Bottleneck fields from a single track dict (the constraining segment)."""
@@ -2177,13 +2320,21 @@ def _amp_row(b, net, need, a, graph=False):
     # narrowest MANDATORY segment: a bridge in the connectivity graph, i.e. one all
     # the current must cross. A segment in a parallel loop is skipped, so split-and-
     # reconverge no longer reads as one thin strand. Falls back to naive if no graph.
-    meshed, comp, bott = False, None, naive
+    meshed, comp, bott, bott_is_tap = False, None, naive, False
     if graph and segs:
         g = _net_graph(b, net)
         comp = g['comp'] if g else None
-        brs = [g['segs'][i] for i in g['bridges']] if g else []
-        if brs:
-            bott = min(brs, key=lambda t: _seg_amp(b, t, a.dt))
+        bridge_idx = list(g['bridges']) if g else []
+        # a bridge that only isolates a thermistor/test-point/pull-R leg is a
+        # sense tap, not a series power path - the net's budgeted current has
+        # no reason to run down it, so it's excluded before picking the
+        # narrowest MANDATORY bottleneck (see _bridge_is_tap).
+        real_idx = [i for i in bridge_idx if not _bridge_is_tap(b, g, i)]
+        if real_idx:
+            bott = min((g['segs'][i] for i in real_idx), key=lambda t: _seg_amp(b, t, a.dt))
+        elif bridge_idx:
+            bott = min((g['segs'][i] for i in bridge_idx), key=lambda t: _seg_amp(b, t, a.dt))
+            bott_is_tap = True                  # every bridge left is a sense tap
         elif g:
             meshed = True                        # a full mesh: no single mandatory seg
     per_via = [via_current(d, a.plating / 1000.0, a.dt) for d in vd]
@@ -2196,14 +2347,24 @@ def _amp_row(b, net, need, a, graph=False):
                                                    'mid': (0.0, 0.0), 'seg': 0.0, 'ext': False}
     nf = _bott_fields(b, naive, a.dt) if naive else bf
     pads = _net_pads(b, net)
+    near = _nearest_pad_dist(pads, bf['mid'])
+    # a short, wide stub landing right on a pad is a pad neck: IPC-2221's
+    # long-trace steady-state formula overstates its thermal risk because the
+    # pad copper (and, for a fine-pitch part, the part's own die/thermal pad)
+    # sinks heat that a real long trace of this width could not.
+    pad_neck = bool(bott) and bool(near) and 0 < bf['seg'] < 2 * bf['w'] and near[2] <= 1.0
     return {'net': net, 'need': need, 'layers': rows, 'total': total,
             'bott_i': bf['i'], 'bott_ly': bf['ly'], 'bott_mid': bf['mid'], 'bott_seg': bf['seg'],
+            'bott_w': bf['w'], 'bott_is_tap': bott_is_tap, 'pad_neck': pad_neck,
             'naive_i': nf['i'], 'naive_ly': nf['ly'], 'naive_w': nf['w'], 'naive_mid': nf['mid'],
             'meshed': meshed, 'comp': comp, 'graphed': graph and bool(segs),
             'ends': sorted({r for r, _n, _x, _y in pads},
                            key=lambda r: (prefix(r) in ('C', 'R', 'TP', 'TH', 'FB'), natkey(r))),
             'bott_near': _nearest_pad(pads, bf['mid']),
             'need_w': ipc_width(need or 0, thick_of(b, bf['ly']), bf['ext'], a.dt) if bf['ly'] != '-' else 0.0,
+            'bott_ext': bf['ext'],
+            'need_w_outer': ipc_width(need or 0, thick_of(b, b.copper[0]), True, a.dt)
+                            if b.copper and not bf['ext'] else 0.0,
             'vias': len(vd), 'via_bound': sum(per_via),
             'via_min': min(per_via) if per_via else 0.0, 'r': r, 'poured': poured}
 
@@ -2223,11 +2384,30 @@ def _amp_verdicts(row, a):
         return out
     if row['bott_i'] < need:
         mx, my = row['bott_mid']
-        out.append(('TRACE-THIN', f"bottleneck {row['bott_i']:.2f} A < {need:.2f} A on "
-                                  f"{row['bott_ly']}; widen to >= {row['need_w']:.2f} mm. "
-                                  f"Narrowest bridge {row['bott_seg']:.1f} mm seg near "
-                                  f"{row['bott_near'] or f'{mx:.1f},{my:.1f}'} "
-                                  f"(cursor to {mx:.1f},{my:.1f})"))
+        near = row['bott_near'] or f'{mx:.1f},{my:.1f}'
+        if row['pad_neck']:
+            out.append(('PAD-NECK', f"narrowest copper ({row['bott_seg']:.2f} mm long, "
+                                    f"{row['bott_w']:.2f} mm wide) is a stub landing right on "
+                                    f"{near} - IPC-2221's long-trace formula ({row['bott_i']:.2f} A) "
+                                    f"overstates the risk here since the pad sinks heat locally. "
+                                    f"Not a real TRACE-THIN unless the copper stays this narrow "
+                                    f"past the pad."))
+        elif row['bott_is_tap']:
+            out.append(('MIXED-NET', f"every series bottleneck left after excluding thermistor/"
+                                     f"test-point/pull-R taps is itself one, narrowest "
+                                     f"{row['bott_i']:.2f} A near {near} - this net mixes a power "
+                                     f"path with sense taps; the {need:.2f} A budget likely runs "
+                                     f"through different copper than this tap. Verify visually."))
+        else:
+            msg = (f"bottleneck {row['bott_i']:.2f} A < {need:.2f} A on "
+                   f"{row['bott_ly']}; widen to >= {row['need_w']:.2f} mm. "
+                   f"Narrowest bridge {row['bott_seg']:.1f} mm seg near {near} "
+                   f"(cursor to {mx:.1f},{my:.1f})")
+            if not row['bott_ext'] and row['need_w'] > 2.0:
+                msg += (f". {row['need_w']:.2f} mm on an inner layer is impractical - "
+                        f"move this bridge to F.Cu/B.Cu instead (needs only "
+                        f">= {row['need_w_outer']:.2f} mm there)")
+            out.append(('TRACE-THIN', msg))
     # a thinner segment exists but is paralleled (not on the mandatory path)
     if row['naive_i'] < need and row['naive_i'] < row['bott_i'] - 1e-6:
         nx, ny = row['naive_mid']
@@ -2290,6 +2470,7 @@ def _amp_json(row):
             'bottleneck_at': [round(v, 2) for v in row['bott_mid']],
             'bottleneck_near': row['bott_near'], 'on_refs': row['ends'],
             'bottleneck_is_bridge': row['graphed'] and not row['meshed'],
+            'bottleneck_is_pad_neck': row['pad_neck'], 'bottleneck_is_tap': row['bott_is_tap'],
             'narrowest_single_A': round(row['naive_i'], 3), 'meshed': row['meshed'],
             'components': row['comp'],
             'layers': [{'layer': l, 'minw_mm': w, 'len_mm': round(ln, 2), 'amp_A': round(i, 3),
@@ -2329,7 +2510,7 @@ def c_ampacity(b, a):
     jbud = {}
     for k, vv in (getattr(a, 'current', None) or {}).items():
         jbud[k] = _f(vv)
-    named, fail = list(a.args), 0
+    named, fail = list(a.args) + list(a.net or []), 0
 
     if named:
         rows = []
@@ -2426,6 +2607,10 @@ def main():
                     help='for `ampacity`: via barrel plating thickness, um (20)')
     ap.add_argument('--vdrop', type=float, default=0.25,
                     help='for `ampacity`: flag if series-bound Vdrop exceeds this, V (0.25)')
+    ap.add_argument('--net', action='append', default=[],
+                    help='for `ampacity`: net name, repeatable. For a name starting with '
+                         '"-", use =, e.g. --net=-BATT (a space before the dash still '
+                         'confuses argparse, as does the positional arg)')
     ap.add_argument('--only', default='')
     ap.add_argument('--skip', default='')
     ap.add_argument('--json', action='store_true')
