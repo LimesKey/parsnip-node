@@ -144,4 +144,6 @@ Yesterday and today I spent most of my time fixing routing issues, ensuring manu
 
 The `NEO-F10N` is about two years newer, and supports both L1 and L5 GNSS bands, an upgrade to the NEO-M9N which only supports L1. The additional L5 makes location aquisition in urban areas more reliable and accurate. The good news with the `NEO-F10N` is that it only costs a couple dollars more than the previous `NEO-M9N`, however it's harder to find, not on LCSC or AliExpres. A little while ago, I messaged a person on Reddit about their similr LORA/GNSS board, and they told me how much nicer the NEO-F10N was, it's kind of convinced me to switch.
 
+![B39162B8389P810 GNSS SAW](/docs/img/new-saw-filter-gnss.png)
+
 As for the routing, I realized a lot of my VIAs and Traces were too small. I was using some `0.25/0.15mm` VIAs because that is what the minimum JLCPCB/PCBWay supports, but as it turns out, that minimum is only when you pay extra! It's about 70$ CAD more to use this smaller VIAs, which doesn't make much sense for me. I am changing back to using `0.5/0.2mm`, but it's tricky. As for the traces, I thought I could do `0.1mm`, but actually `0.127mm` is the limit if you're routing on the top and bottom layers. `0.1mm` is okay but only for the inner layers unfortunately.

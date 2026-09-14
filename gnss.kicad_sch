@@ -5879,7 +5879,7 @@
 		)
 		(uuid "219c769e-bfca-4dca-bb75-2c16b55ac9ec")
 	)
-	(text "High to enable I2C/UART, low to enable SPI"
+	(text "High to enable I2C/UART, low to enable SPI\nOnly for NEO-M(#)N"
 		(exclude_from_sim no)
 		(at 47.752 28.448 0)
 		(effects
