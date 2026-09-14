@@ -1,0 +1,5 @@
+Default	False	2.0	3
+PWR_HIGH	False	2.0	3
+PWR_RAIL	False	2.0	3
+RF_50OHM	True	2.0	3
+False	True	False

@@ -63,7 +63,7 @@
           "min_clearance": 0.5,
           "min_island_area": 10.0,
           "min_thickness": 0.25,
-          "pad_connection": 2,
+          "pad_connection": 1,
           "remove_islands": 0,
           "thermal_relief_gap": 0.5,
           "thermal_relief_spoke_width": 0.5
@@ -641,6 +641,22 @@
       {
         "netclass": "PWR_HIGH",
         "pattern": "Net-(BT1-+)"
+      },
+      {
+        "netclass": "RF_50OHM",
+        "pattern": "Net-(D18-A2)"
+      },
+      {
+        "netclass": "RF_50OHM",
+        "pattern": "Net-(JP14-A)"
+      },
+      {
+        "netclass": "RF_50OHM",
+        "pattern": "Net-(JP14-B)"
+      },
+      {
+        "netclass": "RF_50OHM",
+        "pattern": "Net-(D10-A2)"
       }
     ]
   },
@@ -683,12 +699,6 @@
           "show": true
         },
         {
-          "group_by": false,
-          "label": "Qty",
-          "name": "${QUANTITY}",
-          "show": true
-        },
-        {
           "group_by": true,
           "label": "Value",
           "name": "Value",
@@ -696,21 +706,9 @@
         },
         {
           "group_by": false,
-          "label": "DNP",
-          "name": "${DNP}",
-          "show": false
-        },
-        {
-          "group_by": true,
-          "label": "Exclude from BOM",
-          "name": "${EXCLUDE_FROM_BOM}",
-          "show": false
-        },
-        {
-          "group_by": true,
-          "label": "Exclude from Board",
-          "name": "${EXCLUDE_FROM_BOARD}",
-          "show": false
+          "label": "Datasheet",
+          "name": "Datasheet",
+          "show": true
         },
         {
           "group_by": true,
@@ -720,12 +718,30 @@
         },
         {
           "group_by": false,
-          "label": "Datasheet",
-          "name": "Datasheet",
-          "show": false
+          "label": "Qty",
+          "name": "${QUANTITY}",
+          "show": true
         },
         {
           "group_by": true,
+          "label": "DNP",
+          "name": "${DNP}",
+          "show": true
+        },
+        {
+          "group_by": false,
+          "label": "Exclude from Board",
+          "name": "${EXCLUDE_FROM_BOARD}",
+          "show": false
+        },
+        {
+          "group_by": false,
+          "label": "Exclude from BOM",
+          "name": "${EXCLUDE_FROM_BOM}",
+          "show": false
+        },
+        {
+          "group_by": false,
           "label": "LCSC Part",
           "name": "LCSC Part",
           "show": true
@@ -761,16 +777,16 @@
           "show": false
         },
         {
-          "group_by": true,
+          "group_by": false,
           "label": "Tolerance",
           "name": "Tolerance",
-          "show": true
+          "show": false
         },
         {
-          "group_by": true,
+          "group_by": false,
           "label": "Voltage Rating",
           "name": "Voltage Rating",
-          "show": true
+          "show": false
         },
         {
           "group_by": false,
@@ -803,21 +819,21 @@
           "show": false
         },
         {
-          "group_by": true,
+          "group_by": false,
           "label": "Capacitor Rating",
           "name": "Capacitor Rating",
-          "show": true
+          "show": false
         },
         {
           "group_by": false,
           "label": "Power Rating",
           "name": "Power Rating",
-          "show": true
+          "show": false
         }
       ],
       "filter_string": "",
       "group_symbols": true,
-      "include_excluded_from_bom": true,
+      "include_excluded_from_bom": false,
       "name": "",
       "sort_asc": true,
       "sort_field": "Value"
@@ -873,7 +889,7 @@
         "uuid": "c8087976-4958-4446-b419-5a0b61d5634f"
       }
     ],
-    "used_designators": "JP1-18,J1-15,D1-23,U1-20,C1-199,NT1-6,RN1-2,Q1-16,SW1-6,L1-7,FB1-3,Y1-2,#PWR1-185,FL1-2,TP1-20,R1-137,TH1-6,#FLG1-7,H1-4,BT1-5,F1-9",
+    "used_designators": "#FLG1-7,TH1-6,H1-4,BT1-5,Q1-16,F1-9,NT1-6,RN1-2,C1-199,D1-23,U1-20,J1-15,JP1-18,TP1-20,R1-137,FL1-2,#PWR1-185,Y1-2,FB1-3,L1-7,SW1-6",
     "variants": []
   },
   "sheets": [
