@@ -6,7 +6,8 @@
 	(paper "A4")
 	(title_block
 		(title "GNSS Module / Active RF Antenna")
-		(date "2026-05-14")
+		(date "2026-09-14")
+		(rev "1.1")
 		(company "LimesKey")
 	)
 	(lib_symbols
