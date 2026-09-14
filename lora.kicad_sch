@@ -5023,7 +5023,7 @@
 				)
 			)
 		)
-		(property "LCSC Part" "C2902636"
+		(property "LCSC Part" "C54951138"
 			(at 49.53 166.37 0)
 			(hide yes)
 			(show_name no)
@@ -5359,7 +5359,7 @@
 				)
 			)
 		)
-		(property "LCSC Part" "C2902636"
+		(property "LCSC Part" "C54951138"
 			(at 134.62 82.55 0)
 			(hide yes)
 			(show_name no)
@@ -6779,7 +6779,7 @@
 				)
 			)
 		)
-		(property "LCSC Part" "C51912672"
+		(property "JLCPCB Part" "C51912672"
 			(at 170.18 124.46 0)
 			(hide yes)
 			(show_name no)
@@ -6802,17 +6802,6 @@
 			)
 		)
 		(property "Tolerance" ""
-			(at 170.18 93.98 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "LCSC" ""
 			(at 170.18 93.98 0)
 			(hide yes)
 			(show_name no)
@@ -6846,6 +6835,17 @@
 			)
 		)
 		(property "Capacitor Rating" ""
+			(at 170.18 93.98 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC Part" ""
 			(at 170.18 93.98 0)
 			(hide yes)
 			(show_name no)
@@ -7298,7 +7298,7 @@
 				)
 			)
 		)
-		(property "LCSC Part" "C2902636"
+		(property "LCSC Part" "C54951138"
 			(at 198.12 99.06 0)
 			(hide yes)
 			(show_name no)
@@ -8721,7 +8721,7 @@
 				)
 			)
 		)
-		(property "LCSC Part" "C2902636"
+		(property "LCSC Part" "C54951138"
 			(at 63.5 82.55 0)
 			(hide yes)
 			(show_name no)

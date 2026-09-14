@@ -10913,7 +10913,7 @@
 		(dnp no)
 		(uuid "37278ed1-30ac-44f6-9d31-366b70ad0681")
 		(property "Reference" "J12"
-			(at 42.926 138.176 90)
+			(at 42.164 135.89 90)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -10968,7 +10968,7 @@
 				)
 			)
 		)
-		(property "LCSC Part" ""
+		(property "LCSC Part" "C88374"
 			(at 46.99 138.43 0)
 			(hide yes)
 			(show_name no)
@@ -11025,6 +11025,17 @@
 		)
 		(property "KLC_S5.1" ""
 			(at 46.99 138.43 90)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Capacitor Rating" ""
+			(at 46.99 138.43 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -11336,7 +11347,7 @@
 				)
 			)
 		)
-		(property "LCSC Part" "C2902636"
+		(property "LCSC Part" "C54951138"
 			(at 34.29 40.64 0)
 			(hide yes)
 			(show_name no)
@@ -12218,7 +12229,7 @@
 				)
 			)
 		)
-		(property "LCSC Part" "C2902636"
+		(property "LCSC Part" "C54951138"
 			(at 90.17 85.09 0)
 			(hide yes)
 			(show_name no)
@@ -15426,7 +15437,7 @@
 				)
 			)
 		)
-		(property "LCSC Part" ""
+		(property "LCSC Part" "C49655648"
 			(at 246.38 53.34 0)
 			(hide yes)
 			(show_name no)
@@ -16772,7 +16783,7 @@
 				)
 			)
 		)
-		(property "LCSC Part" ""
+		(property "LCSC Part" "C5250058"
 			(at 35.56 134.62 0)
 			(hide yes)
 			(show_name no)
@@ -16829,6 +16840,17 @@
 		)
 		(property "KLC_S5.1" ""
 			(at 35.56 134.62 90)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Capacitor Rating" ""
+			(at 35.56 134.62 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -18298,7 +18320,7 @@
 				)
 			)
 		)
-		(property "LCSC Part" ""
+		(property "LCSC Part" "C48533754"
 			(at 44.45 59.69 0)
 			(hide yes)
 			(show_name no)

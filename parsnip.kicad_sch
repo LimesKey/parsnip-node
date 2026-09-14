@@ -8225,7 +8225,7 @@
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
-		(in_bom yes)
+		(in_bom no)
 		(on_board yes)
 		(in_pos_files yes)
 		(dnp no)
@@ -8342,6 +8342,17 @@
 			)
 		)
 		(property "KLC_S5.1" ""
+			(at 113.03 177.8 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Capacitor Rating" ""
 			(at 113.03 177.8 0)
 			(hide yes)
 			(show_name no)
@@ -8562,7 +8573,7 @@
 				)
 			)
 		)
-		(property "LCSC Part" "C2902636"
+		(property "LCSC Part" "C54951138"
 			(at 59.69 36.83 0)
 			(hide yes)
 			(show_name no)
@@ -9222,7 +9233,7 @@
 				)
 			)
 		)
-		(property "LCSC Part" "C2902636"
+		(property "LCSC Part" "C54951138"
 			(at 259.08 153.67 0)
 			(hide yes)
 			(show_name no)
@@ -10079,7 +10090,7 @@
 				)
 			)
 		)
-		(property "LCSC Part" "C2902636"
+		(property "LCSC Part" "C54951138"
 			(at 154.94 21.59 0)
 			(hide yes)
 			(show_name no)
@@ -11398,7 +11409,7 @@
 				)
 			)
 		)
-		(property "LCSC Part" "C2902636"
+		(property "LCSC Part" "C54951138"
 			(at 259.08 147.32 0)
 			(hide yes)
 			(show_name no)
@@ -12552,7 +12563,7 @@
 				)
 			)
 		)
-		(property "LCSC Part" "C2902636"
+		(property "LCSC Part" "C54951138"
 			(at 248.92 121.92 0)
 			(hide yes)
 			(show_name no)
@@ -13718,7 +13729,7 @@
 				)
 			)
 		)
-		(property "LCSC Part" "C2902636"
+		(property "LCSC Part" "C54951138"
 			(at 259.08 142.24 0)
 			(hide yes)
 			(show_name no)
@@ -15259,7 +15270,7 @@
 				)
 			)
 		)
-		(property "LCSC Part" ""
+		(property "LCSC Part" "C160403"
 			(at 198.12 147.32 0)
 			(hide yes)
 			(show_name no)
