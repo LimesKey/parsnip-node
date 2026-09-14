@@ -26,6 +26,7 @@ Costing a board
   part.py bom meshtastic.net --qty 10  LCSC retail price for a whole netlist
   part.py jlc meshtastic.net           JLC Basic vs Extended + $3/line assembly fees
   part.py check meshtastic.net --qty 10  bom + jlc + missing-code triage, one table
+  part.py fpcheck meshtastic.net       KiCad footprint + value vs the LCSC part, per part
 
 Constraint grammar (every --flag and every --w NAME=SPEC)
   22uF          equal, numeric: never matches 2.2uF
@@ -675,19 +676,19 @@ def c_bom(a):
     want, nocode = {}, []
     if src.endswith('.net'):
         parsed = False
-        try:                       # prefer knet.py's real S-expression parser
+        try:                       # prefer kcommon.py's real S-expression parser
             import glob as _g
             cands = [os.path.dirname(os.path.abspath(__file__)),
                      os.path.dirname(os.path.abspath(src)), os.getcwd()]
             cands += [os.path.dirname(x) for x in
-                      _g.glob('/mnt/skills/*/*/scripts/knet.py') +
-                      _g.glob('/mnt/skills/*/*/knet.py') +
-                      _g.glob('/mnt/project/knet.py')]
+                      _g.glob('/mnt/skills/*/*/scripts/kcommon.py') +
+                      _g.glob('/mnt/skills/*/*/kcommon.py') +
+                      _g.glob('/mnt/project/kcommon.py')]
             for c in cands:
                 if c and c not in sys.path:
                     sys.path.insert(0, c)
-            import knet
-            nl = knet.Netlist(src)
+            import kcommon
+            nl = kcommon.Netlist(src)
             for ref, c in nl.comps.items():
                 if c['dnp'] or not c['in_bom']:
                     continue
@@ -697,7 +698,7 @@ def c_bom(a):
                     nocode.append(ref)
             parsed = True
         except Exception as e:
-            print(f"(knet.py not importable, falling back to regex: {trunc(e,60)})", file=sys.stderr)
+            print(f"(kcommon.py not importable, falling back to regex: {trunc(e,60)})", file=sys.stderr)
         if not parsed:
             for m in re.finditer(r'\(comp\s+\(ref "([^"]+)"\)(.*?)(?=\(comp\s+\(ref|\(libparts)', txt, re.S):
                 ref, blob = m.group(1), m.group(2)
@@ -1283,16 +1284,18 @@ def load_knet(src):
     """kicad-review's netlist parser, if that skill is installed. None if not."""
     try:
         import glob as _g
-        cands = [os.path.dirname(os.path.abspath(__file__)),
-                 os.path.dirname(os.path.abspath(src)), os.getcwd()]
+        here = os.path.dirname(os.path.abspath(__file__))
+        cands = [here, os.path.dirname(os.path.abspath(src)), os.getcwd()]
         cands += [os.path.dirname(x) for x in
-                  _g.glob('/mnt/skills/*/*/scripts/knet.py') +
-                  _g.glob('/mnt/skills/*/*/knet.py')]
+                  # sibling skill in this repo's layout: code/claude/*/scripts/
+                  _g.glob(os.path.join(here, '..', '..', '*', 'scripts', 'kcommon.py')) +
+                  _g.glob('/mnt/skills/*/*/scripts/kcommon.py') +
+                  _g.glob('/mnt/skills/*/*/kcommon.py')]
         for c in cands:
             if c and c not in sys.path:
                 sys.path.insert(0, c)
-        import knet
-        return knet.Netlist(src)
+        import kcommon
+        return kcommon.Netlist(src)
     except Exception:
         return None
 
@@ -1306,7 +1309,7 @@ def c_jlc(a):
             # the "LCSC Part" property is a code, so parse rather than pattern-match.
             nl = load_knet(x)
             if nl is None:
-                print(f"jlc: could not parse {x} (knet.py not importable)"); return 1
+                print(f"jlc: could not parse {x} (kcommon.py not importable)"); return 1
             for ref, c in nl.comps.items():
                 if c['dnp'] or not c['in_bom']:
                     continue
@@ -1357,7 +1360,7 @@ def c_check(a):
     src = a.args[0]
     nl = load_knet(src)
     if nl is None:
-        print(f"check: could not parse {src} (knet.py not importable)"); return 1
+        print(f"check: could not parse {src} (kcommon.py not importable)"); return 1
     want, nocode = {}, []
     for ref, c in nl.comps.items():
         if c['dnp'] or not c['in_bom']:
@@ -1430,9 +1433,340 @@ def c_check(a):
               f"and cannot go to JLC assembly:\n  {' '.join(sorted(nocode))}")
     return 0
 
+# ============================================================ footprint check
+# Cross-check the KiCad footprint chosen on each symbol against LCSC's package
+# ('encapStandard') for that part number. Chip sizes and matching leaded
+# families decide themselves; only genuinely divergent naming needs the alias
+# table; the rest go to REVIEW for a human/LLM to eyeball - by design a small
+# minority. Conservative on purpose: only OK on a high-confidence rule, only
+# MISMATCH when two concrete different sizes/lead-counts can be named, else
+# REVIEW. A false REVIEW is a cheap glance; a silent false OK is a board bug.
+# Names below are ground-truthed against KiCad 10 stock libraries.
+
+_CHIP_SIZES = {'01005','0201','0402','0603','0805','1008','1206','1210',
+               '1218','1806','1812','2010','2225','2512','1225'}
+# imperial chip codes as they appear inside a KiCad footprint name
+_CHIP_RE = re.compile(r'(?<!\d)(01005|0201|0402|0603|0805|1008|1206|1210|1218'
+                      r'|1806|1812|2010|2225|2512|1225)(?!\d)')
+
+# LCSC package (normalised, UPPER) -> token that should appear in the KiCad
+# footprint name. ONLY families whose two naming systems genuinely diverge.
+# Grow this from the REVIEW bucket, one line per newly-seen divergence.
+_PKG_ALIAS = {
+    'DO-214AC': 'SMA', 'DO-214AA': 'SMB', 'DO-214AB': 'SMC',
+    'DO-215AA': 'SMB', 'DO-215AB': 'SMC',
+    'SC-70': 'SOT-323', 'SC-70-5': 'SOT-353', 'SC-70-6': 'SOT-363',
+    # tantalum EIA case letter (LCSC) -> EIA metric body (KiCad CP_EIA-####)
+    'CASE-A': 'EIA-3216', 'CASE-B': 'EIA-3528',
+    'CASE-C': 'EIA-6032', 'CASE-D': 'EIA-7343',
+}
+_FAM_DEFAULT = {'SOT-23': 3}          # bare 'SOT-23' means the 3-lead body
+
+def _fp_base(fp):
+    """'Package_TO_SOT_SMD:SOT-23-5_HandSoldering' -> 'SOT-23-5' (UPPER)."""
+    name = re.sub(r'\.kicad_mod$', '', fp.split(':')[-1], flags=re.I)
+    while True:                       # peel stacked variant tails
+        new = re.sub(r'_(?:Hand[-_ ]?Sold\w*|Pad[0-9x.]+mm|Modified'
+                     r'|ThermalVias|Mask[0-9x.]+mm|MountingHoles?)$', '',
+                     name, flags=re.I)
+        if new == name:
+            return name.upper()
+        name = new
+
+def _fam(tok):
+    """('SOT-23',5) for SOT-23-5; ('SOT-23',None) for SOT-23; ('SOIC',8) for
+    SOIC-8; ('QFN',32) for QFN-32-...; None if not a recognised leaded family."""
+    m = re.match(r'^(SOT-\d+|SC-\d+|SOIC|SO|TSSOP|HTSSOP|SSOP|VSSOP|MSOP|TSOP'
+                 r'|QFN|VQFN|UQFN|DFN|WSON|TQFP|LQFP|QFP|PSOP|HSOP|SOP)'
+                 r'[-_]?(\d+)?', tok)
+    if not m:
+        return None
+    return (m.group(1), int(m.group(2)) if m.group(2) else None)
+
+def _bcontains(hay, needle):
+    """needle sits in hay on a token boundary and is NOT immediately followed by
+    a lead-count digit (so 'SOT-23' does not match 'SOT-23-5')."""
+    for m in re.finditer(re.escape(needle), hay):
+        i, j = m.start(), m.end()
+        before = i == 0 or not hay[i-1].isalnum()
+        nxt = hay[j] if j < len(hay) else ''
+        bad = nxt.isdigit() or (nxt in '-_' and j+1 < len(hay) and hay[j+1].isdigit())
+        if before and not bad:
+            return True
+    return False
+
+def _fp_sig(fp):
+    """A body signature so 'R_0402' and 'R_0402_HandSolder' compare equal (same
+    body, different pad), while 0402 vs 0603 differ. Used to decide whether one
+    LCSC code really sits on two *different* bodies."""
+    k = _fp_base(fp)
+    m = _CHIP_RE.search(k)
+    if m:
+        return ('chip', m.group(1))
+    return _fam(k) or ('name', k)
+
+def _fp_match(pkg, fp, mpn=None):
+    """-> ('ok'|'mismatch'|'review', reason)."""
+    p = (pkg or '').strip().upper()
+    if not fp:
+        return ('review', 'no footprint set on the symbol')
+    k = _fp_base(fp)
+
+    # 0) footprint is named after the MPN (connectors, modules, MPN-specific ICs).
+    # Drop LCSC's trailing packaging qualifiers first: 'S4B-XH-SM4-TB(LF)(SN)'.
+    if mpn:
+        mn = re.sub(r'[^A-Z0-9]', '', re.sub(r'\(.*', '', mpn.upper()))
+        kn = re.sub(r'[^A-Z0-9]', '', k)
+        if (len(mn) >= 6 and mn in kn) or (len(kn) >= 8 and kn in mn):
+            return ('ok', f'footprint named for MPN {mpn}')
+
+    if not p:
+        return ('review', 'LCSC has no package field')
+
+    if p in _CHIP_SIZES:                          # 1) two-terminal chip size
+        found = set(_CHIP_RE.findall(k))
+        if p in found:
+            return ('ok', p)
+        if found:
+            return ('mismatch', f'LCSC {p} vs KiCad {"/".join(sorted(found))}')
+        return ('review', f'LCSC size {p}, KiCad name has no chip size: {k}')
+
+    canon = _PKG_ALIAS.get(p, p)
+    pf, kf = _fam(canon), _fam(k)                 # 2) lead-count-aware family
+    if pf and kf and pf[0] == kf[0]:
+        pp = pf[1] if pf[1] is not None else _FAM_DEFAULT.get(pf[0])
+        kp = kf[1] if kf[1] is not None else _FAM_DEFAULT.get(kf[0])
+        if pp is None or kp is None or pp == kp:
+            return ('ok', f'{canon} ~ {k}')
+        return ('mismatch', f'LCSC {p} ({pp}-lead) vs KiCad {k} ({kp}-lead)')
+
+    if _bcontains(k, canon) or _bcontains(canon, k):   # 3) boundary substring
+        return ('ok', f'{canon} ~ {k}')
+
+    return ('review', f'LCSC "{pkg}"  vs  KiCad "{fp.split(":")[-1]}"')  # 4) human
+
+def _val_check(prefix, sym_value, params):
+    """Symbol Value vs LCSC's resistance/capacitance/inductance parameter.
+    -> ('ok'|'mismatch'|'skip', reason). 'skip' when either side isn't a single
+    parseable value (ICs, arrays, 0-ohm with no param, missing attribute) - the
+    conservative default, so only a real value disagreement is ever flagged."""
+    attr = {'R': 'res', 'C': 'cap', 'L': 'ind'}.get(prefix)
+    if not attr:
+        return ('skip', '')
+    sv, lv_raw = enum(sym_value), attr_of(params, attr)
+    lv = enum(lv_raw)
+    if sv is None or lv is None:
+        return ('skip', '')
+    unit = _UNIT_OF.get(attr, '')
+    if sv == 0 or lv == 0:                       # 0-ohm jumper etc: exact only
+        if sv == lv:
+            return ('ok', '')
+        return ('mismatch', f'value: sym {sym_value} vs LCSC {lv_raw}')
+    if abs(sv - lv) <= 0.02 * max(abs(sv), abs(lv)):    # 2% absorbs 470nF==0.47uF
+        return ('ok', '')
+    return ('mismatch', f'value: sym {fmt_si(sv, unit)} vs LCSC part {fmt_si(lv, unit)}')
+
+def _fpcheck_selftest():
+    cases = [
+        ('0402', 'Resistor_SMD:R_0402_1005Metric', 'ok'),
+        ('0402', 'Resistor_SMD:R_0402_1005Metric_Pad0.72x0.64mm_HandSolder', 'ok'),
+        ('0805', 'Capacitor_SMD:C_1206_3216Metric', 'mismatch'),
+        ('SOT-23', 'Package_TO_SOT_SMD:SOT-23', 'ok'),
+        ('SOT-23', 'Package_TO_SOT_SMD:SOT-23-5', 'mismatch'),
+        ('SOT-23-5', 'Package_TO_SOT_SMD:SOT-23-5', 'ok'),
+        ('SOT-23-5', 'Package_TO_SOT_SMD:SOT-23', 'mismatch'),
+        ('SOD-123', 'Diode_SMD:D_SOD-123', 'ok'),
+        ('SOD-323', 'Diode_SMD:D_SOD-323', 'ok'),
+        ('DO-214AC', 'Diode_SMD:D_SMA', 'ok'),
+        ('SOIC-8', 'Package_SO:SOIC-8_3.9x4.9mm_P1.27mm', 'ok'),
+        ('TSSOP-16', 'Package_SO:TSSOP-16_4.4x5mm_P0.65mm', 'ok'),
+        ('QFN-32', 'Package_DFN_QFN:QFN-32-1EP_5x5mm_P0.5mm', 'ok'),
+        ('SC-70', 'Package_TO_SOT_SMD:SOT-323_SC-70', 'ok'),
+        ('', 'Diode_SMD:D_SOD-123', 'review'),
+        ('WEIRD-99', 'Foo:Bar_XYZ', 'review'),
+        # footprint named for the MPN clears even when packages read differently
+        ('SMD,P=2.5mm', 'Connector:JST_XH_S4B-XH-SM4-TB_1x04-1MP', 'ok', 'S4B-XH-SM4-TB(LF)(SN)'),
+        ('SMD,25.5x18mm', 'RF:ESP32-S3-WROOM-1', 'ok', 'ESP32-S3-WROOM-1-N16R8'),
+        # divergent package nomenclature stays in review (the real 5%)
+        ('DFN-8(3x3)', 'Package_DFN_QFN:PQFN-8_L3.1-W3.1', 'review', 'AON7534'),
+    ]
+    for c in cases:
+        pkg, fp, want = c[0], c[1], c[2]
+        mpn = c[3] if len(c) > 3 else None
+        got = _fp_match(pkg, fp, mpn)[0]
+        assert got == want, f"{pkg!r} vs {fp!r}: got {got}, want {want}"
+    vcases = [
+        ('C', '10µ', [('Capacitance', '10µF')], 'ok'),
+        ('C', '10µ', [('Capacitance', '1µF')], 'mismatch'),
+        ('R', '113k', [('Resistance', '113kΩ')], 'ok'),
+        ('R', '10', [('Resistance', '10Ω')], 'ok'),
+        ('C', '0.47uF', [('Capacitance', '470nF')], 'ok'),   # 470nF == 0.47uF
+        ('C', '10µ', [], 'skip'),                            # no param to compare
+        ('U', 'ESP32-S3', [('x', 'y')], 'skip'),             # not R/C/L
+    ]
+    for prefix, val, params, want in vcases:
+        got = _val_check(prefix, val, params)[0]
+        assert got == want, f"val {prefix} {val!r}: got {got}, want {want}"
+    n = len(cases) + len(vcases)
+    return f"{n}/{n}"
+
+def _conf_key(pkg, footprint):
+    """Normalised (LCSC package, KiCad footprint) key for the confirmed store,
+    matching the matcher's own normalisation. Variant tails on the footprint are
+    stripped, so one confirmation also covers its HandSolder/Pad variants."""
+    return ((pkg or '').strip().upper(), _fp_base(footprint or ''))
+
+def _load_confirmed(src):
+    """fpcheck.json beside the netlist: {"confirmed":[{lcsc_pkg,footprint,...}]}.
+    These are package-nomenclature pairs a human/LLM has verified are the same
+    body (LCSC 'DFN-8(3x3)' == KiCad 'PQFN-8...'), so fpcheck stops flagging them.
+    Returns (key set, path, loaded doc); missing/broken -> empty (nothing confirmed
+    yet). Path sits beside the board, so it commits and persists across sessions."""
+    path = os.path.join(os.path.dirname(os.path.abspath(src)), 'fpcheck.json')
+    try:
+        with open(path, encoding='utf8') as fh:
+            doc = json.load(fh)
+        keys = {_conf_key(e.get('lcsc_pkg'), e.get('footprint'))
+                for e in doc.get('confirmed', [])}
+        return keys, path, doc
+    except Exception:
+        return set(), path, {'confirmed': []}
+
+def c_fpcheck(a):
+    """Cross-check each part's KiCad footprint against LCSC's package for its
+    part number. Also flags one LCSC code sitting on >1 footprint (a single MPN
+    has one body size, so that is a copy-paste error). Reuses knet's parser and
+    lcsc_detail's 24 h cache; no netlist arg -> runs the offline matcher self-test."""
+    if not a.args or not a.args[0].endswith('.net'):
+        print(f"footprint matcher self-test: {_fpcheck_selftest()} ok\n"
+              f"usage: part.py fpcheck board.net  [--show-ok] [--json] [--fresh]")
+        return 0
+    src = a.args[0]
+    nl = load_knet(src)
+    if nl is None:
+        print(f"fpcheck: could not parse {src} (kcommon.py not importable)"); return 1
+    confirmed, cpath, cdoc = _load_confirmed(src)
+    want, nocode = {}, []              # code -> {(footprint, value, prefix): [refs]}
+    for ref, c in nl.comps.items():
+        if c['dnp'] or not c['in_bom']:
+            continue
+        code = c['lcsc'] or ''
+        if re.fullmatch(r'C\d+', code):
+            # only R/C/L carry a checkable numeric value; for everything else the
+            # Value field is a label (BOOT, ESP_RESET), so don't let it split rows
+            val = (c['value'] or '') if c['prefix'] in ('R', 'C', 'L') else ''
+            key = (c['footprint'] or '', val, c['prefix'])
+            want.setdefault(code, {}).setdefault(key, []).append(ref)
+        elif c['prefix'] not in ('H', 'TP'):
+            nocode.append(ref)
+    if not want:
+        print("no LCSC codes found. netlist needs an 'LCSC Part' property"); return 1
+
+    with cf.ThreadPoolExecutor(max_workers=a.jobs) as ex:
+        details = dict(ex.map(lambda code: (code, lcsc_detail(code, a.fresh)),
+                              sorted(want)))
+
+    ok, mism, review, unresolved, eol = [], [], [], [], []
+    for code in sorted(want):
+        r = details.get(code)
+        if not r:
+            unresolved.append(code); continue
+        pkg, mpn, params = r.get('package'), r.get('mpn'), r.get('params')
+        life = (r.get('lifecycle') or '').strip()
+        if re.search(r'\bEOL\b|NRND|not recommended|discontinu|obsolete', life, re.I):
+            eol.append({'lcsc': code, 'mpn': mpn, 'lifecycle': life,
+                        'refs': sorted({x for g in want[code].values() for x in g})})
+        multi = len({_fp_sig(fp) for (fp, _v, _p) in want[code]}) > 1   # 2+ bodies
+        for (fp, value, prefix), refs in sorted(want[code].items()):
+            fpv, fpwhy = _fp_match(pkg, fp, mpn)
+            vv, vwhy = _val_check(prefix, value, params)
+            reasons = ([fpwhy] if fpv == 'mismatch' else []) + \
+                      ([vwhy] if vv == 'mismatch' else [])
+            if reasons:
+                verdict, why = 'mismatch', '; '.join(reasons)
+            elif multi and fpv == 'ok':
+                verdict, why = 'review', fpwhy + '  (same LCSC code also on another body)'
+            elif fpv == 'review':
+                if _conf_key(pkg, fp) in confirmed:
+                    verdict, why = 'ok', 'confirmed equivalent (fpcheck.json)'
+                else:
+                    verdict, why = 'review', fpwhy
+            else:
+                verdict, why = 'ok', fpwhy
+            row = {'lcsc': code, 'mpn': mpn, 'lcsc_pkg': pkg, 'value': value,
+                   'footprint': fp.split(':')[-1], 'why': why, 'refs': sorted(refs)}
+            {'ok': ok, 'mismatch': mism, 'review': review}[verdict].append(row)
+
+    if a.confirm:                      # record verified REVIEW pairs, do not print buckets
+        req = list(dict.fromkeys(a.args[1:]))
+        if not req:
+            print("fpcheck --confirm: list the LCSC codes (currently in REVIEW) you have\n"
+                  "verified, e.g. fpcheck board.net --confirm C115844 C233771 --note '...'")
+            return 1
+        rev_by_code = {}
+        for row in review:
+            if 'another body' in row['why']:      # multi-body review is not a nomenclature call
+                continue
+            rev_by_code.setdefault(row['lcsc'], []).append(row)
+        added, skipped = [], []
+        for code in req:
+            rows = rev_by_code.get(code)
+            if not rows:
+                skipped.append(code); continue
+            for row in rows:
+                if _conf_key(row['lcsc_pkg'], row['footprint']) in confirmed:
+                    continue
+                confirmed.add(_conf_key(row['lcsc_pkg'], row['footprint']))
+                cdoc.setdefault('confirmed', []).append(
+                    {'lcsc_pkg': row['lcsc_pkg'], 'footprint': row['footprint'],
+                     'example': code, 'note': a.note or '', 'added': time.strftime('%Y-%m-%d')})
+                added.append((code, row['lcsc_pkg'], row['footprint']))
+        with open(cpath, 'w', encoding='utf8') as fh:
+            json.dump(cdoc, fh, indent=1, ensure_ascii=False)
+            fh.write('\n')
+        print(f"confirmed {len(added)} pair(s) -> {cpath}")
+        for code, pkg, fp in added:
+            print(f"  {code}  {pkg!r} ~ {fp!r}")
+        if skipped:
+            print(f"skipped (not a nomenclature-REVIEW code right now): {' '.join(skipped)}")
+        return 0
+
+    if a.json:
+        print(json.dumps({'ok': ok, 'mismatch': mism, 'review': review, 'eol': eol,
+                          'unresolved': unresolved, 'no_lcsc_code': sorted(nocode)},
+                         indent=1))
+        return 2 if mism else 0
+
+    print(f"footprint + value vs LCSC part - {len(want)} LCSC parts, "
+          f"{len(mism)} mismatch, {len(review)} review, {len(ok)} ok")
+    def emit(title, rows):
+        if not rows:
+            return
+        print(f"\n{title}")
+        for r in rows:
+            refs = ' '.join(r['refs'][:8]) + (' ...' if len(r['refs']) > 8 else '')
+            print(f"  {r['lcsc']:<11} {trunc(r['mpn'] or '?',20):<20} "
+                  f"[{trunc(r['value'] or '?',8)}] {r['why']}")
+            print(f"  {'':<11} {'':<20} {'':<10} {refs}")
+    emit("MISMATCH (footprint or value disagrees with the LCSC part):", mism)
+    emit("REVIEW (rules could not decide - eyeball these):", review)
+    if a.show_ok:
+        emit("OK:", ok)
+    if eol:
+        print("\nEOL / not-recommended parts assigned (sourcing risk, not a footprint bug):")
+        for e in eol:
+            print(f"  {e['lcsc']:<11} {trunc(e['mpn'] or '?',20):<20} {e['lifecycle']}"
+                  f"   {' '.join(e['refs'][:8])}")
+    if unresolved:
+        print(f"\nunresolved LCSC codes (no LCSC data): {' '.join(unresolved)}")
+    if nocode:
+        print(f"\n{len(nocode)} placed part(s) have no LCSC code (not checked): "
+              f"{trunc(' '.join(sorted(nocode)), 200)}")
+    return 2 if mism else 0
+
 CMDS = {'selftest': c_selftest, 'search': c_search, 'show': c_show, 'ds': c_ds,
         'compare': c_compare, 'bom': c_bom, 'pick': c_pick, 'alt': c_alt,
-        'jlc': c_jlc, 'check': c_check}
+        'jlc': c_jlc, 'check': c_check, 'fpcheck': c_fpcheck}
 
 def main():
     ap = argparse.ArgumentParser(add_help=False)
@@ -1451,6 +1785,11 @@ def main():
     ap.add_argument('--nods', action='store_true', help='skip datasheet verification')
     ap.add_argument('--fresh', action='store_true')
     ap.add_argument('--json', action='store_true')
+    ap.add_argument('--show-ok', dest='show_ok', action='store_true',
+                    help='fpcheck: also list the footprints that matched')
+    ap.add_argument('--confirm', action='store_true',
+                    help='fpcheck: record the listed REVIEW codes as confirmed-equivalent in fpcheck.json')
+    ap.add_argument('--note', default='', help='fpcheck --confirm: provenance note stored with each entry')
     # pick / alt
     for f in FLAG_ATTRS:
         ap.add_argument('--' + f, default=None,

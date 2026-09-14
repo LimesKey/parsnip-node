@@ -43,27 +43,24 @@ adding `--net FILE` if part of it exists. Then `present_files`.
 **"What does the datasheet say about Y?"** `kdoc.py grep 'Y' --count` for the page,
 then grep with context, or `page` + `view` for figures.
 
+**"Do my footprints and values match the actual parts?"** Not this skill - use
+`part-search`'s `part.py fpcheck FILE.net`. It joins each symbol's KiCad
+footprint AND value to the assigned LCSC part (this skill is offline, so it can't
+reach LCSC): wrong-size/family footprints, a right-footprint-wrong-value part
+(36R part on a 37.4R symbol), one code on two bodies, and EOL parts. Chip sizes
+and MPN-named footprints clear automatically; divergent nomenclature -> REVIEW.
+
 # Self-test after editing a tool
 
 ```bash
-python3 $K references/selftest.net check          # 4 error, 6 warn, 1 info
-python3 $K references/selftest.net walk /DANGLE   # stops at DNP R2
-python3 $K references/selftest.net draw U1 -d 2 -o /tmp/t.svg
-python3 $K references/selftest.net divider /VSENSE  # 1.6667 V nominal, 1.6445-1.6890 V worst case
-python3 $S render -o /tmp/t2.svg references/selftest.ksch   # no ERROR lines
-python3 $P references/selftest.kicad_pcb check    # 4 error, 7 warn, 2 info; exit 2
-python3 $P references/selftest.kicad_pcb summary  # 40 x 30 mm, placed 16 of 20
-python3 $P references/selftest.kicad_pcb map      # 40x30 grid, no '*' outside a part
-python3 $P references/selftest.kicad_pcb span     # 1 net (NB, 0.5 mm); rails excluded
-python3 $P references/selftest.kicad_pcb sheet    # /Test/ 16 placed, /Test/Spare/ 4 left
-python3 $P references/selftest.kicad_pcb sync references/selftest.net
-                                      # 23 error, 7 warn; exit 2. The two fixtures
-                                      # are deliberately different circuits, so this
-                                      # is the negative test: all five SYNC rules fire
-                                      # at once. `sync` on a real board+net that match
-                                      # prints IN SYNC in two lines.
-python3 $P references/selftest.kicad_pcb ic       # "no regulator-shaped part found"
+python3 references/selftest.py     # runs all 12 checks, asserts, exit 0 = all pass
 ```
+
+`selftest.py` is the source of truth for the exact commands and expected counts -
+one `(label, argv, exit, substrings)` line per check, so covering a new rule is a
+one-line add. `sync` on a real board+net that *match* prints IN SYNC in two lines;
+the two fixtures here are deliberately different circuits, so `sync` is the
+negative test - all five SYNC rules fire at once (23 error, 7 warn).
 
 The fixture has no regulator, so `ic` is exercised against the real board instead:
 `kpcb.py board.kicad_pcb ic` must list the switchers, and `ic <a buck>` must name an
@@ -78,6 +75,6 @@ side, TP1's drill under U1 from the back). If a rule stops firing on it, that ru
 dead - kpcb's thresholds are loose enough that a clean board reports nothing, which
 looks identical to a broken check.
 
-**After editing SKILL.md or any reference file**, re-run the self-test above and
-confirm the counts still match. They are the only thing that distinguishes a working
-rule from a silently dead one.
+**After editing any tool, `kcommon.py`, SKILL.md or a reference file**, run
+`python3 references/selftest.py` - green means the documented counts still hold.
+They are the only thing that distinguishes a working rule from a silently dead one.

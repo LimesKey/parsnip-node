@@ -16,6 +16,7 @@ everything here is checkable the moment a footprint is dropped.
 | `span` | nets ranked by how far apart their placed pads sit. The one routing-quality number that exists before routing does. |
 | `sync [board.net]` | **run this first.** Board vs netlist: same parts, footprints, values, DNP flags and net on every pad. Finds a `.net` beside the board automatically. |
 | `review [board.net]` | one call for a fresh session: sync, summary, check, longest nets, then the specific next calls worth making. |
+| `ampacity [NET...]` | current a routed net can carry (IPC-2221): narrowest segment per layer, via bound, length -> R/Vdrop. With `--amps X` or a kpcb.json budget it warns TRACE-THIN / VIA-FEW / LONG-DROP. See below. |
 
 ## Flags
 
@@ -25,15 +26,22 @@ everything here is checkable the moment a footprint is dropped.
 `--conn 10` `--rf 8` `--therm 8` `--bypass 3` `--clear 0` `--fb 4` `--gap 0.25`
 `--tol 1` `--span 0` (all mm; `--span 0` means half the board diagonal), plus
 `--fanout 8`. For `ic`: `--anchor REF`, `--cin REF,REF`, `--cout REF,REF`,
-`--ncin 3`, `--ncout 3`, `--assoc 6`.
+`--ncin 3`, `--ncout 3`, `--assoc 6`. For `ampacity`: `--amps X` (required
+current on the named net), `--dt 10` (allowed temp rise, C), `--plating 20`
+(via barrel copper, um), `--vdrop 0.25` (V-drop flag threshold).
 
 ## Project config
 
 `kpcb.json` next to the board, same shape and precedence as `knet.json`:
 
 ```json
-{"edge": 0.3, "bypass": 4.0, "suppress": ["OVERLAP:BT1", "UNPLACED"]}
+{"edge": 0.3, "bypass": 4.0, "suppress": ["OVERLAP:BT1", "UNPLACED"],
+ "current": {"VSYS": 2.7, "+5V": 3.0, "-BATT": 2.7}}
 ```
+
+`current` is the per-net amp budget `ampacity` checks against when no `--amps`
+is given (and in a bare `ampacity` scan). Fill it once with the real worst-case
+current each power net carries; signal nets can be left out.
 
 Use `suppress` for placements already confirmed deliberate (thermistors under a
 cell, a module antenna overhanging the edge) so they stop costing tokens on every
@@ -64,6 +72,62 @@ much is still unplaced. That last block is the point: it is the reasoning a sess
 would otherwise have to do itself from a summary it has not read yet. If the board
 is out of sync it says STOP and explains that everything below is about a different
 circuit.
+
+## `ampacity` - can the copper carry the current
+
+Works off the ROUTED tracks and vias, so it means nothing before routing and it
+re-reads on every save. Three ways to call it:
+
+- `ampacity VSYS --amps 2.7` - judge one net against a required current.
+- `ampacity VSYS` - same, current taken from kpcb.json `current{}` if set there.
+- `ampacity` - scan: verdict every budgeted net, then list the heaviest routed
+  nets (most copper length) with their capacity so the power nets surface without
+  a budget file.
+
+A net name that starts with `-` (e.g. `-BATT`) looks like an option to argparse;
+pass it as `ampacity --amps 2.7 -- -BATT +PACK` (flags first, then `--`, then the
+nets), or put it in the kpcb.json `current{}` budget where the dash is harmless.
+
+To make a finding fixable it prints, per net: a **`find it:`** line listing the
+components on the net (ICs/connectors first) - click any in KiCad to highlight the
+whole net - and, for the bottleneck, the **nearest pin** (`near U5.23 (2.8 mm
+away)`, Ctrl+F the ref) plus the raw `cursor to X,Y` (KiCad shows the cursor in mm,
+bottom-right). Highlight the net, go to that ref, scan for the skinny segment. It
+also prints the **required width**; when that is impractically large (7-8 mm) the
+bottleneck is a thin inner layer (0.0152 mm / ~0.43 oz here) and the real fix is to
+route the net on an outer layer or a plane, not to draw an 8 mm inner trace.
+
+### How it reads the copper (the important part)
+
+It does **not** just take the smallest `(width)` on the net. It builds a
+**connectivity graph** of the routed copper: every `(segment)`/`(arc)` endpoint is
+a node, endpoints within 0.05 mm merge, a `(via)` stitches its layers, and a shared
+pad joins the tracks landing on it. The **bottleneck** is then the narrowest
+**bridge** - a segment whose removal would split the net, so all the current must
+cross it. A segment sitting in a parallel loop is *not* a bridge, so a trace that
+splits and reconverges is no longer mis-read as one thin strand. Each segment is
+rated with IPC-2221 `I = k*dT^0.44*A^0.725` (k=0.048 outer copper, 0.024 inner).
+Inner layers here are 0.0152 mm (~0.43 oz), so a 1 mm inner trace rates below a
+0.2 mm outer one. Vias are a plated barrel (`width = pi*drill`, `--plating` thick),
+summed as a parallel bound. Length feeds resistance and voltage drop. The output
+prints the graph state (`N pad(s)`, island count) and, when they differ, both the
+mandatory-bridge ampacity and the `narrowest single seg` value.
+
+Warnings (each fires only with a known current; exit 2 on TRACE-THIN or VIA-FEW):
+
+- **TRACE-THIN** - narrowest-bridge ampacity below the required current. It names
+  the bridge segment and the nearest pin. Widen it, or move it to an outer layer.
+- **VIA-FEW** - the net's vias can't carry the current even in parallel.
+- **LONG-DROP** - series-bound voltage drop over `--vdrop` (0.25 V). Advisory.
+- **PARALLEL-CHECK** (advisory) - a thinner segment exists but is paralleled, so
+  it is not mandatory; fine only if its parallel group's widths sum to the current.
+- **MESH-CHECK** (advisory) - the net is a full mesh with no single mandatory
+  segment; confirm the parallel copper sums to the current.
+
+What it still can't see: two traces that only **cross mid-span** with no shared
+end/via/pad are separate copper here (KiCad would merge them); a parallel group
+that individually passes but **sums short** is left to you (PARALLEL-CHECK). And
+IPC-2221 internal ampacity is conservative for a planed board (see the footer).
 
 ## check rules
 

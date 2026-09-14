@@ -25,6 +25,7 @@ python3 $P pick MLCC --cap 4.7u..100u --volt '>=25' --pkg 0805 --diel X7R,X5R
 | "X vs Y" | `compare` |
 | "what does this whole board cost" | `bom` |
 | "source this board" / "what's blocking assembly" | `check` - `bom` + `jlc` + missing-code triage in one call |
+| "do my footprints/values match the parts" / "any wrong packages or values" | `fpcheck` - KiCad footprint + value vs the LCSC part, per part |
 | bare MPN, no constraints, just find it | `search` |
 | "higher voltage rating or more nominal uF?" / DC-bias derating | `kcap.py` - see [kcap](references/kcap.md) |
 
@@ -46,12 +47,38 @@ because LCSC has no category filter. **For anything with electrical constraints,
 | `search 'TPS61033'` | keyword search. Add `--instock`. |
 | `bom board.net --qty 5` | prices a whole KiCad netlist by its LCSC Part property |
 | `check board.net --qty 5` | one-shot sourcing triage: `bom` pricing + `jlc` Basic/Extended, one table, one pass over the netlist |
+| `fpcheck board.net` | each symbol's KiCad footprint AND value vs the assigned LCSC part. Footprint: flags size/family mismatches and one LCSC code reused across different bodies (chip sizes and MPN-named footprints auto-clear; divergent nomenclature -> a small REVIEW bucket). Value: R/C/L symbol value vs LCSC's resistance/capacitance/inductance param (catches a right-footprint, wrong-value part, e.g. a 36R part on a 37.4R symbol). Also lists any assigned part LCSC marks EOL/NRND. `--show-ok`, `--json`; no `.net` runs the offline self-test. |
 | `selftest` | which providers and the FX rate source work right now |
 
 `show`, `ds`, `compare` and `alt` accept a C-code, a bare MPN, or a pasted LCSC URL.
 `show` with several SKUs prints one verbose block per part by default; `--table`
 switches to one compact row per part, `--json` for machine-readable output.
 Exit codes: 0 ok, 1 nothing found.
+
+## fpcheck: the REVIEW bucket and confirming equivalences
+
+`fpcheck` sorts every part into MISMATCH (footprint size/family or value
+disagrees - real, fix it), REVIEW (the LCSC package string and the KiCad
+footprint name read differently and the matcher can't tell if the body is the
+same), and OK. REVIEW is a "look at these", not a bug list. Work it once:
+
+- **Same body, different wording** -> record it so it never comes back.
+  `part.py fpcheck board.net --confirm C22445413 C233771 --note "why"` writes the
+  (package, footprint) pair to `fpcheck.json` beside the board; future runs
+  auto-clear it as "confirmed equivalent". The objective test for "same body" is
+  **dimensions + pin count**: LCSC `WQFN-24-EP(4x4)` vs KiCad `TQFN-24_L4.0-W4.0...EP`
+  is the same land, just different names. easyeda2kicad-generated footprints
+  (`..._L#-W#-P#`, `Texas_*`, vendor-named) are the part's own land pattern, so a
+  name-only difference there is safe to confirm.
+- **Genuinely a different part** -> do NOT confirm. This is a footprint borrowed
+  from another vendor's similarly sized part, or the pad count differs from the
+  part's lead count (e.g. a 4-pin switch on a 2-pad footprint). Verify the land
+  pattern against the datasheet and fix the footprint if wrong. A false confirm
+  hides a real footprint bug, so when unsure, leave it in REVIEW.
+
+`fpcheck.json` is board data like `knet.json`/`kpcb.json` - **commit it** so the
+confirmations persist across sessions. `--confirm` only clears the nomenclature
+REVIEW path, never a MISMATCH and never the "same code on two bodies" flag.
 
 ## Run selftest first in a new session
 

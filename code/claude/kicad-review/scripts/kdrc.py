@@ -43,9 +43,9 @@ import sys, os, re, json, glob, tempfile, subprocess
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 try:
-    from knet import print_findings, suppressed, trunc, natkey
+    from kcommon import print_findings, suppressed, trunc, natkey
 except ImportError:                                     # pragma: no cover
-    print("kdrc.py needs knet.py beside it (shared finding formatter)",
+    print("kdrc.py needs kcommon.py beside it (shared finding formatter)",
           file=sys.stderr)
     sys.exit(3)
 

@@ -1300,8 +1300,8 @@ Connection glyphs: gnd  pwr  label  hlabel  glabel  nc.""")
 
 def load_netlist(path):
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-    import knet
-    return knet.Netlist(path)
+    import kcommon
+    return kcommon.Netlist(path)
 
 
 def main():

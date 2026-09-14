@@ -24,7 +24,10 @@ D=<skill>/scripts/kdoc.py   S=<skill>/scripts/ksch.py
 `kdrc.py` runs **KiCad's own** DRC (honouring `parsnip.kicad_dru`) and ERC, the
 authoritative rules check. `kpcb.py FILE zones` reports pour-fill coverage.
 
-`kpcb.py` needs `knet.py` beside it (shared parser) but does **not** need the
+All the tools share `kcommon.py` (the S-expr parser, the value/ref helpers, the
+`Netlist` + `SchInfo` model and the finding formatter). It has no CLI of its own -
+edit it once and every tool sees it; the dependency only points tools -> kcommon.
+`kpcb.py` needs `kcommon.py` beside it but does **not** need the
 `.net` - pads carry their own net names and pin functions. Find the `.net` first:
 usually beside the board, else `/mnt/project/*.net` or `/mnt/user-data/uploads/*.net`.
 If `*.kicad_sch` files sit beside the `.net`, knet parses them as a sidecar
@@ -54,6 +57,7 @@ scrambled. The plot only tells you which sheet a symbol lives on.
 | where do these caps/inductor go | `kpcb.py FILE ic U13` - positions, rotations, the rule behind each, and a picture |
 | does the board pass real DRC + ERC | `kdrc.py FILE.kicad_pcb` - KiCad's own checks, all 3 roots, folded like `check` |
 | is the ground pour filled / covering | `kpcb.py FILE zones` - fill coverage per copper layer |
+| can a net carry its current / is the trace too thin | `kpcb.py FILE ampacity NET --amps X` - IPC-2221 vs the routed copper + vias |
 | what voltage does this divider set | `knet.py FILE divider U5.OVLO` - nominal + worst case from real resistor values |
 | unfamiliar board, what is on it | `knet.py FILE summary` then `check` |
 | draw a circuit that exists | `knet.py FILE draw U8 -d 2 -o out.svg` |

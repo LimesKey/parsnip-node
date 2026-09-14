@@ -49,11 +49,11 @@ Scripts (stdlib Python, already permitted):
 
 ## Do NOT report these - they are documented and settled
 
-- **U1 courtyard OVERLAP (~35 findings)** and **U1 EDGECLR**: U1's courtyard is a
-  real L-shape (antenna keepout off the bottom edge). Only a part inside the true
-  body rect **x 107.2-126.7, y 145.4-165.6** or the keepout is a real clash;
-  everything else is a bbox artefact. Check the flagged part's `where` against
-  that rect before reporting.
+- **U1 EDGECLR** (antenna deliberately overhangs the bottom edge, ~0.05 mm): the
+  one expected U1 finding, do not report it. **U1 OVERLAP is no longer on this
+  list** - the check now reports 0 for U1 (opposite-side pairs are skipped unless
+  a drill lands in the other body; U1's courtyard is a plain rectangle). If a
+  same-side U1 OVERLAP ever does appear, it is real - report it, don't filter it.
 - **ERC lib_symbol_mismatch**: 16 symbols are deliberately edited in-schematic.
   Already muted in `kdrc.json`. Never suggest Update Symbols from Library.
 - **ERC power_pin_not_driven / pin_to_pin on a global-label net** (I2C_HOST_*,
