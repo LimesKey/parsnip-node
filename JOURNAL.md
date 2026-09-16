@@ -1,3 +1,5 @@
+# Total Hours Spent: 60
+
 ## Starting the journal - 4 hours (2026-08-07)
 
 I thought I should probably get into some more Hack Club stuff, and add more documentation for what I'm doing so I don't forget. I'm in the process of revamping the circuit protection. For the amount of money these modules and ICs cost (~$50 CAD), I think it's wise to throw at least $5 in circuit protection components at it. Of course the best circuit protection is just being careful and taking the proper precautions, but I'm a little silly.
