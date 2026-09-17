@@ -60,7 +60,7 @@
           "hatch_smoothing_level": 0,
           "hatch_smoothing_value": 0.1,
           "hatch_thickness": 1.0,
-          "min_clearance": 0.5,
+          "min_clearance": 0.15,
           "min_island_area": 10.0,
           "min_thickness": 0.25,
           "pad_connection": 1,
@@ -549,7 +549,7 @@
       {
         "name": "PWR_HIGH",
         "pcb_color": "rgba(0, 0, 0, 0.000)",
-        "priority": 1,
+        "priority": 2,
         "schematic_color": "rgba(0, 0, 0, 0.000)",
         "track_width": 1.5,
         "tuning_profile": ""
@@ -557,7 +557,7 @@
       {
         "name": "PWR_RAIL",
         "pcb_color": "rgba(0, 0, 0, 0.000)",
-        "priority": 0,
+        "priority": 1,
         "schematic_color": "rgba(0, 0, 0, 0.000)",
         "track_width": 0.6,
         "tuning_profile": ""
@@ -566,9 +566,20 @@
         "clearance": 0.2,
         "name": "RF_50OHM",
         "pcb_color": "rgba(0, 0, 0, 0.000)",
-        "priority": 2,
+        "priority": 3,
         "schematic_color": "rgba(0, 0, 0, 0.000)",
-        "track_width": 0.36,
+        "track_width": 0.306,
+        "tuning_profile": "",
+        "via_diameter": 0.6,
+        "via_drill": 0.3
+      },
+      {
+        "clearance": 0.8,
+        "name": "RF_50OHM_MS",
+        "pcb_color": "rgba(0, 0, 0, 0.000)",
+        "priority": 0,
+        "schematic_color": "rgba(0, 0, 0, 0.000)",
+        "track_width": 0.3,
         "tuning_profile": ""
       }
     ],
@@ -657,6 +668,26 @@
       {
         "netclass": "RF_50OHM",
         "pattern": "Net-(D10-A2)"
+      },
+      {
+        "netclass": "RF_50OHM",
+        "pattern": "Net-(C95-Pad1)"
+      },
+      {
+        "netclass": "RF_50OHM",
+        "pattern": "Net-(C95-Pad2)"
+      },
+      {
+        "netclass": "RF_50OHM",
+        "pattern": "Net-(C97-Pad1)"
+      },
+      {
+        "netclass": "RF_50OHM",
+        "pattern": "Net-(FL1-Pad4)"
+      },
+      {
+        "netclass": "RF_50OHM_MS",
+        "pattern": "Net-(D13-A1)"
       }
     ]
   },

@@ -6618,7 +6618,7 @@
 	)
 	(wire
 		(pts
-			(xy 153.67 144.78) (xy 154.94 144.78)
+			(xy 153.67 144.78) (xy 158.75 144.78)
 		)
 		(stroke
 			(width 0)
@@ -8618,7 +8618,7 @@
 	)
 	(global_label "GPS_ANT"
 		(shape bidirectional)
-		(at 154.94 144.78 0)
+		(at 158.75 144.78 0)
 		(fields_autoplaced yes)
 		(effects
 			(font
@@ -8628,7 +8628,7 @@
 		)
 		(uuid "14649af5-346f-486a-90b1-0038fff4e6d6")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 167.1403 144.78 0)
+			(at 170.9503 144.78 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
