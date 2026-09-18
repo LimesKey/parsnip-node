@@ -55,6 +55,9 @@ CASES = [
      0, ["MIXED-NET"]),  # only bridge is a thermistor tap -> advisory, not TRACE-THIN
     ("kpcb zones-under", ['kpcb.py', PCB2, 'zones', 'U2', 'U3'], 2,
      ["100% of samples covered  (continuous)", "27% of samples covered  (MOSTLY MISSING)"]),
+    # a +3V3 via dropped on U1 pad 1's centre -> one same-net via-in-pad, no mismatch
+    ("kpcb viapad",  ['kpcb.py', PCB, 'viapad'],                 0,
+     ["1 via(s) in 1 SMD pad(s)", "U1", "OK same net (+3V3)"]),
 ]
 
 def run(argv):

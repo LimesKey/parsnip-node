@@ -24,6 +24,8 @@ Commands:
   kpcb.py FILE ic                     which parts `ic REF` can advise on
   kpcb.py FILE ic U13                 WHERE to put a regulator's passives, with
                                       an ASCII picture of the recommendation
+  kpcb.py FILE viapad                 components with a via centred in an SMD pad
+                                      (via-in-pad -> needs filled+capped vias)
 
 `ic` is the one command that suggests rather than judges. It reads the IC's own
 pad coordinates - there is no per-part template - classifies its pins by name,
@@ -446,15 +448,18 @@ class Board:
             prot = float(pat[3]) if pat and len(pat) > 3 else 0.0
             sz = kid(p, 'size')
             sx, sy = (float(sz[1]), float(sz[2])) if sz and len(sz) > 2 else (0.0, 0.0)
-            # pad half-extent rotated into the footprint frame, then the whole
-            # thing into board coords: a rotated pad is enveloped, never clipped
+            bx, by = xf(lx, ly, f.x, f.y, f.rot)
+            # pad AABB straight in board coords: a .kicad_pcb stores `prot` as the
+            # ABSOLUTE board angle (f.rot already baked in), so envelope around the
+            # board-frame centre with prot alone. Rotating a local AABB through xf
+            # (adding f.rot again) double-counts and swaps the axes on a rotated,
+            # non-square pad.
             t = math.radians(prot)
             hx = abs(sx / 2 * math.cos(t)) + abs(sy / 2 * math.sin(t))
             hy = abs(sx / 2 * math.sin(t)) + abs(sy / 2 * math.cos(t))
-            for c in ((lx - hx, ly - hy), (lx + hx, ly - hy),
-                      (lx + hx, ly + hy), (lx - hx, ly + hy)):
-                pad_pts.append(xf(c[0], c[1], f.x, f.y, f.rot))
-            bx, by = xf(lx, ly, f.x, f.y, f.rot)
+            for c in ((bx - hx, by - hy), (bx + hx, by - hy),
+                      (bx + hx, by + hy), (bx - hx, by + hy)):
+                pad_pts.append(c)
             fn = re.sub(r'_\d+$', '', val(p, 'pinfunction'))
             net = val(p, 'net')
             lays = kid(p, 'layers') or []
@@ -464,6 +469,8 @@ class Board:
                   and re.match(r'^[\d.]+$', t)]
             f.pads.append({'num': num, 'net': net, 'x': bx, 'y': by, 'fn': fn,
                            'type': val(p, 'pintype'), 'w': max(sx, sy),
+                           'sx': sx, 'sy': sy, 'prot': prot,
+                           'shape': p[3] if len(p) > 3 and isinstance(p[3], str) else '',
                            'kind': p[2] if len(p) > 2 else '',
                            'drill': max(dn) if dn else 0.0,
                            'layers': [l for l in lays[1:] if isinstance(l, str)]})
@@ -2562,9 +2569,104 @@ def c_ampacity(b, a):
     _amp_footer()
     return 2 if fail else 0
 
+def _via_in_pad(pad, vx, vy):
+    """True if (vx,vy) lands inside the pad's copper rectangle. The pad's `at`
+    angle in a .kicad_pcb is ABSOLUTE (the footprint rotation is already baked
+    in - unlike a .kicad_mod, where it's relative), so undo just `prot`, not
+    f.rot+prot, and test the via against the pad half-extents. A roundrect/oval/
+    circle pad is treated as its bounding box - a hair generous at the corners,
+    which is the safe direction for a manufacturing flag."""
+    dx, dy = vx - pad['x'], vy - pad['y']
+    if pad['shape'] == 'custom':
+        # a custom pad's real copper is in (primitives ...), which we don't parse;
+        # its `size` under-states the true extent. Use the size-envelope circle so
+        # a via-in-pad here isn't missed.
+        # ponytail: custom-pad envelope approximated from size, not the primitives
+        return math.hypot(dx, dy) <= max(pad['sx'], pad['sy']) / 2
+    th = math.radians(pad['prot'])
+    c, s = math.cos(th), math.sin(th)
+    u, v = c * dx - s * dy, s * dx + c * dy
+    return abs(u) <= pad['sx'] / 2 and abs(v) <= pad['sy'] / 2
+
+def c_viapad(b, a):
+    """Every component with a via centred inside one of its SMD pads (via-in-pad).
+    Same-net = intentional via-in-pad (needs filled+capped/type-VII vias at the
+    fab). Different-net = the via sits in a foreign pad -> possible short."""
+    order = {n: i for i, n in enumerate(b.copper)}
+
+    def spans(via, layer):                          # does the via reach the pad's layer?
+        vi = [order[l] for l in via['layers'] if l in order]
+        if not vi or layer not in order:
+            return True                             # unknown -> assume yes (conservative)
+        return min(vi) <= order[layer] <= max(vi)
+
+    # bin vias into 1 mm cells so this isn't pads x vias
+    grid = defaultdict(list)
+    for vi, v in enumerate(b.vias):
+        grid[(int(v['x']), int(v['y']))].append(vi)
+
+    # ref -> pad_num -> {'pad': pad, 'vias': {via_index: mismatch}}. Keying vias by
+    # index dedupes a via that a split sub-pad (same number) covers twice.
+    hits = defaultdict(lambda: defaultdict(lambda: {'pad': None, 'vias': {}}))
+    for f in b.fps.values():
+        for pad in f.pads:
+            if pad['kind'] != 'smd' or pad['sx'] <= 0 or pad['sy'] <= 0 or not pad['num']:
+                continue  # numberless SMD slivers (paste/mechanical) aren't via-in-pad targets
+            play = next((l for l in pad['layers'] if l.endswith('.Cu')), None)
+            reach = int(pad['w'] / 2 + 1)
+            seen = set()
+            for cx in range(int(pad['x']) - reach, int(pad['x']) + reach + 1):
+                for cy in range(int(pad['y']) - reach, int(pad['y']) + reach + 1):
+                    for vi in grid.get((cx, cy), ()):
+                        if vi in seen:
+                            continue
+                        seen.add(vi)
+                        v = b.vias[vi]
+                        if not spans(v, play) or not _via_in_pad(pad, v['x'], v['y']):
+                            continue
+                        mism = bool(pad['net'] and v['net'] and pad['net'] != v['net'])
+                        slot = hits[f.ref][pad['num']]
+                        slot['pad'] = pad
+                        slot['vias'][vi] = mism
+
+    n_pads = sum(len(pads) for pads in hits.values())
+    n_via = sum(len(s['vias']) for pads in hits.values() for s in pads.values())
+    n_mism = sum(1 for pads in hits.values() for s in pads.values()
+                 for m in s['vias'].values() if m)
+    if a.json:
+        out = {r: [{'pad': num, 'pad_net': s['pad']['net'],
+                    'vias': len(s['vias']),
+                    'via_nets': sorted({b.vias[vi]['net'] for vi in s['vias']}),
+                    'mismatch': any(s['vias'].values())}
+                   for num, s in pads.items()]
+               for r, pads in hits.items()}
+        print(json.dumps({'components': len(hits), 'pads': n_pads, 'vias': n_via,
+                          'net_mismatches': n_mism, 'hits': out}, indent=2))
+        return 2 if n_mism else 0
+    if not hits:
+        print("no via-in-pad: no via centre lands inside any SMD pad."); return 0
+    print(f"via-in-pad: {n_via} via(s) in {n_pads} SMD pad(s) across {len(hits)} "
+          f"component(s).\nSame-net via-in-pad needs filled+capped (or type-VII) "
+          f"vias - flag it in the fab quote.\n")
+    for ref in sorted(hits, key=natkey):
+        f = b.fps[ref]
+        print(f"  {ref:<6} {trunc(f.value, 22):<22} {'B.Cu' if f.back else 'F.Cu'}")
+        for num in sorted(hits[ref], key=natkey):
+            s = hits[ref][num]
+            p = s['pad']
+            mnets = sorted({b.vias[vi]['net'] or '(none)' for vi, m in s['vias'].items() if m})
+            note = (f"OK same net ({p['net']})" if not mnets else
+                    f"!! via net {'/'.join(mnets)} != pad net {p['net']} - possible short")
+            print(f"       pad {num:<4} {len(s['vias']):>2} via(s)   {note}")
+    if n_mism:
+        print(f"\n{n_mism} via(s) sit in a pad of a DIFFERENT net - that is a short, "
+              f"not via-in-pad. Confirm with `kdrc.py {os.path.basename(a.file)}`.")
+    return 2 if n_mism else 0
+
 CMDS = {'summary': c_summary, 'check': c_check, 'where': c_where, 'map': c_map,
         'sheet': c_sheet, 'unplaced': c_unplaced, 'ic': c_ic, 'span': c_span,
-        'zones': c_zones, 'sync': c_sync, 'review': c_review, 'ampacity': c_ampacity}
+        'zones': c_zones, 'sync': c_sync, 'review': c_review, 'ampacity': c_ampacity,
+        'viapad': c_viapad}
 
 def main():
     ap = argparse.ArgumentParser(add_help=False)

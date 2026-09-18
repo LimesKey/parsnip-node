@@ -279,6 +279,7 @@
 	(segment (start 0 0) (end 10 0) (width 0.25) (layer "F.Cu") (net "PWR") (uuid "00000000-0000-0000-0000-000000000201"))
 	(segment (start 10 0) (end 10 5) (width 0.25) (layer "In1.Cu") (net "PWR") (uuid "00000000-0000-0000-0000-000000000202"))
 	(via (at 10 0) (size 0.6) (drill 0.3) (layers "F.Cu" "B.Cu") (net "PWR") (uuid "00000000-0000-0000-0000-000000000203"))
+	(via (at 8.5 8.5) (size 0.45) (drill 0.2) (layers "F.Cu" "B.Cu") (net "+3V3") (uuid "00000000-0000-0000-0000-000000000204"))
 	(segment (start 30 0) (end 40 0) (width 0.25) (layer "F.Cu") (net "PAR") (uuid "00000000-0000-0000-0000-000000000204"))
 	(segment (start 30 0) (end 40 0) (width 1.0) (layer "F.Cu") (net "PAR") (uuid "00000000-0000-0000-0000-000000000205"))
 )

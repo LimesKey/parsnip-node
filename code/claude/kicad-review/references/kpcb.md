@@ -19,6 +19,7 @@ everything here is checkable the moment a footprint is dropped.
 | `ampacity [NET...]` | current a routed net can carry (IPC-2221): narrowest segment per layer, via bound, length -> R/Vdrop. With `--amps X` or a kpcb.json budget it warns TRACE-THIN / VIA-FEW / LONG-DROP. See below. |
 | `zones` | pour coverage per layer from the last saved fill: area%, island count, edge margins. |
 | `zones REF...` | does a net's fill actually cover THIS footprint's courtyard - point-sampled, not just the fill's bounding box. Closes "is GND continuous under U9" without a KiCad render. See below. |
+| `viapad` | every component with a via centred inside one of its SMD pads (via-in-pad). See below. |
 
 ## Flags
 
@@ -265,3 +266,38 @@ means something, takes `--ncin`/`--ncout` of them, and **says in the output that
 guessed**. Two regulators on one rail can be offered the same cap. Check it against
 the schematic and pass `--cin`/`--cout` once - that is the one number worth a
 second call.
+
+## `viapad` - which components have a via inside an SMD pad
+
+`kpcb.py board.kicad_pcb viapad` lists every component where a via's centre lands
+inside one of its SMD pads (via-in-pad). One line per pad, grouped by component:
+
+```
+via-in-pad: 106 via(s) in 58 SMD pad(s) across 49 component(s).
+Same-net via-in-pad needs filled+capped (or type-VII) vias - flag it in the fab quote.
+
+  U8     BQ25798                F.Cu
+       pad EP   9 via(s)   OK same net (GND)
+```
+
+- **Same-net** (`OK same net (...)`) is intentional via-in-pad: the fab must fill
+  and cap (or plate over) those via holes so the part still solders flat. It is a
+  cost/process line item, not an error - exit 0.
+- **Different-net** (`!! via net X != pad net Y - possible short`) means a via of a
+  foreign net sits inside a pad. That is a short, not via-in-pad - exit 2. Confirm
+  with `kdrc.py` (KiCad's own DRC is the authority on shorts).
+- Only numbered SMD pads count; numberless paste/mechanical slivers are skipped.
+- Only free board vias count. KiCad 10 cannot store a via inside a footprint (the
+  grammar has no `via` under `footprint`), so every via is a board object anyway;
+  the reader takes only top-level `(via)` and never a footprint child. There is no
+  "manually placed vs auto" flag on a via in the file - a via is a via.
+- The test is centre-in-pad, layer-aware (a blind/buried via that never reaches the
+  pad's outer layer is not counted). Rect/roundrect/oval pads use the pad rectangle;
+  a `custom`-shape pad (its real copper lives in `(primitives ...)`, which this does
+  not parse) falls back to a size-envelope circle, so a via-in-pad there is not
+  missed - slightly generous, the safe direction for a fab flag.
+
+Back-side parts work without a mirror step: a `.kicad_pcb` stores each pad's `at`
+**angle** as absolute (footprint rotation already baked in, unlike a `.kicad_mod`),
+so the pad orientation is used directly. Validated against pcbnew's own `HitTest`
+on the real board: 58/58 pads, zero false positives or negatives.
