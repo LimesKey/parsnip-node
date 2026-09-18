@@ -9270,7 +9270,7 @@
 				)
 			)
 		)
-		(property "LCSC Part" "C4354980"
+		(property "LCSC Part" "C723682"
 			(at 257.81 66.04 0)
 			(hide yes)
 			(show_name no)
@@ -9293,6 +9293,17 @@
 		)
 		(property "Tolerance" "1%"
 			(at 260.858 67.056 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Capacitor Rating" ""
+			(at 257.81 66.04 0)
+			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -9383,7 +9394,7 @@
 				)
 			)
 		)
-		(property "LCSC Part" ""
+		(property "LCSC Part" "C696856"
 			(at 85.09 149.86 0)
 			(hide yes)
 			(show_name no)
@@ -9406,6 +9417,17 @@
 		)
 		(property "Tolerance" ""
 			(at 85.09 149.86 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Capacitor Rating" ""
+			(at 85.09 149.86 0)
+			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -13412,7 +13434,7 @@
 			)
 		)
 		(property "Value" "DISABLE_GNSS_PROT"
-			(at 266.7 95.504 0)
+			(at 266.446 95.504 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -14411,7 +14433,7 @@
 		(dnp no)
 		(uuid "7c550a66-17bf-41e0-8e84-78d9c9e068d2")
 		(property "Reference" "C111"
-			(at 264.922 77.724 90)
+			(at 270.002 76.2 90)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -14421,7 +14443,7 @@
 			)
 		)
 		(property "Value" "10uF"
-			(at 264.668 74.168 90)
+			(at 264.414 73.66 90)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -16256,7 +16278,7 @@
 				)
 			)
 		)
-		(property "LCSC Part" ""
+		(property "LCSC Part" "C696856"
 			(at 69.85 149.86 0)
 			(hide yes)
 			(show_name no)
@@ -16279,6 +16301,17 @@
 		)
 		(property "Tolerance" ""
 			(at 69.85 149.86 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Capacitor Rating" ""
+			(at 69.85 149.86 0)
+			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -20773,7 +20806,7 @@
 		(dnp no)
 		(uuid "f54a8207-189e-4cb5-9a2a-af10fa01662e")
 		(property "Reference" "C110"
-			(at 264.414 69.85 90)
+			(at 270.002 71.12 90)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -20826,7 +20859,7 @@
 				)
 			)
 		)
-		(property "LCSC Part" "C7393892"
+		(property "LCSC Part" "C22392391"
 			(at 261.62 71.12 0)
 			(hide yes)
 			(show_name no)
@@ -20883,6 +20916,17 @@
 		)
 		(property "KLC_S5.1" ""
 			(at 261.62 71.12 90)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Capacitor Rating" ""
+			(at 261.62 71.12 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)

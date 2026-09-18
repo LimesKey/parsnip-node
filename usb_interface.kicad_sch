@@ -9234,7 +9234,7 @@
 				)
 			)
 		)
-		(property "LCSC Part" "C2869359"
+		(property "LCSC Part" "C2872850"
 			(at 68.58 146.05 0)
 			(hide yes)
 			(show_name no)
@@ -17623,7 +17623,7 @@
 				)
 			)
 		)
-		(property "LCSC Part" "C2869359"
+		(property "LCSC Part" "C2872850"
 			(at 45.72 146.05 0)
 			(hide yes)
 			(show_name no)

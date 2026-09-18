@@ -16143,7 +16143,7 @@
 				)
 			)
 		)
-		(property "LCSC Part" "C861797"
+		(property "LCSC Part" "C705755"
 			(at 231.14 66.04 0)
 			(hide yes)
 			(show_name no)
@@ -16166,6 +16166,17 @@
 			)
 		)
 		(property "Tolerance" ""
+			(at 231.14 66.04 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Capacitor Rating" ""
 			(at 231.14 66.04 0)
 			(hide yes)
 			(show_name no)
