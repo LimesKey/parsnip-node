@@ -803,7 +803,7 @@
 				)
 			)
 			(property "Description" "Unpolarized capacitor, small symbol"
-				(at 0 0 0)
+				(at 0 -10.16 0)
 				(show_name no)
 				(do_not_autoplace no)
 				(hide yes)
@@ -853,7 +853,7 @@
 						(xy -1.524 -0.508) (xy 1.524 -0.508)
 					)
 					(stroke
-						(width 0.3302)
+						(width 0.3048)
 						(type default)
 					)
 					(fill
@@ -9457,7 +9457,7 @@
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
-		(in_bom no)
+		(in_bom yes)
 		(on_board yes)
 		(in_pos_files yes)
 		(dnp no)
@@ -9473,7 +9473,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "NEO-M9N"
+		(property "Value" "NEO-F10N"
 			(at 106.426 42.926 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -9495,7 +9495,7 @@
 				)
 			)
 		)
-		(property "Datasheet" "https://content.u-blox.com/sites/default/files/NEO-M9N_Integrationmanual_UBX-19014286.pdf"
+		(property "Datasheet" "https://content.u-blox.com/sites/default/files/documents/NEO-F10N_DataSheet_UBX-23002117.pdf"
 			(at 120.396 104.902 0)
 			(hide yes)
 			(show_name no)
@@ -9506,19 +9506,8 @@
 				)
 			)
 		)
-		(property "Description" "GNSS Module NEO M8, VCC 2.7V to 3.6V"
+		(property "Description" "u-blox F10 standard precision GNSS module"
 			(at 124.206 27.94 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "LCSC Part" "C5119087"
-			(at 147.574 90.17 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -9561,7 +9550,7 @@
 				)
 			)
 		)
-		(property "KLC_S3.3" ""
+		(property "Capacitor Rating" ""
 			(at 121.92 69.85 0)
 			(hide yes)
 			(show_name no)
@@ -9572,7 +9561,7 @@
 				)
 			)
 		)
-		(property "KLC_S5.1" ""
+		(property "LCSC Part" ""
 			(at 121.92 69.85 0)
 			(hide yes)
 			(show_name no)
@@ -17048,7 +17037,7 @@
 				)
 			)
 		)
-		(property "Value" "Conn_Coaxial"
+		(property "Value" "XUNPU SMA-KE-347-H13.5-1.6"
 			(at 35.8532 124.46 90)
 			(hide yes)
 			(show_name no)
@@ -17092,7 +17081,7 @@
 				)
 			)
 		)
-		(property "LCSC Part" "C5250058"
+		(property "LCSC Part" "C5723200"
 			(at 35.56 128.27 0)
 			(hide yes)
 			(show_name no)

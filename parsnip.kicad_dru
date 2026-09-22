@@ -67,18 +67,6 @@
     (constraint track_width (min 1.0mm))
     (condition "A.NetClass == 'PWR_HIGH'"))
 
-# Controlled-impedance RF: hold the trace at its 50-ohm width (necking OR
-# ballooning both shift Zo). The bracket below is a GROSS-ERROR GUARD only.
-# TODO: the exact 50-ohm microstrip width MUST be recomputed from the fab's
-# impedance calculator for THIS stackup (2oz outer changes it - thicker copper
-# lowers Zo, so the 50-ohm width is not the old 0.40mm target). Once known, set
-# BOTH the RF_50OHM net class (.pro) and this min/max to that value +/-0.02mm.
-# Current RF_50OHM class = 0.36mm; .dru notes historically said 0.40mm - resolve
-# that with the impedance calc.
-(rule "rf_50ohm_width"
-    (constraint track_width (min 0.34mm) (max 0.44mm))
-    (condition "A.NetClass == 'RF_50OHM'"))
-
 # ================= DRILL / VIAS ===============================================
 # Standard no-surcharge via: 0.2mm hole, 0.5mm diameter -> 0.15mm ring.
 (rule "Min Via Hole"

@@ -1634,7 +1634,7 @@
 				)
 			)
 			(property "Description" "Unpolarized capacitor, small symbol"
-				(at 0 0 0)
+				(at 0 -10.16 0)
 				(show_name no)
 				(do_not_autoplace no)
 				(hide yes)
@@ -1684,7 +1684,7 @@
 						(xy -1.524 -0.508) (xy 1.524 -0.508)
 					)
 					(stroke
-						(width 0.3302)
+						(width 0.3048)
 						(type default)
 					)
 					(fill
@@ -4769,7 +4769,7 @@
 		(uuid "10c2c486-d505-43c1-9a40-9da125e1584c")
 	)
 	(junction
-		(at 30.48 170.18)
+		(at 30.48 168.91)
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "225b2f86-c840-4962-90a8-9c8c61073023")
@@ -5840,7 +5840,7 @@
 	)
 	(wire
 		(pts
-			(xy 68.58 88.9) (xy 72.39 88.9)
+			(xy 63.5 88.9) (xy 72.39 88.9)
 		)
 		(stroke
 			(width 0)
@@ -5860,7 +5860,7 @@
 	)
 	(wire
 		(pts
-			(xy 30.48 170.18) (xy 30.48 173.99)
+			(xy 30.48 168.91) (xy 30.48 173.99)
 		)
 		(stroke
 			(width 0)
@@ -6240,6 +6240,16 @@
 	)
 	(wire
 		(pts
+			(xy 22.86 168.91) (xy 22.86 170.18)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "c04868e7-fe98-41a0-b5ba-648dfe83e966")
+	)
+	(wire
+		(pts
 			(xy 30.48 179.07) (xy 31.75 179.07)
 		)
 		(stroke
@@ -6360,7 +6370,7 @@
 	)
 	(wire
 		(pts
-			(xy 22.86 170.18) (xy 30.48 170.18)
+			(xy 22.86 168.91) (xy 30.48 168.91)
 		)
 		(stroke
 			(width 0)
@@ -6507,16 +6517,6 @@
 			(type default)
 		)
 		(uuid "eefce640-73cb-4a38-94f9-e56d4c328efe")
-	)
-	(wire
-		(pts
-			(xy 30.48 168.91) (xy 30.48 170.18)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "ef2c2074-9838-4a7b-b5f8-1d1989044fd3")
 	)
 	(wire
 		(pts
@@ -7049,7 +7049,7 @@
 		(uuid "db454e24-9332-439d-89ca-fedf5af9c806")
 	)
 	(label "GPIO_14"
-		(at 68.58 88.9 180)
+		(at 63.5 88.9 180)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -12201,7 +12201,7 @@
 				)
 			)
 		)
-		(property "Description" "Generic connectable mounting pin connector, single row, 01x08, script generated (kicad-library-utils/schlib/autogen/connector/)"
+		(property "Description" "CONN HEADER SMD R/A 8POS 1.25mm"
 			(at 162.56 172.72 0)
 			(hide yes)
 			(show_name no)

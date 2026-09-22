@@ -254,7 +254,7 @@
 				)
 			)
 			(property "Description" "Unpolarized capacitor, small symbol"
-				(at 0 0 0)
+				(at 0 -10.16 0)
 				(show_name no)
 				(do_not_autoplace no)
 				(hide yes)
@@ -304,7 +304,7 @@
 						(xy -1.524 -0.508) (xy 1.524 -0.508)
 					)
 					(stroke
-						(width 0.3302)
+						(width 0.3048)
 						(type default)
 					)
 					(fill
@@ -3503,6 +3503,16 @@
 	)
 	(wire
 		(pts
+			(xy 134.62 91.44) (xy 134.62 88.9)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "23c6237a-6eea-46ee-909f-aeac86cbcdfa")
+	)
+	(wire
+		(pts
 			(xy 58.42 158.75) (xy 58.42 156.21)
 		)
 		(stroke
@@ -3573,7 +3583,7 @@
 	)
 	(wire
 		(pts
-			(xy 130.81 88.9) (xy 134.62 88.9)
+			(xy 128.27 88.9) (xy 134.62 88.9)
 		)
 		(stroke
 			(width 0)
@@ -3930,16 +3940,6 @@
 			(type default)
 		)
 		(uuid "7be45ecf-9962-472d-b442-f0bfb287e6f7")
-	)
-	(wire
-		(pts
-			(xy 134.62 93.98) (xy 134.62 96.52)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "81ad2cb2-f6c5-4c69-b823-b182c37987e9")
 	)
 	(wire
 		(pts
@@ -4433,6 +4433,16 @@
 	)
 	(wire
 		(pts
+			(xy 134.62 97.79) (xy 134.62 96.52)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "f6578057-5c50-4ae4-b78c-205db552c6c3")
+	)
+	(wire
+		(pts
 			(xy 212.09 93.98) (xy 215.9 93.98)
 		)
 		(stroke
@@ -4555,7 +4565,7 @@
 	)
 	(hierarchical_label "RESET"
 		(shape input)
-		(at 130.81 88.9 180)
+		(at 128.27 88.9 180)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -7536,7 +7546,7 @@
 	)
 	(symbol
 		(lib_id "power:GND")
-		(at 134.62 96.52 0)
+		(at 134.62 97.79 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -7546,7 +7556,7 @@
 		(dnp no)
 		(uuid "827b0d2c-0678-4384-a50f-7898bb3770ed")
 		(property "Reference" "#PWR0128"
-			(at 134.62 102.87 0)
+			(at 134.62 104.14 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -7557,7 +7567,7 @@
 			)
 		)
 		(property "Value" "GND"
-			(at 134.62 100.838 0)
+			(at 134.62 102.108 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -7567,7 +7577,7 @@
 			)
 		)
 		(property "Footprint" ""
-			(at 134.62 96.52 0)
+			(at 134.62 97.79 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -7578,7 +7588,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 134.62 96.52 0)
+			(at 134.62 97.79 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -7589,7 +7599,7 @@
 			)
 		)
 		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
-			(at 134.62 96.52 0)
+			(at 134.62 97.79 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -9082,7 +9092,7 @@
 			)
 		)
 		(property "Value" "22uF"
-			(at 197.612 79.756 0)
+			(at 197.866 83.058 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -9228,7 +9238,7 @@
 				)
 			)
 		)
-		(property "Value" "Conn_Coaxial"
+		(property "Value" "XUNPU SMA-KE-347-H13.5-1.6"
 			(at 66.3332 144.78 90)
 			(show_name no)
 			(do_not_autoplace no)
@@ -9271,7 +9281,7 @@
 				)
 			)
 		)
-		(property "LCSC Part" "C5250058"
+		(property "LCSC Part" "C5723200"
 			(at 66.04 148.59 0)
 			(hide yes)
 			(show_name no)
@@ -9337,6 +9347,17 @@
 				)
 			)
 		)
+		(property "Capacitor Rating" ""
+			(at 66.04 148.59 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(pin "1"
 			(uuid "11c6d1e5-a21e-44c4-80e6-3458d29c8df8")
 		)
@@ -9385,7 +9406,7 @@
 				(justify right)
 			)
 		)
-		(property "Footprint" "Capacitor_SMD:C_0603_1608Metric"
+		(property "Footprint" "Diode_SMD:D_0603_1608Metric_Pad1.05x0.95mm_HandSolder"
 			(at 58.42 162.56 0)
 			(hide yes)
 			(show_name no)
@@ -9441,6 +9462,17 @@
 			)
 		)
 		(property "Tolerance" ""
+			(at 58.42 162.56 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Capacitor Rating" ""
 			(at 58.42 162.56 0)
 			(hide yes)
 			(show_name no)
@@ -9546,7 +9578,7 @@
 	)
 	(symbol
 		(lib_id "Device:C_Small")
-		(at 134.62 91.44 0)
+		(at 134.62 93.98 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -9556,7 +9588,7 @@
 		(dnp no)
 		(uuid "f249bec8-aa0b-44c9-8d48-1c60b112d055")
 		(property "Reference" "C116"
-			(at 130.556 91.44 0)
+			(at 131.318 92.202 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -9566,7 +9598,7 @@
 			)
 		)
 		(property "Value" "100nF"
-			(at 130.302 93.98 0)
+			(at 131.064 96.52 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -9576,7 +9608,7 @@
 			)
 		)
 		(property "Footprint" "Capacitor_SMD:C_0402_1005Metric"
-			(at 134.62 91.44 0)
+			(at 134.62 93.98 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -9587,7 +9619,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 134.62 91.44 0)
+			(at 134.62 93.98 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -9598,7 +9630,7 @@
 			)
 		)
 		(property "Description" "Unpolarized capacitor, small symbol"
-			(at 134.62 91.44 0)
+			(at 134.62 93.98 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -9609,7 +9641,7 @@
 			)
 		)
 		(property "LCSC Part" "C5272680"
-			(at 134.62 91.44 0)
+			(at 134.62 93.98 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -9620,7 +9652,7 @@
 			)
 		)
 		(property "Voltage Rating" "50V"
-			(at 134.62 91.44 0)
+			(at 134.62 93.98 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -9631,7 +9663,7 @@
 			)
 		)
 		(property "Tolerance" ""
-			(at 134.62 91.44 0)
+			(at 134.62 93.98 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -9642,7 +9674,7 @@
 			)
 		)
 		(property "LCSC" ""
-			(at 134.62 91.44 90)
+			(at 134.62 93.98 90)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -9653,7 +9685,7 @@
 			)
 		)
 		(property "KLC_S3.3" ""
-			(at 134.62 91.44 90)
+			(at 134.62 93.98 90)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -9664,7 +9696,7 @@
 			)
 		)
 		(property "KLC_S5.1" ""
-			(at 134.62 91.44 90)
+			(at 134.62 93.98 90)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -9675,7 +9707,7 @@
 			)
 		)
 		(property "Capacitor Rating" "X7R"
-			(at 134.62 91.44 0)
+			(at 134.62 93.98 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
