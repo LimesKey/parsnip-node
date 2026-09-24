@@ -10768,7 +10768,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Inductor_SMD:L_Vishay_IFSC-1515AH_4x4x1.8mm"
+		(property "Footprint" "Inductor_SMD:L_Sunlord_MWSA0503S"
 			(at 185.42 83.82 0)
 			(hide yes)
 			(show_name no)
@@ -10790,7 +10790,7 @@
 				)
 			)
 		)
-		(property "Description" "Inductor"
+		(property "Description" "2.2uH 29mΩ 7A 7A ±20% SMD,5.4x5.2mm Power Inductors ROHS"
 			(at 185.42 83.82 0)
 			(hide yes)
 			(show_name no)
@@ -10801,7 +10801,29 @@
 				)
 			)
 		)
-		(property "LCSC Part" "C5291938"
+		(property "MPN" "MWSA0503S-2R2MT"
+			(at 185.42 83.82 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC Part" ""
+			(at 185.42 83.82 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "JLCPCB Part" "C408408"
 			(at 185.42 83.82 0)
 			(hide yes)
 			(show_name no)
