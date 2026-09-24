@@ -3,7 +3,7 @@
 Answers "higher voltage rating or higher nominal capacitance?" objectively -
 minimising capacitor volume while keeping *effective* uF (after DC-bias derating,
 density-driven dielectric thinning, temperature and aging) and wear-out life in spec.
-Fully offline by default (fitted formulas); imports this skill's own `part.py` client
+Fully offline by default (fitted formulas); imports this skill's own `part_core`/`part_value` client
 automatically when present for LCSC C-number resolution and a live density-ceiling
 refinement, but never requires it.
 
@@ -18,6 +18,11 @@ A spec string is slash-separated and order-independent: `CAP/VOLT/DIEL/PKG`, e.g
 
 **`--vop` is required** - the actual operating voltage the part will see. Never assume
 Vrated. Full flag reference: `python3 $skill/scripts/kcap.py --help`.
+
+`solve` pools like `pick` (JLC MLCC category per `--pkg`, nominal >= `--need`,
+Vr >= 1.15 x Vop, `--diel`, stock >= 100, cheapest 600 per case), keeps the cheapest
+part per (case, nominal, Vr, dielectric) that clears the target, and sorts by volume
+then price. "nothing found" is then a real answer: 0805 X7R cannot give 8 uF at 8.4 V.
 
 ## Model and its limits
 

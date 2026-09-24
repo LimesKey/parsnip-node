@@ -255,8 +255,12 @@ def _partsearch():
         for c in cands:
             if c and c not in sys.path:
                 sys.path.insert(0, c)
-        import part as _part
-        return _part
+        # part.py is only the CLI since the split; the catalog calls live here
+        from types import SimpleNamespace
+        from part_core import lcsc_detail, lcsc_search
+        from part_value import attr_of, enum
+        return SimpleNamespace(lcsc_detail=lcsc_detail, lcsc_search=lcsc_search,
+                               attr_of=attr_of, enum=enum)
     except Exception:
         return None
 
@@ -384,10 +388,9 @@ def c_compare(a, part_mod):
     else:
         life_verdict = f"B has ~{1/ratio:.2g}x the voltage-stress life of A"
     winner = 'A' if ea_['eff_uF'] >= eb_['eff_uF'] else 'B'
-    denom = max(ea_['eff_uF'], eb_['eff_uF'], 1e-12)
-    margin_pct = abs(ea_['eff_uF'] - eb_['eff_uF']) / denom * 100
-    print(f"verdict: {winner} gives more effective capacitance in this footprint "
-          f"({fmt_si(ea_['eff_uF']*1e-6)}F vs {fmt_si(eb_['eff_uF']*1e-6)}F, +{margin_pct:.0f}%); "
+    w, l = sorted((ea_['eff_uF'], eb_['eff_uF']), reverse=True)
+    print(f"verdict: {winner} gives more effective capacitance "
+          f"({fmt_si(w*1e-6)}F vs {fmt_si(l*1e-6)}F, +{(w - l) / max(l, 1e-12) * 100:.0f}%); "
           f"{life_verdict}.")
     print("(voltage-stress life covers TDDB/insulation-resistance wear-out only, not "
           "flex cracking, thermal cycling or moisture, which dominate real field "
@@ -412,43 +415,47 @@ def c_solve(a, part_mod):
     kw = ' '.join(a.args) or 'MLCC'
     vmin = a.vop * 1.15   # a little headroom over Vop as the search floor
 
-    cands = []
+    import argparse
+    from part_pick import apply_cons, build_pool, _pick_category
+    from part_value import make_pred
+    for d in diels:
+        if d not in CURVES:
+            print(f"(skipping unknown dielectric {d!r})", file=sys.stderr)
+    diels = [d for d in diels if d in CURVES]
+    best = {}                  # (pkg, cap, volt, diel) -> cheapest part of that spec
     for pkg in pkgs:
         if pkg not in CASE:
             print(f"(skipping unknown package {pkg!r})", file=sys.stderr); continue
-        for diel in diels:
-            if diel not in CURVES:
-                print(f"(skipping unknown dielectric {diel!r})", file=sys.stderr); continue
-            try:
-                rows, _ = part_mod.lcsc_search(f"{kw} {pkg} {diel}", 40, a.fresh)
-            except Exception:
-                rows = []
-            seen = set()
-            for r in rows:
-                if r['sku'] in seen:
-                    continue
-                seen.add(r['sku'])
-                full = part_mod.lcsc_detail(r['sku'], a.fresh)
-                if not full or pkg not in (full.get('package') or '').upper():
-                    continue
-                params = full.get('params') or []
-                capv = part_mod.enum(part_mod.attr_of(params, 'cap'))
-                voltv = part_mod.enum(part_mod.attr_of(params, 'volt'))
-                dielv = _norm_diel(part_mod.attr_of(params, 'diel'))
-                if not (capv and voltv and dielv == diel) or voltv < vmin:
-                    continue
-                part = {'cap': capv, 'volt': voltv, 'diel': dielv, 'pkg': pkg, 'dims': CASE[pkg]}
-                e_ = effective(part, a.vop, a.temp, a.hours)
-                if e_['eff_uF'] >= need_uF:
-                    lad = full.get('ladder') or []
-                    price = lad[0][1] if lad else None
-                    cands.append((e_['vol_mm3'], price, full.get('mpn'), r['sku'], part, e_))
+        # pick's pool: JLC category + package + server-side nominal/voltage/dielectric
+        # filter, in stock, cheapest first. A keyword search returned 40 parts of
+        # every value (220 pF..10 uF) and "found nothing" that the catalog has.
+        cons = [(n, lab, p) for n, spec in (('cap', f'>={need_uF:g}u'), ('volt', f'>={vmin:.3g}'),
+                                             ('diel', ','.join(diels)), ('pkg', pkg))
+                for p, lab in [make_pred(spec)]]
+        pa = argparse.Namespace(args=[kw], cat=None, pkg=pkg, fresh=a.fresh, sort='price',
+                                minstock=100, maxq=14, basic=False, source='jlc', jobs=8, pool=240)
+        pa._jcat = _pick_category(pa)
+        recs, _ = build_pool(pa, cons, [f"{kw} {pkg} {d}" for d in diels])
+        for full in apply_cons(recs, cons)[0]:
+            params = full.get('params') or []
+            capv = part_mod.enum(part_mod.attr_of(params, 'cap'))
+            voltv = part_mod.enum(part_mod.attr_of(params, 'volt'))
+            dielv = _norm_diel(part_mod.attr_of(params, 'diel'))
+            if not (capv and voltv and dielv in diels):
+                continue
+            part = {'cap': capv, 'volt': voltv, 'diel': dielv, 'pkg': pkg, 'dims': CASE[pkg]}
+            e_ = effective(part, a.vop, a.temp, a.hours)
+            lad = full.get('ladder') or []
+            price = lad[0][1] if lad else None
+            k = (pkg, capv, voltv, dielv)
+            if e_['eff_uF'] >= need_uF and (k not in best or (price or 1e9) < (best[k][1] or 1e9)):
+                best[k] = (e_['vol_mm3'], price, full.get('mpn'), full['sku'], part, e_)
+    cands = sorted(best.values(), key=lambda c: (c[0], c[1] if c[1] is not None else 1e9))
     if not cands:
         print(f"solve: nothing found clearing {need_uF:g} uF effective at "
               f"Vop={a.vop:g}V T={a.temp:g}C across {','.join(pkgs)} x {','.join(diels)}. "
               f"Try a lower --need, more --pkg/--diel options, or a different keyword.")
         return 1
-    cands.sort(key=lambda c: c[0])
     if a.json:
         print(json.dumps([{'sku': c[3], 'mpn': c[2], 'price_usd': c[1],
                            'part': {k: v for k, v in c[4].items() if k != 'dims'},

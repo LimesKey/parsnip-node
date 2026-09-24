@@ -266,8 +266,10 @@ def main():
             return
 
     top, stats, n_comp, n_net, n_sheet = merge(roots)
-    with open(a.out, "w") as fh:
+    tmp = "%s.%d" % (a.out, os.getpid())
+    with open(tmp, "w") as fh:
         fh.write(top if isinstance(top, str) else dump(top) + "\n")
+    os.replace(tmp, a.out)          # a knet reading meanwhile never sees half a netlist
 
     for stem, c, n in stats:
         if c is None:

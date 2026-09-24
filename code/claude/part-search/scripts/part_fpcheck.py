@@ -253,7 +253,13 @@ def _fpcheck_selftest():
     assert 'largest pad 0.61x2.20 vs 1.40x1.60' in _land_diff(ltc, cat), _land_diff(ltc, cat)
     assert _land_diff(ltc, ltc) == ''
     assert _mpn_same('TPN2R203NC', 'TPN2R203NC,L1Q(M)') and not _mpn_same('CSD25480F3', 'CSD25481F4')
-    n = len(cases) + len(vcases) + 3
+    # custom pad (U8 corner): 0.15 anchor + 0.95x0.70 polygon, turned 90 in the footprint
+    from types import SimpleNamespace
+    u8 = SimpleNamespace(rot=90.0, x=10, y=5, pads=[
+        {'num': '1', 'layers': ['F.Cu'], 'x': 10, 'y': 5, 'prot': 180.0, 'sx': 0.15, 'sy': 0.15,
+         'prims': [[(-0.1, -0.2), (0.85, -0.2), (0.85, 0.5), (-0.1, 0.5)]]}])
+    assert [round(v, 2) for v in _fp_pads(u8)[0][3:]] == [0.7, 0.95], _fp_pads(u8)
+    n = len(cases) + len(vcases) + 4
     return f"{n}/{n}"
 
 def ee_land(code, fresh=False):
@@ -287,16 +293,26 @@ def ee_land(code, fresh=False):
 _LEADLESS = re.compile(r'DFN|QFN|SON|LGA|BGA|CSP|WLB|PicoStar', re.I)
 
 def _fp_pads(f):
-    """Board footprint's copper pads, [[num, x, y, w, h]] in its own frame."""
+    """Board footprint's copper pads, [[num, x, y, w, h]] in its own frame: the
+    bbox of each pad's anchor plus its custom-pad primitives (a BQ25798 corner pad
+    is a 0.15 mm anchor + a 0.95x0.70 polygon). Pad-local -> footprint frame is a
+    turn by prot - f.rot (a .kicad_pcb stores prot absolute), xf's sign pattern."""
     r = math.radians(f.rot)
     c, s = math.cos(r), math.sin(r)
     out = []
     for p in f.pads:
         if not any(l.endswith('.Cu') for l in p['layers']):
             continue                                  # paste-only apertures
-        w, h = (p['sy'], p['sx']) if round(p['prot'] - f.rot) % 180 == 90 else (p['sx'], p['sy'])
         dx, dy = p['x'] - f.x, p['y'] - f.y
-        out.append([p['num'], dx * c - dy * s, dx * s + dy * c, w, h])
+        cx, cy = dx * c - dy * s, dx * s + dy * c
+        t = math.radians(p['prot'] - f.rot)
+        ct, st = math.cos(t), math.sin(t)
+        hx, hy = p['sx'] / 2, p['sy'] / 2
+        uv = [(-hx, -hy), (hx, hy), (-hx, hy), (hx, -hy)] + [q for g in p.get('prims') or () for q in g]
+        xs = [cx + u * ct + v * st for u, v in uv]
+        ys = [cy - u * st + v * ct for u, v in uv]
+        out.append([p['num'], (min(xs) + max(xs)) / 2, (min(ys) + max(ys)) / 2,
+                    max(xs) - min(xs), max(ys) - min(ys)])
     return out
 
 def _land_diff(mine, theirs):
@@ -321,7 +337,8 @@ def _land_diff(mine, theirs):
 def _load_board(src, pcb):
     """kicad-review's Board for --pcb, else the one .kicad_pcb beside the netlist."""
     if not pcb:
-        c = glob.glob(os.path.join(os.path.dirname(os.path.abspath(src)), '*.kicad_pcb'))
+        c = [f for f in glob.glob(os.path.join(os.path.dirname(os.path.abspath(src)), '*.kicad_pcb'))
+             if not os.path.basename(f).startswith(('_autosave-', '~'))]   # an open pcbnew's copies
         pcb = c[0] if len(c) == 1 else None
     if not pcb:
         return None, None
@@ -353,6 +370,11 @@ def _load_confirmed(src):
     except Exception:
         return set(), path, {'confirmed': []}
 
+def _land_key(code, footprint, land):
+    """A land confirmation holds only while the diff text (both sides' numbers)
+    is unchanged: an edited board pad or a republished EasyEDA land re-flags."""
+    return (code, _fp_base(footprint or ''), land)
+
 def c_fpcheck(a):
     """Cross-check each part's KiCad footprint against LCSC's package for its
     part number. Also flags one LCSC code sitting on >1 footprint (a single MPN
@@ -367,6 +389,8 @@ def c_fpcheck(a):
     if nl is None:
         print(f"fpcheck: could not parse {src} (kcommon.py not importable)"); return 1
     confirmed, cpath, cdoc = _load_confirmed(src)
+    land_ok = {_land_key(e.get('lcsc'), e.get('footprint'), e.get('land')): e.get('datasheet')
+               for e in cdoc.get('land', [])}
     want, nocode = {}, []              # code -> {(footprint, value, prefix): [refs]}
     for ref, c in nl.comps.items():
         if c['dnp'] or not c['in_bom']:
@@ -429,12 +453,15 @@ def c_fpcheck(a):
                 verdict, why = 'ok', fpwhy
             f0 = board.fps.get(sorted(refs)[0]) if board else None
             land = _land_diff(_fp_pads(f0), lands[code]) if f0 and f0.pads and lands.get(code) else ''
-            if land and verdict == 'ok':
+            ds = land_ok.get(_land_key(code, fp, land)) if land else None
+            if ds:
+                why, land = (why + '; ' if why else '') + f'land checked vs datasheet ({ds})', ''
+            elif land and verdict == 'ok':
                 verdict, why = 'review', land + (f'  (name: {why})' if why else '')
             elif land:
                 why += '; ' + land
             row = {'lcsc': code, 'mpn': mpn, 'lcsc_pkg': pkg, 'value': value,
-                   'footprint': fp.split(':')[-1], 'why': why, 'refs': sorted(refs)}
+                   'footprint': fp.split(':')[-1], 'why': why, 'land': land, 'refs': sorted(refs)}
             {'ok': ok, 'mismatch': mism, 'review': review}[verdict].append(row)
 
     if a.confirm:                      # record verified REVIEW pairs, do not print buckets
@@ -445,31 +472,50 @@ def c_fpcheck(a):
             return 1
         rev_by_code = {}
         for row in review:
-            if 'another body' in row['why'] or 'land differs' in row['why']:
-                continue        # a body/land question, not a nomenclature call
+            if 'another body' in row['why']:
+                continue        # a copy-paste question, never confirmable
             rev_by_code.setdefault(row['lcsc'], []).append(row)
-        added, skipped = [], []
+        added, skipped, need_ds = [], [], []
+        today = time.strftime('%Y-%m-%d')
         for code in req:
             rows = rev_by_code.get(code)
             if not rows:
                 skipped.append(code); continue
             for row in rows:
-                if _conf_key(row['lcsc_pkg'], row['footprint']) in confirmed:
+                if row['land']:         # the pads differ: only a datasheet settles that
+                    if not a.datasheet:
+                        need_ds.append(code); continue
+                    cdoc.setdefault('land', []).append(
+                        {'lcsc': code, 'footprint': row['footprint'], 'land': row['land'],
+                         'datasheet': a.datasheet, 'note': a.note or '', 'added': today})
+                    added.append(f"{code}  land ({row['footprint']}) per {a.datasheet}")
+                if (_conf_key(row['lcsc_pkg'], row['footprint']) in confirmed
+                        or _fp_match(row['lcsc_pkg'], row['footprint'], row['mpn'])[0] != 'review'):
                     continue
                 confirmed.add(_conf_key(row['lcsc_pkg'], row['footprint']))
                 cdoc.setdefault('confirmed', []).append(
                     {'lcsc_pkg': row['lcsc_pkg'], 'footprint': row['footprint'],
-                     'example': code, 'note': a.note or '', 'added': time.strftime('%Y-%m-%d')})
-                added.append((code, row['lcsc_pkg'], row['footprint']))
-        with open(cpath, 'w', encoding='utf8') as fh:
-            json.dump(cdoc, fh, indent=1, ensure_ascii=False)
-            fh.write('\n')
-        print(f"confirmed {len(added)} pair(s) -> {cpath}")
-        for code, pkg, fp in added:
-            print(f"  {code}  {pkg!r} ~ {fp!r}")
+                     'example': code, 'note': a.note or '', 'added': today})
+                added.append(f"{code}  {row['lcsc_pkg']!r} ~ {row['footprint']!r}")
+        if added:
+            with open(cpath, 'w', encoding='utf8') as fh:
+                json.dump(cdoc, fh, indent=1, ensure_ascii=False)
+                fh.write('\n')
+        print(f"confirmed {len(added)} entr{'y' if len(added) == 1 else 'ies'} -> {cpath}")
+        for x in added:
+            print(f"  {x}")
         if skipped:
-            print(f"skipped (not a nomenclature-REVIEW code right now): {' '.join(skipped)}")
-        return 0
+            print(f"skipped (not a confirmable REVIEW code right now): {' '.join(skipped)}")
+            miss = [c for c in skipped if c in lands and lands[c] is None]
+            if not board and not a.noland:
+                print(f"  NOTE: land check did not run ({'could not load ' + pcb if pcb else 'no single .kicad_pcb beside the netlist'}),"
+                      f" so no 'land differs' row exists to confirm; --pcb FILE, or rerun if pcbnew was saving")
+            elif miss:
+                print(f"  NOTE: EasyEDA land fetch FAILED for {' '.join(miss)}; rerun later")
+        if need_ds:
+            print(f"not recorded, land differs: {' '.join(need_ds)}. Check the board pads against "
+                  f"the datasheet's recommended land, then rerun with --datasheet 'DOC pN'")
+        return 1 if need_ds else 0
 
     if a.json:
         print(json.dumps({'ok': ok, 'mismatch': mism, 'review': review, 'eol': eol,

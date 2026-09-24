@@ -224,7 +224,10 @@ def c_selftest(a):
         assert [_ds_name(r) for r in ({'mpn': 'ESD501DPYR', 'datasheet_candidates': ti},
                                       {'mpn': 'TPN2R203NC,L1Q(M)'}, {'mpn': 'MAX17320G22+T'})] \
             == ['ESD501', 'TPN2R203NC', 'MAX17320G22'], 'ds --save names'
-        off = f"OK    pick/alt parsing {_pick_selftest()}, fpcheck matcher {_fpcheck_selftest()}, ds names 3/3"
+        import kcap
+        assert kcap._partsearch(), 'kcap cannot import its part_core/part_value calls'
+        off = (f"OK    pick/alt parsing {_pick_selftest()}, fpcheck matcher {_fpcheck_selftest()}, "
+               f"ds names 3/3, kcap bridge")
     except AssertionError as e:
         off = f"FAIL  {e}"
     if a.offline:
@@ -491,6 +494,8 @@ def main():
     ap.add_argument('--confirm', action='store_true',
                     help='fpcheck: record the listed REVIEW codes as confirmed-equivalent in fpcheck.json')
     ap.add_argument('--note', default='', help='fpcheck --confirm: provenance note stored with each entry')
+    ap.add_argument('--datasheet', default='', help="fpcheck --confirm: the datasheet land a 'land "
+                    "differs' row was checked against, e.g. 'TPD1E10B06 p20' (required for those rows)")
     ap.add_argument('--pcb', default='', help='fpcheck: board for the pad-land check '
                     '(default: the one .kicad_pcb beside the netlist)')
     ap.add_argument('--no-land', dest='noland', action='store_true',

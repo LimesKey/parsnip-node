@@ -199,6 +199,9 @@ def load_sexp(path, cache_over=100_000):
     except (OSError, EOFError, ValueError, TypeError):
         pass
     tree = parse()
+    st2 = os.stat(path)
+    if (st2.st_size, st2.st_mtime_ns) != (st.st_size, st.st_mtime_ns):
+        return tree                  # saved mid-read (pcbnew open): never cache under the old key
     try:
         os.makedirs(CACHE, exist_ok=True)
         for old in glob.glob(os.path.join(CACHE, f"sexp_{tag}_*.marshal")):

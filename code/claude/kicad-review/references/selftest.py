@@ -47,7 +47,7 @@ CASES = [
     ("knet walk",    ['knet.py', NET, 'walk', '/DANGLE'],       0, ["R2.2", "DNP"]),
     ("knet draw",    ['knet.py', NET, 'draw', 'U1', '-d', '2', '-o', svg1], 0, []),
     ("ksch render",  ['ksch.py', 'render', '-o', svg2, KSCH],   0, []),   # + no ERROR (checked below)
-    ("kdrc selftest", ['kdrc.py', '--selftest'],                0, ["7/7 passed"]),
+    ("kdrc selftest", ['kdrc.py', '--selftest'],                0, ["8/8 passed"]),
     ("kpcb check",   ['kpcb.py', PCB, 'check'],                 2, ["4 error, 7 warn, 2 info"]),
     ("kpcb summary", ['kpcb.py', PCB, 'summary'],               0, ["40.00 x 30.00 mm", "placed 16"]),
     # nightly writes (transform (translate X Y) (rotate R)); read as (at) it parks all at 0,0

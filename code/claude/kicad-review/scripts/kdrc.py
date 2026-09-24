@@ -11,6 +11,8 @@ knet/kpcb so the output reads the same way.
   kdrc.py FILE.kicad_pcb            DRC + ERC (default)
   kdrc.py FILE.kicad_pcb drc       DRC only
   kdrc.py FILE.kicad_pcb erc       ERC only, every root schematic
+  kdrc.py FILE.kicad_pcb flags     PWR_FLAG audit: each flag's net, and whether
+                                   ERC needs it (LOAD-BEARING) or not (REDUNDANT)
 
 DRC runs with --refill-zones so results reflect the current pours, but never
 with --save-board: the zones are refilled in memory only, the .kicad_pcb on
@@ -231,9 +233,10 @@ def do_drc(board, a):
     return F, len(unconn)
 
 
-def do_erc(board, a):
+def do_erc(board, a, raw=None):
     """Returns (findings, roots actually run, whole) - whole = one report covered
-    every top-level sheet, so cross-root nets were visible to ERC."""
+    every top-level sheet, so cross-root nets were visible to ERC. `raw` (a list)
+    also collects the kicad-cli violations as reported."""
     roots = a.erc_roots or discover_roots(board)
     names = dict(top_level_sheets(os.path.dirname(os.path.abspath(board)) or '.'))
     F, seen, ran, covered = [], set(), [], set()
@@ -250,6 +253,8 @@ def do_erc(board, a):
         covered |= {sh.get('path', '').strip('/').split('/')[0] for sh in d.get('sheets', [])}
         for sh in d.get('sheets', []):
             for v in sh.get('violations', []):
+                if raw is not None:
+                    raw.append(v)
                 f = vio_finding(v, 'ERC')
                 key = (f['rule'], f['msg'])          # dedupe identical cross-root hits
                 if key in seen:
@@ -300,11 +305,148 @@ def _selftest():
                                 {'description': 'Pad 2 of BT2'}]}, 'DRC')
     checks.append((fc['msg'].startswith("actual 0.1 < 0.15 mm (netclass 'Default'")
                    and len(fc['items']) == 2, "netclass clearance number or items lost"))
+    t, refs = _inert_flags(
+        '(kicad_sch (lib_symbols (symbol "power:PWR_FLAG" (power global) (property "Reference" "#FLG")'
+        ' (symbol "PWR_FLAG_0_0" (pin power_out line (name "x(") (number "1"))))'
+        ' (symbol "power:+3V3" (power global) (property "Reference" "#PWR")'
+        ' (symbol "+3V3_0_1" (pin power_in line))))'
+        ' (symbol (lib_id "power:PWR_FLAG") (property "Reference" "#FLG01") (property "Value" "PWR_FLAG"))'
+        ' (symbol (lib_id "power:+3V3") (property "Reference" "#PWR01") (property "Value" "+3V3")'
+        ' (instances (project "p" (path "/x" (reference "#PWR02"))))))')
+    checks.append((t.count('(power global)') == 1 and '(pin passive' in t and '(pin power_in' in t
+                   and '"FLG01"' in t and '"#FLG' not in t
+                   and refs == {'#FLG01': 'PWR_FLAG', '#PWR01': '+3V3', '#PWR02': '+3V3'},
+                   f"flags: PWR_FLAG not made inert, or power refs wrong: {refs}"))
     fails = [msg for ok, msg in checks if not ok]
     for msg in fails:
         print(f"FAIL  {msg}")
     print(f"kdrc selftest: {len(checks) - len(fails)}/{len(checks)} passed")
     return 1 if fails else 0
+
+
+_TOK = re.compile(r'"(?:\\.|[^"\\])*"|[()]')
+
+
+def _sexp_end(t, i):
+    """Index just past the S-expression opening at t[i] (strings may hold parens)."""
+    depth = 0
+    for m in _TOK.finditer(t, i):
+        if m.group() == '(':
+            depth += 1
+        elif m.group() == ')':
+            depth -= 1
+            if not depth:
+                return m.end()
+    return len(t)
+
+
+def _inert_flags(t):
+    """(.kicad_sch text with every PWR_FLAG made an ordinary part with a passive
+    pin, {ref: value} of every #-ref instance). The netlist drops power symbols,
+    so the flag loses (power) to be listed (as FLGn); passive, ERC stops counting
+    it as a driver. ERC names a power symbol by ref only, hence the value map."""
+    edits, skip, refs = [], 0, {}
+    for m in re.finditer(r'\(symbol\s', t):
+        if m.start() < skip:
+            continue                              # a lib symbol's sub-unit
+        skip = _sexp_end(t, m.start())
+        b = t[m.start():skip]
+        rf = re.search(r'\(property "Reference" "([^"]*)"', b)
+        if re.match(r'\(symbol\s+"', b):          # lib_symbols entry
+            if rf and rf[1].startswith('#FLG'):
+                b = re.sub(r'\(power(?:\s+\w+)?\)', '', b, count=1)
+                edits.append((m.start(), skip, b.replace('(pin power_out', '(pin passive')))
+        elif rf:
+            v = re.search(r'\(property "Value" "([^"]*)"', b)
+            for r in {rf[1], *re.findall(r'\(reference "([^"]*)"', b)}:
+                if r.startswith('#'):
+                    refs[r] = v[1] if v else ''
+    for i, j, b in reversed(edits):
+        t = t[:i] + b + t[j:]
+    return t.replace('"#FLG', '"FLG'), refs
+
+
+def do_flags(path, a):
+    """PWR_FLAG audit. Whole-project ERC twice (as is, and on a scratch copy with
+    every flag inert); a power_pin_not_driven only the second run has marks a net
+    that needs its flag. The copy's kmerge netlist says where each flag sits."""
+    import shutil, glob, argparse
+    from kcommon import Netlist
+    d = os.path.dirname(os.path.abspath(path)) or '.'
+    pwr = {}
+    with tempfile.TemporaryDirectory(prefix='kdrc_flags_') as tmp:
+        # ponytail: sheets in the project dir only; a Sheetfile in a subfolder fails ERC
+        for f in sch_files(d):
+            t, r = _inert_flags(open(f, encoding='utf-8').read())
+            pwr.update(r)
+            with open(os.path.join(tmp, os.path.basename(f)), 'w', encoding='utf-8') as fh:
+                fh.write(t)
+        for f in glob.glob(os.path.join(d, '*.kicad_pro')) + glob.glob(os.path.join(d, 'sym-lib-table')):
+            shutil.copy(f, tmp)
+        flags = sorted(r[1:] for r in pwr if r.startswith('#FLG'))
+        if not flags:
+            print(f"no PWR_FLAG symbols in {d}"); return 0
+        ns = argparse.Namespace(erc_roots=None, all=True)
+        base, inert = [], []
+        _, _, whole = do_erc(path, ns, base)
+        do_erc(os.path.join(tmp, os.path.basename(path)), ns, inert)
+        roots = discover_roots(os.path.join(tmp, 'x'))
+        net = os.path.join(tmp, 'flags.net')
+        r = subprocess.run([sys.executable, os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                            'kmerge.py'), net, roots[0]], capture_output=True, text=True)
+        if r.returncode or not os.path.exists(net):
+            sys.stderr.write(f"kmerge of the flag copy failed:\n{r.stderr or r.stdout}\n"); return 3
+        nl = Netlist(net)
+
+    def net_of(ref, pin):
+        if not ref.startswith('#'):
+            return nl.cpins.get(ref, {}).get(pin)
+        v = pwr.get(ref)                          # a power symbol's net is its Value
+        return v if v in nl.nets else next((n for n in nl.nets if n.rsplit('/', 1)[-1] == v), None)
+
+    def undriven(vs):
+        return {tuple(i.get('description', '') for i in v.get('items', [])) for v in vs
+                if v.get('type') == 'power_pin_not_driven'}
+    need = {}                                     # net -> the pins ERC calls undriven
+    for k in undriven(inert) - undriven(base):
+        for desc in k:
+            m = re.match(r'Symbol (\S+) Pin (\S+)', desc)
+            if m:
+                need.setdefault(net_of(m[1], m[2]) or f'? ({m[1]})', []).append(
+                    m[1] if m[1].startswith('#') else f'{m[1]}.{m[2]}')
+    rows, seen = [], set()
+    for f in flags:
+        fn = next(iter(nl.cpins.get(f, {}).values()), None)
+        if fn is None:
+            v, why = 'MISSING', 'not in the netlist of the copy (transform failed?)'
+        elif fn.startswith('unconnected-'):
+            v, why = 'REDUNDANT', 'connected to nothing'
+        elif fn in seen and fn in need:
+            v, why = 'DUPLICATE', 'another flag already sits on this net'
+        elif fn in need:
+            v, why = 'LOAD-BEARING', f"undriven without it: {' '.join(sorted(need[fn])[:4])}"
+        else:
+            drv = [f"{x['ref']}.{x['pin']}" for x in nl.nets[fn]
+                   if x['type'] == 'power_out' and not x['ref'].startswith('FLG')]
+            v, why = 'REDUNDANT', (f"driven by {' '.join(drv[:3])} (power_out)" if drv
+                                   else 'ERC passes without it')
+        seen.add(fn)
+        rows.append({'flag': f, 'net': fn, 'sheet': nl.comps.get(f, {}).get('sheet', '?'),
+                     'verdict': v, 'why': why})
+    orphan = sorted(set(need) - seen)             # undriven only because a flag moved?
+    if a.json:
+        print(json.dumps({'flags': rows, 'unexplained': orphan}, indent=1)); return 0
+    from collections import Counter
+    c = Counter(r['verdict'] for r in rows)
+    print(f"PWR_FLAG audit: {len(rows)} flag(s) - " + ', '.join(f"{n} {k.lower()}" for k, n in c.items())
+          + ("\n(whole-project ERC)" if whole else
+             "\n!! per-root ERC: a flag on a cross-root net may read LOAD-BEARING only here"))
+    w = max(len(r['net'] or '?') for r in rows)
+    for r in sorted(rows, key=lambda r: (r['verdict'], r['net'] or '')):
+        print(f"  {r['verdict']:<12} {r['flag']:<7} {r['net'] or '?':<{w}}  {r['sheet']:<16} {r['why']}")
+    if orphan:
+        print(f"\nundriven with the flags inert but no flag on the net: {' '.join(orphan)}")
+    return 0
 
 
 def load_cfg(board):
@@ -322,7 +464,7 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('file')
-    ap.add_argument('cmd', nargs='?', default='both', choices=['both', 'drc', 'erc'])
+    ap.add_argument('cmd', nargs='?', default='both', choices=['both', 'drc', 'erc', 'flags'])
     ap.add_argument('--max', type=int, default=None, help='cap lines per rule (default 25)')
     ap.add_argument('--only', default='', help='comma list of RULE names to keep')
     ap.add_argument('--skip', default='', help='comma list of RULE names to drop')
@@ -343,6 +485,8 @@ def main():
 
     if not os.path.exists(a.file):
         sys.stderr.write(f"no such file: {a.file}\n"); return 3
+    if a.cmd == 'flags':
+        return do_flags(a.file, a)
     cfg = load_cfg(a.file)
     if a.max is None:
         a.max = cfg.get('max', 25)

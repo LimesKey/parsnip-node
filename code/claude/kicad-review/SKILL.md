@@ -69,6 +69,7 @@ scrambled. The plot only tells you which sheet a symbol lives on.
 | where is X, is there room | `kpcb.py FILE where REF` or `where 130,60 -r 10` |
 | where do these caps/inductor go | `kpcb.py FILE ic U13` - positions, rotations, the rule behind each, and a picture |
 | does the board pass real DRC + ERC | `kdrc.py FILE.kicad_pcb` - KiCad's own checks, every root, folded like `check`; flags a STALE saved zone fill (what gerbers export) |
+| which PWR_FLAGs are needed / redundant | `kdrc.py FILE.kicad_pcb flags` - each flag's net, and whether ERC fails without it |
 | is the ground pour filled / covering | `kpcb.py FILE zones` - fill coverage per copper layer |
 | can a net carry its current / is the trace too thin | `kpcb.py FILE ampacity NET --amps X` - IPC-2221 vs the routed copper + vias |
 | where is this PAD / how far apart are two pads | `kpcb.py FILE where F5.1 BT1.1` |

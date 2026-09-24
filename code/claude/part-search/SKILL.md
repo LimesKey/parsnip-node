@@ -67,7 +67,7 @@ constraints, use `pick`, not `search`.**
 | `search 'TPS61033'` | keyword search, LCSC rows then JLC rows (JLC catalog price, spec string as desc). Add `--instock`. |
 | `bom board.net --qty 5` | prices a whole KiCad netlist by its LCSC Part property |
 | `check board.net --qty 5` | one-shot sourcing triage: `bom` pricing + `jlc` Basic/Extended, one table, one pass over the netlist |
-| `fpcheck board.net` | each symbol's KiCad footprint AND value vs the assigned LCSC part. Footprint: flags size/family mismatches and one LCSC code reused across different bodies (chip sizes and MPN-named footprints auto-clear; divergent nomenclature -> a small REVIEW bucket). Value: R/C/L symbol value vs LCSC's resistance/capacitance/inductance param (catches a right-footprint, wrong-value part, e.g. a 36R part on a 37.4R symbol). MPN: the symbol's `MPN` field vs the code's part (a swapped `LCSC Part` or a stale MPN) is a MISMATCH. The header counts rows: a code on two footprints or values is two. Body sizes stated in both names (`DFN-8(3x3)` vs `_2x2mm`) must agree. Leadless parts (DFN/QFN/SON/LGA/PicoStar) also get a **land check**: the board footprint's copper extent and largest pad vs the EasyEDA footprint LCSC links to the code (the one JLC assembles on); a >25% pad / >20% extent difference goes to REVIEW even if `fpcheck.json` confirmed the names. Board = the one `.kicad_pcb` beside the netlist or `--pcb`; `--no-land` skips it (EasyEDA 403s after ~150 quick calls; results cache 30 days). Also lists any assigned part LCSC marks EOL/NRND. `--show-ok`, `--json`; no `.net` runs the offline self-test. |
+| `fpcheck board.net` | each symbol's KiCad footprint AND value vs the assigned LCSC part. Footprint: flags size/family mismatches and one LCSC code reused across different bodies (chip sizes and MPN-named footprints auto-clear; divergent nomenclature -> a small REVIEW bucket). Value: R/C/L symbol value vs LCSC's resistance/capacitance/inductance param (catches a right-footprint, wrong-value part, e.g. a 36R part on a 37.4R symbol). MPN: the symbol's `MPN` field vs the code's part (a swapped `LCSC Part` or a stale MPN) is a MISMATCH. The header counts rows: a code on two footprints or values is two. Body sizes stated in both names (`DFN-8(3x3)` vs `_2x2mm`) must agree. Leadless parts (DFN/QFN/SON/LGA/PicoStar) also get a **land check**: the board footprint's copper extent and largest pad vs the EasyEDA footprint LCSC links to the code (the one JLC assembles on); a >25% pad / >20% extent difference goes to REVIEW even if `fpcheck.json` confirmed the names (only a `--datasheet` land confirmation clears it); a custom pad counts its primitives, not just its anchor. Board = the one `.kicad_pcb` beside the netlist or `--pcb`; `--no-land` skips it (EasyEDA 403s after ~150 quick calls; results cache 30 days). Also lists any assigned part LCSC marks EOL/NRND. `--show-ok`, `--json`; no `.net` runs the offline self-test. |
 | `selftest` | which providers and the FX rate source work right now |
 
 `show`, `ds`, `compare` and `alt` accept a C-code, a bare MPN, or a pasted LCSC URL.
@@ -100,11 +100,18 @@ same), and OK. REVIEW is a "look at these", not a bug list. Work it once:
   hides a real footprint bug, so when unsure, leave it in REVIEW.
 
 `fpcheck.json` is board data like `knet.json`/`kpcb.json` - **commit it** so the
-confirmations persist across sessions. `--confirm` only clears the nomenclature
-REVIEW path, never a MISMATCH, the "same code on two bodies" flag or a "land
-differs" row. A confirmation is keyed on the package WORDING, so it covers every
-part LCSC files under that string; the land check is what catches a same-wording
-part of another size (CSD25480F3 -> CSD25481F4 both read `PicoStar-3`).
+confirmations persist across sessions. `--confirm` never clears a MISMATCH or the
+"same code on two bodies" flag. A confirmation is keyed on the package WORDING, so
+it covers every part LCSC files under that string; the land check is what catches a
+same-wording part of another size (CSD25480F3 -> CSD25481F4 both read `PicoStar-3`).
+
+A **"land differs"** row needs the datasheet: EasyEDA's land is sometimes the
+wrong one (D17/D19: TI's DPY0002A is 2x 0.3x0.5, EasyEDA has 0.6x0.6). Compare
+the board pads with the datasheet's recommended land (`kdoc.py grep 'EXAMPLE BOARD
+LAYOUT' -d DOC`), and if the board matches, `--confirm C48260 --datasheet
+'TPD1E10B06 p20' --note ...`. Without `--datasheet` it refuses (exit 1). The entry
+stores the diff text, so it re-flags as soon as the board pads or EasyEDA's land
+change.
 
 ## Run selftest first in a new session
 

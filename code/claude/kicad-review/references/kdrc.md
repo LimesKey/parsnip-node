@@ -10,6 +10,7 @@ D=<skill>/scripts/kdrc.py
 python3 $D parsnip.kicad_pcb            # DRC + ERC
 python3 $D parsnip.kicad_pcb drc        # DRC only
 python3 $D parsnip.kicad_pcb erc        # ERC only, every root schematic
+python3 $D parsnip.kicad_pcb flags      # PWR_FLAG audit (~9 s)
 ```
 
 ## What it does
@@ -36,6 +37,22 @@ python3 $D parsnip.kicad_pcb erc        # ERC only, every root schematic
   Clearance/width messages lead with the number: `actual 0.1 < 0.127 mm (rule)`.
 - Output: findings grouped by rule, capped per rule with a `+N more` tail,
   suppressible via `kdrc.json`, exit 0/2/3 like `kpcb`.
+
+## `flags` - which PWR_FLAGs ERC actually needs
+
+The netlist drops `#FLG` symbols, so knet cannot say where a flag sits. `flags`
+copies the sheets to a temp dir with every PWR_FLAG made an ordinary part with a
+passive pin (`#FLG` -> `FLG`), kmerges that copy to read each flag's net, and runs
+whole-project ERC on the original and on the copy. A `power_pin_not_driven` only
+the copy has marks a net that needs its flag:
+
+- `LOAD-BEARING` - that net goes undriven without it (names the pin, usually a `#PWR`).
+- `DUPLICATE` - a second flag on a net that needs one.
+- `REDUNDANT` - ERC passes without it (names a `power_out` driver if the net has one),
+  or it is connected to nothing.
+
+Parsnip 2026-09-24: 13 flags, all load-bearing. Sheets must sit in the project
+dir (a sub-sheet in a subfolder is not copied). `--json` for rows.
 
 ## The one caveat that matters
 
