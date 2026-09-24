@@ -4722,7 +4722,7 @@
 		(uuid "3012d69c-1353-4ad1-9ae3-f48193ade18a")
 	)
 	(rectangle
-		(start 16.51 137.16)
+		(start 16.51 133.35)
 		(end 171.45 195.58)
 		(stroke
 			(width 0)
@@ -4747,7 +4747,7 @@
 	)
 	(text "Connectors/Pin Headers"
 		(exclude_from_sim no)
-		(at 36.576 140.462 0)
+		(at 36.576 137.16 0)
 		(effects
 			(font
 				(size 2.032 2.032)
@@ -9284,7 +9284,7 @@
 			)
 		)
 		(property "Value" "SPI BUS"
-			(at 36.068 168.656 0)
+			(at 39.624 169.672 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -17975,7 +17975,7 @@
 			)
 		)
 		(property "Value" "7pF"
-			(at 66.294 113.284 0)
+			(at 66.294 113.03 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
