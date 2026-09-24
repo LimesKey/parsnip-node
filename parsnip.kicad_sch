@@ -1,7 +1,7 @@
 (kicad_sch
-	(version 20260306)
+	(version 20260830)
 	(generator "eeschema")
-	(generator_version "10.0")
+	(generator_version "10.99")
 	(uuid "fe9d4a31-2311-442f-997c-52ad8ca5cfe9")
 	(paper "A4")
 	(title_block
@@ -3944,6 +3944,7 @@
 					)
 				)
 			)
+			(symbol "SW_Push_1_1")
 			(embedded_fonts no)
 		)
 		(symbol "easyeda2kicad:ESDS314DBVR-TP"
@@ -4334,6 +4335,7 @@
 					)
 				)
 			)
+			(symbol "ESDS314DBVR-TP_1_1")
 			(embedded_fonts no)
 		)
 		(symbol "power:+3V3"
@@ -4703,6 +4705,7 @@
 					)
 				)
 			)
+			(symbol "PWR_FLAG_1_1")
 			(embedded_fonts no)
 		)
 	)
@@ -19364,7 +19367,7 @@
 		(instances
 			(project "parsnip"
 				(path "/fe9d4a31-2311-442f-997c-52ad8ca5cfe9"
-					(page "5")
+					(page "6")
 				)
 			)
 		)
@@ -19450,7 +19453,7 @@
 		(instances
 			(project "parsnip"
 				(path "/fe9d4a31-2311-442f-997c-52ad8ca5cfe9"
-					(page "7")
+					(page "8")
 				)
 			)
 		)
@@ -19576,7 +19579,7 @@
 		(instances
 			(project "parsnip"
 				(path "/fe9d4a31-2311-442f-997c-52ad8ca5cfe9"
-					(page "6")
+					(page "7")
 				)
 			)
 		)
@@ -19672,7 +19675,7 @@
 		(instances
 			(project "parsnip"
 				(path "/fe9d4a31-2311-442f-997c-52ad8ca5cfe9"
-					(page "4")
+					(page "5")
 				)
 			)
 		)

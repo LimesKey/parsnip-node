@@ -1,7 +1,7 @@
 (kicad_sch
-	(version 20260306)
+	(version 20260830)
 	(generator "eeschema")
-	(generator_version "10.0")
+	(generator_version "10.99")
 	(uuid "63083088-7666-4a3a-8878-9789c1decff5")
 	(paper "A4")
 	(title_block
@@ -2096,248 +2096,6 @@
 			)
 			(embedded_fonts no)
 		)
-		(symbol "Memory_EEPROM:CAT24C256"
-			(exclude_from_sim no)
-			(in_bom yes)
-			(on_board yes)
-			(in_pos_files yes)
-			(duplicate_pin_numbers_are_jumpers no)
-			(property "Reference" "U1"
-				(at -9.398 9.144 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-					(justify left)
-				)
-			)
-			(property "Value" "CAT24C256"
-				(at 1.524 -8.382 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-					(justify left)
-				)
-			)
-			(property "Footprint" ""
-				(at 0 0 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(hide yes)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-				)
-			)
-			(property "Datasheet" "https://www.onsemi.cn/PowerSolutions/document/CAT24C256-D.PDF"
-				(at -2.032 -18.034 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(hide yes)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-				)
-			)
-			(property "Description" "256 kb CMOS Serial EEPROM, DIP-8/SOIC-8/TSSOP-8/DFN-8"
-				(at -2.032 -18.034 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(hide yes)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-				)
-			)
-			(property "ki_keywords" "I2C EEPROM Serial 256kb"
-				(at 0 0 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(hide yes)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-				)
-			)
-			(property "ki_fp_filters" "DIP*W7.62mm* SOIC*3.9x4.9mm* TSSOP*4.4x3mm*P0.65mm* DFN*3x2mm*P0.5mm*"
-				(at 0 0 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(hide yes)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-				)
-			)
-			(symbol "CAT24C256_1_1"
-				(rectangle
-					(start -10.16 7.62)
-					(end 10.16 -7.62)
-					(stroke
-						(width 0.254)
-						(type default)
-					)
-					(fill
-						(type background)
-					)
-				)
-				(pin input line
-					(at -12.7 2.54 0)
-					(length 2.54)
-					(name "A0"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "1"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin input line
-					(at -12.7 0 0)
-					(length 2.54)
-					(name "A1"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "2"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin input line
-					(at -12.7 -2.54 0)
-					(length 2.54)
-					(name "A2"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "3"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin power_in line
-					(at 0 -10.16 90)
-					(length 2.54)
-					(name "GND"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "4"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin bidirectional line
-					(at 12.7 2.54 180)
-					(length 2.54)
-					(name "SDA"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "5"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin input line
-					(at 12.7 0 180)
-					(length 2.54)
-					(name "SCL"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "6"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin input line
-					(at 12.7 -2.54 180)
-					(length 2.54)
-					(name "WP"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "7"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin power_in line
-					(at 0 10.16 270)
-					(length 2.54)
-					(name "VCC"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "8"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-			)
-			(embedded_fonts no)
-		)
 		(symbol "Power_Protection:TVS2200DRV"
 			(pin_names
 				(offset 0)
@@ -3355,6 +3113,299 @@
 			)
 			(embedded_fonts no)
 		)
+		(symbol "easyeda2kicad:M24512-DFMC6TG"
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(in_pos_files yes)
+			(duplicate_pin_numbers_are_jumpers no)
+			(property "Reference" "U21"
+				(at -14.224 8.636 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Value" "M24512-DFMC6TG"
+				(at -14.224 6.096 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Footprint" "easyeda2kicad:DFN-8_L3.0-W2.0-P0.50-BL-EP"
+				(at 1.27 -23.368 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Datasheet" "https://lcsc.com/product-detail/Others_STMicroelectronics_M24512-DFMC6TG_STMicroelectronics-M24512-DFMC6TG_C222237.html"
+				(at 1.27 -25.908 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Description" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Manufacturer" "ST(意法半导体)"
+				(at 1.27 -28.448 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "MPN" "M24512-DFMC6TG"
+				(at 1.27 -30.988 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "LCSC Part" "C222237"
+				(at 1.27 -33.528 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_keywords" "EEPROM"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(symbol "M24512-DFMC6TG_0_1"
+				(rectangle
+					(start -8.89 3.81)
+					(end 11.43 -11.43)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type background)
+					)
+				)
+				(circle
+					(center -7.62 2.54)
+					(radius 0.38)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(pin unspecified line
+					(at -11.43 -1.27 0)
+					(length 2.54)
+					(name "E0"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin unspecified line
+					(at -11.43 -3.81 0)
+					(length 2.54)
+					(name "E1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "2"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin unspecified line
+					(at -11.43 -6.35 0)
+					(length 2.54)
+					(name "E2"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "3"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin unspecified line
+					(at 13.97 -1.27 180)
+					(length 2.54)
+					(name "SDA"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "5"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin unspecified line
+					(at 13.97 -3.81 180)
+					(length 2.54)
+					(name "SCL"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "6"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin unspecified line
+					(at 1.27 6.35 270)
+					(length 2.54)
+					(name "VCC"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "8"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin unspecified line
+					(at -1.27 -13.97 90)
+					(length 2.54)
+					(name "EP"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "9"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+			(symbol "M24512-DFMC6TG_1_1"
+				(pin unspecified line
+					(at 1.27 -13.97 90)
+					(length 2.54)
+					(name "GND"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "4"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin unspecified line
+					(at 13.97 -6.35 180)
+					(length 2.54)
+					(name "WC"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "7"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
 		(symbol "easyeda2kicad:TPD8S300ARUKR"
 			(exclude_from_sim no)
 			(in_bom yes)
@@ -3893,6 +3944,7 @@
 					)
 				)
 			)
+			(symbol "TPD8S300ARUKR_1_1")
 			(embedded_fonts no)
 		)
 		(symbol "easyeda2kicad:TPS25751DREFR_C30169739"
@@ -5280,6 +5332,7 @@
 					)
 				)
 			)
+			(symbol "PWR_FLAG_1_1")
 			(embedded_fonts no)
 		)
 		(symbol "power:VBUS"
@@ -5434,7 +5487,7 @@
 		)
 		(uuid "6cf81f8e-6bb3-4eb7-a4a6-a0c04efbf89b")
 	)
-	(text "EEPROM 256Kb"
+	(text "EEPROM 512Kb"
 		(exclude_from_sim no)
 		(at 267.716 81.534 0)
 		(effects
@@ -5776,6 +5829,12 @@
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "9dc79d50-7600-4cbf-b9bb-321bf95496d4")
+	)
+	(junction
+		(at 241.3 104.14)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "a323557e-1bad-45d7-afe3-efc3b31a9fe2")
 	)
 	(junction
 		(at 71.12 140.97)
@@ -6206,6 +6265,16 @@
 			(type default)
 		)
 		(uuid "19f5a88d-a41f-40fb-8851-86602ee39334")
+	)
+	(wire
+		(pts
+			(xy 241.3 104.14) (xy 243.84 104.14)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "1a12ac94-f69d-4be3-9db6-1b21bd1881c4")
 	)
 	(wire
 		(pts
@@ -6646,6 +6715,16 @@
 			(type default)
 		)
 		(uuid "5715c18b-4e2b-4dd4-b92d-669146b401b4")
+	)
+	(wire
+		(pts
+			(xy 241.3 100.33) (xy 241.3 104.14)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "573c1c20-d327-46b1-9ff6-a603ebaf39ad")
 	)
 	(wire
 		(pts
@@ -7479,7 +7558,7 @@
 	)
 	(wire
 		(pts
-			(xy 229.87 104.14) (xy 243.84 104.14)
+			(xy 229.87 104.14) (xy 241.3 104.14)
 		)
 		(stroke
 			(width 0)
@@ -12050,149 +12129,6 @@
 		)
 	)
 	(symbol
-		(lib_id "Memory_EEPROM:CAT24C256")
-		(at 243.84 90.17 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "497d083e-1ee7-4a63-9d0c-cfd908c7f7ab")
-		(property "Reference" "U6"
-			(at 234.442 81.026 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Value" "CAT24C256"
-			(at 245.364 99.822 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Footprint" "Package_DFN_QFN:DFN-8-1EP_2x3mm_P0.5mm_EP0.61x2.2mm"
-			(at 243.84 90.17 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" "https://www.onsemi.cn/PowerSolutions/document/CAT24C256-D.PDF"
-			(at 241.808 108.204 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "256 kb CMOS Serial EEPROM, DIP-8/SOIC-8/TSSOP-8/DFN-8"
-			(at 241.808 108.204 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "LCSC Part" "C233771"
-			(at 243.84 90.17 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Voltage Rating" ""
-			(at 243.84 90.17 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Tolerance" ""
-			(at 243.84 90.17 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Capacitor Rating" ""
-			(at 243.84 90.17 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "7"
-			(uuid "6865d6f7-0859-4624-b7cd-69db8f56570b")
-		)
-		(pin "6"
-			(uuid "4d090f86-a174-4899-9d4d-13b803161dad")
-		)
-		(pin "5"
-			(uuid "9081dcfe-b4ed-4f2a-a409-b4241a5171ea")
-		)
-		(pin "4"
-			(uuid "b7004b85-6c54-4942-9df7-d6082b6dbe00")
-		)
-		(pin "3"
-			(uuid "a59070a3-43e8-4c13-b14f-75a5be969507")
-		)
-		(pin "2"
-			(uuid "9e59ba04-05ae-42bd-9a79-cd76d4b7ac21")
-		)
-		(pin "1"
-			(uuid "241dc6e3-b3ca-4714-b35c-d59bd161f9cf")
-		)
-		(pin "8"
-			(uuid "d953fb18-30de-4578-a5f5-357f6a7794d4")
-		)
-		(instances
-			(project "parsnip"
-				(path "/a9f1fdad-fb49-4185-a4ff-ad8f47273e4d"
-					(reference "U6")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
 		(lib_id "Device:C_Small")
 		(at 54.61 88.9 0)
 		(unit 1)
@@ -14252,7 +14188,7 @@
 		(dnp no)
 		(uuid "876399d8-b64d-4b44-878e-cb2c910c2695")
 		(property "Reference" "R36"
-			(at 183.642 55.88 0)
+			(at 184.15 53.848 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -14263,7 +14199,7 @@
 			)
 		)
 		(property "Value" "2.2k"
-			(at 183.388 64.516 0)
+			(at 183.642 55.88 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -15252,7 +15188,7 @@
 				)
 			)
 		)
-		(property "LCSC Part" "C190579"
+		(property "LCSC Part" "C53426851"
 			(at 129.54 85.09 0)
 			(hide yes)
 			(show_name no)
@@ -15286,6 +15222,17 @@
 			)
 		)
 		(property "Capacitor Rating" ""
+			(at 129.54 85.09 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" ""
 			(at 129.54 85.09 0)
 			(hide yes)
 			(show_name no)
@@ -15507,6 +15454,161 @@
 			(project "parsnip"
 				(path "/a9f1fdad-fb49-4185-a4ff-ad8f47273e4d"
 					(reference "#FLG02")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "easyeda2kicad:M24512-DFMC6TG")
+		(at 242.57 86.36 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "ac98630f-c8c6-42e2-b966-d027c6f56869")
+		(property "Reference" "U21"
+			(at 236.474 81.28 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "M24512-DFMC6TG"
+			(at 254.254 99.822 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Package_DFN_QFN:DFN-8-1EP_3x2mm_P0.5mm_EP1.36x1.46mm"
+			(at 243.84 109.728 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" "https://lcsc.com/product-detail/Others_STMicroelectronics_M24512-DFMC6TG_STMicroelectronics-M24512-DFMC6TG_C222237.html"
+			(at 243.84 112.268 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 242.57 86.36 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "ST(意法半导体)"
+			(at 243.84 114.808 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "M24512-DFMC6TG"
+			(at 243.84 117.348 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC Part" "C222237"
+			(at 243.84 119.888 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Voltage Rating" ""
+			(at 242.57 86.36 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Tolerance" ""
+			(at 242.57 86.36 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "f60e54ac-816f-4d88-8897-00964c11fd80")
+		)
+		(pin "2"
+			(uuid "15b42183-025c-49c0-9fd8-07b94e3b4b5c")
+		)
+		(pin "3"
+			(uuid "39bbbadd-4be9-45c8-8941-6a5209b084c3")
+		)
+		(pin "4"
+			(uuid "d04cab86-60a5-40a7-acc3-5e9857415b56")
+		)
+		(pin "5"
+			(uuid "0dc18c9e-df0e-43cd-93de-d7c74bdc05da")
+		)
+		(pin "6"
+			(uuid "0bd895b8-fefc-48ff-8f35-d904e99964f8")
+		)
+		(pin "7"
+			(uuid "2ac24e03-6cd0-4ec5-a185-29a746ff481b")
+		)
+		(pin "8"
+			(uuid "b2dd897a-1692-4b50-bff4-412848d3637b")
+		)
+		(pin "9"
+			(uuid "0ca7e01e-7338-4b49-af50-48bb585eda28")
+		)
+		(instances
+			(project "parsnip"
+				(path "/a9f1fdad-fb49-4185-a4ff-ad8f47273e4d"
+					(reference "U21")
 					(unit 1)
 				)
 			)
@@ -16049,7 +16151,7 @@
 				)
 			)
 		)
-		(property "LCSC Part" "C190579"
+		(property "LCSC Part" "C53426851"
 			(at 121.92 85.09 0)
 			(hide yes)
 			(show_name no)
@@ -16083,6 +16185,17 @@
 			)
 		)
 		(property "Capacitor Rating" ""
+			(at 121.92 85.09 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" ""
 			(at 121.92 85.09 0)
 			(hide yes)
 			(show_name no)

@@ -31,18 +31,26 @@ Scripts (stdlib Python, already permitted):
 1. `kpcb.py parsnip.kicad_pcb review` - sync + summary + check + longest nets +
    the next calls. **If `sync` reports the board is stale, STOP and report that
    first**: every placement finding below it is about a circuit the board no
-   longer matches. The current known blocker is the three-root sheet-symbol
-   mismatch at the top of `docs/TODO.md` - if `sync` still shows ~150+ errors on
-   `/Charger/` and `/USB Interface/`, that is it; do not re-diagnose it, just
-   flag that /Charger/ and /USB Interface/ cannot be checked against intent.
-2. `kdrc.py parsnip.kicad_pcb` - KiCad's OWN DRC (uses parsnip.kicad_dru) + ERC
-   on all three roots. This is the authoritative rules half; `kpcb check` is only
-   geometric heuristics.
+   longer matches. (It was IN SYNC on 2026-09-22; the old ~150-error "blocker" was
+   a stable-vs-nightly netlist artifact, fixed in kmerge.) If any tool prints a
+   `WARNING: ... older than` / `lacks top-level sheet`, regenerate the netlist with
+   the command it prints before going on.
+2. `kdrc.py parsnip.kicad_pcb` - KiCad's OWN DRC (uses parsnip.kicad_dru) + ERC.
+   This is the authoritative rules half; `kpcb check` is only geometric
+   heuristics. Any `DRC:STALE_FILL` is a pre-fab blocker: the saved zone fill
+   (what gerbers export) differs from a refill - report it at the top.
 3. `kpcb.py parsnip.kicad_pcb zones` - pour coverage per layer; flag any zone
    that is declared-but-unfilled or badly fragmented.
-4. `knet.py parsnip-merged.net check` - the electrical half. **Always the merged
-   netlist** (455 comps / 281 nets / 7 sheets). A bare single-root export sees
-   294 of 455 and silently drops the battery/PD front end.
+4. `knet.py parsnip-merged.net check` - the electrical half, incl. PINOUT (a
+   generic symbol whose pin order contradicts the real part). **Always the merged
+   netlist**: 8 sheets including /Charger/, /BMS/ and /USB Interface/ (kmerge prints the
+   counts; do not rely on a remembered number). A stable single-root export drops
+   the battery/PD front end, and knet warns when it is handed one.
+4b. `kpcb.py parsnip.kicad_pcb rf` (50-ohm nets: necks, Zo, reference plane,
+   via fence), `kpcb.py parsnip.kicad_pcb height` (the Z stack - the binding
+   pocket constraint; read its battery-holder caveat before quoting a number),
+   `knet.py parsnip-merged.net revpol` (reversed cell/pack), and
+   `kpcb.py parsnip.kicad_pcb viapad --signal`.
 5. For each surviving finding, before you report it: `knet.py parsnip-merged.net
    around REF` for connectivity, `kdoc.py grep '<string>' -d <doc>` for the
    datasheet rule, `kpcb.py parsnip.kicad_pcb where REF` for geometry.
@@ -57,9 +65,10 @@ Scripts (stdlib Python, already permitted):
 - **ERC lib_symbol_mismatch**: 16 symbols are deliberately edited in-schematic.
   Already muted in `kdrc.json`. Never suggest Update Symbols from Library.
 - **ERC power_pin_not_driven / pin_to_pin on a global-label net** (I2C_HOST_*,
-  USB D+/-, shared rails): per-root ERC is blind to cross-root drivers. Confirm
-  with `knet.py parsnip-merged.net around REF`; report only if the merged netlist
-  also shows it undriven.
+  USB D+/-, shared rails) - ONLY when kdrc's header does not say "one report
+  covers every top-level sheet" (i.e. per-root stable ERC, blind to cross-root
+  drivers). Confirm with `knet.py parsnip-merged.net around REF`. Under a
+  whole-project (nightly) report these are real findings.
 - **DRC unconnected_items** (hundreds): unrouted nets, mid-layout. Expected.
   Ignore unless routing is claimed done.
 - Anything in CLAUDE.md **"Settled - do not re-litigate"** (eFuse OVLO, TVS,

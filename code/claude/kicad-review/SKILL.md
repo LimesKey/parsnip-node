@@ -25,13 +25,26 @@ D=<skill>/scripts/kdoc.py   S=<skill>/scripts/ksch.py
 authoritative rules check. `kpcb.py FILE zones` reports pour-fill coverage.
 
 All the tools share `kcommon.py` (the S-expr parser, the value/ref helpers, the
-`Netlist` + `SchInfo` model and the finding formatter). It has no CLI of its own -
-edit it once and every tool sees it; the dependency only points tools -> kcommon.
+footprint-library resolver, the `Netlist` + `SchInfo` model and the finding
+formatter). It has no CLI of its own - edit it once and every tool sees it; the
+dependency only points tools -> kcommon. Parsed files over 100 kB are cached in
+`~/.cache/kicad-review` (marshal, keyed on path + size + mtime; one snapshot per
+file), so a kpcb call on a 12 MB board costs ~0.3 s instead of ~0.9 s. `kzo.py`
+(trace impedance, the CPWG field solver) is kpcb's only other import.
 `kpcb.py` needs `kcommon.py` beside it but does **not** need the
 `.net` - pads carry their own net names and pin functions. Find the `.net` first:
 usually beside the board, else `/mnt/project/*.net` or `/mnt/user-data/uploads/*.net`.
 If `*.kicad_sch` files sit beside the `.net`, knet parses them as a sidecar
-(no_connect flags, text notes, symbol positions).
+(no_connect flags, text notes, symbol positions), and warns when a sheet was saved
+after the `.net` or the `.net` lacks a top-level sheet the `.kicad_pro` lists.
+
+**KiCad stable and nightly both work.** kpcb reads 10.0 `(at X Y R)` and 10.99
+`(transform (translate) (rotate))` placement. Tools that shell out (`kdrc`, `kmerge`,
+`kpcb height`) pick `kicad-cli-nightly` for a file saved by 10.99 (`generator_version
+"10.99"`), else `kicad-cli`; `$KICAD_CLI` overrides. For a multi-root project,
+`kmerge.py OUT.net ROOT.kicad_sch` builds the whole-board netlist (other top-level
+sheets come from the `.kicad_pro`; a nightly export that already has them passes
+through verbatim).
 
 ## Order of operations
 
@@ -55,9 +68,16 @@ scrambled. The plot only tells you which sheet a symbol lives on.
 | where does X connect / is X right | `knet.py FILE around X` - pins, types, nets, position, every part one hop away |
 | where is X, is there room | `kpcb.py FILE where REF` or `where 130,60 -r 10` |
 | where do these caps/inductor go | `kpcb.py FILE ic U13` - positions, rotations, the rule behind each, and a picture |
-| does the board pass real DRC + ERC | `kdrc.py FILE.kicad_pcb` - KiCad's own checks, all 3 roots, folded like `check` |
+| does the board pass real DRC + ERC | `kdrc.py FILE.kicad_pcb` - KiCad's own checks, every root, folded like `check`; flags a STALE saved zone fill (what gerbers export) |
 | is the ground pour filled / covering | `kpcb.py FILE zones` - fill coverage per copper layer |
 | can a net carry its current / is the trace too thin | `kpcb.py FILE ampacity NET --amps X` - IPC-2221 vs the routed copper + vias |
+| where is this PAD / how far apart are two pads | `kpcb.py FILE where F5.1 BT1.1` |
+| everything on one net, with coordinates | `kpcb.py FILE net NET` - pads (absolute xy), copper per layer, vias, zones |
+| is this 50-ohm trace right | `kpcb.py FILE rf [NET]` - width necks, microstrip Zo, GND gap + field-solved CPWG Zo, reference plane, via fence |
+| what width/gap gives 50 ohm (not routed yet) | `kzo.py W S H ER [T] --mask TM ERM` - the same 2D field solver, one number |
+| how thick is the assembled board / what sticks up | `kpcb.py FILE height` - 3D-model heights + the Z stack at each cell |
+| vias in pads worth a fab note | `kpcb.py FILE viapad --signal` (or `--min 4` for thermal arrays) |
+| what does a backwards cell or pack do | `knet.py FILE revpol` - junctions that conduct (fused?), FETs the cells switch, ICs that lose ground, IC pins pushed below GND with their ESD current |
 | what voltage does this divider set | `knet.py FILE divider U5.OVLO` - nominal + worst case from real resistor values |
 | unfamiliar board, what is on it | `knet.py FILE summary` then `check` |
 | draw a circuit that exists | `knet.py FILE draw U8 -d 2 -o out.svg` |

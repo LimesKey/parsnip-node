@@ -13,12 +13,17 @@ Choosing a part (constraints, ranges, cheapest-first)
   part.py pick MLCC --cap 4.7u..100u --volt '>=25' --pkg 0805 --diel X7R,X5R
   part.py pick MLCC --cap 10u --volt '>=25' --pkg 0805 --basic
   part.py pick 'schottky diode' --vr '>=40' --ifwd '>=1' --pkg SOD-123
+  part.py pick TVS --pkg 'SMA(DO-214AC)' --vrwm '>=20' --vc '<=40'
+  part.py pick --cat 'I/O Expanders' --pkg TSSOP-16      # explicit category
   part.py pick 'schottky diode' --pkg SOD-123 --fields   # what are the attrs called?
-  part.py alt C45783 --qty 100         cheaper/stocked/Basic equivalents
+  part.py alt C115844 --qty 100        same category + package, equal-or-better
+                                       on every rated parameter, cheaper/stocked
 
 Looking a part up
   part.py show C18164413 C14709        ladder, stock, params, verified datasheet
   part.py ds C42409135                 verified datasheet URL (actually fetched)
+  part.py ds C42409135 --save          ...and download it to docs/datasheets/<MPN>.pdf
+                                       (--dir DIR elsewhere) + `kdoc.py index` it
   part.py compare C1525 C52923         side-by-side parameter table
   part.py search 'TPS61033'            keyword only; use `pick` for constraints
 
@@ -34,31 +39,38 @@ Constraint grammar (every --flag and every --w NAME=SPEC)
   X7R,X5R       any-of, numeric-aware  ~ceramic  substring  !X5R  negated
   4u7 100nF 4R7 10k 25V +-20% all parse; 10V~35V takes the first figure.
 
-Attribute shorthands, fuzzy-resolved onto LCSC's real parameter names
+Attribute shorthands, resolved onto LCSC's real parameter names
   --cap --res --ind --volt --pkg --diel --tol --current --power --freq --temp
-  --type --dcr --esr --vr --vf --ifwd --ir --vds --rdson --isat --irms
+  --type --dcr --esr --vr --vf --ifwd --ir --vds --id --vgsth --rdson --isat
+  --irms --vrwm --vc --vout --iout   (--capacitance --package --voltage ... also work)
   Anything else: --w 'Voltage - DC Reverse (Vr)=>=40'. `pick` prints a `resolved:`
   line whenever a shorthand mapped to a differently-named attribute - check it.
 
 Useful flags
+  --offline      selftest: the offline logic checks only (no network), exit 1 on failure
   --qty N        unit + extended price at that quantity, MOQ/multiple applied
   --sort         price (default) | stock | cap | volt
   --basic        JLC Basic library only, i.e. no $3 Extended line fee
   --fields       list attribute names/values instead of filtering
-  --source       lcsc (default) | jlc | both
-  --pool N       max LCSC parts to fetch detail for (default 240)
+  --minstock N   pick/alt drop parts with less LCSC stock (default 100)
+  --cat TEXT     pick: JLC category filter (unique part of the name); pick
+                 infers it from the keyword when one word names one category
+  --source       jlc (default: JLC index, server-side package/category filter
+                 and price sort) | lcsc (keyword search + detail) | both
+  --pool N       max LCSC parts to fetch detail for, --source lcsc (default 240)
   --maxq N       max keyword sub-queries when fanning out a range (default 14)
   --e12          fan a range over E12 preferred values instead of E6
   --attrs        show every parameter, not just the headline ones
   --json         machine-readable output
   --fresh        bypass the disk cache for this call
-  --provider lcsc|digikey|all      (search/show only; pick does not use DigiKey)
-  --instock      drop zero-stock hits    --anystock  keep them in pick
+  --provider lcsc|jlc|digikey|all  (search/show only; pick does not use DigiKey)
+  --instock      search: drop zero-stock hits   --anystock  pick: no stock floor
   -n N           result count (default 8)
 
-PRICES COME FROM TWO CATALOGS AND MUST NOT BE ADDED TOGETHER. show/search/compare/
-bom/pick --source lcsc are LCSC retail. jlc and pick --basic are JLCPCB assembly-
-catalog prices. Say which one you are quoting.
+PRICES COME FROM TWO CATALOGS AND MUST NOT BE ADDED TOGETHER. show/compare/bom/
+pick/alt are LCSC retail (pick re-prices its JLC-pooled rows from LCSC). jlc,
+pick --basic and the JLC rows in `search` are JLCPCB assembly-catalog prices.
+Say which one you are quoting.
 
 DigiKey needs free credentials from developer.digikey.com (create an app, use the
 Production "Product Information V4" API). Then:
@@ -70,7 +82,7 @@ or put them in ~/.config/partsearch/config.json as {"digikey_client_id": "...",
 Cache: ~/.cache/partsearch (override PARTSEARCH_CACHE), 24 h TTL. Cache hits are
 free, so re-querying the same part in a later chat costs nothing.
 """
-import sys, os, re, json, time, math, argparse, hashlib
+import sys, os, re, json, time, math, argparse, hashlib, subprocess
 import concurrent.futures as cf
 import urllib.request, urllib.parse, urllib.error
 
@@ -114,9 +126,12 @@ def cached(tag, key, fn, fresh=False, ttl=TTL):
         except Exception:
             pass
     v = fn()
-    if v is not None:
+    # http() returns {'_error': ...} on failure; caching that would replay a
+    # transient outage for the whole TTL
+    if v is not None and not (isinstance(v, dict) and '_error' in v):
         try:
-            json.dump(v, open(p, 'w'))
+            with open(p, 'w') as f:
+                json.dump(v, f)
         except Exception:
             pass
     return v
@@ -517,7 +532,14 @@ def show_full(r, a):
 # ---------------------------------------------------------------- commands
 
 def c_selftest(a):
-    print("provider endpoint status\n")
+    try:
+        off = f"OK    pick/alt parsing {_pick_selftest()}, fpcheck matcher {_fpcheck_selftest()}"
+    except AssertionError as e:
+        off = f"FAIL  {e}"
+    if a.offline:
+        print(f"  offline       {off}")
+        return 1 if off.startswith('FAIL') else 0
+    print(f"  offline       {off}\n\nprovider endpoint status\n")
     d = http(LCSC_DETAIL.format(code='C1525'))
     ok = bool((d or {}).get('result'))
     print(f"  LCSC detail   {'OK  ' if ok else 'DEAD'}  {LCSC_DETAIL.format(code='C1525')}")
@@ -527,6 +549,17 @@ def c_selftest(a):
     print(f"  LCSC search   {'OK  ' if s else 'DEAD'}  {LCSC_SEARCH}  ({len(s)} hits)")
     if s:
         print(f"                -> {s[0]['sku']} {s[0]['mpn']}")
+    j, _ = jlc_search('', 3, fresh=True, category='MOSFETs', pkg='SOT-23', cheapest=True)
+    print(f"  JLC search    {'OK  ' if j else 'DEAD'}  {JLC_SEARCH.split('/api/')[0]}/...selectSmtComponentList"
+          f"  (pick's pool; category+package+price filters {'live' if j else 'NOT answering'})")
+    fac = jlc_facets('MOSFETs', 'SOT-23', fresh=True)
+    ja, _ = jlc_search('', 3, fresh=True, category='MOSFETs', pkg='SOT-23',
+                       attrs=[{'Drain to Source Voltage': ['30V']}])
+    ok4 = bool(fac.get('Drain to Source Voltage')) and bool(ja) and all(
+        ('Drain to Source Voltage', '30V') in r['params'] for r in ja)
+    print(f"  JLC facets    {'OK  ' if ok4 else 'DEAD'}  {JLC_FACETS.split('/api/')[0]}/...filterComponentAttribute"
+          f"  (pick's server-side attribute filter; {len(fac)} MOSFET attributes"
+          f"{', value filter honoured' if ok4 else ', attribute filter NOT honoured - pick falls back to local filtering'})")
     tok, note = dk_token(a.fresh)
     print(f"  DigiKey auth  {'OK  ' if tok else 'n/a '}  {note}")
     if tok:
@@ -576,6 +609,14 @@ def c_search(a):
             r = [x for x in r if (x.get('stock') or 0) > 0][:a.n]
         rows += r
         notes.append(f"LCSC {len(r)}/{tot}" + (' in stock only' if a.instock else ''))
+    if a.provider in ('all', 'jlc'):
+        # LCSC ranks on MPN text, so category words ('test point', 'LDO') come back
+        # as junk. JLC's index matches category names and carries a spec string.
+        r, tot = jlc_search(kw, a.n, a.fresh, instock=a.instock)
+        have = {x['sku'] for x in rows}
+        r = [x for x in r if x['sku'] not in have]
+        rows += r
+        notes.append(f"JLC {len(r)}/{tot}")
     if a.provider in ('all', 'digikey'):
         r, note = dk_search(kw, a.n * (3 if a.instock else 1), a)
         if a.instock:
@@ -592,7 +633,9 @@ def c_search(a):
         print("  no hits. try the bare MPN without package/qualifier words, or run "
               "`part.py selftest`")
     else:
-        print("\n`part.py show <sku>` for price ladder, params and a verified datasheet")
+        print("\n`part.py show <sku>` for price ladder, params and a verified datasheet"
+              + ("\nJLC rows show the JLC assembly-catalog price; `show` gives LCSC retail"
+                 if any(r['source'] == 'JLC' for r in rows) else ''))
 
 def c_show(a):
     recs, bad = [], False
@@ -629,6 +672,37 @@ def c_ds(a):
                 print(f"  {'OK    ' if ok else 'BROKEN'} {label}: {note}")
                 print(f"         {u}")
             print(f"  -> {url or 'no working datasheet; product page: ' + str(r.get('url'))}\n")
+            if a.save and url:
+                save_datasheet(r, url, a)
+
+def save_datasheet(r, url, a):
+    """Fetch the whole verified PDF, file it as <dir>/<MPN>.pdf and index it with
+    kicad-review's kdoc.py, so pinout / abs-max checks go straight to
+    `kdoc.py grep -d <MPN>` instead of a hand curl + pdftotext."""
+    d = a.dir or ('docs/datasheets' if os.path.isdir('docs/datasheets') else '.')
+    name = re.sub(r'[^\w.+-]+', '_', r.get('mpn') or r.get('sku') or 'datasheet').strip('_') + '.pdf'
+    out = os.path.join(d, name)
+    if os.path.exists(out) and not a.fresh:
+        print(f"  saved     : {out} already exists (--fresh to re-download)")
+    else:
+        blob, status, _ = http('https:' + url if url.startswith('//') else url,
+                               raw=True, retries=1, timeout=60)
+        if status not in (200, 206) or blob[:4] != b'%PDF':
+            print(f"  saved     : NOT saved - full fetch gave HTTP {status}, "
+                  f"{'no %PDF header' if blob else 'empty body'}")
+            return
+        os.makedirs(d, exist_ok=True)
+        with open(out, 'wb') as fh:
+            fh.write(blob)
+        print(f"  saved     : {out}  ({len(blob) // 1024} KiB)")
+    import glob as _g
+    here = os.path.dirname(os.path.abspath(__file__))
+    kdoc = next(iter(_g.glob(os.path.join(here, '..', '..', '*', 'scripts', 'kdoc.py')) +
+                     _g.glob('/mnt/skills/*/*/scripts/kdoc.py')), None)
+    if not kdoc:
+        print("  indexed   : kdoc.py not found; `kdoc.py index` it by hand"); return
+    p = subprocess.run([sys.executable, kdoc, 'index', out], capture_output=True, text=True)
+    print(f"  indexed   : {(p.stdout.strip() or p.stderr.strip())[:120]}")
 
 def c_compare(a):
     recs = []
@@ -756,26 +830,43 @@ def c_bom(a):
 # rows with NO parameters (mpn/package/stock/price only) and accepts no filter or
 # sort arguments - probed exhaustively, see the endpoint table in SKILL.md. The JLC
 # assembly endpoint returns up to 200 rows per call WITH parsed attributes, the
-# price ladder, stock and Basic-vs-Extended. So LCSC stays the parts source and the
-# price of record; JLC is used to annotate Basic/Extended and as a fallback pool.
+# price ladder, stock and Basic-vs-Extended, and filters package/category and sorts
+# by price server-side. So JLC is the search index (pick's default pool) and LCSC
+# stays the price of record: pick re-prices the rows it shows from LCSC detail.
 # JLC prices are assembly-catalog prices, NOT LCSC retail. Never mix the two.
 
 JLC_SEARCH = ('https://jlcpcb.com/api/overseas-pcb-order/v1/shoppingCart/'
               'smtGood/selectSmtComponentList')
+JLC_FACETS = ('https://jlcpcb.com/api/overseas-pcb-order/v1/componentSearch/'
+              'filterComponentAttribute')
+JLC_HDR = {'Content-Type': 'application/json', 'Referer': 'https://jlcpcb.com/parts'}
 
-def jlc_search(keyword, n=200, fresh=False, library=None, instock=False):
+def jlc_search(keyword, n=200, fresh=False, library=None, instock=False,
+               pkg=None, category=None, cheapest=False, page=1, attrs=None):
     """Returns ([rec], total). Recs use the same shape as lcsc_detail where they
-    overlap, with 'library' = 'base' (JLC Basic) | 'expand' (Extended, $3/line)."""
-    body = {'currentPage': 1, 'pageSize': min(max(int(n), 1), 200), 'keyword': keyword}
+    overlap, with 'library' = 'base' (JLC Basic) | 'expand' (Extended, $3/line).
+    Server-side filters (probed 2026-09-23, endpoints.md): pkg = exact package
+    string, category = JLC's exact category name (a rec's 'category'), cheapest =
+    price ascending, attrs = [{attribute: [exact values, any-of]}, ...] ANDed.
+    The index covers ~7.2M parts, i.e. the LCSC catalog."""
+    body = {'currentPage': page, 'pageSize': min(max(int(n), 1), 200), 'keyword': keyword}
     if library:
         body['componentLibraryType'] = library
     if instock:
         body['stockFlag'] = True
+    if pkg:
+        body['componentSpecificationList'] = [pkg]
+    if category:
+        body['secondSortName'] = category      # request's second = response's first
+    if cheapest:
+        body['sortMode'], body['sortASC'] = 'PRICE_SORT', 'ASC'
+    if attrs:
+        body['componentAttributeList'] = attrs
     def go():
-        return http(JLC_SEARCH, data=body,
-                    headers={'Content-Type': 'application/json',
-                             'Referer': 'https://jlcpcb.com/parts'})
-    d = cached('jlc', f"{keyword}|{n}|{library}|{instock}", go, fresh)
+        d = http(JLC_SEARCH, data=body, headers=JLC_HDR)
+        return d if (d or {}).get('data') else None       # an error page is not a result
+    d = cached('jlc', f"{keyword}|{n}|{library}|{instock}|{pkg}|{category}|{cheapest}|{page}"
+               + (f"|{json.dumps(attrs, sort_keys=True)}" if attrs else ''), go, fresh)
     pi = ((d or {}).get('data') or {}).get('componentPageInfo') or {}
     out = []
     for i in (pi.get('list') or []):
@@ -789,7 +880,8 @@ def jlc_search(keyword, n=200, fresh=False, library=None, instock=False):
                   for x in (i.get('attributes') or []) if x.get('attribute_name_en')]
         out.append({'source': 'JLC', 'sku': code, 'mpn': i.get('componentModelEn'),
                     'mfr': i.get('componentBrandEn'), 'package': i.get('componentSpecificationEn'),
-                    'desc': i.get('erpComponentName') or '', 'currency': 'USD',
+                    'desc': i.get('describe') or i.get('erpComponentName') or '',
+                    'currency': 'USD',
                     'category': i.get('componentTypeEn') or '',
                     'stock': i.get('stockCount'), 'ladder': ladder, 'params': params,
                     'library': i.get('componentLibraryType'),
@@ -799,16 +891,77 @@ def jlc_search(keyword, n=200, fresh=False, library=None, instock=False):
                                              ('jlc official', i.get('dataManualOfficialLink'))]})
     return out, pi.get('total', len(out))
 
-def jlc_lib_map(keywords, fresh=False, library=None):
-    """{C-code: rec} across several keyword queries. One HTTP call per keyword."""
-    m = {}
-    for kw in keywords:
-        try:
-            rows, _ = jlc_search(kw, 200, fresh, library=library)
-        except Exception:
+def _facet_query(cat_id=None, pkg=None):
+    """Request body of JLC's parametric sidebar (captured from jlcpcb.com/parts
+    in a browser, 2026-09-23)."""
+    return {'baseQueryDto': {'componentBrandList': [], 'packageTypeList': [],
+                             'componentSpecificationList': [pkg] if pkg else [],
+                             'componentTypeIdList': [cat_id] if cat_id else [],
+                             'orderLibraryTypeList': [], 'filterType': None,
+                             'productTypeIdList': [], 'keyword': None, 'queryShelveStatus': None},
+            'catalogLevel': 2, 'nowCondition': '', 'paramList': [], 'queryString': None}
+
+def jlc_category_ids(fresh=False):
+    """{JLC leaf category name: id}, ~850 of them, from one unfiltered facet call
+    (2.5 MB, ~2 s), cached 7 days. The per-category facet call needs the id."""
+    def go():
+        d = http(JLC_FACETS, data=_facet_query(), headers=JLC_HDR, timeout=60)
+        pt = ((d or {}).get('data') or {}).get('productTypeAggs') or []
+        return {s['name']: int(s['key']) for p in pt for s in p.get('subAggs') or []} or None
+    return cached('jlccatids', 'v1', go, fresh, ttl=7 * 24 * 3600) or {}
+
+def jlc_facets(category, pkg=None, fresh=False):
+    """{attribute: {value: part count}}: every value JLC's parametric sidebar
+    offers across one category (+ exact package). {} for an unknown category."""
+    cid = jlc_category_ids(fresh).get(category)
+    if cid is None:
+        return {}
+    def go():
+        d = http(JLC_FACETS, data=_facet_query(cid, pkg), headers=JLC_HDR)
+        pl = ((d or {}).get('data') or {}).get('paramList')
+        return None if pl is None else {p['key']: {v['key']: v.get('docCount') or 0
+                                                   for v in p.get('subAggs') or []} for p in pl}
+    return cached('jlcfacets', f"{cid}|{pkg}", go, fresh) or {}
+
+def _server_attrs(cons, facets):
+    """(componentAttributeList, {constraint: parts meeting it alone}, [unmet]).
+    JLC matches attribute values exactly, so each constraint becomes the list of
+    sidebar values the local predicate accepts - ranges, >= and any-of all run
+    here, the server only intersects. A constraint whose attribute is not in the
+    facets is left to the local filter; 'unmet' ones no listed value meets."""
+    names = [(n, '') for n in facets]
+    attrs, counts, unmet = [], {}, []
+    for name, lab, pred in cons:
+        pname = attr_hit(names, name)[0] if name != 'pkg' else None
+        if not pname:
             continue
-        for r in rows:
-            m.setdefault(r['sku'], r)
+        vals = [v for v in facets[pname] if v not in ('', '-') and pred(v)]
+        counts[name] = sum(facets[pname][v] for v in vals)
+        if vals:
+            attrs.append({pname: vals})
+        else:
+            unmet.append(name)
+    return attrs, counts, unmet
+
+def jlc_lib_map(keywords, fresh=False, library=None, pkg=None, category=None,
+                cheapest=False, instock=False, budget=1, attrs=None):
+    """{C-code: rec} across several keyword queries, 200 rows per call. With a
+    price sort, extra pages (up to `budget` calls in total) walk further up the
+    price list instead of re-reading relevance-ranked noise."""
+    m = {}
+    pages = max(1, min(3, budget // max(len(keywords), 1))) if cheapest else 1
+    for kw in keywords:
+        for pg in range(1, pages + 1):
+            try:
+                rows, tot = jlc_search(kw, 200, fresh, library=library, pkg=pkg,
+                                       category=category, cheapest=cheapest,
+                                       instock=instock, page=pg, attrs=attrs)
+            except Exception:
+                break
+            for r in rows:
+                m.setdefault(r['sku'], r)
+            if len(rows) < 200 or pg * 200 >= (tot or 0):
+                break
     return m
 
 def jlc_annotate(recs, jobs=8, fresh=False):
@@ -825,6 +978,8 @@ def jlc_annotate(recs, jobs=8, fresh=False):
             return
         h = next((x for x in hits if x['sku'] == r['sku']), None)
         r['library'] = h.get('library') if h else 'none'
+        if h:
+            r['jcat'] = h.get('category')      # JLC's exact name, for a category pool
     with cf.ThreadPoolExecutor(max_workers=jobs) as ex:
         list(ex.map(one, todo))
     return recs
@@ -841,7 +996,10 @@ def enum(s):
     if s is None:
         return None
     t = str(s).strip().replace('\u00b1', '').replace(',', '')
-    t = re.split(r'[~/]', t)[0].strip()           # '10V~35V' -> '10V'
+    # '10V~35V' -> '10V'; LCSC appends test conditions after '@' on most discrete
+    # specs ('5m\u03a9@10V', '450mV@1A', '15A@8/20us') - without this cut every
+    # --rdson/--vf/--ir constraint rejected every real part
+    t = re.split(r'[~/@]', t)[0].strip()
     if not t:
         return None
     for _ in range(3):
@@ -885,19 +1043,25 @@ ALIAS = {
     'vf': ['voltageforwardvfif', 'forwardvoltage'],
     'ifwd': ['currentrectified', 'currentaverage', 'forwardcurrent'],
     'ir': ['reverseleakagecurrentir', 'reverseleakagecurrent'],
-    'vds': ['drainsourcevoltagevdss', 'vdss'],
+    'vds': ['draintosourcevoltage', 'drainsourcevoltagevdss', 'vdss'],
+    'id': ['currentcontinuousdrain', 'continuousdraincurrent'],
+    'vgsth': ['gatethresholdvoltage'],
     'rdson': ['drainsourceonresistancerdson', 'rdson'],
     'isat': ['saturationcurrent', 'currentsaturation'],
     'irms': ['currentrating', 'ratedcurrent'],
+    # TVS / regulators
+    'vrwm': ['reversestandoffvoltage'], 'vc': ['clampingvoltage'],
+    'vout': ['outputvoltage'], 'iout': ['outputcurrent'],
 }
 _UNIT_OF = {'cap': 'F', 'res': '\u2126', 'ind': 'H', 'volt': 'V', 'current': 'A',
             'power': 'W', 'freq': 'Hz', 'vr': 'V', 'vf': 'V', 'ifwd': 'A',
-            'vds': 'V', 'isat': 'A', 'irms': 'A'}
+            'vds': 'V', 'isat': 'A', 'irms': 'A', 'id': 'A', 'vgsth': 'V',
+            'vrwm': 'V', 'vc': 'V', 'vout': 'V', 'iout': 'A'}
 # Every shorthand gets its own --flag. Anything not here is still reachable with
 # --w NAME=SPEC, which also accepts the verbatim LCSC attribute name.
 FLAG_ATTRS = ('cap', 'res', 'ind', 'volt', 'pkg', 'diel', 'tol', 'current', 'power',
-              'freq', 'temp', 'type', 'dcr', 'vr', 'vf', 'ifwd', 'ir', 'vds',
-              'rdson', 'isat', 'irms', 'esr')
+              'freq', 'temp', 'type', 'dcr', 'vr', 'vf', 'ifwd', 'ir', 'vds', 'id',
+              'vgsth', 'rdson', 'isat', 'irms', 'esr', 'vrwm', 'vc', 'vout', 'iout')
 
 def attr_hit(params, name):
     """(resolved parameter name, value) or (None, None). Resolution order:
@@ -920,7 +1084,10 @@ def attr_hit(params, name):
             elif k in n:
                 cands.append((1, len(n), n, orig, v))
     n0 = _norm(name)
-    if len(n0) > 2:
+    # raw-name containment only for verbatim --w names. A shorthand's ALIAS list
+    # is its definition: 'res' as a bare substring matched 'Gate THRESHOLD Voltage'
+    # and 'cap' matched a FET's Ciss, which is how `alt` of a MOSFET went empty.
+    if len(n0) > 2 and name.lower() not in ALIAS:
         for n, orig, v in pn:
             if n0 in n or n in n0:
                 cands.append((2, len(n), n, orig, v))
@@ -931,6 +1098,19 @@ def attr_hit(params, name):
 
 def attr_of(params, name):
     return attr_hit(params, name)[1]
+
+def _exact(params, short):
+    """(name, value) whose normalised name IS one of the shorthand's aliases -
+    unlike attr_hit, never a fuzzy neighbour such as a FET's Ciss for 'cap'."""
+    keys = ALIAS.get(short, [short])
+    return next(((k, v) for k, v in params or [] if _norm(k) in keys), (None, None))
+
+def _short(name):
+    """8-char column label: the shorthand this is an alias of, else its '(Vr)' tag."""
+    n = _norm(name)
+    k = next((k for k, al in ALIAS.items() if n in al), None)
+    tags = re.findall(r'\((\w[^()]*(?:\(\w+\))?)\)', name)      # 'Vgs(th)', 'Id', 'Vf@If'
+    return k or (tags[-1] if tags and len(name) > 8 else name)
 
 def make_pred(spec):
     """Constraint spec -> (predicate over raw string, label).
@@ -1068,39 +1248,141 @@ def _keywords(a, cons):
     # is not in its index zeroes the whole query, especially with the base-library
     # filter on. Give it bare values only; its Basic library is small enough that
     # one query per value is complete coverage anyway.
-    jkws = [k for k in dict.fromkeys(exp)] if exp else ([tail] if tail else [])
-    if pkg and exp:
+    # An exact package goes to JLC as a server-side filter, not a keyword token;
+    # then an empty keyword is valid (category/package alone define the pool).
+    # A JLC category filter replaces the free text, which would only AND-narrow it.
+    pl, jcat = _pkg_literal(cons), getattr(a, '_jcat', None)
+    jtail = ' '.join(x for x in ('' if jcat else base, d1) if x) if pl or jcat else tail
+    jkws = list(dict.fromkeys(exp)) if exp else ([jtail] if jtail or pl or jcat else [])
+    if pkg and exp and not pl:
         jkws = [f"{v} {pkg}" for v in exp]
     return kws, (jkws[:a.maxq] or kws)
 
+def categories(fresh=False):
+    """LCSC/JLC category names (the names JLC's category filter takes), from the
+    'Category' facet of a few broad LCSC searches: ~475 names, cached 7 days."""
+    def go():
+        names = set()
+        for kw in ('1', 'SMD', 'IC', 'resistor capacitor diode transistor connector'):
+            d = http(LCSC_SEARCH, data={'keyword': kw, 'needAggs': 'true', 'currPage': 1,
+                                        'pageSize': 1}, headers={'Referer': 'https://easyeda.com/'})
+            for f in ((d or {}).get('result') or {}).get('paramList') or []:
+                if f.get('parameterName') == 'Category':
+                    names |= set(f.get('parameterValueList') or [])
+        return sorted(names) or None
+    return cached('lcsccats', 'v1', go, fresh, ttl=7 * 24 * 3600) or []
+
+def _cat_hits(text, cats):
+    """Category names containing `text` as whole words, plural allowed ('diode' ->
+    'Schottky Diodes', 'tvs' -> '...(TVS/ESD)', but 'led' never -> 'Leaded')."""
+    rx = re.compile(r'\b' + r'\W+'.join(map(re.escape, text.lower().split())) + r'\w{0,2}\b')
+    return [c for c in cats if rx.search(c.lower())]
+
+def _pick_category(a):
+    """JLC category for the pool: --cat (unique substring match, else verbatim), or
+    inferred from the pick keyword when its phrase, or every word of it that names
+    exactly one category, points at one name. JLC's keyword matcher is AND-over-
+    tokens and skips category names ('TVS' + SMA -> 0 of 2802 SMA parts), so a
+    category filter is the only complete pool for a part type."""
+    if a.cat:
+        hits = _cat_hits(a.cat, categories(a.fresh))
+        exact = [c for c in hits if c.lower() == a.cat.lower()]
+        if len(exact or hits) > 1:
+            sys.exit(f"--cat {a.cat!r} matches {len(hits)} categories:\n  " + '\n  '.join(hits[:20]))
+        return (exact or hits or [a.cat])[0]
+    text = ' '.join(a.args).strip()
+    if not text:
+        return None
+    cats = categories(a.fresh)
+    whole = _cat_hits(text, cats)
+    if len(whole) == 1:
+        return whole[0]
+    # several: the one that IS the keyword ('MOSFET' -> MOSFETs, not the SiC
+    # one), else the only one that has --pkg at all (MLCC 0805 -> SMD, not Leaded)
+    same = [c for c in whole if c.lower().rstrip('s') == text.lower().rstrip('s')]
+    if len(same) == 1:
+        return same[0]
+    pkg = a.pkg if a.pkg and not re.search(r'[,~!<>]|\.\.', a.pkg) else None
+    if pkg and 1 < len(whole) <= 6:
+        stocked = [c for c in whole if jlc_facets(c, pkg, a.fresh)]
+        if len(stocked) == 1:
+            return stocked[0]
+    uniq = {h[0] for w in text.split() if len(w) >= 3 for h in [_cat_hits(w, cats)] if len(h) == 1}
+    return uniq.pop() if len(uniq) == 1 else None
+
+def _pkg_literal(cons):
+    """The --pkg value when it names one exact package (JLC filters that server-side)."""
+    lab = next((str(lab) for n, lab, _ in cons if n == 'pkg'), '')
+    return lab if lab and not re.search(r'[,~!<>]|\.\.', lab) else None
+
+def _stock_ok(rows, a):
+    """Rows with stock >= --minstock; counts the rest for the pick header."""
+    keep = [r for r in rows if (r.get('stock') or 0) >= a.minstock]
+    a._lowstock = getattr(a, '_lowstock', 0) + len(rows) - len(keep)
+    return keep
+
+_EOL_RE = re.compile(r'\bEOL\b|NRND|not recommended|discontinu|obsolete', re.I)
+
+def _lcsc_reprice(recs, a):
+    """JLC is the better index, LCSC retail is the price of record: swap LCSC's
+    ladder/stock/MOQ/lifecycle into JLC-pooled rows, one cached detail call each.
+    A row LCSC cannot detail keeps source 'JLC' and is labelled in the table."""
+    todo = [r for r in recs if r.get('source') == 'JLC']
+    with cf.ThreadPoolExecutor(max_workers=a.jobs) as ex:
+        for r, d in zip(todo, ex.map(lambda r: lcsc_detail(r['sku'], a.fresh), todo)):
+            if d:
+                r.update({k: d.get(k) for k in ('source', 'mfr', 'ladder', 'stock', 'moq',
+                                                  'multiple', 'currency', 'lifecycle', 'url',
+                                                  'datasheet_candidates')})
+    return recs
+
 def build_pool(a, cons, keywords, jkeywords=None):
-    """LCSC first (preferred, full retail catalog). JLC only annotates Basic/Extended
-    unless LCSC comes up short or --source jlc was asked for."""
-    src, note = a.source, []
-    jkeywords = jkeywords or keywords
-    recs, jmap = [], {}
-    if a.basic:
-        # "Basic" is a JLC library concept; LCSC has no such field and no way to filter
-        # on it. Pool straight from the base library: server-side filter, ~1 call per
-        # keyword, fully attributed, and it is authoritative rather than inferred.
-        rows = list(jlc_lib_map(jkeywords, a.fresh, library='base').values())
-        if not a.anystock:
-            rows = [r for r in rows if (r.get('stock') or 0) > 0]
-        note.append(f"jlc base library {len(rows)}")
-        return rows, '; '.join(note)
-    if src in ('lcsc', 'both'):
+    """Candidates with parameters. jlc (default): JLC's ~7.2M-part index with
+    server-side package/category/stock filters and a price sort, attributed, one
+    call per 200 rows. lcsc: LCSC keyword search (relevance on MPN text) + one
+    detail call per part. Each falls back to the other when it finds nothing;
+    `both` unions them. Measured 2026-09-23 on MOSFET/MLCC/schottky/LDO picks:
+    jlc was cheaper-or-equal on all four and 4x faster cold."""
+    note, jkeywords = [], jkeywords or keywords
+    jkw = dict(pkg=_pkg_literal(cons), category=getattr(a, '_jcat', None),
+               cheapest=a.sort == 'price', instock=a.minstock > 0, budget=a.maxq)
+    exact = []                          # set when JLC filtered on the attributes
+
+    def jlc(library=None):
+        # with a category, every constraint the sidebar can express goes to JLC as
+        # an exact value list, so the pool IS the matching parts, cheapest first,
+        # instead of the cheapest 600 of the category filtered afterwards
+        attrs, kws = None, jkeywords
+        if jkw['category'] and not getattr(a, '_noattr', False):
+            fac = jlc_facets(jkw['category'], jkw['pkg'], a.fresh)
+            if fac:
+                attrs, a._facet_counts, unmet = _server_attrs(cons, fac)
+                exact.append(True)
+                if unmet:
+                    note.append(f"no {' / '.join(unmet)} value in '{jkw['category']}'"
+                                f"{' ' + jkw['pkg'] if jkw['pkg'] else ''} meets the limit")
+                    return []
+                kws = [''] if attrs else kws
+        rows = _stock_ok(list(jlc_lib_map(kws, a.fresh, library=library, attrs=attrs,
+                                          **jkw).values()), a)
+        note.append(f"jlc {'base library ' if library else ''}{len(rows)}"
+                    + (f" in '{jkw['category']}'" if jkw['category'] else '')
+                    + (f", {len(attrs)} limit(s) server-side" if attrs else ''))
+        return rows
+
+    def lcsc():
+        # search rows carry no parameters, so the cheapest --pool in-stock hits are
+        # fetched by product/detail one at a time (cached, parallel)
         seen = {}
         for kw in keywords:
             try:
-                rows, tot = lcsc_search(kw, 200, a.fresh)
+                rows, _ = lcsc_search(kw, 200, a.fresh)
             except Exception as e:
                 note.append(f"lcsc '{kw}' failed: {str(e)[:40]}")
                 continue
             for r in rows:
                 seen.setdefault(r['sku'], r)
-        cands = list(seen.values())
-        if not a.anystock:
-            cands = [c for c in cands if (c.get('stock') or 0) > 0]
+        cands = _stock_ok(list(seen.values()), a)
         pkg = next((p for n, _, p in cons if n == 'pkg'), None)
         if pkg:                       # free prefilter: search rows carry `package`
             cands = [c for c in cands if pkg(c.get('package'))]
@@ -1110,37 +1392,48 @@ def build_pool(a, cons, keywords, jkeywords=None):
         cands = cands[:a.pool]
         note.append(f"lcsc {len(seen)} hits -> {len(cands)} detailed")
         with cf.ThreadPoolExecutor(max_workers=a.jobs) as ex:
-            recs = [r for r in ex.map(lambda c: lcsc_detail(c['sku'], a.fresh), cands) if r]
-    if src in ('jlc', 'both') or (src == 'lcsc' and not recs):
-        if src == 'lcsc':
-            note.append('lcsc empty, fell back to JLC')
-        rows = list(jlc_lib_map(jkeywords, a.fresh).values())
-        if not a.anystock:
-            rows = [r for r in rows if (r.get('stock') or 0) > 0]
+            return [r for r in ex.map(lambda c: lcsc_detail(c['sku'], a.fresh), cands) if r]
+
+    if a.basic:
+        # "Basic" is a JLC library concept; LCSC has no such field and no way to filter
+        # on it. Pool straight from the base library: server-side filter, ~1 call per
+        # keyword, fully attributed, and it is authoritative rather than inferred.
+        return jlc('base'), '; '.join(note)
+    first, second = (lcsc, jlc) if a.source == 'lcsc' else (jlc, lcsc)
+    recs = first()
+    if exact and not recs and a.source != 'both':
+        return recs, '; '.join(note)    # JLC's own count says none exist: LCSC can't beat it
+    if a.source == 'both' or not recs:
+        if a.source != 'both':
+            note.append(f"{first.__name__} empty, fell back to {second.__name__}")
         have = {r['sku'] for r in recs}
-        recs += [r for r in rows if r['sku'] not in have]
-        note.append(f"jlc {len(rows)}")
+        recs += [r for r in second() if r['sku'] not in have]
     return recs, '; '.join(note)
 
-def apply_cons(recs, cons, need_all=True):
-    out, why = [], {}
+def apply_cons(recs, cons):
+    """(passing recs, {constraint: candidates failing it}, near misses). Every
+    failure counts, so one candidate can add to several constraints; a near miss
+    fails exactly one: [(rec, constraint, spec, its value or None)]."""
+    out, why, near = [], {}, []
     for r in recs:
-        ok = True
+        bad = []
         for name, lab, pred in cons:
             v = attr_of(r.get('params'), name)
             if name == 'pkg' and v is None:
                 v = r.get('package')
             if v is None or not pred(v):
-                ok = False
+                bad.append((name, lab, v))
                 why[name] = why.get(name, 0) + 1
-                if need_all:
-                    break
-        if ok:
+        if not bad:
             out.append(r)
-    return out, why
+        elif len(bad) == 1:
+            near.append((r,) + bad[0])
+    return out, why, near
 
 def c_pick(a):
     cons = _cons_from_args(a)
+    if not getattr(a, '_jcat', None) and (a.cat or a.source != 'lcsc'):
+        a._jcat = _pick_category(a)
     kws, jkws = _keywords(a, cons)
     if not kws:
         print("pick: give a keyword and/or at least one constraint, e.g.\n"
@@ -1154,14 +1447,16 @@ def c_pick(a):
                 names.setdefault(k, {})
                 names[k][v] = names[k].get(v, 0) + 1
         print(f"attributes across {len(recs)} candidates  [{note}]\n")
-        for k, vals in sorted(names.items(), key=lambda kv: -sum(kv[1].values()))[:18]:
+        top18 = sorted(names.items(), key=lambda kv: -sum(kv[1].values()))[:18]
+        w = min(48, max((len(k) for k, _ in top18), default=20))   # full names: they are --w input
+        for k, vals in top18:
             top = sorted(vals.items(), key=lambda x: -x[1])[:8]
-            print(f"  {trunc(k,26):<26} {trunc(', '.join(v for v,_ in top), 88)}")
+            print(f"  {trunc(k,w):<{w}} {trunc(', '.join(v for v,_ in top), 80)}")
         return 0
-    hits, why = apply_cons(recs, cons)
-    excl = getattr(a, '_exclude', None)
-    if excl:
-        hits = [h for h in hits if h.get('sku') not in excl]
+    hits, why, near = apply_cons(recs, cons)
+    excl = getattr(a, '_exclude', None) or set()
+    selfhit = [h for h in hits if h.get('sku') in excl]
+    hits = [h for h in hits if h.get('sku') not in excl]
     if a.basic:
         hits = [h for h in hits if h.get('library') == 'base']
     qty = a.qty or 100
@@ -1173,6 +1468,12 @@ def c_pick(a):
             'cap':   lambda r: -(enum(attr_of(r.get('params'), 'cap')) or 0),
             'volt':  lambda r: -(enum(attr_of(r.get('params'), 'volt')) or 0)}
     hits.sort(key=keyf.get(a.sort, keyf['price']))
+    eol = 0
+    if not a.basic:               # --basic quotes the JLC assembly catalog on purpose
+        hits = _stock_ok(_lcsc_reprice(hits[:max(3 * a.n, 24)], a), a)
+        eol = sum(1 for h in hits if _EOL_RE.search(h.get('lifecycle') or ''))
+        hits = [h for h in hits if not _EOL_RE.search(h.get('lifecycle') or '')]
+        hits.sort(key=keyf.get(a.sort, keyf['price']))
     hits = hits[:a.n]
     if not a.nojlc:
         jlc_annotate(hits, a.jobs, a.fresh)
@@ -1191,10 +1492,14 @@ def c_pick(a):
                 freq[k] = freq.get(k, 0) + 1
         cols = [k for k, _ in sorted(freq.items(), key=lambda kv: -kv[1])[:4]]
     hdr = (f"{'sku':<11} {'mpn':<22} {'mfr':<14} {'pkg':<8} "
-           + ''.join(f"{trunc(c,8):<9}" for c in cols)
+           + ''.join(f"{trunc(_short(c),8):<9}" for c in cols)
            + f"{'stock':>9}  {'unit@'+str(qty):<12} {'ext':<10} jlc")
-    print(f"pick: {' | '.join(kws[:3])}{' ...' if len(kws)>3 else ''}"
-          f"   [{note}; {len(hits)} shown]")
+    shown = jkws if a.basic or a.source == 'jlc' else kws
+    drop = ([f"{a._lowstock} below --minstock {a.minstock}"] if getattr(a, '_lowstock', 0) else []) \
+        + ([f"{eol} EOL/NRND"] if eol else [])
+    print(f"pick: {' | '.join(k or '(category/package only)' for k in shown[:3])}"
+          f"{' ...' if len(shown)>3 else ''}   [{note}; {len(hits)} shown"
+          + (f"; dropped {', '.join(drop)}" if drop else '') + "]")
     res = {}
     for r in (hits or recs[:40]):
         for name, _, _ in cons:
@@ -1205,9 +1510,21 @@ def c_pick(a):
     if amb:
         print("  resolved: " + ';  '.join(
             f"{k} -> {' | '.join(sorted(v)[:3])}" for k, v in sorted(amb.items())))
+    if not hits and getattr(a, '_facet_counts', None):
+        print(f"  parts in '{a._jcat}'{' ' + _pkg_literal(cons) if _pkg_literal(cons) else ''} "
+              "meeting each limit on its own (any stock): "
+              + ', '.join(f"{k} {v:,}" for k, v in sorted(a._facet_counts.items(), key=lambda x: x[1])))
+    if not hits and getattr(a, '_facet_counts', None) is not None and not getattr(a, '_noattr', False):
+        a._noattr = True       # an exact pool holds no near misses: widen it to find them
+        recs, _ = build_pool(a, cons, kws, jkws)
+        _, why, near = apply_cons(recs, cons)
     if why and not hits:
-        print("  every candidate failed on: "
+        print("  candidates failing each limit (one part can fail several): "
               + ', '.join(f"{k}({v})" for k, v in sorted(why.items(), key=lambda x: -x[1])))
+    if selfhit and not hits:
+        print(f"  the only match was {selfhit[0].get('sku')} itself")
+    near = sorted((n for n in near if n[0].get('sku') not in excl),
+                  key=lambda n: (unit(n[0]) is None, unit(n[0]) or 0))[:5] if not hits else []
     print()
     print(hdr)
     for r in hits:
@@ -1217,6 +1534,8 @@ def c_pick(a):
         vals = ''.join(f"{trunc(attr_of(r.get('params'), c), 8):<9}" for c in cols)
         st = r.get('stock')
         lib = {'base': 'BASIC', 'expand': 'ext'}.get(r.get('library'), '-')
+        if r.get('source') == 'JLC' and not a.basic:
+            lib += '  JLC price (no LCSC detail)'
         print(f"{r.get('sku',''):<11} {trunc(r.get('mpn'),22):<22} {trunc(r.get('mfr'),14):<14} "
               f"{trunc(r.get('package'),8):<8} {vals}"
               f"{(f'{st:,}' if isinstance(st,int) else '?'):>9}  "
@@ -1224,13 +1543,54 @@ def c_pick(a):
     if not hits:
         print("  nothing matched. `--fields` lists the attribute names and values that "
               "are actually present, or loosen one constraint.")
+        if near:
+            _lcsc_reprice([n[0] for n in near], a)
+            print("\n  near misses - each fails exactly ONE limit, cheapest first:")
+            for r, name, lab, v in near:
+                up = unit(r)
+                print(f"    {r.get('sku',''):<11} {trunc(r.get('mpn'),22):<22} "
+                      f"{trunc(r.get('mfr'),14):<14} {dmoney1(up, r.get('currency') or 'USD', a):<10} "
+                      f"stock {r.get('stock') or 0:>9,}   {name} = {v if v is not None else '(not listed)'}"
+                      f"  (limit {lab})")
         return 1
     print("\n`part.py show <sku>` for the ladder and a verified datasheet"
           + ("" if a.nojlc else "   jlc: BASIC = no $3 Extended line fee"))
     return 0
 
+# same class or better: an X7R may replace an X5R, never the reverse
+_DIEL_RANK = ['Y5V', 'Z5U', 'X7T', 'X6S', 'X5R', 'X7S', 'X7R', 'C0G', 'NP0']
+
+# alt: which way "at least as good" runs for a parameter, by its LCSC name. First
+# pattern wins; 'skip' = not held (secondary specs, ranges, test conditions). A
+# name matching nothing is held equal when its value is text (colour, shielding,
+# polarity wording) and not held when it is a number nobody ranked.
+_ALT_RULES = (
+    ('eq', r'^output voltage|^type$|polarity|^number|configuration|channels|output type'
+           r'|^frequency$|load capacitance|colou?r'),
+    ('skip', r'breakdown|temperature|feature|capacitance|charge|surge|ciss|coss|crss'),
+    ('le', r'rds|resistance|dcr|esr|forward(?!.*current)|leakage|clamping|quiescent'
+           r'|supply current|dropout|threshold|tolerance|stability'),
+    ('ge', r'voltage|current|power|dissipation|vgs'),
+)
+
+def _alt_hold(name, value):
+    """--w spec that keeps a replacement at least as good on one parameter, or None."""
+    if value in (None, '', '-'):
+        return None
+    x = enum(value)
+    rule = next((r for r, pat in _ALT_RULES if re.search(pat, name.lower())),
+                'eq' if x is None else 'skip')
+    if rule == 'eq':
+        return str(value)
+    if rule in ('ge', 'le') and x is not None:
+        if x < 0:                                  # P-channel: -30 V beats -20 V
+            rule = 'le' if rule == 'ge' else 'ge'
+        return ('>=' if rule == 'ge' else '<=') + fmt_si(x)
+    return None
+
 def c_alt(a):
-    """Cheaper/stocked/Basic equivalents of a part already on the board."""
+    """Cheaper/stocked/Basic equivalents of a part already on the board: same JLC
+    category and package, equal-or-better on every parameter _alt_hold ranks."""
     if not a.args:
         print("alt: give a C-code, e.g. part.py alt C45783 --qty 100"); return 1
     base = resolve(a.args[0], a)
@@ -1238,36 +1598,48 @@ def c_alt(a):
         print(f"alt: {a.args[0]} not found"); return 1
     b = base[0]
     p = b.get('params') or []
-    got = {k: attr_of(p, k) for k in ('cap', 'res', 'ind', 'volt', 'diel', 'tol')}
     a.pkg = a.pkg or b.get('package')
-    for k in ('cap', 'res', 'ind'):
-        if got[k] and getattr(a, k, None) is None:
-            setattr(a, k, got[k])                       # exact value
-    if got['volt'] and a.volt is None and enum(got['volt']):
-        a.volt = f">={enum(got['volt'])}"               # equal or better
-    if got['tol'] and a.tol is None and enum(got['tol']):
-        a.tol = f"<={enum(got['tol'])}"
-    if got['diel'] and a.diel is None:
-        # same class or better: an X7R may replace an X5R, never the reverse
-        rank = ['Y5V', 'Z5U', 'X7T', 'X6S', 'X5R', 'X7S', 'X7R', 'C0G', 'NP0']
-        d = str(got['diel']).strip().upper()
-        if d in rank:
-            a.diel = ','.join(rank[rank.index(d):])
+    used = set()
+    for k in ('cap', 'res', 'ind', 'volt', 'tol', 'diel'):   # passives: exact names only
+        name, v = _exact(p, k)
+        if not name or v in ('', '-'):
+            continue
+        used.add(name)
+        x, d = enum(v), str(v).strip().upper()
+        if getattr(a, k, None) is not None:
+            continue                                         # the caller's spec wins
+        if k in ('cap', 'res', 'ind'):
+            setattr(a, k, v)                                 # exact value
+        elif k in ('volt', 'tol') and x:
+            setattr(a, k, ('>=' if k == 'volt' else '<=') + fmt_si(x))
+        elif k == 'diel' and d in _DIEL_RANK:
+            a.diel = ','.join(_DIEL_RANK[_DIEL_RANK.index(d):])
+    mine = {_norm(w.split('=', 1)[0]) for w in a.w}
+    holds = [(n, s) for n, v in p if n not in used and _norm(n) not in mine
+             for s in [_alt_hold(n, v)] if s]
+    # numeric limits first (they become the table columns), secondary ratings last
+    holds.sort(key=lambda h: (h[1][:1] not in '<>',
+                              bool(re.search(r'dissipation|^vgs$', h[0].lower()))))
+    a.w = list(a.w) + [f"{n}={s}" for n, s in holds]
+    jlc_annotate([b], a.jobs, a.fresh)
     cat = (b.get('category') or '').split('>')[-1].strip()
-    if not a.args[1:]:
-        a.args = [cat or (b.get('mpn') or '')]
-    else:
+    a._jcat = b.get('jcat')
+    if a._jcat:        # JLC's exact category + package beats LCSC keyword relevance
+        a.source = 'jlc'
+    if a.args[1:]:
         a.args = a.args[1:]
+    else:
+        a.args = [''] if a._jcat else [cat or (b.get('mpn') or '')]
     q0 = buy_qty(a.qty or 100, b.get('moq'), b.get('multiple'))
     up0 = price_at(b.get('ladder') or [], q0)
-    jlc_annotate([b], a.jobs, a.fresh)
-    print(f"alt of {b.get('sku')} {b.get('mpn')} ({cat})   "
+    flags = [f"--{k} {getattr(a, k)!r}" for k in FLAG_ATTRS if getattr(a, k, None)]
+    print(f"alt of {b.get('sku')} {b.get('mpn')} ({a._jcat or cat})   "
           f"now {dmoney1(up0, b.get('currency') or 'USD', a)}@{q0}, "
           f"{ {'base':'BASIC','expand':'ext'}.get(b.get('library'), 'not in JLC lib') }\n"
-          f"  holding: " + ', '.join(f"{k}={v}" for k, v in got.items() if v) + "\n")
+          f"  holding (rerun `pick` with a subset of these to loosen):\n    "
+          + '\n    '.join(flags + [f"--w {w!r}" for w in a.w]) + "\n")
     a._exclude = {b.get('sku')}
-    rc = c_pick(a)
-    return rc
+    return c_pick(a)
 
 def load_knet(src):
     """kicad-review's netlist parser, if that skill is installed. None if not."""
@@ -1313,7 +1685,7 @@ def c_jlc(a):
     if not codes:
         print("jlc: give C-codes or a file containing them"); return 1
     qty = a.qty or 1
-    rows, ext = [], 0
+    ext = 0
     with cf.ThreadPoolExecutor(max_workers=a.jobs) as ex:
         res = list(ex.map(lambda c: (c, jlc_search(c, 3, a.fresh)[0]), codes))
     rf = lambda c: (' ' + trunc(','.join(refs[c]), 22)) if refs.get(c) else ''
@@ -1612,6 +1984,47 @@ def _fpcheck_selftest():
     n = len(cases) + len(vcases)
     return f"{n}/{n}"
 
+def _pick_selftest():
+    """Offline checks for the pick/alt value logic. Each line is a bug that shipped."""
+    fet = [('Gate Threshold Voltage (Vgs(th))', '2.2V'), ('Ciss-Input Capacitance', '1.037nF'),
+           ('Drain to Source Voltage', '30V'), ('RDS(on)', '5mΩ@10V'), ('Type', 'N-Channel'),
+           ('Operating Temperature', '-55℃~+150℃'), ('Configuration', '-')]
+    checks = [
+        abs(enum('5mΩ@10V') - 5e-3) < 1e-12,          # '@' test conditions parse
+        abs(enum('450mV@1A') - 0.45) < 1e-12,
+        enum('15A@8/20us') == 15.0 and enum('10V~35V') == 10.0,
+        attr_hit(fet, 'res') == (None, None),           # not 'thRESHOLD'
+        attr_hit(fet, 'vds')[0] == 'Drain to Source Voltage',
+        _exact(fet, 'cap') == (None, None),             # a FET's Ciss is no cap value
+        {n: _alt_hold(n, v) for n, v in fet} == {
+            'Gate Threshold Voltage (Vgs(th))': '<=2.2', 'Ciss-Input Capacitance': None,
+            'Drain to Source Voltage': '>=30', 'RDS(on)': '<=5m', 'Type': 'N-Channel',
+            'Operating Temperature': None, 'Configuration': None},
+        _alt_hold('Drain to Source Voltage', '-30V') == '<=-30',      # P-channel
+        _alt_hold('Emitted Color', 'Green') == 'Green',                # unranked text: equal
+        make_pred('<=5m')[0]('4.6mΩ@4.5V') and not make_pred('<=5m')[0]('8mΩ@10V'),
+        # category words: whole word, plural ok, 'led' is not 'Leaded'
+        _cat_hits('led', ['LED Drivers', 'Multilayer Ceramic Capacitors MLCC - Leaded']) == ['LED Drivers'],
+        _cat_hits('tvs', ['ESD and Surge Protection (TVS/ESD)', 'Crystals']) == ['ESD and Surge Protection (TVS/ESD)'],
+        _cat_hits('test point', ['Test Points / Test Rings', 'Test Clips']) == ['Test Points / Test Rings'],
+    ]
+    # JLC server-side filter: facet values the local predicate accepts, '-' never
+    cons = [(n, lab, make_pred(lab)[0]) for n, lab in (('volt', '>=25'), ('cap', '10u'))]
+    fac = {'Voltage Rated': {'10V': 5, '25V': 7, '50V': 3, '-': 2}, 'Capacitance': {'1uF': 4, '10uF': 9}}
+    checks.append(_server_attrs(cons, fac) == (
+        [{'Voltage Rated': ['25V', '50V']}, {'Capacitance': ['10uF']}], {'volt': 10, 'cap': 9}, []))
+    checks.append(_server_attrs(cons[:1], {'Voltage Rated': {'10V': 5}})[2] == ['volt'])
+    # every failure counts (not just the first), and a one-failure part is a near miss
+    recs = [{'sku': 'A', 'params': [('Voltage Rated', '10V'), ('Capacitance', '1uF')]},
+            {'sku': 'B', 'params': [('Voltage Rated', '50V'), ('Capacitance', '1uF')]},
+            {'sku': 'C', 'params': [('Voltage Rated', '50V'), ('Capacitance', '10uF')]}]
+    ok, why, near = apply_cons(recs, cons)
+    checks.append([r['sku'] for r in ok] == ['C'] and why == {'volt': 1, 'cap': 2}
+                  and [(n[0]['sku'], n[1], n[3]) for n in near] == [('B', 'cap', '1uF')])
+    bad = [i for i, ok in enumerate(checks, 1) if not ok]
+    assert not bad, f"pick self-test failed check(s) {bad}"
+    return f"{len(checks)}/{len(checks)}"
+
 def _conf_key(pkg, footprint):
     """Normalised (LCSC package, KiCad footprint) key for the confirmed store,
     matching the matcher's own normalisation. Variant tails on the footprint are
@@ -1675,7 +2088,7 @@ def c_fpcheck(a):
             unresolved.append(code); continue
         pkg, mpn, params = r.get('package'), r.get('mpn'), r.get('params')
         life = (r.get('lifecycle') or '').strip()
-        if re.search(r'\bEOL\b|NRND|not recommended|discontinu|obsolete', life, re.I):
+        if _EOL_RE.search(life):
             eol.append({'lcsc': code, 'mpn': mpn, 'lifecycle': life,
                         'refs': sorted({x for g in want[code].values() for x in g})})
         multi = len({_fp_sig(fp) for (fp, _v, _p) in want[code]}) > 1   # 2+ bodies
@@ -1772,11 +2185,11 @@ CMDS = {'selftest': c_selftest, 'search': c_search, 'show': c_show, 'ds': c_ds,
 
 def main():
     ap = argparse.ArgumentParser(add_help=False)
-    ap.add_argument('cmd', choices=list(CMDS))
+    ap.add_argument('cmd', nargs='?', choices=list(CMDS))
     ap.add_argument('args', nargs='*')
     ap.add_argument('-n', type=int, default=8)
     ap.add_argument('--qty', type=int, default=None)
-    ap.add_argument('--provider', default='all', choices=['all', 'lcsc', 'digikey'])
+    ap.add_argument('--provider', default='all', choices=['all', 'lcsc', 'jlc', 'digikey'])
     ap.add_argument('--site', default='CA', help='DigiKey locale site (CA, US, ...)')
     ap.add_argument('--currency', default='CAD', help='DigiKey currency')
     ap.add_argument('--attrs', action='store_true')
@@ -1785,6 +2198,9 @@ def main():
                          '(sku/mpn/mfr/pkg/stock/price/desc) instead of a verbose block')
     ap.add_argument('--instock', action='store_true', help='drop zero-stock results')
     ap.add_argument('--nods', action='store_true', help='skip datasheet verification')
+    ap.add_argument('--save', action='store_true',
+                    help='ds: download the verified PDF and index it with kdoc.py')
+    ap.add_argument('--dir', default='', help='ds --save: target folder (default docs/datasheets)')
     ap.add_argument('--fresh', action='store_true')
     ap.add_argument('--json', action='store_true')
     ap.add_argument('--show-ok', dest='show_ok', action='store_true',
@@ -1792,18 +2208,30 @@ def main():
     ap.add_argument('--confirm', action='store_true',
                     help='fpcheck: record the listed REVIEW codes as confirmed-equivalent in fpcheck.json')
     ap.add_argument('--note', default='', help='fpcheck --confirm: provenance note stored with each entry')
-    # pick / alt
+    # pick / alt. The long synonyms are the names sessions actually guessed.
+    syn = {'cap': ['--capacitance'], 'res': ['--resistance'], 'ind': ['--inductance'],
+           'volt': ['--voltage'], 'pkg': ['--package'], 'diel': ['--dielectric'],
+           'tol': ['--tolerance']}
     for f in FLAG_ATTRS:
-        ap.add_argument('--' + f, default=None,
+        ap.add_argument('--' + f, *syn.get(f, []), dest=f, default=None,
                         help='pick constraint: VALUE | LO..HI | >=X | A,B | ~text | !A')
+    ap.add_argument('--minstock', '--min-stock', '--stock-min', type=int, default=100,
+                    help='pick/alt: drop parts with less stock (default 100)')
+    ap.add_argument('--cat', '--category', default=None,
+                    help="pick: JLC category filter, any unique part of its name ('tvs', "
+                         "'I/O Expanders'); pick infers one from the keyword when a word names one")
     ap.add_argument('--w', action='append', default=[], metavar='NAME=SPEC',
                     help='pick constraint on any other attribute (repeatable)')
     ap.add_argument('--sort', default='price', choices=['price', 'stock', 'cap', 'volt'])
-    ap.add_argument('--source', default='lcsc', choices=['lcsc', 'jlc', 'both'],
-                    help='candidate pool. lcsc (default) = full retail catalog')
+    ap.add_argument('--source', default='jlc', choices=['lcsc', 'jlc', 'both'],
+                    help='candidate pool: jlc (default) = JLC index with server-side '
+                         'package/category/price sort; lcsc = keyword search + detail. '
+                         'Prices shown are LCSC retail either way (except --basic)')
     ap.add_argument('--basic', action='store_true', help='JLC Basic parts only (no $3 line fee)')
     ap.add_argument('--nojlc', action='store_true', help='skip the Basic/Extended annotation')
-    ap.add_argument('--anystock', action='store_true', help='keep zero-stock candidates')
+    ap.add_argument('--offline', action='store_true',
+                    help='selftest: offline logic checks only, no network (exit 1 on failure)')
+    ap.add_argument('--anystock', action='store_true', help='pick/alt: no stock floor at all (--minstock 0)')
     ap.add_argument('--fields', action='store_true', help='list attribute names/values, do not filter')
     ap.add_argument('--e12', action='store_true', help='fan a range over E12 not E6')
     ap.add_argument('--pool', type=int, default=240, help='max LCSC parts to detail (default 240)')
@@ -1813,10 +2241,21 @@ def main():
     a, extra = ap.parse_known_args()
     stray = [x for x in extra if x.startswith('-')]
     if stray:
-        ap.error(f"unrecognized arguments: {' '.join(stray)}")
+        import difflib
+        known = {'--value': ['--cap, --res or --ind']}      # difflib says --table
+        tips = [f"{s} -> {m[0]}" for s in stray for m in
+                [known.get(s.split('=')[0]) or difflib.get_close_matches(
+                    s.split('=')[0], list(ap._option_string_actions), 1, 0.75)] if m]
+        sys.exit(f"part.py: unknown flag(s) {' '.join(stray)}"
+                 + (f"   did you mean: {', '.join(tips)}" if tips else '')
+                 + "\n  a limit goes in the value, not the flag name: --volt '>=50', "
+                   "--cap 4.7u..22u, --minstock 100.\n  any LCSC attribute: --w 'Clamping Voltage=<=30'. "
+                   "`part.py --help` lists every flag.")
     a.args += [x for x in extra if not x.startswith('-')]   # keywords after flags
-    if a.help:
+    if a.help or not a.cmd:
         print(__doc__); return 0
+    if a.anystock:
+        a.minstock = 0
     a.currency = (a.currency or 'CAD').upper()
     rc = CMDS[a.cmd](a) or 0
     note = fx_note()

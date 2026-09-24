@@ -22,11 +22,18 @@ matters. Invalid regex is treated as a literal. Other flags: `-C N`, `-m N`,
 (`KDOC_CACHE` overrides).
 
 `-d` matching is punctuation-insensitive: the slug for `lm61460-q1.pdf` is stored
-as `lm61460_q1`, but `-d lm61460-q1`, `-d "lm61460 q1"` and `-d lm61460q1` all
-resolve to it. Copy the name straight off the filename; don't hand-convert hyphens.
+as `lm61460_q1`, but `-d lm61460-q1`, `-d "lm61460 q1"`, `-d lm61460q1`,
+`-d lm61460-q1.pdf` and `-d docs/datasheets/lm61460-q1.pdf` all resolve to it (a path
+to a file that was never indexed indexes it on first use). Copy the name straight
+off the filename; don't hand-convert hyphens.
 
 Prefer plain strings over regex when grepping - the index is line-wrap normalised
-and a regex tuned to the raw layout will miss.
+and a regex tuned to the raw layout will miss. A plain string (no regex syntax)
+also folds separators: `keep-out` finds `keepout`, `keep out` and a line-broken
+`keep- out`, `pull-up` finds `pullup`; and any dash matches any dash, so `-40`
+finds the `−40` (U+2212) and `–40` datasheets typeset. Only separators you type
+fold: `keepout` does not find `keep-out`, and a leading space still anchors (` EN`
+does not match `ENABLE`).
 
 ## Why it exists
 
@@ -58,14 +65,24 @@ Re-running `index --ocr` on an already-cached scan doc re-extracts it; a plain
 
 ## Finding the files
 
-With the cache empty, `kdoc` auto-indexes `/mnt/project`, `/mnt/user-data/uploads`
-**and the working directory**, plus anything in `KDOC_DIRS` (colon separated).
+With the cache empty, `kdoc` auto-indexes `/mnt/project`, `/mnt/user-data/uploads`,
+**the working directory and its `docs/datasheets/` / `datasheets/`**, plus anything
+in `KDOC_DIRS` (colon separated). And whatever the cache holds, a `-d DOC` (or
+`page`/`text DOC`) that matches nothing cached indexes the matching file from those
+folders on first use, `(indexed X on first use)`; if no file matches either, it
+says the doc is not indexed instead of "no hits in 0 doc(s)", which used to read as
+"the datasheet doesn't mention it".
 Outside the uploads sandbox those `/mnt` paths do not exist. Auto-indexing is
 budgeted - 32 MB per file, 40 files, 128 MB extracted - because a real folder holds
 textbooks and video next to the datasheet; it says when it stopped. Point it at what
 you actually want instead: `kdoc.py index ~/Downloads/parsnip.pdf`, or a directory.
 An explicit `index` has no budget and reports per-file failures rather than dying on
-the first unreadable archive. Run `index` once per doc, then grep.
+the first unreadable archive. Run `index` once per doc, then grep. `index -d NAME`
+indexes just the file(s) NAME matches (it used to ignore `-d` and index every
+autodir). A directory scan skips netlists and KiCad files (`knet.py` owns those;
+name one explicitly to force it) and any zip that is not the uploader's page
+container (a `.jar`/`.docx` is refused, not extracted whole). A named path that
+does not exist says `no such file`.
 
 `grep`/`text`/`toc` work identically on all three types. Only `page` differs: it
 returns an image for `img`/`render` docs and a clear "no image possible" message for

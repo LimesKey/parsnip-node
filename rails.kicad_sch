@@ -1,7 +1,7 @@
 (kicad_sch
-	(version 20260306)
+	(version 20260830)
 	(generator "eeschema")
-	(generator_version "10.0")
+	(generator_version "10.99")
 	(uuid "ec9020a1-64ed-4948-9d5f-647105213734")
 	(paper "A4")
 	(title_block
@@ -446,6 +446,7 @@
 					)
 				)
 			)
+			(symbol "TestPoint_2Pole_1_1")
 			(embedded_fonts no)
 		)
 		(symbol "Connector:TestPoint_Probe"
@@ -2563,6 +2564,7 @@
 					)
 				)
 			)
+			(symbol "LM61460AASQRJRRQ1_1_1_1")
 			(embedded_fonts no)
 		)
 		(symbol "Oscillator:SiT8008xx-7x-xxS"
@@ -3486,6 +3488,7 @@
 					)
 				)
 			)
+			(symbol "LM61460AASQRJRRQ1_1_1")
 			(embedded_fonts no)
 		)
 		(symbol "easyeda2kicad:TPS259474ARPWR"
@@ -3773,6 +3776,7 @@
 					)
 				)
 			)
+			(symbol "TPS259474ARPWR_1_1")
 			(embedded_fonts no)
 		)
 		(symbol "power:+3V3"
@@ -4281,6 +4285,7 @@
 					)
 				)
 			)
+			(symbol "PWR_FLAG_1_1")
 			(embedded_fonts no)
 		)
 		(symbol "power:VBUS"
@@ -4475,7 +4480,7 @@
 		(effects
 			(font
 				(size 2.794 2.794)
-				(thickness 0.5588)
+				(thickness 0.3493)
 				(bold yes)
 			)
 		)
@@ -4517,7 +4522,7 @@
 		(effects
 			(font
 				(size 2.794 2.794)
-				(thickness 0.5588)
+				(thickness 0.3493)
 				(bold yes)
 			)
 		)
@@ -5623,6 +5628,16 @@
 	)
 	(wire
 		(pts
+			(xy 125.73 161.29) (xy 127 161.29)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "2853f3aa-07bc-4805-bbc2-cf75b77a00d0")
+	)
+	(wire
+		(pts
 			(xy 132.08 68.58) (xy 127 68.58)
 		)
 		(stroke
@@ -5653,7 +5668,7 @@
 	)
 	(wire
 		(pts
-			(xy 116.84 161.29) (xy 119.38 161.29)
+			(xy 116.84 161.29) (xy 118.11 161.29)
 		)
 		(stroke
 			(width 0)
@@ -9600,7 +9615,7 @@
 				)
 			)
 		)
-		(property "LCSC Part" "C98190"
+		(property "LCSC Part" "C602037"
 			(at 135.89 163.83 0)
 			(hide yes)
 			(show_name no)
@@ -9634,6 +9649,17 @@
 			)
 		)
 		(property "Capacitor Rating" ""
+			(at 135.89 163.83 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" ""
 			(at 135.89 163.83 0)
 			(hide yes)
 			(show_name no)
@@ -10040,7 +10066,7 @@
 				)
 			)
 		)
-		(property "LCSC Part" "C2762594"
+		(property "LCSC Part" "C22367828"
 			(at 154.94 80.01 0)
 			(hide yes)
 			(show_name no)
@@ -12686,7 +12712,7 @@
 				)
 			)
 		)
-		(property "LCSC Part" "C98190"
+		(property "LCSC Part" "C602037"
 			(at 139.7 163.83 0)
 			(hide yes)
 			(show_name no)
@@ -12720,6 +12746,17 @@
 			)
 		)
 		(property "Capacitor Rating" ""
+			(at 139.7 163.83 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" ""
 			(at 139.7 163.83 0)
 			(hide yes)
 			(show_name no)
@@ -15292,7 +15329,7 @@
 				)
 			)
 		)
-		(property "LCSC Part" "C98190"
+		(property "LCSC Part" "C602037"
 			(at 132.08 163.83 0)
 			(hide yes)
 			(show_name no)
@@ -15326,6 +15363,17 @@
 			)
 		)
 		(property "Capacitor Rating" ""
+			(at 132.08 163.83 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" ""
 			(at 132.08 163.83 0)
 			(hide yes)
 			(show_name no)
@@ -15543,7 +15591,7 @@
 				)
 			)
 		)
-		(property "LCSC Part" "C2762594"
+		(property "LCSC Part" "C22367828"
 			(at 151.13 80.01 0)
 			(hide yes)
 			(show_name no)
@@ -20352,7 +20400,7 @@
 				)
 			)
 		)
-		(property "LCSC Part" "C2762594"
+		(property "LCSC Part" "C22367828"
 			(at 147.32 80.01 0)
 			(hide yes)
 			(show_name no)
@@ -21885,7 +21933,7 @@
 	)
 	(symbol
 		(lib_id "Device:L")
-		(at 123.19 161.29 90)
+		(at 121.92 161.29 90)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -21895,7 +21943,7 @@
 		(dnp no)
 		(uuid "f935bd32-8407-4293-aed6-0f0f180022fa")
 		(property "Reference" "L4"
-			(at 123.19 159.258 90)
+			(at 121.92 159.258 90)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -21905,7 +21953,7 @@
 			)
 		)
 		(property "Value" "2.2uH"
-			(at 123.19 162.814 90)
+			(at 121.92 162.814 90)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -21915,7 +21963,7 @@
 			)
 		)
 		(property "Footprint" "Inductor_SMD:L_Sunlord_MWSA1003S"
-			(at 123.19 161.29 0)
+			(at 121.92 161.29 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -21926,7 +21974,7 @@
 			)
 		)
 		(property "Datasheet" "https://www.lcsc.com/datasheet/C48391620.pdf?spm=wm.sxq.inf.ggs___wm.fly.bg.0.stp&lcsc_vid=FFRXA1JWFVgIUQBQQAAIUVdWQlILUlEHFFJcUFIATlgxVlNeQFdcUFJXQFZfXztW"
-			(at 123.19 161.29 0)
+			(at 121.92 161.29 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -21937,7 +21985,7 @@
 			)
 		)
 		(property "Description" "Inductor"
-			(at 123.19 161.29 0)
+			(at 121.92 161.29 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -21947,8 +21995,8 @@
 				)
 			)
 		)
-		(property "LCSC Part" "C48391620"
-			(at 123.19 161.29 0)
+		(property "LCSC Part" "C439019"
+			(at 121.92 161.29 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -21959,7 +22007,7 @@
 			)
 		)
 		(property "Voltage Rating" ""
-			(at 123.19 161.29 0)
+			(at 121.92 161.29 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -21970,7 +22018,7 @@
 			)
 		)
 		(property "Tolerance" ""
-			(at 123.19 161.29 0)
+			(at 121.92 161.29 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -21981,7 +22029,7 @@
 			)
 		)
 		(property "Capacitor Rating" ""
-			(at 123.19 161.29 0)
+			(at 121.92 161.29 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)

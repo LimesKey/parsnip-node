@@ -1,7 +1,7 @@
 (kicad_sch
-	(version 20260306)
+	(version 20260830)
 	(generator "eeschema")
-	(generator_version "10.0")
+	(generator_version "10.99")
 	(uuid "4f4c527a-9624-452f-aa82-08eb8565f0e1")
 	(paper "A4")
 	(title_block
@@ -1684,6 +1684,7 @@
 					)
 				)
 			)
+			(symbol "QMC6309_1_1")
 			(embedded_fonts no)
 		)
 		(symbol "easyeda2kicad:TCAL9539RTWR_C22445413"
@@ -2252,6 +2253,7 @@
 					)
 				)
 			)
+			(symbol "TCAL9539RTWR_C22445413_1_1")
 			(embedded_fonts no)
 		)
 		(symbol "easyeda2kicad:WS2816B_C22371534"
@@ -2478,6 +2480,7 @@
 					)
 				)
 			)
+			(symbol "WS2816B_C22371534_1_1")
 			(embedded_fonts no)
 		)
 		(symbol "power:+3V3"
@@ -2916,7 +2919,7 @@
 		(effects
 			(font
 				(size 2.032 2.032)
-				(thickness 0.4064)
+				(thickness 0.254)
 				(bold yes)
 			)
 		)
@@ -2928,7 +2931,7 @@
 		(effects
 			(font
 				(size 2.54 2.54)
-				(thickness 0.4064)
+				(thickness 0.254)
 				(bold yes)
 			)
 		)
@@ -2951,7 +2954,7 @@
 		(effects
 			(font
 				(size 2.032 2.032)
-				(thickness 0.4064)
+				(thickness 0.254)
 				(bold yes)
 			)
 		)

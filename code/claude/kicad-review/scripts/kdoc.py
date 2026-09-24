@@ -43,7 +43,7 @@ for column/table-layout sensitive patterns.
 Cache defaults to ./.kdoc_cache (override with KDOC_CACHE). Re-extraction is
 automatic when the source file's size or mtime changes.
 """
-import sys, os, re, json, csv, zipfile, subprocess, argparse, glob, shutil
+import sys, os, re, json, zipfile, subprocess, argparse, glob, shutil
 
 CACHE = os.environ.get('KDOC_CACHE', os.path.expanduser('~/.cache/kdoc'))
 TEXT_EXT = {'.txt', '.md', '.log', '.net', '.csv', '.tsv'}
@@ -74,6 +74,17 @@ def is_real_pdf(path):
         return False
     return b'%PDF-' in head[:32]  # header may have a few leading bytes of junk
 
+def page_zip(path):
+    """The uploader's per-page container (top-level N.txt and/or manifest.json), not
+    any zip: a .jar or .docx used to be extracted whole into the cache (one
+    Freerouting jar in the project root left 228 MB of class files there)."""
+    try:
+        with zipfile.ZipFile(path) as z:
+            names = z.namelist()
+    except (zipfile.BadZipFile, OSError):
+        return False
+    return 'manifest.json' in names or any(re.fullmatch(r'\d+\.txt', n) for n in names)
+
 # ---------------- extraction ----------------
 
 def extract(path, force=False, ocr=False):
@@ -87,8 +98,10 @@ def extract(path, force=False, ocr=False):
     # shortcut would swallow the --ocr request
     if cached and not (ocr and os.path.exists(os.path.join(out, '.scan'))):
         return out
-    os.makedirs(out, exist_ok=True)
     ext = os.path.splitext(path)[1].lower()
+    if ext != '.xlsx' and zipfile.is_zipfile(path) and not page_zip(path):
+        raise ValueError('a zip archive (.jar/.docx/...), not a page container')
+    os.makedirs(out, exist_ok=True)
     if ext == '.xlsx':
         _xlsx(path, out)
     elif ext in TEXT_EXT:
@@ -243,12 +256,18 @@ def _key(s):
     the hyphen/space form a user reads straight off the filename."""
     return re.sub(r'[\W_]+', '', s).lower()
 
+def _fkey(filt):
+    """The -d key. Folded through slug() exactly like the cache name, so a filename
+    or path (`-d max17320.pdf`, `-d docs/datasheets/x.pdf`) addresses its doc; the
+    raw _key kept the 'pdf' and the directory and matched nothing."""
+    return _key(slug(filt))
+
 def docs(filt=None):
     if not os.path.isdir(CACHE):
         return []
     d = sorted(x for x in os.listdir(CACHE) if os.path.isdir(os.path.join(CACHE, x)))
     if filt:
-        fk = _key(filt)
+        fk = _fkey(filt)
         d = [x for x in d if fk in _key(x)]
         # an exact name wins outright, so a doc whose name is a prefix of a
         # longer one (tps25751 vs TPS25751technicalreferencemanual) stays
@@ -271,12 +290,24 @@ def page_label(docdir, n):
         return f"chunk{n}"
     return f"p{n}"
 
+DASH = '\\-\u2010-\u2015\u2212'      # ASCII hyphen, Unicode hyphens/dashes, minus sign
+
 def smart_re(pat, flags=re.I):
-    """Regex if valid, literal otherwise. 'R13(' or '+5V' should search, not raise."""
-    try:
-        return re.compile(pat, flags)
-    except re.error:
-        return re.compile(re.escape(pat), flags)
+    """Regex if it uses regex syntax ('R13(' or '+5V' still search as literals).
+    A plain string also matches across the separator variants datasheets mix:
+    'keep-out' finds 'keepout', 'keep out' and a line-broken 'keep- out' (it used
+    to miss the ESP32-S3-WROOM-1 'keepout' outright), and a dash matches any dash,
+    so '-40' finds the U+2212 '−40' TI typesets."""
+    if re.search(r'[\\^$.|?*+()\[\]{}]', pat):
+        try:
+            return re.compile(pat, flags)
+        except re.error:
+            return re.compile(re.escape(pat), flags)
+    parts = re.split(f'([\\s{DASH}]+)', pat)        # text, sep, text, ... (odd length)
+    rx = ''.join(f'[\\s{DASH}]*' if i % 2 and parts[i - 1] and parts[i + 1]    # internal sep
+                 else ''.join(f'[{DASH}]' if re.match(f'[{DASH}]', c) else re.escape(c) for c in p)
+                 for i, p in enumerate(parts))
+    return re.compile(rx, flags)
 
 # Auto-indexing budgets. An explicit `kdoc.py index <path>` has no cap - you
 # asked for that file. These exist because autodirs() can now point at an
@@ -298,7 +329,8 @@ def autodirs():
     KDOC_DIRS (colon separated) points it anywhere else, e.g. a Downloads
     folder holding the datasheets and the plotted schematic."""
     ds = [d for d in os.environ.get('KDOC_DIRS', '').split(os.pathsep) if d.strip()]
-    ds += ['/mnt/project', '/mnt/user-data/uploads', os.getcwd()]
+    ds += ['/mnt/project', '/mnt/user-data/uploads', os.getcwd(),
+           os.path.join(os.getcwd(), 'docs', 'datasheets'), os.path.join(os.getcwd(), 'datasheets')]
     seen, out = set(), []
     for d in ds:
         rp = os.path.realpath(os.path.expanduser(d))
@@ -333,7 +365,7 @@ def autoindex():
         ext = os.path.splitext(f)[1].lower()
         if ext in AUTOSKIP_EXT:
             continue          # knet.py owns these; index explicitly if really wanted
-        if not (ext in TEXT_EXT | {'.pdf', '.xlsx'} or zipfile.is_zipfile(f)):
+        if not (ext in TEXT_EXT | {'.pdf', '.xlsx'} or page_zip(f)):
             continue
         # A real folder is not a curated uploads directory: it holds a 700 MB
         # video and a half-downloaded archive next to the datasheet. Skip the
@@ -360,6 +392,35 @@ def autoindex():
         print(f"(cache was empty; auto-indexed {n} file(s) from "
               f"{', '.join(dirs)})", file=sys.stderr)
     return bool(n)
+
+def _matching_files(filt):
+    """Source files a -d NAME means: the path itself when it is a file, else up to
+    5 files in autodirs() whose cache name contains the key."""
+    if os.path.isfile(os.path.expanduser(filt)):
+        return [os.path.expanduser(filt)]
+    fk = _fkey(filt)
+    return [f for d in autodirs() for f in sorted(glob.glob(os.path.join(d, '*')))
+            if os.path.isfile(f) and fk in _key(slug(f))
+            and os.path.splitext(f)[1].lower() not in AUTOSKIP_EXT][:5]
+
+def ensure(filt):
+    """autoindex(), plus: a -d/DOC filter that matches nothing cached indexes the
+    matching file(s) from autodirs() on first use. Without this a datasheet that
+    sits in docs/datasheets but was never indexed read "no hits ... in 0 doc(s)",
+    i.e. "the doc doesn't say", which is a false negative."""
+    autoindex()
+    if not filt or docs(filt):
+        return
+    for f in _matching_files(filt):
+        try:
+            extract(f)
+            print(f"(indexed {os.path.basename(f)} on first use)", file=sys.stderr)
+        except Exception as e:
+            print(f"(could not index {f}: {type(e).__name__}: {e})", file=sys.stderr)
+    if not docs(filt):
+        sys.exit(f"{filt!r} is not indexed and no file matching it is in "
+                 f"{', '.join(autodirs())}. `kdoc.py list` shows what is indexed; "
+                 f"`kdoc.py index PATH` adds one.")
 
 def normalise(s):
     """Collapse whitespace, returning (text, offset_map) so hits map back to the original."""
@@ -402,17 +463,30 @@ def fmt_tag(docdir):
 # ---------------- commands ----------------
 
 def c_index(a):
-    targets = []
-    for p in a.args or [os.path.join(d, '*') for d in autodirs()]:
+    targets = []                                   # (path, named explicitly?)
+    if not a.args and a.doc:
+        # `index -d NAME` used to ignore -d and index every autodir, which is how
+        # two 250-page netlists ended up in every unfiltered grep
+        targets = [(f, True) for f in _matching_files(a.doc)]
+    for p in a.args or ([] if a.doc else [os.path.join(d, '*') for d in autodirs()]):
         p = os.path.expanduser(p)
         # a bare directory means everything in it, which is what people type
-        targets += sorted(glob.glob(os.path.join(p, '*') if os.path.isdir(p) else p))
-    for f in targets:
+        hits = sorted(glob.glob(os.path.join(p, '*') if os.path.isdir(p) else p))
+        if a.args and not hits:
+            print(f"  {p}: no such file")
+        targets += [(f, bool(a.args) and hits == [p]) for f in hits]
+    if a.doc and not a.args and not targets:
+        print(f"no file matching {a.doc!r} in {', '.join(autodirs())}"); return 1
+    for f, named in targets:
         if os.path.isdir(f) or os.path.basename(f).startswith('.'):
             continue
         ext = os.path.splitext(f)[1].lower()
+        if ext in AUTOSKIP_EXT and not named:
+            continue          # knet.py owns netlists/KiCad files; name one to force it
         try:
-            if ext not in TEXT_EXT | {'.pdf', '.xlsx'} and not zipfile.is_zipfile(f):
+            if ext not in TEXT_EXT | {'.pdf', '.xlsx'} and not page_zip(f):
+                if named:
+                    print(f"  {slug(f):<38} skipped: not a PDF, text, xlsx or page container")
                 continue
             d = extract(f, force=a.force, ocr=a.ocr)
         except Exception as e:
@@ -461,7 +535,7 @@ def _search(a, pat):
                 yield d, num, dd, lineno(raw, oi), ' '.join(frag.split())
 
 def c_grep(a):
-    autoindex()
+    ensure(a.doc)
     pat = smart_re(a.args[0], 0 if a.case else re.I)
     per, total = {}, 0
     shown = {}
@@ -492,7 +566,7 @@ def c_grep(a):
                   {d: sum(c for (dd_, p), c in per.items() if dd_ == d) for d, _ in per}.values()) else ""))
 
 def c_near(a):
-    autoindex()
+    ensure(a.doc)
     p1 = smart_re(a.args[0], 0 if a.case else re.I)
     p2 = smart_re(a.args[1], 0 if a.case else re.I)
     hits = 0
@@ -543,8 +617,8 @@ def _doc_and_page(a):
     raise SystemExit("need a page number")
 
 def c_page(a):
-    autoindex()
     d, n = _doc_and_page(a)
+    ensure(d)
     cands = docs(d)
     for cand in cands:
         dd = os.path.join(CACHE, cand)
@@ -568,8 +642,8 @@ def c_page(a):
     return 1
 
 def c_text(a):
-    autoindex()
     d, n = _doc_and_page(a)
+    ensure(d)
     cands = docs(d)
     for cand in cands:
         p = os.path.join(CACHE, cand, f'{n}.txt')
@@ -583,7 +657,7 @@ def c_text(a):
 HEAD = re.compile(r'^\s*((?:\d+(?:\.\d+)*)\s+[A-Z][^\n]{2,70}|[A-Z][A-Za-z0-9 ,/()-]{3,60})\s*$')
 
 def c_toc(a):
-    autoindex()
+    ensure(a.doc)
     for d in docs(a.doc):
         dd = os.path.join(CACHE, d)
         print(f"\n=== {d}")

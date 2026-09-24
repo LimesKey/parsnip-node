@@ -2,6 +2,7 @@
   "permissions": {
     "allow": [
       "Bash(kicad-cli *)",
+      "Bash(kicad-cli-nightly *)",
       "Bash(python3 code/claude/kicad-review/scripts/*)",
       "Bash(python3 code/claude/part-search/scripts/*)",
       "Bash(python3 .claude/skills/kicad-review/scripts/*)",
@@ -18,7 +19,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "cd /home/limeskey/Desktop/Projects/parsnip-node && { [ -f parsnip-merged.net ] && [ -z \"$(find . -maxdepth 1 -name '*.kicad_sch' -newer parsnip-merged.net -print -quit)\" ]; } || python3 code/claude/kicad-review/scripts/kmerge.py parsnip-merged.net parsnip.kicad_sch Charger=battery.kicad_sch 'USB Interface=usb_interface.kicad_sch' >/dev/null 2>&1; exit 0"
+            "command": "cd /home/limeskey/Desktop/Projects/parsnip-node && python3 code/claude/kicad-review/scripts/kmerge.py --if-stale parsnip-merged.net parsnip.kicad_sch 2>&1 || echo 'WARNING: kmerge FAILED (above). parsnip-merged.net is STALE: every knet/kpcb-sync answer off it describes an older schematic until this is fixed.'; exit 0"
           }
         ]
       }

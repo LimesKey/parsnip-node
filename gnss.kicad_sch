@@ -1,7 +1,7 @@
 (kicad_sch
-	(version 20260306)
+	(version 20260830)
 	(generator "eeschema")
-	(generator_version "10.0")
+	(generator_version "10.99")
 	(uuid "18deedea-c7c9-4de5-a763-4d652b8b1916")
 	(paper "A4")
 	(title_block
@@ -519,6 +519,7 @@
 					)
 				)
 			)
+			(symbol "TestPoint_2Pole_1_1")
 			(embedded_fonts no)
 		)
 		(symbol "Device:Battery_Cell"
@@ -4147,6 +4148,7 @@
 					)
 				)
 			)
+			(symbol "SW_Push_1_1")
 			(embedded_fonts no)
 		)
 		(symbol "Transistor_FET:AO3401A"
@@ -5063,6 +5065,7 @@
 					)
 				)
 			)
+			(symbol "TPS259474LRPWR_1_1")
 			(embedded_fonts no)
 		)
 		(symbol "easyeda2kicad:TPS7A2033PDBVR"
@@ -5282,6 +5285,7 @@
 					)
 				)
 			)
+			(symbol "TPS7A2033PDBVR_1_1")
 			(embedded_fonts no)
 		)
 		(symbol "power:+3V3"
@@ -5790,6 +5794,7 @@
 					)
 				)
 			)
+			(symbol "PWR_FLAG_1_1")
 			(embedded_fonts no)
 		)
 	)
@@ -20512,7 +20517,7 @@
 				)
 			)
 		)
-		(property "LCSC Part" "C98077"
+		(property "LCSC Part" "C98076"
 			(at 35.56 149.86 0)
 			(hide yes)
 			(show_name no)
@@ -20545,17 +20550,6 @@
 				)
 			)
 		)
-		(property "LCSC" ""
-			(at 35.56 149.86 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
 		(property "KLC_S3.3" ""
 			(at 35.56 149.86 0)
 			(hide yes)
@@ -20568,6 +20562,17 @@
 			)
 		)
 		(property "KLC_S5.1" ""
+			(at 35.56 149.86 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "LQW18AN47NG00D"
 			(at 35.56 149.86 0)
 			(hide yes)
 			(show_name no)

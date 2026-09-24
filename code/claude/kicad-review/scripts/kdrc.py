@@ -14,19 +14,26 @@ knet/kpcb so the output reads the same way.
 
 DRC runs with --refill-zones so results reflect the current pours, but never
 with --save-board: the zones are refilled in memory only, the .kicad_pcb on
-disk is never modified.
+disk is never modified. It then runs a second pass on the fill AS SAVED (what
+`export gerbers` writes). A violation found only in that pass is reported as
+DRC:STALE_FILL: the board file's fill is out of date, so refill (B) and save
+before exporting. `--no-stale-check` skips the second pass (~5 s).
 
-ERC runs once per ROOT schematic. Roots are auto-discovered: every *.kicad_sch
-beside the board that is NOT pulled in as a sub-sheet by another one. This
-project has three (parsnip, battery, usb_interface); a bare single-root ERC
-misses two of them, exactly as a bare netlist export misses 161 parts.
+The kicad-cli binary is picked per file (kcommon.kicad_cli): a board or sheet
+saved by 10.99 nightly gets kicad-cli-nightly; $KICAD_CLI overrides.
 
-  !! per-root ERC is BLIND to cross-root nets. A pin powered or driven through a
-  global label whose driver lives on another root (I2C_HOST_*, USB D+/-, the
-  shared rails) reads as undriven here - power_pin_not_driven, pin_to_pin. Those
-  are three-root false positives. Verify each against parsnip-merged.net with
-  `knet.py parsnip-merged.net around REF` before believing it. DRC has no such
-  blind spot: it is one board file.
+ERC runs per ROOT schematic: the .kicad_pro's top_level_sheets, else every
+*.kicad_sch beside the board that no other one pulls in as a sub-sheet. A root
+already covered by an earlier report is skipped: kicad-cli-nightly checks every
+top-level sheet from the first root, stable kicad-cli (10.0.x) only the one it
+is given.
+
+  !! per-root (stable) ERC is BLIND to cross-root nets. A pin powered or driven
+  through a global label whose driver lives on another root (I2C_HOST_*, USB
+  D+/-, the shared rails) reads as undriven - power_pin_not_driven, pin_to_pin.
+  Those are multi-root false positives: verify with `knet.py parsnip-merged.net
+  around REF`. A single report that covers every top-level sheet (nightly) has
+  no such blind spot, and kdrc says which case you got.
 
 Config: kdrc.json beside the board, same shape and precedence as kpcb.json.
   {"suppress": ["ERC:LIB_SYMBOL_MISMATCH", "DRC:SILK_OVERLAP:U1"],
@@ -36,8 +43,8 @@ A bare "ERC:RULE" mutes the whole rule; "ERC:RULE:TOKEN" mutes only findings
 whose refs or message contain TOKEN. Rule names are the kicad-cli violation
 `type`, upper-cased, prefixed DRC: or ERC:.
 
-A DRC:CLEARANCE finding at an actual 0.0 mm (copper touching, a real short) is
-NEVER suppressed, no matter what kdrc.json says - a mid-layout suppress rule
+A DRC:CLEARANCE finding at an actual 0.0 mm, or any DRC:SHORTING_ITEMS
+(copper touching, a real short) is NEVER suppressed, no matter what kdrc.json says - a mid-layout suppress rule
 that happens to also catch a real short must not hide it pre-fab. Its message
 is tagged "0.0mm ACTUAL!" up front so it survives the 70-char line truncation.
 
@@ -47,11 +54,12 @@ kicad-cli needed).
 Exit: 0 clean, 2 an ERROR-severity finding survived suppression, 3 bad input /
 kicad-cli failure.
 """
-import sys, os, re, json, glob, tempfile, subprocess
+import sys, os, re, json, tempfile, subprocess
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 try:
-    from kcommon import print_findings, suppressed, trunc, natkey
+    from kcommon import (print_findings, suppressed, trunc, kicad_cli,
+                         top_level_sheets, sch_files)
 except ImportError:                                     # pragma: no cover
     print("kdrc.py needs kcommon.py beside it (shared finding formatter)",
           file=sys.stderr)
@@ -62,6 +70,11 @@ SEV = {'error': 'ERROR', 'warning': 'WARN', 'exclusion': 'INFO', 'info': 'INFO'}
 # one-line legend per common violation type; unknown types just show the type
 LEGEND = {
     'DRC:CLEARANCE': 'copper closer than the rule allows',
+    'DRC:SHORTING_ITEMS': 'copper of two nets touching - a real short',
+    'DRC:STALE_FILL': 'only in the SAVED zone fill: exported gerbers carry it until you refill + save',
+    'DRC:TRACK_NOT_CENTERED_ON_VIA': 'track end not on the via centre',
+    'DRC:CONNECTION_WIDTH': 'copper connection narrower than the rule minimum',
+    'DRC:HOLE_TO_HOLE': 'two drills closer than the rule allows',
     'DRC:SOLDER_MASK_BRIDGE': 'mask aperture bridges two different nets',
     'DRC:SILK_OVERLAP': 'silkscreen over pad/other silk',
     'DRC:SILK_OVER_COPPER': 'silkscreen over exposed copper',
@@ -73,12 +86,12 @@ LEGEND = {
     'DRC:COPPER_EDGE_CLEARANCE': 'copper too close to the board edge',
     'DRC:STARVED_THERMAL': 'thermal relief spokes cannot carry current',
     'ERC:POWER_PIN_NOT_DRIVEN': 'power input pin sees no power output driving it',
-    'ERC:PIN_NOT_DRIVEN': 'input pin sees no output driving it (verify cross-root!)',
-    'ERC:PIN_TO_PIN': 'two pins whose types conflict (verify cross-root!)',
+    'ERC:PIN_NOT_DRIVEN': 'input pin sees no output driving it (per-root ERC: may be cross-root)',
+    'ERC:PIN_TO_PIN': 'two pins whose types conflict (per-root ERC: may be cross-root)',
     'ERC:LIB_SYMBOL_MISMATCH': 'symbol differs from library - deliberate edits here',
     'ERC:FOOTPRINT_FILTER': "footprint not in the symbol's filter list",
     'ERC:FOUR_WAY_JUNCTION': 'four wires meet at one point (style)',
-    'ERC:SINGLE_GLOBAL_LABEL': 'global label used once in this root (cross-root join here)',
+    'ERC:SINGLE_GLOBAL_LABEL': 'global label used once (per-root ERC: may join another root; whole-project: a real dangling label)',
     'ERC:ISOLATED_PIN_LABEL': 'label/pin isolated within this root',
     'ERC:UNCONNECTED': 'unrouted / unconnected item',
 }
@@ -115,6 +128,12 @@ def vio_finding(v, prefix):
     parts = [it.get('description', '') for it in items[:2]]
     raw_desc = v.get('description', '') or ''
     zero_clear = bool(ZERO_CLEAR_RE.search(raw_desc))
+    force = zero_clear or v.get('type') == 'shorting_items'    # a short never goes silent
+    # "Clearance violation (rule 'X' clearance 0.1270 mm; actual 0.1000 mm)" loses
+    # the number to truncation; lead with it instead
+    m = re.search(r"\(rule '([^']*)'.*?([\d.]+) mm; actual ([\d.]+) mm\)", raw_desc)
+    if m:
+        raw_desc = f"actual {float(m[3]):g} < {float(m[2]):g} mm ({m[1]})"
     body = trunc(raw_desc or rule, 70)
     tail = '; '.join(trunc(p, 34) for p in parts if p)
     # the 70-char truncation above can cut "actual N mm" off a long rule name
@@ -129,7 +148,7 @@ def vio_finding(v, prefix):
             msg += ' ' + loc
     if tail and not refs:
         msg += ' - ' + tail
-    return {'severity': sev, 'rule': rule, 'msg': msg, 'refs': refs, 'zero_clear': zero_clear}
+    return {'severity': sev, 'rule': rule, 'msg': msg, 'refs': refs, 'zero_clear': force}
 
 
 def run_cli(args, tag):
@@ -151,10 +170,14 @@ def run_cli(args, tag):
 
 
 def discover_roots(board):
-    """Root schematics = every *.kicad_sch beside the board minus the ones some
-    other schematic pulls in as a sub-sheet (via a Sheetfile property)."""
+    """Root schematics = the .kicad_pro's top_level_sheets (primary first), else
+    every *.kicad_sch beside the board minus the ones some other schematic
+    pulls in as a sub-sheet (via a Sheetfile property)."""
     d = os.path.dirname(os.path.abspath(board)) or '.'
-    schs = sorted(glob.glob(os.path.join(d, '*.kicad_sch')))
+    tls = [os.path.join(d, fn) for fn, _ in top_level_sheets(d)]
+    if tls and all(os.path.exists(f) for f in tls):
+        return tls
+    schs = sch_files(d)
     included = set()
     for s in schs:
         try:
@@ -166,15 +189,28 @@ def discover_roots(board):
     return [s for s in schs if os.path.normpath(s) not in included]
 
 
+def _vkey(v):
+    return (v.get('type'), v.get('description'),
+            tuple(i.get('description') for i in v.get('items', [])))
+
+
 def do_drc(board, a):
-    args = ['kicad-cli', 'pcb', 'drc', '--format', 'json', '--refill-zones',
-            '--units', 'mm']
+    args = [kicad_cli(board), 'pcb', 'drc', '--format', 'json', '--units', 'mm']
     if a.all:
         args.append('--severity-all')
     if a.parity:
         args.append('--schematic-parity')
-    d = run_cli(args + [board], 'DRC')
+    d = run_cli(args + ['--refill-zones', board], 'DRC')
     F = [vio_finding(v, 'DRC') for v in d.get('violations', [])]
+    # the fill on disk is what gerbers export; anything only it has is stale
+    if not a.no_stale_check:
+        have = {_vkey(v) for v in d.get('violations', [])}
+        for v in run_cli(args + [board], 'DRC (saved fill)').get('violations', []):
+            if _vkey(v) not in have:
+                f = vio_finding(v, 'DRC')
+                f['msg'] = f"{v.get('type', '?')}: {f['msg']}"
+                f['rule'] = 'DRC:STALE_FILL'
+                F.append(f)
     unconn = d.get('unconnected_items', [])
     if a.unconnected:
         F += [vio_finding(v, 'DRC') if v.get('type') else
@@ -190,15 +226,22 @@ def do_drc(board, a):
 
 
 def do_erc(board, a):
+    """Returns (findings, roots actually run, whole) - whole = one report covered
+    every top-level sheet, so cross-root nets were visible to ERC."""
     roots = a.erc_roots or discover_roots(board)
-    F, seen = [], set()
+    names = dict(top_level_sheets(os.path.dirname(os.path.abspath(board)) or '.'))
+    F, seen, ran, covered = [], set(), [], set()
     for root in roots:
         if not os.path.exists(root):
             sys.stderr.write(f"(erc root not found, skipped: {root})\n"); continue
-        args = ['kicad-cli', 'sch', 'erc', '--format', 'json', '--units', 'mm']
+        if names.get(os.path.basename(root)) in covered:
+            continue                               # nightly: already in an earlier report
+        args = [kicad_cli(root), 'sch', 'erc', '--format', 'json', '--units', 'mm']
         if a.all:
             args.append('--severity-all')
         d = run_cli(args + [root], f'ERC {os.path.basename(root)}')
+        ran.append(root)
+        covered |= {sh.get('path', '').strip('/').split('/')[0] for sh in d.get('sheets', [])}
         for sh in d.get('sheets', []):
             for v in sh.get('violations', []):
                 f = vio_finding(v, 'ERC')
@@ -207,7 +250,8 @@ def do_erc(board, a):
                     continue
                 seen.add(key)
                 F.append(f)
-    return F, roots
+    whole = len(ran) == 1 and bool(names) and set(names.values()) <= covered
+    return F, ran, whole
 
 
 def apply_suppress(F, supp):
@@ -240,6 +284,10 @@ def _selftest():
         (fz in kept and fn not in kept, "zero-clearance finding was suppressed"),
         (n_supp == 1 and len(forced) == 1, "suppressed/forced counts wrong"),
     ]
+    fs = vio_finding({'description': 'Items shorting two nets', 'severity': 'error',
+                      'type': 'shorting_items', 'items': []}, 'DRC')
+    kept, _, _ = apply_suppress([fs], {'DRC:SHORTING_ITEMS': {''}})
+    checks.append((fs in kept, "shorting_items finding was suppressed"))
     fails = [msg for ok, msg in checks if not ok]
     for msg in fails:
         print(f"FAIL  {msg}")
@@ -273,6 +321,8 @@ def main():
     ap.add_argument('--unconnected', action='store_true',
                     help='include DRC unconnected_items (mid-layout unrouted noise)')
     ap.add_argument('--no-suppress', action='store_true', help='ignore kdrc.json suppress list')
+    ap.add_argument('--no-stale-check', action='store_true',
+                    help='skip the second DRC pass on the saved zone fill')
     ap.add_argument('--rules', action='store_true', help='print the rule legend')
     ap.add_argument('--json', action='store_true')
     ap.add_argument('--selftest', action='store_true',
@@ -300,12 +350,12 @@ def main():
     only = {s.strip().upper() for s in a.only.split(',') if s.strip()}
     skip = {s.strip().upper() for s in a.skip.split(',') if s.strip()}
 
-    F, unconn, roots = [], 0, None
+    F, unconn, roots, whole = [], 0, None, False
     if a.cmd in ('both', 'drc'):
         df, unconn = do_drc(a.file, a)
         F += df
     if a.cmd in ('both', 'erc'):
-        ef, roots = do_erc(a.file, a)
+        ef, roots, whole = do_erc(a.file, a)
         F += ef
 
     if only:
@@ -325,7 +375,8 @@ def main():
     scope = a.cmd.upper() if a.cmd != 'both' else 'DRC+ERC'
     hdr = f"{a.file}: {scope}  {n['ERROR']} error, {n['WARN']} warn, {n['INFO']} info"
     if roots:
-        hdr += f"\nERC roots ({len(roots)}): " + ', '.join(os.path.basename(r) for r in roots)
+        hdr += (f"\nERC roots ({len(roots)}): " + ', '.join(os.path.basename(r) for r in roots)
+                + ("  (one report covers every top-level sheet)" if whole else ""))
     if a.cmd in ('both', 'drc') and not a.unconnected:
         hdr += f"\nDRC: {unconn} unconnected_items hidden (unrouted, mid-layout) - `--unconnected` to show"
     print_findings(F, hdr + '\n', rules=LEGEND, cap=a.max)
@@ -339,7 +390,12 @@ def main():
               f"hidden pre-fab.")
     if a.rules or not F:
         print("\nrules: " + ', '.join(f"{k}={v}" for k, v in sorted(LEGEND.items())))
-    if a.cmd in ('both', 'erc'):
+    stale = sum(1 for f in F if f['rule'] == 'DRC:STALE_FILL')
+    if stale:
+        print(f"\n!! SAVED ZONE FILL IS STALE: {stale} violation(s) exist only in the fill on "
+              f"disk,\n   which is what `export gerbers` writes. Refill all zones (B) and save "
+              f"before exporting.")
+    if a.cmd in ('both', 'erc') and not whole:
         print("\n!! per-root ERC cannot see cross-root nets. power_pin_not_driven / "
               "pin_to_pin\n   on a global-label net (I2C_HOST_*, USB D+/-, shared rails) "
               "is a three-root\n   false positive - confirm with `knet.py parsnip-merged.net "

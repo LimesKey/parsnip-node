@@ -14,23 +14,36 @@ python3 $D parsnip.kicad_pcb erc        # ERC only, every root schematic
 
 ## What it does
 
+- **The CLI is picked per file**: a board/sheet saved by 10.99 nightly gets
+  `kicad-cli-nightly` (stable `kicad-cli` fails "Failed to load" on it), else
+  `kicad-cli`; `$KICAD_CLI` overrides.
 - **DRC** runs on the board with `--refill-zones` so results reflect current
   pours. It never passes `--save-board`: the refill is in memory, the on-disk
   `.kicad_pcb` is not modified.
-- **ERC** runs once per **root** schematic. Roots are auto-discovered: every
-  `*.kicad_sch` beside the board that no other schematic pulls in as a sub-sheet.
-  For parsnip that is `parsnip`, `battery`, `usb_interface`. A bare single-root
-  ERC misses two of them, the same blind spot as a bare netlist export.
+- **Stale-fill check**: a second DRC pass runs on the fill AS SAVED, which is what
+  `export gerbers` writes. Any violation only that pass finds is reported as
+  `DRC:STALE_FILL` (ERROR if the underlying one is) with a `!! SAVED ZONE FILL IS
+  STALE` banner: refill (B) and save before exporting. Found on parsnip 2026-09-22:
+  two teardrop-vs-track clearance violations that exist only in the saved fill.
+  `--no-stale-check` skips the pass (~5 s).
+- **ERC** runs per **root**: the `.kicad_pro`'s `top_level_sheets` (primary first),
+  else every `*.kicad_sch` that no other schematic pulls in as a sub-sheet. A root
+  already covered by an earlier report is skipped. kicad-cli-nightly's ERC of the
+  primary root covers every top-level sheet (parsnip: all 7 sheets in one report,
+  header says `one report covers every top-level sheet`); stable kicad-cli covers
+  only the root it is given.
+- `DRC:SHORTING_ITEMS` and a `DRC:CLEARANCE` at actual 0.0 mm are never suppressed.
+  Clearance/width messages lead with the number: `actual 0.1 < 0.127 mm (rule)`.
 - Output: findings grouped by rule, capped per rule with a `+N more` tail,
   suppressible via `kdrc.json`, exit 0/2/3 like `kpcb`.
 
 ## The one caveat that matters
 
-**Per-root ERC cannot see cross-root nets.** A pin powered or driven through a
-global label whose driver is on another root (`I2C_HOST_*`, `USB D+/-`, the
-shared rails) reads as `power_pin_not_driven` or `pin_to_pin` here. Those are
-three-root false positives. Confirm each against the merged netlist before
-believing it:
+**Per-root (stable) ERC cannot see cross-root nets.** A pin powered or driven
+through a global label whose driver is on another root (`I2C_HOST_*`, `USB D+/-`,
+the shared rails) reads as `power_pin_not_driven` or `pin_to_pin` there. Those are
+multi-root false positives. When the header does NOT say one report covers every
+top-level sheet, confirm each against the merged netlist before believing it:
 
 ```bash
 python3 <skill>/scripts/knet.py parsnip-merged.net around REF
@@ -51,6 +64,7 @@ DRC has no such blind spot - it is one board file.
 | `--rules` | print the rule legend |
 | `--json` | machine-readable findings |
 | `--selftest` | run the offline suppression-logic self-test and exit (no board or kicad-cli needed) |
+| `--no-stale-check` | skip the saved-fill DRC pass |
 
 ## kdrc.json (beside the board)
 
@@ -60,14 +74,15 @@ TOKEN. Rule names are the kicad-cli `type`, upper-cased, prefixed `DRC:`/`ERC:`.
 
 ```json
 {"max": 25,
- "suppress": ["ERC:LIB_SYMBOL_MISMATCH", "ERC:SINGLE_GLOBAL_LABEL",
-              "ERC:ISOLATED_PIN_LABEL", "ERC:FOUR_WAY_JUNCTION"]}
+ "suppress": ["ERC:LIB_SYMBOL_MISMATCH", "ERC:FOUR_WAY_JUNCTION"]}
 ```
 
 Pre-muted classes and why: `LIB_SYMBOL_MISMATCH` = the 16 deliberately edited
-symbols (CLAUDE.md); `SINGLE_GLOBAL_LABEL` / `ISOLATED_PIN_LABEL` = global labels
-that join across the three roots and so look single-use per root;
-`FOUR_WAY_JUNCTION` = drawing style. `pin_to_pin`, `power_pin_not_driven` and
+symbols (CLAUDE.md); `FOUR_WAY_JUNCTION` = drawing style. `SINGLE_GLOBAL_LABEL` /
+`ISOLATED_PIN_LABEL` were muted while ERC ran per root (labels joining across roots
+looked single-use); removed 2026-09-22 because the whole-project nightly report has
+zero of them, so a new one is a real dangling label. Re-add only if you go back to
+per-root stable ERC. `pin_to_pin`, `power_pin_not_driven` and
 `footprint_filter` are left visible on purpose - triage them, then add the
 confirmed-benign ones here.
 
@@ -81,6 +96,7 @@ prints how many were forced visible this way.
 
 - ERC item positions are sheet-local coordinates, not board mm; the ref is the
   locator. DRC item positions are board mm and are kept in the message.
-- kdrc shells `kicad-cli` (KiCad 8-10). If it is not on PATH, kdrc exits 3.
+- kdrc shells `kicad-cli` / `kicad-cli-nightly` (KiCad 8-10.99). If it is not on
+  PATH, kdrc exits 3.
 - Mid-layout, DRC `unconnected_items` (unrouted) dominate. Route first, then care
   about them; until then `--unconnected` is opt-in.

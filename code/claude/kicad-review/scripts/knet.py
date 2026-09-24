@@ -39,6 +39,9 @@ Connectivity:
 
 Review:
   knet.py FILE check                    rule-based schematic review (see RULES)
+  knet.py FILE revpol [--stack BT1,BT2] reversed pack / each reversed cell: which
+                                         diodes + FET body diodes conduct (fused?),
+                                         which IC pins go below GND (series R)
   knet.py FILE check --only DOMAIN,DECOUPLE
   knet.py FILE check --since old.net    only NEW findings vs an older export
   knet.py FILE diff old.net             what changed vs another export (rename-safe)
@@ -74,8 +77,9 @@ diagram that fails its own layout/netlist verification), 3 bad file/spec.
 import sys, os, re, json, argparse
 from collections import defaultdict, deque
 
-from kcommon import *          # parser, helpers, Netlist/SchInfo, print_findings
-from kcommon import _fkey      # underscore name c_diff uses; import * skips it
+from kcommon import (GND_RE, Netlist, eng, fp_pads, natkey, parse_value, prefix,
+                     print_findings, refrange, smart_re, suppressed, trunc, tvs_standoff,
+                     unesc_disp, _fkey)
 
 def c_notes(nl, a):
     s = nl.sch()
@@ -572,7 +576,7 @@ def c_walk(nl, a):
         rv = f"  ({nl.railv[net]} V rail)" if net in nl.railv else ''
         print(f"\n  pin {p} {nm} -> {net}  [{len(nl.nets[net])} nodes]{rv}")
         if len(nl.nets[net]) > a.fanout > 0:
-            print(f"    (rail: showing loads only)")
+            print("    (rail: showing loads only)")
         _walk(nl, net, 1, a.depth, {net}, classes, a.fanout, "  ", skip=ref)
 
 def _walk(nl, net, depth, maxd, seen, classes, fanout, prefix_, skip=None, force=False, via=None):
@@ -680,7 +684,7 @@ def c_unconnected(nl, a):
         ty = nl.pintype(nd['ref'], nd['pin']) or '?'
         sev = '  <-- POWER PIN' if ty == 'power_in' else ''
         f = nl.ncflag(nd['ref'], nd['pin'])
-        tag = ('' if f is None else
+        tag = ('  [no_connect pin type]' if ty == 'no_connect' else '' if f is None else
                ('  [NC flag in schematic]' if f else '  [NO NC flag - possibly forgotten]'))
         print(f"  {nd['ref']}.{nd['pin']:<4} {nd['fn']:<22} {ty}{sev}{tag}")
     if not have_sch:
@@ -699,14 +703,36 @@ RULES = {
     'OCNOPULL':  'open-collector/open-drain output with no pull-up',
     'I2CPULL':   'SDA/SCL net with no pull-up to a rail',
     'PASSONLY':  'net made only of passives (no IC, no connector)',
-    'RFSTUB':    'RF / 50 ohm net with more than 2 non-ground nodes',
+    'RFSTUB':    'RF / 50 ohm net with more than 2 parts in series (shunts to GND not counted)',
     'DNPPATH':   'DNP part sits in series in a signal path (open circuit on the board)',
     'CAPRATING': 'capacitor voltage rating below 2x the rail it sits on',
     'NOVALUE':   'component with no value or no footprint',
     'GNDISLAND': 'GND-named pins wired together but isolated from the main GND net',
     'CLAMPRATING': 'TVS standoff voltage below the rail it clamps',
     'PARPIN':    'a paralleled pin left dangling while a same-named pin is on a real net',
+    'PINOUT':    "symbol's pin order (name suffix / pin names) contradicts the part's SOT-23 pinout",
+    'FPPAD':     'footprint pad with no symbol pin (imports with no net), or a wired pin with no pad',
 }
+
+# PINOUT: the real SOT-23/323 pin roles of parts often drawn with a generic
+# symbol. Letters per pin 1..3: A anode, K cathode, C series centre, G/S/D.
+# Symbol side comes from the generic symbol's name suffix (Device:D_Dual_Series_ACK
+# = 1 A, 2 centre, 3 K; Q_NMOS_GSD), else from G/S/D pin names. Stock DIODE pin
+# names are never trusted: Diode:BAV99's hidden names K/A/K contradict its own
+# graphics, and Diode:BAT54A has none. Extend the table, don't loosen the match.
+PINOUT = ((re.compile(r'^(BAV99|BAV199|BAT54S)\b', re.I), 'AKC', 'a series pair, 1=A 2=K 3=centre'),
+          (re.compile(r'^BAT54A\b', re.I), 'KKA', 'common anode, 1=K 2=K 3=A'),
+          (re.compile(r'^BAT54C\b', re.I), 'AAK', 'common cathode, 1=A 2=A 3=K'),
+          (re.compile(r'^(2N7002|SI2308|AO340[01]|BSS138|BSS84)', re.I), 'GSD', '1=G 2=S 3=D'))
+SOT3 = re.compile(r'SOT-23(?!-\d)|SOT-323|SC-70(?!-\d)', re.I)
+
+def sym_roles(nl, ref):
+    """(pin-role string for pins 1..3, where it came from) or (None, '')."""
+    m = re.search(r'_([AKCGSD]{3})$', nl.comps[ref]['part'])
+    if m:
+        return m.group(1), 'its name suffix'
+    nm = ''.join((nl.pinname(ref, p) or '?')[:1].upper() for p in '123')
+    return (nm, 'its pin names') if sorted(nm) == ['D', 'G', 'S'] else (None, '')
 
 def find_pull(nl, net, fanout):
     """2-pin R/L/FB from `net` to a voltage rail -> [(ref, railnet, volts)]."""
@@ -724,6 +750,19 @@ def find_pull(nl, net, fanout):
         if far and far in nl.railv and nl.railv[far] > 0:
             out.append((r, far, nl.railv[far]))
     return out
+
+def led_pull(nl, net, fanout):
+    """An LED from `net` whose far side is a rail or pulled to one: an open-drain
+    status pin sinking an indicator (BQ25798 STAT -> LED -> 3k -> rail)."""
+    for nd in nl.nets.get(net, []):
+        c = nl.comps.get(nd['ref'], {})
+        if c.get('prefix') != 'D' or not re.search(r'LED', f"{c.get('part')} {c.get('value')}", re.I):
+            continue
+        op = nl.other_pin(nd['ref'], nd['pin'])
+        far = nl.cpins[nd['ref']].get(op) if op else None
+        if far and ((far in nl.railv and nl.railv[far] > 0) or find_pull(nl, far, fanout)):
+            return True
+    return False
 
 def gen_findings(nl, a):
     only = {s.strip().upper() for s in a.only.split(',')} if a.only else None
@@ -753,12 +792,40 @@ def gen_findings(nl, a):
             if 'no_connect' in ty and net and not net.startswith('unconnected-'):
                 add('WARN', 'NCDRIVEN', f"{ref}.{pin} ({nm}) is marked NC but is wired to {net}", [ref])
 
+    # PINOUT: see the PINOUT table
+    for ref, c in nl.comps.items():
+        if not SOT3.search(c['footprint'] or '') or len(nl.sympins(ref)) != 3:
+            continue
+        want = next(((r, d) for rx, r, d in PINOUT if rx.search(c['value'] or '')), None)
+        have, src = sym_roles(nl, ref)
+        if want and have and have != want[0]:
+            fix = (f" - use {c['lib']}:{c['part'][:-3]}{want[0]}"
+                   if re.search(r'_[AKCGSD]{3}$', c['part']) else '')
+            add('ERROR', 'PINOUT', f"{ref} {c['value']} on {c['lib']}:{c['part']}: "
+                f"symbol pins 1-3 are {have} (from {src}), but a {c['value']} is "
+                f"{want[1]} ({want[0]}) - it is wired with pins swapped{fix}", [ref])
+
+    # Footprint pads, from the .kicad_mod each footprint field names (fp_pads):
+    # PARPIN and FPPAD compare them with the symbol's pin numbers.
+    projdir = os.path.dirname(os.path.abspath(nl.path))
+    padcache = {}
+    def pads_of(ref):
+        fp = nl.comps[ref]['footprint']
+        if fp not in padcache:
+            padcache[fp] = fp_pads(fp, projdir) if fp else None
+        return padcache[fp]
+    def real(ref, pin):
+        n = nl.cpins.get(ref, {}).get(pin)
+        return n if n and not n.startswith('unconnected-') else None
+
     # PARPIN: a paralleled pad (two or more pins sharing the same declared NAME,
     # e.g. multiple BAT pins on a battery-charger IC) where one is wired to a real
     # net and its sibling is left floating. FLOATPWR only catches this when the
     # dangling pin is typed power_in; a symbol that types a paralleled pin merely
     # 'passive' (seen on BQ25798 pin 23, "BAT") slips past it, so this rule matches
-    # on pin NAME instead of pin type.
+    # on pin NAME instead of pin type. A dangling pin whose number the footprint
+    # has no pad for is fused into a sibling's pad (TPS25751 REF0038A: pad 20 spans
+    # pins 20-22), so the copper is right: INFO, not ERROR.
     for ref, c in nl.comps.items():
         byname = defaultdict(list)
         for pin, (nm, ty) in nl.sympins(ref).items():
@@ -771,11 +838,51 @@ def gen_findings(nl, a):
                      and not nl.cpins[ref][p].startswith('unconnected-')]
             dangling = [p for p in plist if p not in wired]
             if wired and dangling:
+                pads = pads_of(ref)
                 for p in dangling:
+                    host = [w for w in wired if pads and w in pads]
+                    if pads is not None and p not in pads and host:
+                        w = min(host, key=lambda w: abs(int(w) - int(p))
+                                if w.isdigit() and p.isdigit() else 0)
+                        add('INFO', 'PARPIN', f"{ref}.{p} ({nm}) has no pad of its own in "
+                            f"{c['footprint'].split(':')[-1]}: fused into pad {w} "
+                            f"({nl.cpins[ref][w]}) - the copper is right", [ref])
+                        continue
                     add('ERROR', 'PARPIN',
                         f"{ref}.{p} ({nm}) is not connected, but {ref}.{wired[0]} "
                         f"(same pin name '{nm}') is on {nl.cpins[ref][wired[0]]} - "
                         f"a paralleled pad likely left dangling", [ref])
+
+    # FPPAD: pads the symbol has no pin for import with NO net (an exposed pad
+    # that should be GND, a FET's drain tab), and a wired pin the footprint has
+    # no pad for loses that connection on the board. KiCad's own parity check
+    # only runs on parts already on the board. 'MP' is KiCad's name for a
+    # mechanical mounting pad and is meant to have no net.
+    unresolved, resolved = defaultdict(list), 0
+    for ref, c in nl.comps.items():
+        pads = pads_of(ref)
+        if pads is None:
+            if c['footprint']:
+                unresolved[c['footprint']].append(ref)
+            continue
+        resolved += 1
+        pins = nl.sympins(ref)
+        for pad in sorted(set(pads) - set(pins) - {'MP'}, key=natkey):
+            add('WARN', 'FPPAD', f"{ref} pad {pad} ({pads[pad]}) of {c['footprint'].split(':')[-1]} "
+                f"has no symbol pin - it imports with no net (an exposed/thermal pad or "
+                f"tab: GND or floating per the datasheet?)", [ref])
+        for pin in sorted(set(pins) - set(pads), key=natkey):
+            if real(ref, pin):
+                add('ERROR', 'FPPAD', f"{ref}.{pin} ({nl.pinname(ref, pin)}) is on {real(ref, pin)} "
+                    f"but {c['footprint']} has no pad {pin} - that connection is lost on "
+                    f"the board", [ref])
+    if unresolved:
+        fps = sorted(unresolved, key=lambda f: -len(unresolved[f]))
+        add('INFO', 'FPPAD', (f"{len(fps)} footprint(s) not found through any fp-lib-table, pads "
+            f"unchecked: " if resolved else "no footprint library reachable (no fp-lib-table or "
+            "KiCad install found), pad checks skipped: ")
+            + ', '.join(f"{f} ({refrange(unresolved[f])})" for f in fps[:4])
+            + (' ...' if len(fps) > 4 else ''), [r for f in fps for r in unresolved[f]])
 
     # GNDISLAND: pins that are GND by NAME, wired to each other, but the net they
     # land on is not recognised as ground (is_gnd only matches by net NAME) - this
@@ -866,7 +973,7 @@ def gen_findings(nl, a):
             net = nl.cpins.get(ref, {}).get(pin)
             if not net or net.startswith('unconnected-'):
                 add('INFO', 'OCNOPULL', f"{ref}.{pin} ({nm}) is open-drain and unconnected", [ref])
-            elif not find_pull(nl, net, a.fanout):
+            elif not find_pull(nl, net, a.fanout) and not led_pull(nl, net, a.fanout):
                 add('WARN', 'OCNOPULL', f"{ref}.{pin} ({nm}) is open-drain on {net} "
                     f"with no pull-up to a rail", [ref])
 
@@ -876,8 +983,12 @@ def gen_findings(nl, a):
         if not re.search(r'\b(SDA|SCL)\b|^(SDA|SCL)', base):
             continue
         if not find_pull(nl, n, a.fanout):
-            add('WARN', 'I2CPULL', f"{n} looks like an I2C line with no pull-up to a rail",
-                [nd['ref'] for nd in nodes])
+            if re.search(r'SPI|MOSI|MISO|SCK|SCLK|CIPO|COPI', base):
+                add('INFO', 'I2CPULL', f"{n}: dual I2C/SPI name, no pull-up - needs one only "
+                    f"if it runs as I2C", [nd['ref'] for nd in nodes])
+            else:
+                add('WARN', 'I2CPULL', f"{n} looks like an I2C line with no pull-up to a rail",
+                    [nd['ref'] for nd in nodes])
 
     # PASSONLY
     PASS = {'R', 'C', 'L', 'FB', 'D', 'TP', 'H', 'JP'}
@@ -890,14 +1001,34 @@ def gen_findings(nl, a):
             add('INFO', 'PASSONLY', f"{n}: only passives ({', '.join(sorted({nd['ref'] for nd in nodes}, key=natkey))})",
                 [nd['ref'] for nd in nodes])
 
-    # RFSTUB - DNP parts are open pads, not stubs, so they are reported but not counted
+    # RFSTUB - DNP parts are open pads, not stubs, so they are reported but not
+    # counted; nor is a 2-pin part whose other end is GND (a shunt element: pad
+    # shunt R, ESD diode, matching L/C), which sits AT the node. Net names count
+    # as RF only when the project has no RF netclass: once it does, a name like
+    # VCC_RF or ANT_DETECT is a DC line the designer chose not to class.
+    by_name = not any('RF' in c.upper() for c in nl.netclass.values())
+    def shunt(ref, pin):
+        """A 2-pin part to GND, or an RF choke: an L whose far end is bypassed
+        to GND by a capacitor (a bias tee) or only feeds resistors >= 1k (an
+        antenna-detect / DC-sense line) - high impedance at RF by design."""
+        cp = nl.conn_pins(ref)
+        far = [x for p, x in cp.items() if p != pin]
+        if len(cp) != 2 or not far or nl.comps[ref]['prefix'] not in ('R', 'C', 'L', 'D', 'FB'):
+            return False                      # a connector or IC is a port, never a shunt
+        if nl.is_gnd(far[0]):
+            return True
+        if nl.comps[ref]['prefix'] != 'L':
+            return False
+        rest = [nd['ref'] for nd in nl.nets.get(far[0], []) if nd['ref'] != ref]
+        return any(not dnp for _, _, dnp in caps_on(nl, far[0])) or (rest and all(
+            nl.comps[r]['prefix'] == 'R' and (parse_value(nl.value(r), 'R') or 0) >= 1e3 for r in rest))
     for n, nodes in nl.nets.items():
         cls = nl.netclass.get(n, '')
-        rf = 'RF' in cls.upper() or re.search(r'ANT|_RF\b|RF_IN|RFIN', n.upper())
+        rf = 'RF' in cls.upper() or (by_name and re.search(r'ANT|_RF\b|RF_IN|RFIN', n.upper()))
         if not rf:
             continue
-        pop = sorted({nd['ref'] for nd in nodes
-                      if not nl.comps.get(nd['ref'], {}).get('dnp')}, key=natkey)
+        pop = sorted({nd['ref'] for nd in nodes if not nl.comps.get(nd['ref'], {}).get('dnp')
+                      and not shunt(nd['ref'], nd['pin'])}, key=natkey)
         dnp = sorted({nd['ref'] for nd in nodes
                       if nl.comps.get(nd['ref'], {}).get('dnp')}, key=natkey)
         if len(pop) > 2:
@@ -1225,7 +1356,6 @@ class _SpecGen:
     def chain(self, b, src, side, trunk, row, ytop, srcx=0):
         """src = 'REF.PIN' the branch hangs off. Returns rows consumed."""
         nl = self.nl
-        y = ytop + ROW * row
         loads, subs = b['loads'], b['subs']
         if not loads and not subs:
             return 1
@@ -1460,7 +1590,8 @@ def c_around(nl, a):
         pos = nl.sch().pos.get(ref) if nl.sch().valid else None
         at = f"  at ({pos[0][1]:.0f},{pos[0][2]:.0f})mm" if pos else ''
         print(f"\n{ref} [{c['value']}]{'  DNP' if c['dnp'] else ''}  {c['footprint']}  "
-              f"sheet {c['sheet']}{at}" + (f"  LCSC {c['lcsc']}" if c['lcsc'] else ''))
+              f"sym {c['lib']}:{c['part']}  sheet {c['sheet']}{at}"
+              + (f"  LCSC {c['lcsc']}" if c['lcsc'] else ''))
         if c['description']:
             print(f"  {trunc(c['description'], 150)}")
         if rail:
@@ -1473,7 +1604,9 @@ def c_around(nl, a):
                 print(f"  {p:<4} {nm:<16} {ty:<12} NOT ON ANY NET"); continue
             n = len(nl.nets[net])
             if net.startswith('unconnected-'):
-                print(f"  {p:<4} {nm:<16} {ty:<12} floating"); continue
+                f = nl.ncflag(ref, p)
+                print(f"  {p:<4} {nm:<16} {ty:<12} " + ('NC (flagged)' if f else 'floating'
+                      + ('  <-- no NC flag' if f is False else ''))); continue
             if net in nl.railv:
                 print(f"  {p:<4} {nm:<16} {ty:<12} {net} (rail {nl.railv[net]}V, {n} nodes)")
                 continue
@@ -1491,9 +1624,419 @@ def c_around(nl, a):
                 print(f"       {', '.join(shown)}"
                       + (f"  ... +{extra} more (use `net` for the full list)" if extra > 0 else ''))
 
+# ---------------- reverse-polarity what-if ----------------
+
+VF = 0.7     # forward drop assumed for every diode junction and FET body diode
+VTH = 2.0    # |Vgs| past which a FET channel counts as on (logic-level: 1-2.5 V)
+PFET_VAL = re.compile(r'^(AO3401|AO3415|BSS84|SI2301|SI2305|DMP\d)', re.I)
+NFET_VAL = re.compile(r'^(2N7002|BSS138|SI2308|AO3400|AON7534|CSD1\d|IRLML2502|DMN\d)', re.I)
+
+def _zener_v(val):
+    """Zener voltage from the part number: BZX585-C15 -> 15, BZX84-C5V1 -> 5.1,
+    '5V1' -> 5.1, '12V' -> 12. None when it does not say."""
+    m = re.search(r'(\d+)V(\d+)|-[A-C](\d+(?:\.\d+)?)\b|(?<![\w.])(\d+(?:\.\d+)?)V\b', val or '', re.I)
+    if not m:
+        return None
+    return float(f"{m.group(1)}.{m.group(2)}") if m.group(1) else float(m.group(3) or m.group(4))
+
+def _diode_pairs(nl, ref, pins, val, names):
+    """[(label, anode pin, cathode pin)] for a diode part whose orientation can be
+    read, else None. A PINOUT-table part uses its datasheet pinout by pad number
+    even when the symbol is wrong (D6): the REAL part decides what conducts."""
+    n3 = len(nl.sympins(ref)) == 3
+    roles = next((r for rx, r, _ in PINOUT if rx.search(val)), None) if n3 else None
+    if not roles and n3:
+        roles = sym_roles(nl, ref)[0]
+    if roles and set(roles) <= set('AKC') and all(str(i + 1) in pins for i in range(3)):
+        n = {r: [str(i + 1) for i, x in enumerate(roles) if x == r] for r in 'AKC'}
+        pp = ([(n['A'][0], n['C'][0]), (n['C'][0], n['K'][0])] if n['C']      # series pair
+              else [(pa, pk) for pa in n['A'] for pk in n['K']])               # common A / K
+        return [(f"{val} {pa}->{pk}", pa, pk) for pa, pk in pp]
+    if sorted(x for x in names.values() if x in ('A', 'K')) == ['A', 'K']:    # A/K (+NC): BAT54W
+        inv = {v: k for k, v in names.items()}
+        return [(val, inv['A'], inv['K'])]
+    if set(pins) == {'1', '2'}:                                                # KiCad: pad 1 is K
+        return [(f"{val} (pin1=K by convention)", '2', '1')]
+    return None
+
+def _junctions(nl):
+    """(junctions, fets, not-modelled) for revpol.
+    junctions [(ref, label, anode net, cathode net, V to conduct)]: diodes forward
+      at VF; a zener (voltage from its part number) or unidirectional TVS (~1.1x
+      the part number's standoff) also backwards at breakdown; a bidirectional
+      TVS both ways at breakdown; each I/O of an ESD array above its GND pin (and
+      below a supply pin if it has one); both base junctions of a BJT; a FET's
+      body diode.
+    fets [(ref, 'N'|'P', gate, source, drain)]: revpol turns the channel on when
+      the gate is driven past VTH.
+    not-modelled {reason: [refs]}."""
+    out, fets, skip = [], [], defaultdict(list)
+    for ref, c in nl.comps.items():
+        if nl.no_dnp and c['dnp']:
+            continue
+        pins, val = nl.conn_pins(ref), c['value'] or ''
+        if len(set(pins.values())) < 2:
+            continue                                  # nothing to conduct between
+        txt = ' '.join(str(x) for x in (c['part'], c['description'], val,
+                                          *c['props'].values()) if x)
+        names = {pn: (nl.pinname(ref, pn) or '').upper() for pn in pins}
+        if c['prefix'] == 'D':
+            so = tvs_standoff(val)
+            bidir = (re.search(r'\d(CA|C|B)\b', val) if so else
+                     re.search(r'\bbi-?directional', txt, re.I)
+                     or (sorted(names.values()) == ['A1', 'A2']
+                         and not re.search(r'uni-?directional', txt, re.I)))
+            if bidir:
+                if so and len(pins) == 2:
+                    x, y = pins.values()
+                    lab = f"{val} bidirectional, Vbr ~{so * 1.1:.3g} V"
+                    out += [(ref, lab, x, y, so * 1.1), (ref, lab, y, x, so * 1.1)]
+                else:
+                    skip['bidirectional TVS/ESD, breakdown not in the part number'].append(ref)
+                continue
+            rev = (_zener_v(val) if re.search(r'zener', txt, re.I) else None) or (so and so * 1.1)
+            pairs = _diode_pairs(nl, ref, pins, val, names)
+            if pairs is not None:
+                for lab, pa, pk in pairs:
+                    out.append((ref, lab, pins[pa], pins[pk], VF))
+                    if rev:
+                        out.append((ref, f"{lab} breakdown ~{rev:.3g} V", pins[pk], pins[pa], rev))
+                continue
+            gnd = [pn for pn, nm in names.items() if GND_RE.match(nm)]
+            if gnd and len(pins) >= 3:                       # ESD array: steering diodes
+                sup = [pn for pn, nm in names.items() if re.match(r'V(CC|DD|BUS|IO|P)\b', nm)]
+                for pn, nm in names.items():
+                    if pn not in gnd and pn not in sup:
+                        out.append((ref, f"{val} {nm or pn} array", pins[gnd[0]], pins[pn], VF))
+                        if sup:
+                            out.append((ref, f"{val} {nm or pn} array", pins[pn], pins[sup[0]], VF))
+                continue
+            skip['multi-pin diode, orientation unreadable'].append(ref)
+        elif c['prefix'] == 'Q':
+            bjt = re.search(r'(?<![A-Z])(NPN|PNP)(?![A-Z])', txt, re.I)
+            sn = {}
+            for pn, n in pins.items():
+                if names[pn]:
+                    sn.setdefault(names[pn][:1], n)
+            if bjt:
+                pnp = bjt.group(1).upper() == 'PNP'
+                if all(k in sn for k in 'BCE'):
+                    for k in 'EC':
+                        lab = f"{val} B-{k} ({bjt.group(1).upper()})"
+                        out.append((ref, lab, sn[k], sn['B'], VF) if pnp else (ref, lab, sn['B'], sn[k], VF))
+                else:
+                    skip['BJT, B/C/E pin names unreadable'].append(ref)
+                continue
+            pol = ('P' if re.search(r'(?<![A-Z])P(-?CH|MOS)', txt, re.I) or PFET_VAL.search(val) else
+                   'N' if re.search(r'(?<![A-Z])N(-?CH|MOS)', txt, re.I) or NFET_VAL.search(val) else None)
+            if pol and 'S' in sn and 'D' in sn:
+                a_, k_ = (sn['S'], sn['D']) if pol == 'N' else (sn['D'], sn['S'])
+                out.append((ref, f"{val} body diode ({pol}MOS)", a_, k_, VF))
+                if 'G' in sn:
+                    fets.append((ref, pol, sn['G'], sn['S'], sn['D']))
+            elif 'S' in sn and 'D' in sn:
+                skip['FET, polarity not in its symbol/description/value'].append(ref)
+    return out, fets, skip
+
+def _conductors(nl, skip=(), join=()):
+    """Union-find over nets joined by near-zero-ohm parts: fuses, ferrites,
+    inductors, R <= 1 ohm, and solder jumpers whose footprint says Bridged,
+    plus the extra `join` net pairs (FET channels revpol found on). Parts in
+    `skip` are left open (to ask "does this fuse separate them")."""
+    parent = {}
+    def find(x):
+        parent.setdefault(x, x)
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]; x = parent[x]
+        return x
+    for ref, c in nl.comps.items():
+        if (nl.no_dnp and c['dnp']) or ref in skip:
+            continue
+        pins = list(nl.conn_pins(ref).values())
+        p = c['prefix']
+        r = parse_value(c['value'], 'R') if p == 'R' else None
+        if p == 'R' and r is not None and r <= 1.0 and len(pins) >= 2:   # incl. 4-pin Kelvin shunts
+            for x in pins[1:]:
+                parent[find(x)] = find(pins[0])
+            continue
+        if len(pins) != 2:
+            continue
+        if p in ('FB', 'L', 'F') or (p == 'JP' and 'Bridged' in (c['footprint'] or '')):
+            parent[find(pins[0])] = find(pins[1])
+    for x, y in join:
+        parent[find(x)] = find(y)
+    return find
+
+def _stack(nl, a):
+    """[(net, normal V, [(case label, V)]...)] nodes bottom->top and the case list."""
+    v = a.vcell
+    if a.pair:
+        pn, nn = [x.strip() for x in a.pair.split(',')]
+        vt = a.volts or v
+        return [nn, pn], [('normal', [0.0, vt]), (f'{pn}/{nn} reversed', [0.0, -vt])], \
+            f"pair {pn} (+) / {nn} (-), {vt:g} V"
+    refs = [r.strip() for r in a.stack.split(',')] if a.stack else \
+        sorted((r for r in nl.comps if nl.comps[r]['prefix'] == 'BT'), key=natkey)
+    cells = {}
+    for r in refs:
+        pins = nl.conn_pins(r)
+        nm = {(nl.pinname(r, pn) or pn): n for pn, n in pins.items()}
+        pos, neg = nm.get('+', pins.get('1')), nm.get('-', pins.get('2'))
+        if pos and neg:
+            cells[r] = (pos, neg)
+    if not cells:
+        return None, None, "no cells: pass --stack BT1,BT2 or --pair NETP,NETN"
+    pos_nets = {p for p, _ in cells.values()}
+    bottom = [r for r, (p, n) in cells.items() if n not in pos_nets]
+    order, cur = [], (bottom[0] if bottom else None)
+    while cur and cur not in order:
+        order.append(cur)
+        cur = next((r for r, (p, n) in cells.items() if n == cells[cur][0]), None)
+    nodes = [cells[order[0]][1]] + [cells[r][0] for r in order]
+    def volts(signs):
+        acc, out = 0.0, [0.0]
+        for sg in signs:
+            acc += sg * v; out.append(acc)
+        return out
+    cases = [('normal', volts([1] * len(order)))]
+    if len(order) > 1:
+        cases.append(('whole pack reversed', volts([-1] * len(order))))
+    for i, r in enumerate(order):
+        cases.append((f"{r} reversed", volts([-1 if j == i else 1 for j in range(len(order))])))
+    return nodes, cases, ' -> '.join(f"{r} ({cells[r][1]} / {cells[r][0]})" for r in order) \
+        + f", {v:g} V/cell"
+
+def _solve(nl, nodes, volts, J, find):
+    """Net-group voltages, strongest drive first: the cell nodes ('stack'), then
+    one resistor hop from them (('R', ref, ohm) - a sense line, open-circuit
+    voltage), then forward diodes into groups nothing else drives (('D', ref)).
+    Diode propagation last, or it claims a resistively driven sense node first.
+    Only a forward junction whose anode is not a ground net drives a node: a
+    breakdown path or a GND-to-signal clamp conducts, but powers nothing."""
+    V, src = {}, {}
+    for n, v in zip(nodes, volts):
+        V[find(n)], src[find(n)] = v, 'stack'
+    for ref, c in nl.comps.items():
+        if c['prefix'] != 'R' or (nl.no_dnp and c['dnp']):
+            continue
+        pins, ohm = list(nl.conn_pins(ref).values()), parse_value(c['value'], 'R')
+        if len(pins) != 2 or ohm is None or ohm <= 1.0:
+            continue
+        for x, y in (pins, pins[::-1]):
+            if src.get(find(x)) == 'stack' and find(y) not in V:
+                V[find(y)], src[find(y)] = V[find(x)], ('R', ref, ohm)
+    drive = [(ref, an, kn) for ref, _, an, kn, vf in J if vf <= VF and not nl.is_gnd(an)]
+    for _ in range(12):
+        moved = False
+        for ref, an, kn in drive:
+            ga, gk = find(an), find(kn)
+            if ga in V and gk not in V:
+                V[gk], src[gk], moved = V[ga] - VF, ('D', ref), True
+        if not moved:
+            break
+    return V, src
+
+def c_revpol(nl, a):
+    """`revpol`: what a reversed cell or pack does. Per case: diode / TVS / FET
+    body-diode junctions that start conducting (between two cell-driven nodes =
+    a loop current: is a fuse in it?), FET channels the cells switch, ICs whose
+    ground floats, and IC pins pushed below their own GND or above their normal
+    level, with the series R back to the cell and the ESD-diode current that R
+    allows - each one an abs-max check for `kdoc.py grep`. Only changes vs the
+    normal case print."""
+    nodes, cases, desc = _stack(nl, a)
+    if not nodes:
+        print(desc, file=sys.stderr); return 1
+    J, fets, skipped = _junctions(nl)
+    fuses = [r for r, c in nl.comps.items() if c['prefix'] == 'F'
+             and not (nl.no_dnp and c['dnp']) and len(nl.conn_pins(r)) == 2]
+
+    def solve(volts):
+        """V, src, find, FETs on: re-solve until the set of FETs whose gate the
+        cells drive past VTH stops changing. An undriven source sits near its
+        drain (the body diode), so the drain stands in for it."""
+        on, find = [], _conductors(nl)
+        for _ in range(4):
+            V, src = _solve(nl, nodes, volts, J, find)
+            now = []
+            for ref, pol, g, s_, d in fets:
+                gv, sv = V.get(find(g)), V.get(find(s_), V.get(find(d)))
+                if gv is not None and sv is not None and (gv - sv if pol == 'N' else sv - gv) > VTH:
+                    now.append(ref)
+            if now == on:
+                break
+            on = now
+            find = _conductors(nl, join=[(s_, d) for r, _, _, s_, d in fets if r in on])
+        return V, src, find, on
+
+    def pin_v(V, src, find, net):
+        """(volts, series ohms, via ref) for a net, directly or one resistor away."""
+        g = find(net)
+        if g in V:
+            sv = src.get(g)
+            return (V[g], sv[2], sv[1]) if isinstance(sv, tuple) and sv[0] == 'R' else (V[g], 0.0, '')
+        best = None
+        for nd in nl.nets.get(net, []):
+            r = nd['ref']
+            if nl.comps.get(r, {}).get('prefix') != 'R' or (nl.no_dnp and nl.comps[r]['dnp']):
+                continue
+            o = nl.other_pin(r, nd['pin'])
+            on = nl.cpins[r].get(o) if o else None
+            ohm = parse_value(nl.value(r), 'R')
+            if on and find(on) in V and ohm is not None and (best is None or ohm < best[1]):
+                best = (V[find(on)], ohm, r)
+        return best
+
+    def ic_levels(V, src, find):
+        """({(ref, pin): (V vs its GND, ohms, via, gnd net, supply V vs GND or None)},
+        {IC ref: (GND net, [(pin, V, ohms, via)] still cell-driven)} for ICs whose
+        ground nothing drives)."""
+        out, floating = {}, {}
+        for ref, c in nl.comps.items():
+            if c['prefix'] != 'U' or (nl.no_dnp and c['dnp']):
+                continue
+            pins = nl.conn_pins(ref)
+            gnd = next((n for pn, n in pins.items() if nl.is_gnd(n)
+                        or re.match(r'(GND|VSS|PGND|AGND)', nl.pinname(ref, pn) or '', re.I)), None)
+            if not gnd:
+                continue
+            if find(gnd) not in V:
+                floating[ref] = (gnd, [(pn,) + pv for pn, n in pins.items()
+                                       for pv in [pin_v(V, src, find, n)] if pv])
+                continue
+            g0 = V[find(gnd)]
+            sup = [pin_v(V, src, find, n) for pn, n in pins.items()
+                   if nl.pintype(ref, pn) == 'power_in' and n != gnd and not nl.is_gnd(n)]
+            sup = max((p[0] - g0 for p in sup if p), default=None)
+            for pn, n in pins.items():
+                pv = pin_v(V, src, find, n)
+                if pv and n != gnd:
+                    out[(ref, pn)] = (pv[0] - g0, pv[1], pv[2], gnd, sup)
+        return out, floating
+
+    def esd_amps(excess, ohm):
+        """What drives the pin's ESD diode, as text: `excess` volts past its clamp."""
+        if excess <= 0:
+            return ''
+        return (f", ~{eng(excess / ohm, 'A')} into its ESD diode" if ohm
+                else ", ESD diode current limited only by the cells/fuse")
+
+    base = None
+    print(f"revpol: {desc}   (Vf {VF} V per junction; DNP = open; FET on at |Vgs| > {VTH:g} V)")
+    for label, volts in cases:
+        V, src, find, on = solve(volts)
+        driven = lambda n: src.get(find(n)) == 'stack' or (isinstance(src.get(find(n)), tuple)
+                                                            and src[find(n)][0] == 'R')
+        fwd = {(ref, lab): (an, kn) for ref, lab, an, kn, vf in J
+               if find(an) in V and find(kn) in V and V[find(an)] - V[find(kn)] > max(vf, VF / 2)}
+        lv, floating = ic_levels(V, src, find)
+        if label == 'normal':
+            base = (set(fwd), lv, set(on), floating)
+            if on:
+                print(f"\n=== normal operation: FET channel(s) on, gate driven from the cells: "
+                      f"{' '.join(sorted(on, key=natkey))}")
+            already = [(k, v) for k, v in fwd.items() if driven(v[0]) and driven(v[1])
+                       and not re.search(r'LED', nl.comps[k[0]]['part'] + nl.comps[k[0]]['value'], re.I)]
+            if already:
+                print("\n=== normal operation: already conducting between two driven nodes "
+                      "(intended? LEDs excluded)")
+            for (ref, lab), (an, kn) in already:
+                print(f"    {ref:<5} {trunc(lab, 34):<34} A {an} {V[find(an)]:+.1f} V -> K {kn} "
+                      f"{V[find(kn)]:+.1f} V")
+            continue
+        print(f"\n=== {label}:  " + '   '.join(f"{n} {v:+.1f} V" for n, v in zip(nodes, volts)))
+        flips = ([f"{r} off" for r in sorted(base[2] - set(on), key=natkey)]
+                 + [f"{r} ON" for r in sorted(set(on) - base[2], key=natkey)])
+        if flips:
+            print(f"  FET channels vs normal: {', '.join(flips)}")
+        lost = {r: g for r, g in floating.items() if r not in base[3]}
+        # a floating-ground IC conducts only between cell-driven pins > VF apart
+        spread = {r: (max(v for _, v, _, _ in drv) - min(v for _, v, _, _ in drv)) if drv else 0
+                  for r, (g, drv) in lost.items()}
+        iso = [r for r in lost if spread[r] <= VF]
+        if iso:
+            print(f"  {len(iso)} IC(s) lose their ground ({', '.join(sorted({lost[r][0] for r in iso}))} "
+                  f"undriven), no two pins driven > {VF} V apart - isolated from the cells: {refrange(iso)}")
+        hang = sorted((r for r in lost if spread[r] > VF), key=natkey)
+        if hang:
+            print("  ground undriven but pins still on the cells (the IC's internal/ESD network "
+                  "conducts between them; pin vs pin, not vs GND):")
+        for r in hang:
+            byv = defaultdict(list)
+            for pn, v, o, via in lost[r][1]:
+                byv[round(v, 1)].append(f"{nl.pinname(r, pn) or pn}"
+                                        + (f" ({eng(o, 'ohm')} {via})" if via else ''))
+            print(f"    {r:<5} {trunc(nl.value(r), 16):<16} spread {max(byv) - min(byv):.1f} V   "
+                  + ';  '.join(f"{v:+.1f} V: {', '.join(ps[:3])}" + (f" +{len(ps) - 3}" if len(ps) > 3 else '')
+                               for v, ps in sorted(byv.items())))
+        new = [(k, v) for k, v in fwd.items() if k not in base[0]]
+        loop = [(k, v) for k, v in new if src.get(find(v[0])) == 'stack' and src.get(find(v[1])) == 'stack']
+        lim = [(k, v) for k, v in new if (k, v) not in loop and driven(v[0]) and driven(v[1])]
+        feed = [(k, v) for k, v in new if (k, v) not in loop and (k, v) not in lim]
+        without = {}
+        def fuses_on(net):
+            """Fuses that alone separate `net` from the cell terminal driving it."""
+            sn = [n for n in nodes if find(n) == find(net)]
+            joins = [(s_, d) for r, _, _, s_, d in fets if r in on]
+            for f in fuses:
+                without.setdefault(f, _conductors(nl, skip={f}, join=joins))
+            return [f for f in fuses if sn and all(without[f](net) != without[f](x) for x in sn)]
+        if loop:
+            print("  conducting between two cell-driven nodes (a loop current - only the cells limit it):")
+        for (ref, lab), (an, kn) in loop:
+            onpath = sorted(set(fuses_on(an) + fuses_on(kn)), key=natkey)
+            print(f"    {ref:<5} {trunc(lab, 34):<34} A {an} {V[find(an)]:+.1f} V -> K {kn} "
+                  f"{V[find(kn)]:+.1f} V   " + (f"fuse in loop: {' '.join(onpath)}"
+                                              if onpath else "NO FUSE in this loop"))
+        if lim:
+            print("  conducting between driven nodes through a series resistor:")
+        for (ref, lab), (an, kn) in lim:
+            r_ = [src[find(x)] for x in (an, kn) if isinstance(src.get(find(x)), tuple)]
+            print(f"    {ref:<5} {trunc(lab, 34):<34} A {an} {V[find(an)]:+.1f} V -> K {kn} "
+                  f"{V[find(kn)]:+.1f} V   limited by " + ' + '.join(f"{x[1]} {eng(x[2], 'ohm')}" for x in r_))
+        if feed:
+            print("  now conducting into another node:")
+        for (ref, lab), (an, kn) in feed[:a.max]:
+            print(f"    {ref:<5} {trunc(lab, 34):<34} {an} {V[find(an)]:+.1f} V -> {kn} "
+                  f"{V[find(kn)]:+.1f} V")
+        if len(feed) > a.max:
+            print(f"    ... +{len(feed) - a.max} more (--max)")
+        bad = []
+        for k, (v, ohm, via, gnd, sup) in sorted(lv.items(), key=lambda kv: (natkey(kv[0][0]), natkey(kv[0][1]))):
+            v0 = base[1].get(k, (None,))[0]
+            if v < -0.3 and (v0 is None or v0 >= -0.3):
+                bad.append((k, v, ohm, via, 'below its GND' + esd_amps(-v - VF, ohm)))
+            elif v0 is not None and v > v0 + 0.5 and v > 0.3:
+                over = f" and {v - sup:.1f} V over its supply pin" if sup is not None and v > sup + 0.3 else ''
+                bad.append((k, v, ohm, via, f'above its normal {v0:+.1f} V{over}'
+                            + (esd_amps(v - sup - VF, ohm) if over else '')))
+        if bad:
+            print("  IC pins pushed outside their normal range (vs each IC's own GND pin; "
+                  "abs-max is usually -0.3 V, ESD-diode injection ~10 mA):")
+        for (ref, pn), v, ohm, via, why in bad[:a.max * 2]:
+            nm = nl.pinname(ref, pn)
+            print(f"    {ref}.{pn:<4} {trunc(nm, 12):<12} {v:+.1f} V {why.split(',')[0]}"
+                  + (f", via {eng(ohm, 'ohm')} ({via})" if via else ', direct')
+                  + ''.join(',' + x for x in why.split(',')[1:])
+                  + f"   -> kdoc.py grep '{unesc_disp(nm) or pn}' -d "
+                  + (re.match(r'[A-Za-z]+\d+', nl.value(ref) or '') or [nl.value(ref)])[0])
+        if len(bad) > a.max * 2:
+            print(f"    ... +{len(bad) - a.max * 2} more (--max)")
+        if not (loop or lim or feed or bad or lost or flips):
+            print("  nothing new conducts and no IC pin leaves its normal range")
+    if skipped:
+        print("\nnot modelled: " + '; '.join(f"{why}: {refrange(refs)}" for why, refs in skipped.items()))
+    print("\nModel: cells as ideal sources, near-0-ohm parts (F, FB, L, R<=1, bridged JP) as wires,\n"
+          "every junction a 0.7 V diode (zener/TVS breakdown from the part number), a FET\n"
+          "channel on when the cells drive its gate past the threshold, ICs as open circuits\n"
+          "whose ESD diodes only clamp: a pin 'below its GND' conducts through them at the\n"
+          "current shown. A what-if to aim datasheet checks, not a simulation.")
+    return 0
+
 CMDS = {'around': c_around, 'notes': c_notes, 'draw': c_draw, 'summary': c_summary, 'comp': c_comp, 'net': c_net, 'pin': c_pin, 'find': c_find,
         'unconnected': c_unconnected, 'bom': c_bom, 'sheets': c_sheets, 'rails': c_rails,
-        'walk': c_walk, 'path': c_path, 'check': c_check, 'diff': c_diff, 'divider': c_divider}
+        'walk': c_walk, 'path': c_path, 'check': c_check, 'diff': c_diff, 'divider': c_divider,
+        'revpol': c_revpol}
 
 def main():
     ap = argparse.ArgumentParser(add_help=False)
@@ -1519,6 +2062,11 @@ def main():
                     help="for `bom`: only components on this hierarchical sheet path and "
                          "below, e.g. '/Root/Rails/' (bom is board-wide by default)")
     ap.add_argument('--peer-max', type=int, default=12, help='max peers listed per net in `around`')
+    ap.add_argument('--stack', default='', help='for `revpol`: series cells, e.g. BT1,BT2 (default: every BT*)')
+    ap.add_argument('--pair', default='', help='for `revpol`: a +/- net pair instead, e.g. +PACK,-BATT')
+    ap.add_argument('--volts', type=float, default=None, help='for `revpol --pair`: the pair voltage')
+    ap.add_argument('--vcell', type=float, default=4.2, help='for `revpol`: volts per cell (4.2)')
+    ap.add_argument('--max', type=int, default=12, help='for `revpol`: lines per section (12)')
     ap.add_argument('--only', default='')
     ap.add_argument('--skip', default='')
     ap.add_argument('--json', action='store_true')

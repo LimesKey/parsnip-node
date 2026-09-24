@@ -1,7 +1,11 @@
 # kpcb.py - placement review
 
-Placement review from the `.kicad_pcb` alone. No routing, no DRC, no 3D bodies -
-everything here is checkable the moment a footprint is dropped.
+Placement review from the `.kicad_pcb` alone. No DRC (that is `kdrc.py`) - the
+placement checks work the moment a footprint is dropped; `ampacity`, `rf` and
+`zones` read the routed copper once it exists, and `height` reads the 3D models.
+Reads KiCad 10.0 `(at X Y R)` and 10.99 nightly `(transform (translate) (rotate))`
+footprint placement (validated against `pcb export pos` 443/443 and IPC-2581 pad
+centres 1329/1329).
 
 | command | use |
 | --- | --- |
@@ -19,7 +23,11 @@ everything here is checkable the moment a footprint is dropped.
 | `ampacity [NET...]` | current a routed net can carry (IPC-2221): narrowest segment per layer, via bound, length -> R/Vdrop. With `--amps X` or a kpcb.json budget it warns TRACE-THIN / VIA-FEW / LONG-DROP. See below. |
 | `zones` | pour coverage per layer from the last saved fill: area%, island count, edge margins. |
 | `zones REF...` | does a net's fill actually cover THIS footprint's courtyard - point-sampled, not just the fill's bounding box. Closes "is GND continuous under U9" without a KiCad render. See below. |
-| `viapad` | every component with a via centred inside one of its SMD pads (via-in-pad). See below. |
+| `viapad [--signal] [--min N]` | every component with a via centred inside one of its SMD pads (via-in-pad), each pad tagged GND/PWR/SIG. See below. |
+| `where REF.PAD ...` | a pad's absolute centre, size, layer, net and nearest same-net pads. Two specs (pads, refs or x,y) also print the distance between them. |
+| `net NET` | every pad on a net with absolute xy, copper per layer (segments, length, width range), vias, zones, extent. Accepts the short name (`LORA_ANT`). |
+| `rf [NET...]` | 50-ohm trace review. No net = every net whose netclass names RF/50. See below. |
+| `height [REF...]` | 3D-model height of each part and the board's Z stack. Shells out to KiCad's GLB export (~3 s). See below. |
 
 ## Flags
 
@@ -32,7 +40,8 @@ everything here is checkable the moment a footprint is dropped.
 `--ncin 3`, `--ncout 3`, `--assoc 6`. For `ampacity`: `--amps X` (required
 current on the named net), `--net=NAME` (repeatable, for a net name that starts
 with `-`), `--dt 10` (allowed temp rise, C), `--plating 20` (via barrel copper,
-um), `--vdrop 0.25` (V-drop flag threshold).
+um), `--vdrop 0.25` (V-drop flag threshold). For `viapad`: `--signal`, `--min N`.
+For `rf`: `--freq MHz`, `--fence 1.5` (mm from the trace edge that counts as fence).
 
 ## Project config
 
@@ -40,8 +49,12 @@ um), `--vdrop 0.25` (V-drop flag threshold).
 
 ```json
 {"edge": 0.3, "bypass": 4.0, "suppress": ["OVERLAP:BT1", "UNPLACED"],
- "current": {"VSYS": 2.7, "+5V": 3.0, "-BATT": 2.7}}
+ "current": {"VSYS": 2.7, "+5V": 3.0, "-BATT": 2.7},
+ "height": {"BT1": 23.1, "BT2": 23.1}}
 ```
+
+`height{}` is a measured part height (mm above its board face) that replaces the
+3D model's figure in `height` - for a model known to be incomplete.
 
 `current` is the per-net amp budget `ampacity` checks against when no `--amps`
 is given (and in a bare `ampacity` scan). Fill it once with the real worst-case
@@ -103,6 +116,15 @@ also prints the **required width**; when that is impractically large (7-8 mm) th
 bottleneck is a thin inner layer (0.0152 mm / ~0.43 oz here) and the real fix is to
 route the net on an outer layer or a plane, not to draw an 8 mm inner trace.
 
+**POURED is not a pass.** When a net has > 50 mm2 of fill on a layer the verdict is
+POURED and the header reads `POURED - thinnest TRACK x A ... is not the net's
+capacity`: the track bottleneck, the per-layer table and the R/Vdrop line then
+describe only the thin tracks, never the plane that carries the current (they have
+been misquoted as the net's limit before). The verdict lists each pour's area,
+fragment count and largest-fragment share and says UNVERIFIED: the pour's
+narrowest neck is not measured, so check the path between the end pads in KiCad.
+`--json` carries the same `pour` block.
+
 ### How it reads the copper (the important part)
 
 It does **not** just take the smallest `(width)` on the net. It builds a
@@ -150,6 +172,9 @@ IPC-2221 internal ampacity is conservative for a planed board (see the footer).
 
 ## `zones REF...` - does the plane actually reach under this part
 
+Teardrops are zones in KiCad (1410 of 1434 on parsnip); every pour figure here
+and in `summary`/`ampacity` leaves them out, `summary` just counts them.
+
 `zones` alone reports per-layer coverage for the WHOLE board (area%, islands,
 edge margins) - useful for "is the pour fragmented", useless for "is GND solid
 under this one RF part", since a dominant island and all-edges-reached can both
@@ -168,6 +193,12 @@ one worth exit code 2 and a look, listing a few uncovered sample coordinates so
 you know where to click. Only trust a MOSTLY MISSING verdict, or a large
 contiguous run of misses inside a "has gaps" layer, as a real broken reference;
 a handful of scattered misses next to signal pads is expected and not a defect.
+
+Edge-mount parts (SMA, USB-C) are judged on the ON-BOARD part of the courtyard only:
+the grid covers the courtyard clipped to the outline, inset 0.5 mm on clipped sides
+for the pour's edge pullback, and the header says what % hangs off. A net that is
+neither GND-named nor a rail (a small signal pour) is listed without a verdict,
+`local signal pour, not a reference plane`, and never fails the exit code.
 
 ## check rules
 
@@ -293,11 +324,67 @@ Same-net via-in-pad needs filled+capped (or type-VII) vias - flag it in the fab 
   "manually placed vs auto" flag on a via in the file - a via is a via.
 - The test is centre-in-pad, layer-aware (a blind/buried via that never reaches the
   pad's outer layer is not counted). Rect/roundrect/oval pads use the pad rectangle;
-  a `custom`-shape pad (its real copper lives in `(primitives ...)`, which this does
-  not parse) falls back to a size-envelope circle, so a via-in-pad there is not
-  missed - slightly generous, the safe direction for a fab flag.
+  a `custom`-shape pad is its anchor rectangle PLUS its `(primitives ...)` (gr_poly,
+  gr_rect, gr_circle as a circumscribed 16-gon, gr_line as its stroke box). The
+  anchor alone can be far smaller than the copper: BQ25798's pads are a 0.15 mm
+  anchor with a 0.65 mm polygon.
+- Roles: GND by name; PWR if a named rail, a net over `--fanout` nodes, a switching
+  node, or a netclass matching PWR/POWER in the `.kicad_pro` (catches `Net-(BT1-+)`);
+  else SIG. `--signal` shows only SIG pads, `--min N` only pads holding >= N vias.
+  A different-net (possible short) row always prints, whatever the filter.
 
 Back-side parts work without a mirror step: a `.kicad_pcb` stores each pad's `at`
 **angle** as absolute (footprint rotation already baked in, unlike a `.kicad_mod`),
 so the pad orientation is used directly. Validated against pcbnew's own `HitTest`
-on the real board: 58/58 pads, zero false positives or negatives.
+on the real board: 54/54 via-pad hits (5 on custom pads), zero false positives or
+negatives, re-run 2026-09-22 after primitives parsing (validate with the pad's REAL
+copper layer: `GetPrincipalLayer()` returns F.Cu for a back-side pad).
+
+## `rf [NET...]` - a 50-ohm trace in one call
+
+Per net: the routed widths by length (dominant width, and every NECK narrower than
+95% of it, with location); microstrip Zo of the dominant width from the stackup
+(Hammerstad + Wheeler thickness correction, uncoated, +/-1-2 ohm; solder mask pulls
+it down ~1-2 ohm); the same-layer GND gap each side and, when it is close, the
+field-solved CPWG Zo (below); what fills the reference layer
+under the trace (`GND 100%`, else `BROKEN/NON-GND RETURN PATH`, exit 2); and the GND
+via fence within `--fence` mm (1.5) of the trace edge: count per side and the widest
+nearest-neighbour gap against lambda/20 in the medium (frequency from `--freq` MHz,
+else inferred GNSS 1575.42 / LoRa 915 from the net or sheet name).
+
+When a same-layer GND pour sits within 5h of the trace (median gap per side), the
+line is **CPWG** and `rf` field-solves it: `Zo 51.6 ohm CPWG, field-solved with
+F.Mask 15 um er 3.8 (52.8 uncoated)`, the mask read from the stackup. The closed
+forms (Wadell/Ghione) are not used: they assume the backing plane is far vs the
+slot, and on a 4-layer stackup (h 0.2 mm, w+2s ~1 mm) they read ABOVE microstrip,
+which is physically backwards.
+
+The solver is `scripts/kzo.py` (stdlib, also a CLI: `kzo.py W S H ER [T] [--mask TM
+ERM]`): quasi-static finite-volume Laplace on a graded grid over half the cross-
+section, solved directly (skyline Cholesky), capacitance from the field energy,
+Zo = eta0 / sqrt(C C0). Unequal gaps solve each half with its own gap (within 0.1%
+of a full solve). `kzo.py --selftest` holds it to exact stripline and CPW and to
+Hammerstad microstrip, each within 2%; on a real 35 um trace it reads ~1% low.
+It models rectangular copper and the board file's stackup - the fab's trapezoid and
+its own stackup numbers (check h and er in the `Zo ... microstrip` line against the
+fab's) are the arbiter. ~0.1 s per solve, memoised; gaps round to 0.01 mm.
+
+## `height [REF...]` - the Z budget
+
+Runs `kicad-cli pcb export glb --no-board-body --no-dnp` (the right CLI per file),
+so OCCT meshes the real STEP/WRL models as placed, then reads each part's node
+bounds from the glTF (Y-up, metres; each node origin sits on its own board face).
+Prints the tallest parts per side, then the Z stack at the tallest back-side parts:
+`back part + board (between the model faces) + tallest front part whose courtyard
+overlaps it`.
+
+What it will not do is guess:
+- a part with no loadable model is **UNKNOWN**, never 0 mm; one with several models
+  where one file is missing is flagged PARTIAL;
+- jumpers, net ties and test pads/holes with no model are "assumed flat copper",
+  listed, with the note that a header pin in a TH test point adds height;
+- a battery holder's model is flagged: it may omit the cell (the parsnip BT1/BT2
+  model reads 15.8 mm; a 21700 is 21.7 mm across). Put the measured figure in
+  kpcb.json `"height": {"BT1": 23.1}` - an override wins over the model and prints
+  with `*`.
+Enclosure, gasket, display and standoffs are not on the board and not counted.

@@ -8,39 +8,208 @@ of its own and imports nothing from the tools - the dependency only ever points
 tools -> kcommon, never back. Edit a parser or a check-formatter here once and
 every tool sees it; guard the change with references/selftest.py.
 """
-import sys, os, re
+import sys, os, re, glob, json, shutil, hashlib, marshal
 from collections import defaultdict
 
 __all__ = [
-    'GND_RE', 'KNOWN_RAILS', 'Netlist', 'SchInfo', 'eng', 'has', 'kid',
-    'kids', 'natkey', 'parse_sexp', 'parse_value', 'prefix',
-    'print_findings', 'rail_voltage', 'refrange', 'smart_re', 'suppressed',
-    'trunc', 'tvs_standoff', 'unesc_disp', 'val', '_fkey',
+    'GND_RE', 'KNOWN_RAILS', 'Netlist', 'SchInfo', 'eng', 'fp_lib_dirs', 'fp_pads',
+    'has', 'kicad_cli',
+    'kid', 'kids', 'load_sexp', 'natkey', 'netlist_warnings', 'parse_sexp', 'parse_value',
+    'prefix', 'print_findings', 'rail_voltage', 'refrange', 'sch_files', 'smart_re',
+    'suppressed', 'top_level_sheets', 'trunc', 'tvs_standoff', 'unesc_disp',
+    'val', '_fkey',
 ]
+
+# ---------------- KiCad install / project ----------------
+
+def kicad_cli(path=None):
+    """The kicad-cli that can read `path`. $KICAD_CLI wins. A file saved by a dev
+    build (generator_version X.99) needs kicad-cli-nightly: stable kicad-cli
+    fails on it with "Failed to load"."""
+    if os.environ.get('KICAD_CLI'):
+        return os.environ['KICAD_CLI']
+    gv = ''
+    if path and os.path.isfile(path):
+        with open(path, encoding='utf-8', errors='replace') as fh:
+            m = re.search(r'\(generator_version "([\d.]+)"\)', fh.read(4000))
+        gv = m.group(1) if m else ''
+    if gv.split('.')[1:2] == ['99'] and shutil.which('kicad-cli-nightly'):
+        return 'kicad-cli-nightly'
+    return 'kicad-cli'
+
+def sch_files(d):
+    """*.kicad_sch in d, minus KiCad's own _autosave-* / ~ backup copies (an open
+    eeschema writes those every few minutes; they are not part of the design)."""
+    return sorted(f for f in glob.glob(os.path.join(d, '*.kicad_sch'))
+                  if not os.path.basename(f).startswith(('_autosave-', '~')))
+
+def top_level_sheets(d):
+    """[(filename, name)] from a .kicad_pro's schematic.top_level_sheets (KiCad
+    10+ multi-root projects), or [] if the directory has none."""
+    for pro in sorted(glob.glob(os.path.join(d, '*.kicad_pro'))):
+        try:
+            tl = json.load(open(pro)).get('schematic', {}).get('top_level_sheets') or []
+        except (OSError, ValueError):
+            continue
+        if tl:
+            return [(t.get('filename', ''), t.get('name', '')) for t in tl]
+    return []
+
+def netlist_warnings(path, source='', sheets=()):
+    """Reasons not to trust a .net: a .kicad_sch beside it was saved after it,
+    or the project has top-level sheets the export does not contain (a stable
+    kicad-cli single-root export silently drops them)."""
+    d = os.path.dirname(os.path.abspath(path))
+    tls = top_level_sheets(d)
+    regen = f"kmerge.py {path} {tls[0][0] if tls else os.path.basename(source or 'ROOT.kicad_sch')}"
+    out = []
+    sch = [(os.path.getmtime(f), f) for f in sch_files(d)]
+    if sch:
+        t, f = max(sch)
+        lag = t - os.path.getmtime(path)
+        if lag > 60:
+            out.append(f"{os.path.basename(path)} is {lag/3600:.1f} h older than "
+                       f"{os.path.basename(f)} - answers may be stale. Regenerate: {regen}")
+    names = [n for _, n in sheets]
+    miss = [n for fn, n in tls if fn != os.path.basename(source or '')
+            and not any(s.startswith(f'/{n}/') for s in names)]
+    if miss:
+        out.append(f"{os.path.basename(path)} lacks top-level sheet(s) "
+                   f"{', '.join(miss)} - a single-root export, whole sheets are "
+                   f"missing. Regenerate: {regen}")
+    return out
+
+# ---------------- footprint libraries ----------------
+
+def _cfg_dirs():
+    """KiCad's per-version config dirs, newest version first."""
+    roots = [os.environ.get('KICAD_CONFIG_HOME'), os.path.expanduser('~/.config/kicad'),
+             os.path.expanduser('~/Library/Preferences/kicad'),
+             os.path.join(os.environ.get('APPDATA', ''), 'kicad')]
+    dirs = [d for r in roots if r for d in glob.glob(os.path.join(r, '*.*')) if os.path.isdir(d)]
+    return sorted(dirs, key=lambda d: [int(x) if x.isdigit() else 0
+                                       for x in os.path.basename(d).split('.')], reverse=True)
+
+def _lib_table(path, env, out):
+    """Add {nickname: uri} rows of one fp-lib-table to out (first definition wins,
+    as in KiCad); a 'Table' row is a nested table file, followed."""
+    try:
+        root = load_sexp(path)
+    except OSError:
+        return
+    for lib in kids(root, 'lib'):
+        uri = re.sub(r'\$\{(\w+)\}', lambda m: env.get(m.group(1), m.group(0)), val(lib, 'uri'))
+        if val(lib, 'type').lower() == 'table':
+            _lib_table(uri, env, out)
+        else:
+            out.setdefault(val(lib, 'name'), uri)
+
+_FPDIRS = {}
+
+def fp_lib_dirs(projdir):
+    """{nickname: .pretty dir}: the project's fp-lib-table first, then the global
+    table of the newest KiCad config dir that has one. ${VARS} come from the
+    environment, that config's kicad_common.json, ${KIPRJMOD}, and a stock
+    KICADn_FOOTPRINT_DIR found on disk (nightly's for an X.99 config)."""
+    if projdir in _FPDIRS:
+        return _FPDIRS[projdir]
+    cfg = next((d for d in _cfg_dirs() if os.path.isfile(os.path.join(d, 'fp-lib-table'))), None)
+    env = {}
+    stock = ['/usr/share/kicad/footprints', '/usr/local/share/kicad/footprints',
+             '/Applications/KiCad/KiCad.app/Contents/SharedSupport/footprints']
+    if cfg and cfg.endswith('.99'):
+        stock.insert(0, '/usr/share/kicad-nightly/footprints')
+    fpdir = next((s for s in stock if os.path.isdir(s)), None)
+    if cfg:
+        maj = os.path.basename(cfg).split('.')[0]
+        if fpdir:
+            env[f'KICAD{maj}_FOOTPRINT_DIR'] = fpdir
+        try:
+            env.update(json.load(open(os.path.join(cfg, 'kicad_common.json')))
+                       .get('environment', {}).get('vars') or {})
+        except (OSError, ValueError, AttributeError):
+            pass
+    env.update(os.environ)
+    env['KIPRJMOD'] = projdir
+    out = {}
+    _lib_table(os.path.join(projdir, 'fp-lib-table'), env, out)
+    if cfg:
+        _lib_table(os.path.join(cfg, 'fp-lib-table'), env, out)
+    _FPDIRS[projdir] = out
+    return out
+
+def fp_pads(fpid, projdir):
+    """{pad number: pad type} of footprint 'Lib:Name' read from its .kicad_mod, or
+    None when the library or file cannot be found. Numberless pads (paste
+    apertures, mechanical copper) and np_thru_hole drills are left out."""
+    lib, _, name = (fpid or '').partition(':')
+    d = fp_lib_dirs(projdir).get(lib)
+    if not (name and d):
+        return None
+    try:
+        root = load_sexp(os.path.join(d, name + '.kicad_mod'))
+    except OSError:
+        return None
+    return {p[1]: p[2] for p in kids(root, 'pad')
+            if len(p) > 2 and p[1] and p[2] != 'np_thru_hole'}
 
 # ---------------- S-expression parser ----------------
 
-_TOK = re.compile(r'''\s*(?:(\()|(\))|"((?:[^"\\]|\\.)*)"|([^\s()"]+))''')
+_TOK = re.compile(r'''[()]|"(?:[^"\\]|\\.)*"|[^\s()"]+''')
 
 def parse_sexp(text):
-    stack, cur, pos, n = [], [], 0, len(text)
-    while pos < n:
-        m = _TOK.match(text, pos)
-        if not m:
-            break
-        pos = m.end()
-        op, cp, qs, atom = m.groups()
-        if op:
-            stack.append(cur); cur = []
-        elif cp:
+    # one findall + dispatch on the first char: 30% faster than a match() loop
+    # with capture groups on a 12 MB board (0.44 s vs 0.62 s), same tree
+    stack, cur = [], []
+    push, pop = stack.append, stack.pop
+    for tok in _TOK.findall(text):
+        c = tok[0]
+        if c == '(':
+            push(cur); cur = []
+        elif c == ')':
             if not stack:
                 break
-            done = cur; cur = stack.pop(); cur.append(done)
-        elif qs is not None:
-            cur.append(qs.replace('\\"', '"').replace('\\\\', '\\'))
+            done = cur; cur = pop(); cur.append(done)
+        elif c == '"':
+            q = tok[1:-1]
+            cur.append(q.replace('\\"', '"').replace('\\\\', '\\') if '\\' in q else q)
         else:
-            cur.append(atom)
+            cur.append(tok)
     return cur[0] if len(cur) == 1 else cur
+
+CACHE = os.environ.get('KREVIEW_CACHE', os.path.expanduser('~/.cache/kicad-review'))
+
+def load_sexp(path, cache_over=100_000):
+    """parse_sexp() of a file, memoised on disk (marshal) for files over
+    `cache_over` bytes: the 12 MB board parses in 0.45 s and loads in 0.1 s.
+    Keyed on path + size + mtime + Python version; writing one drops the same
+    file's older copies, so the cache holds one snapshot per file."""
+    st = os.stat(path)
+    def parse():
+        with open(path, encoding='utf-8', errors='replace') as f:
+            return parse_sexp(f.read())
+    if st.st_size < cache_over:
+        return parse()
+    tag = hashlib.sha1(os.path.abspath(path).encode()).hexdigest()[:12]
+    ver = hashlib.sha1(f"{st.st_size}|{st.st_mtime_ns}|{sys.version}".encode()).hexdigest()[:12]
+    cp = os.path.join(CACHE, f"sexp_{tag}_{ver}.marshal")
+    try:
+        with open(cp, 'rb') as f:
+            return marshal.loads(f.read())      # load(f) reads piecemeal: 5x slower
+    except (OSError, EOFError, ValueError, TypeError):
+        pass
+    tree = parse()
+    try:
+        os.makedirs(CACHE, exist_ok=True)
+        for old in glob.glob(os.path.join(CACHE, f"sexp_{tag}_*.marshal")):
+            os.remove(old)
+        tmp = f"{cp}.{os.getpid()}"
+        with open(tmp, 'wb') as f:
+            marshal.dump(tree, f)
+        os.replace(tmp, cp)          # atomic: a concurrent reader never sees half
+    except OSError:
+        pass
+    return tree
 
 def kids(node, tag):
     return [c for c in node if isinstance(c, list) and c and c[0] == tag]
@@ -176,7 +345,17 @@ def rail_voltage(name):
     m = re.match(r'^\+?(\d+\.?\d*)V$', u)       # +3.3V
     if m:
         return float(m.group(1))
+    # one voltage token inside a longer name: PD_LDO_3V3, 3V3_GNSS, 5V_RAW. Without
+    # this every pull-up to such a rail was invisible to OCNOPULL/I2CPULL/DOMAIN.
+    # A signal-word token (5V_EN, PG_3V3) means it is a control line, not a rail.
+    toks = [t for t in re.split(r'[_\-\s{}]+', u) if t]
+    volts = [t for t in toks if _VOLT_RE.match(t)]
+    if len(volts) == 1 and not set(toks) & _SIGNAL_WORDS:
+        return rail_voltage(volts[0])
     return None
+
+_SIGNAL_WORDS = {'EN', 'ENABLE', 'PG', 'PGOOD', 'GOOD', 'OK', 'FB', 'SENSE', 'SNS', 'DET',
+                 'DETECT', 'SEL', 'CTRL', 'ON', 'OFF', 'FLT', 'FAULT', 'INT', 'ALERT', 'MON'}
 
 # ---------------- index build ----------------
 
@@ -184,8 +363,7 @@ class Netlist:
     def __init__(self, path, rail_overrides=None, no_dnp=False):
         self.path = path
         self.no_dnp = no_dnp
-        with open(path, 'r', encoding='utf-8', errors='replace') as f:
-            tree = parse_sexp(f.read())
+        tree = load_sexp(path)
         self.comps, self.libparts, self.nets = {}, {}, {}
         self.pinnet, self.netclass = {}, {}
         self.cpins = defaultdict(dict)
@@ -195,6 +373,8 @@ class Netlist:
         self.date = val(design, 'date') if design else ''
         self.tool = val(design, 'tool') if design else ''
         self.sheets = [(val(s, 'number'), val(s, 'name')) for s in kids(design, 'sheet')] if design else []
+        for w in netlist_warnings(path, self.source, self.sheets):
+            print(f"WARNING: {w}", file=sys.stderr)
 
         for c in kids(kid(tree, 'components') or [], 'comp'):
             ref = val(c, 'ref')
@@ -405,16 +585,14 @@ class SchInfo:
         return s
 
     def _load(self, nl):
-        import glob as _g
         d = os.path.dirname(os.path.abspath(nl.path))
-        files = sorted(_g.glob(os.path.join(d, '*.kicad_sch')))
+        files = sch_files(d)
         if not files:
             return
         self.files = files
         parsed = {}
         for f in files:
-            parsed[os.path.basename(f)] = parse_sexp(
-                open(f, encoding='utf-8', errors='replace').read())
+            parsed[os.path.basename(f)] = load_sexp(f)
 
         # map file -> hierarchical sheet path. KiCad 8+ projects can have more than
         # one independent top-level page (e.g. Rails/Charger sheets that are not
@@ -499,15 +677,34 @@ class SchInfo:
                     at = kid(p, 'at')
                     shpin.add((round(self._fnum(at[1]), 2), round(self._fnum(at[2]), 2)))
 
+            # a marker may also sit at the far end of a wire stub from its pin
+            # (legal in KiCad, e.g. BQ25798 D+/D- on parsnip), so walk wire ends
+            adj = defaultdict(set)
+            for w in kids(tree, 'wire'):
+                pts = [(round(self._fnum(p[1]), 2), round(self._fnum(p[2]), 2))
+                       for p in kids(kid(w, 'pts') or [], 'xy')]
+                for p0, p1 in zip(pts, pts[1:]):
+                    adj[p0].add(p1); adj[p1].add(p0)
+            def stub_pins(pt):
+                seen, todo, hits = {pt}, [pt], []
+                while todo:
+                    q = todo.pop()
+                    if q in pinat:
+                        hits.append(pinat[q])
+                    for r in adj[q] - seen:
+                        seen.add(r); todo.append(r)
+                return hits
+
             for nc in kids(tree, 'no_connect'):
                 at = kid(nc, 'at')
                 pt = (round(self._fnum(at[1]), 2), round(self._fnum(at[2]), 2))
                 if pt in shpin:
                     continue
                 self.nc_total += 1
-                if pt in pinat:
+                hits = [pinat[pt]] if pt in pinat else stub_pins(pt)
+                if len(hits) == 1:           # >1 pin = a real net, not an NC stub
                     self.nc_matched += 1
-                    self.ncflag.add(pinat[pt])
+                    self.ncflag.add(hits[0])
 
             for tx in kids(tree, 'text'):
                 at = kid(tx, 'at')

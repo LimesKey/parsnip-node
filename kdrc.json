@@ -2,8 +2,6 @@
   "max": 25,
   "suppress": [
     "ERC:LIB_SYMBOL_MISMATCH",
-    "ERC:SINGLE_GLOBAL_LABEL",
-    "ERC:ISOLATED_PIN_LABEL",
     "ERC:FOUR_WAY_JUNCTION"
   ]
 }

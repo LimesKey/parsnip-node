@@ -18,10 +18,13 @@ python3 $P pick MLCC --cap 4.7u..100u --volt '>=25' --pkg 0805 --diel X7R,X5R
 | the question | command |
 | --- | --- |
 | "find me a cap 4.7-100 uF, >=25 V, cheapest" | `pick` - see [pick](references/pick.md) |
-| "is there something cheaper than C45783" | `alt C45783` |
+| "find a TVS / LDO / I/O expander / test point that ..." | `pick TVS --pkg ... --vrwm ...` (the part-type word selects the JLC category; `--cat` to force one) |
+| "is there something cheaper than C45783" / "C45783 is out of stock" | `alt C45783` (nothing? it lists near misses that fail one limit) |
+| "is brand X (CCTC, Chinocera, ...) any good" | read [brands](references/brands.md) - no search needed |
 | "what does C18164413 cost / is it stocked" | `show` |
 | "is this part JLC Basic", "what are my assembly fees" | `jlc` - see [endpoints](references/endpoints.md) |
 | "datasheet link for X" | `ds` |
+| "get the datasheet so I can grep it" | `ds C... --save` |
 | "X vs Y" | `compare` |
 | "what does this whole board cost" | `bom` |
 | "source this board" / "what's blocking assembly" | `check` - `bom` + `jlc` + missing-code triage in one call |
@@ -29,22 +32,34 @@ python3 $P pick MLCC --cap 4.7u..100u --volt '>=25' --pkg 0805 --diel X7R,X5R
 | bare MPN, no constraints, just find it | `search` |
 | "higher voltage rating or more nominal uF?" / DC-bias derating | `kcap.py` - see [kcap](references/kcap.md) |
 
-`search` is keyword-only and ranks badly on parametric queries.
-`search '22uF 25V X7R 1206'` returns electrolytics and tantalums in the top hits,
-because LCSC has no category filter. **For anything with electrical constraints, use
-`pick`, not `search`.**
+`search` is keyword-only: LCSC rows rank on MPN text, so `search '22uF 25V X7R 1206'`
+returns electrolytics and tantalums, and category words ('test point') return junk;
+the JLC rows it adds match category words better. **For anything with electrical
+constraints, use `pick`, not `search`.**
+
+## Choosing a part, end to end
+
+1. `pick <part type> --pkg ... --<limits>` - the cheapest in-stock (>=100, not EOL)
+   parts that meet every limit; with a category the limits filter JLC server-side,
+   so the pool is exact. Unsure what the attributes are called? `--fields`.
+2. `compare C.. C.. C..` on the shortlist - only the parameters that differ.
+3. `ds C.. --save`, then `kdoc.py grep 'Absolute Maximum' -d <MPN>` (kicad-review) for
+   what LCSC's parameters do not carry: abs max, recommended operating range,
+   derating, pinout, land pattern. A dimension off a drawing: `kdoc.py page`.
+4. MLCC at a real DC bias: `kcap.py compare` (effective uF, not nominal).
 
 ## Commands
 
 | command | use |
 | --- | --- |
 | `pick 'MLCC' --cap 4.7u..100u --volt '>=25'` | parametric selection, sorted, filtered |
-| `alt C45783` | cheaper/stocked/Basic equivalents of a part already on the board |
+| `alt C45783` | drop-ins for a part already on the board: same JLC category and package, equal-or-better on every rated parameter (voltage/current up, RDS(on)/Vf/leakage/clamp down, type/polarity equal); prints the holds as `--w` flags to loosen |
 | `jlc board.net` | Basic vs Extended per part + total $3/line assembly fees |
 | `show C18164413` | ladder, stock, MOQ, multiple, params, category, verified datasheet |
 | `ds C42409135` | datasheet URL only, with pass/fail per candidate |
+| `ds C42409135 --save [--dir D]` | ...then download the verified PDF to `docs/datasheets/<MPN>.pdf` (checks the `%PDF` header, keeps an existing file unless `--fresh`) and `kdoc.py index` it, so `kdoc.py grep -d <MPN>` works next |
 | `compare C1525 C60474` | side-by-side, differing parameters only |
-| `search 'TPS61033'` | keyword search. Add `--instock`. |
+| `search 'TPS61033'` | keyword search, LCSC rows then JLC rows (JLC catalog price, spec string as desc). Add `--instock`. |
 | `bom board.net --qty 5` | prices a whole KiCad netlist by its LCSC Part property |
 | `check board.net --qty 5` | one-shot sourcing triage: `bom` pricing + `jlc` Basic/Extended, one table, one pass over the netlist |
 | `fpcheck board.net` | each symbol's KiCad footprint AND value vs the assigned LCSC part. Footprint: flags size/family mismatches and one LCSC code reused across different bodies (chip sizes and MPN-named footprints auto-clear; divergent nomenclature -> a small REVIEW bucket). Value: R/C/L symbol value vs LCSC's resistance/capacitance/inductance param (catches a right-footprint, wrong-value part, e.g. a 36R part on a 37.4R symbol). Also lists any assigned part LCSC marks EOL/NRND. `--show-ok`, `--json`; no `.net` runs the offline self-test. |
@@ -82,6 +97,8 @@ REVIEW path, never a MISMATCH and never the "same code on two bodies" flag.
 
 ## Run selftest first in a new session
 
+(`selftest --offline` is the no-network logic check to run after editing part.py.)
+
 LCSC has no public API. `part.py` uses undocumented endpoints that can start
 returning 403/404 without notice. `selftest` reports in one line which providers are
 alive, so you never debug endpoints by hand or rebuild a scraper.
@@ -95,10 +112,11 @@ not before a normal query.
 
 ## Hard rules
 
-- **Two catalogs, never add them together.** `show`, `search`, `compare`, `bom` and
-  `pick --source lcsc` report **LCSC retail** prices. `jlc` and `pick --basic` report
-  **JLCPCB assembly-catalog** prices. Different numbers for the same part. Always say
-  which one you are quoting.
+- **Two catalogs, never add them together.** `show`, `compare`, `bom`, `pick` and
+  `alt` report **LCSC retail** prices (`pick` pools from JLC's index, then re-prices
+  the shown rows from LCSC; a row it could not is labelled `JLC price`). `jlc`,
+  `pick --basic` and the JLC rows of `search` report **JLCPCB assembly-catalog**
+  prices. They agree within ~1% but are different numbers. Say which one you quote.
 - **A trailing `!` on a price means FX was unreachable** and the native currency is
   shown unconverted. Never add a `!` price to a converted one. Default currency is
   CAD; LCSC arrives in USD, converted at a daily cached rate with the native figure
@@ -128,6 +146,9 @@ not before a normal query.
   cold one. `--fresh` when stock matters.
 - `bom` honours DNP and `exclude_from_bom`, and separately lists placed parts with no
   LCSC number at all - the ones actually blocking assembly.
+
+- `pick`/`alt` drop parts under `--minstock` (default 100, LCSC stock) and parts LCSC
+  marks EOL/NRND, and say how many in the header.
 
 Stock is authoritative from the detail endpoint; a 0 in search results is a real 0.
 `pick` shows `unit@N` and `ext` (= unit x the actual buy quantity after MOQ rounding).

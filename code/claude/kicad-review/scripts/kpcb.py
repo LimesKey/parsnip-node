@@ -24,8 +24,19 @@ Commands:
   kpcb.py FILE ic                     which parts `ic REF` can advise on
   kpcb.py FILE ic U13                 WHERE to put a regulator's passives, with
                                       an ASCII picture of the recommendation
-  kpcb.py FILE viapad                 components with a via centred in an SMD pad
+  kpcb.py FILE viapad [--signal] [--min N]
+                                      components with a via centred in an SMD pad
                                       (via-in-pad -> needs filled+capped vias)
+  kpcb.py FILE where F5.1 BT1.1       a PAD's absolute centre, size, net; two specs
+                                      also print the distance between them
+  kpcb.py FILE net NET                every pad on a net (absolute xy), copper per
+                                      layer, vias, zones, extent
+  kpcb.py FILE height [REF...]        3D model height per part + the Z stack (cell +
+                                      board + tallest part over it), via KiCad's GLB
+                                      export of the STEP models; no model = UNKNOWN
+  kpcb.py FILE rf [NET...]            50-ohm trace review: width necks, microstrip Zo
+                                      from the stackup, same-layer GND gap, reference
+                                      plane under it, GND via fence vs lambda/20
 
 `ic` is the one command that suggests rather than judges. It reads the IC's own
 pad coordinates - there is no per-part template - classifies its pins by name,
@@ -69,7 +80,8 @@ from collections import defaultdict
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 try:
-    from kcommon import (parse_sexp, kids, kid, val, refrange, natkey, trunc,
+    from kzo import microstrip, field_zo              # trace impedance (kzo.py beside this)
+    from kcommon import (load_sexp, kids, kid, val, has, refrange, natkey, trunc,
                       prefix, parse_value, unesc_disp, GND_RE, rail_voltage,
                       print_findings, suppressed)
 except ImportError:                                     # pragma: no cover
@@ -291,7 +303,15 @@ def ipc_width(need_a, thick_mm, external, dt):
 
 class FP:
     __slots__ = ('ref', 'value', 'fp', 'layer', 'x', 'y', 'rot', 'sheet', 'attr',
-                 'dnp', 'pads', 'crtyd', 'crtyd_real', 'body', 'placed', 'edge')
+                 'dnp', 'pads', 'crtyd', 'crtyd_real', 'body', 'placed', '_edge', 'models')
+
+    @property
+    def edge(self):
+        """Courtyard-to-outline distance (None: no outline), computed on first use:
+        ~0.15 s for every footprint on a real board, and most commands never ask."""
+        if callable(self._edge):
+            self._edge = self._edge()
+        return self._edge
 
     @property
     def back(self):
@@ -307,8 +327,7 @@ class Board:
     def __init__(self, path):
         if not os.path.exists(path):
             raise FileNotFoundError(path)
-        txt = open(path, encoding='utf-8', errors='replace').read()
-        root = parse_sexp(txt)
+        root = load_sexp(path)
         if not (isinstance(root, list) and root and root[0] == 'kicad_pcb'):
             raise ValueError(f"{path} is not a .kicad_pcb (got {root[0] if root else 'nothing'})")
         self.path = path
@@ -321,8 +340,12 @@ class Board:
         self.fills = []                         # cached zone fills, per layer
         edge = []
 
+        self.teardrops = 0
         for z in kids(root, 'zone'):
             net = val(z, 'net')
+            if kid(kid(z, 'attr') or [], 'teardrop'):     # pad/track fillet, not a pour
+                self.teardrops += 1
+                continue
             lays = kid(z, 'layers') or kid(z, 'layer') or []
             self.zones.append((net, [l for l in lays[1:] if isinstance(l, str)]))
             for fp in kids(z, 'filled_polygon'):
@@ -335,8 +358,12 @@ class Board:
 
         # copper thickness per layer from the stackup (mm); outer = first+last Cu
         self.thick = {}
+        self.stack = []                         # [(name, type, thickness mm, er)] top->bottom
         stk = kid(kid(root, 'setup') or [], 'stackup')
         for ly in kids(stk or [], 'layer'):
+            if len(ly) > 1 and isinstance(ly[1], str):
+                self.stack.append((ly[1], val(ly, 'type'), _f(val(ly, 'thickness')),
+                                   _f(val(ly, 'epsilon_r'))))
             if val(ly, 'type') == 'copper' and len(ly) > 1 and isinstance(ly[1], str):
                 self.thick[ly[1]] = _f(val(ly, 'thickness'))
         self.outer = {self.copper[0], self.copper[-1]} if self.copper else set()
@@ -376,7 +403,7 @@ class Board:
         self.outline = bbox([p for s in edge for p in s]) if edge else None
         for f in self.fps.values():
             f.placed = self._placed(f)
-            f.edge = self._edge_dist(f) if self.edge_segs else None
+            f._edge = (lambda f=f: self._edge_dist(f)) if self.edge_segs else None
 
     # -- parsing helpers -------------------------------------------------
     def _graphics(self, node, f, pfx):
@@ -412,6 +439,32 @@ class Board:
         return out
 
     @staticmethod
+    def _pad_prims(p):
+        """A custom pad's (primitives ...) as polygons in the pad-local frame
+        (before the pad's own rotation). Its `size` is only the anchor, often far
+        smaller than the copper (BQ25798 pads: 0.15 mm anchor, 0.65 mm poly)."""
+        out = []
+        for g in (kid(p, 'primitives') or [])[1:]:
+            if not isinstance(g, list) or not g:
+                continue
+            w = _f(val(g, 'width')) / 2
+            if g[0] == 'gr_poly':
+                out.append(Board._pts(g))
+            elif g[0] == 'gr_rect':
+                (x0, y0), (x1, y1) = Board._xy(g, 'start'), Board._xy(g, 'end')
+                out.append([(x0 - w, y0 - w), (x1 + w, y0 - w), (x1 + w, y1 + w), (x0 - w, y1 + w)])
+            elif g[0] == 'gr_circle':               # circumscribed 16-gon: never under-states
+                (cx, cy), e = Board._xy(g, 'center'), Board._xy(g, 'end')
+                r = (math.hypot(e[0] - cx, e[1] - cy) + w) / math.cos(math.pi / 16)
+                out.append([(cx + r * math.cos(k * math.pi / 8), cy + r * math.sin(k * math.pi / 8))
+                            for k in range(16)])
+            elif g[0] == 'gr_line':                 # stroke as its bounding box
+                (x0, y0), (x1, y1) = Board._xy(g, 'start'), Board._xy(g, 'end')
+                out.append([(min(x0, x1) - w, min(y0, y1) - w), (max(x0, x1) + w, min(y0, y1) - w),
+                            (max(x0, x1) + w, max(y0, y1) + w), (min(x0, x1) - w, max(y0, y1) + w)])
+        return [q for q in out if len(q) >= 3]
+
+    @staticmethod
     def _xy(node, tag):
         k = kid(node, tag)
         return (float(k[1]), float(k[2])) if k and len(k) >= 3 else (0.0, 0.0)
@@ -424,10 +477,21 @@ class Board:
     def _footprint(self, node):
         f = FP()
         f.fp = node[1] if len(node) > 1 and isinstance(node[1], str) else '?'
+        # KiCad <= 10.0 writes (at X Y R); 10.99 nightly writes
+        # (transform (translate X Y) (rotate R) (scale 1 1)). Reading only (at)
+        # parks every nightly footprint at 0,0, i.e. "UNPLACED".
+        tr = kid(node, 'transform')
         at = kid(node, 'at')
+        if tr:
+            t, r, sc = kid(tr, 'translate') or [], kid(tr, 'rotate') or [], kid(tr, 'scale')
+            at = ['at', *(t[1:3] or ['0', '0']), *(r[1:2] or ['0'])]
+            if sc and [_f(x, 1) for x in sc[1:3]] != [1.0, 1.0]:
+                print(f"kpcb: footprint scale {sc[1:3]} is not modelled, geometry of "
+                      f"this part is wrong", file=sys.stderr)
         f.x, f.y = (float(at[1]), float(at[2])) if at else (0.0, 0.0)
         f.rot = float(at[3]) if at and len(at) > 3 else 0.0
         f.layer = val(node, 'layer', 'F.Cu')
+        f.models = [m[1] for m in kids(node, 'model') if len(m) > 1 and not has(m, 'hide')]
         f.sheet = val(node, 'sheetname', '')
         a = kid(node, 'attr') or []
         f.attr = set(x for x in a[1:] if isinstance(x, str))
@@ -449,6 +513,7 @@ class Board:
             sz = kid(p, 'size')
             sx, sy = (float(sz[1]), float(sz[2])) if sz and len(sz) > 2 else (0.0, 0.0)
             bx, by = xf(lx, ly, f.x, f.y, f.rot)
+            prims = self._pad_prims(p)          # custom pad copper, pad-local frame
             # pad AABB straight in board coords: a .kicad_pcb stores `prot` as the
             # ABSOLUTE board angle (f.rot already baked in), so envelope around the
             # board-frame centre with prot alone. Rotating a local AABB through xf
@@ -460,6 +525,7 @@ class Board:
             for c in ((bx - hx, by - hy), (bx + hx, by - hy),
                       (bx + hx, by + hy), (bx - hx, by + hy)):
                 pad_pts.append(c)
+            pad_pts += [xf(u, v, bx, by, prot) for poly in prims for u, v in poly]
             fn = re.sub(r'_\d+$', '', val(p, 'pinfunction'))
             net = val(p, 'net')
             lays = kid(p, 'layers') or []
@@ -472,7 +538,7 @@ class Board:
                            'sx': sx, 'sy': sy, 'prot': prot,
                            'shape': p[3] if len(p) > 3 and isinstance(p[3], str) else '',
                            'kind': p[2] if len(p) > 2 else '',
-                           'drill': max(dn) if dn else 0.0,
+                           'drill': max(dn) if dn else 0.0, 'prims': prims,
                            'layers': [l for l in lays[1:] if isinstance(l, str)]})
             if net:
                 self.nets[net].append((f.ref, num))
@@ -519,6 +585,27 @@ class Board:
 
     def placed(self):
         return [f for f in self.fps.values() if f.placed]
+
+    def netclass(self, net):
+        """Netclass of a net from the .kicad_pro beside the board (explicit
+        assignment, else the first matching wildcard pattern), '' if none."""
+        if not hasattr(self, '_nc'):
+            self._nc = ({}, [])
+            for pro in glob.glob(os.path.join(os.path.dirname(os.path.abspath(self.path)), '*.kicad_pro')):
+                try:
+                    ns = json.load(open(pro)).get('net_settings', {})
+                except (OSError, ValueError):
+                    continue
+                self._nc = (ns.get('netclass_assignments') or {},
+                            [(p.get('pattern', ''), p.get('netclass', ''))
+                             for p in ns.get('netclass_patterns') or []])
+                break
+        direct, pats = self._nc
+        if net in direct:
+            c = direct[net]
+            return c[0] if isinstance(c, list) and c else str(c)
+        import fnmatch
+        return next((c for p, c in pats if fnmatch.fnmatchcase(net, p)), '')
 
     def net_fps(self, net):
         return [self.fps[r] for r, _ in self.nets.get(net, []) if r in self.fps]
@@ -606,6 +693,8 @@ def c_summary(b, a):
     print(f"copper : {len(b.copper)} layers  {' '.join(b.copper)}")
     for n, l in b.zones:
         print(f"zone   : {n:<10} {' '.join(l)}")
+    if b.teardrops:
+        print(f"teardrops: {b.teardrops} (zone-type fillets, left out of every pour figure)")
     front = sum(1 for f in P if not f.back)
     print(f"\nfootprints: {len(b.fps)}   placed {len(P)} ({front} front / {len(P)-front} back)"
           f"   unplaced {len(un)}")
@@ -688,11 +777,12 @@ def c_sheet(b, a):
 def c_where(b, a):
     if not a.args:
         print("where needs a ref or an x,y coordinate", file=sys.stderr); return 1
-    miss = False
+    miss, pts = False, []
     for spec in a.args:
         m = re.match(r'^(-?[\d.]+)\s*,\s*(-?[\d.]+)$', spec)
         if m:
             p = (float(m.group(1)), float(m.group(2)))
+            pts.append((spec, p))
             box = (p[0], p[1], p[0], p[1])
             if b.edge_segs:
                 where = 'inside' if inside(p, b.rings) else 'OUTSIDE'
@@ -701,6 +791,24 @@ def c_where(b, a):
                 where, d = 'no Edge.Cuts, so inside/outside is', ''
             print(f"\n=== {p[0]:.2f},{p[1]:.2f}   {where} the outline{d}")
             _neigh(b, box, None, a)
+            continue
+        pad = _find_pad(b, spec)
+        if pad:
+            f, p = pad
+            pts.append((spec, (p['x'], p['y'])))
+            ly = ' '.join(l for l in p['layers'] if l.endswith('.Cu')) or ' '.join(p['layers'])
+            print(f"\n=== {spec}  {p['fn'] or ''}  on {unesc_disp(p['net']) or '(no net)'}")
+            print(f"  at        : {p['x']:.3f}, {p['y']:.3f}  (absolute)  pad rot {p['prot']:g}")
+            print(f"  pad       : {p['kind']} {p['shape']} {p['sx']:.2f} x {p['sy']:.2f} mm"
+                  + (f"  drill {p['drill']:.2f}" if p['drill'] else '') + f"  {ly}")
+            if b.edge_segs:
+                print(f"  edge dist : {min(pt_seg_dist((p['x'], p['y']), u, v) for u, v in b.edge_segs):.2f} mm")
+            others = sorted(((math.hypot(q['x'] - p['x'], q['y'] - p['y']), g.ref, q)
+                             for g in b.fps.values() for q in g.pads
+                             if q is not p and q['net'] and q['net'] == p['net']), key=lambda t: t[0])
+            if others:
+                print("  same net  : " + ', '.join(f"{r}.{q['num']} {d:.1f} mm" for d, r, q in others[:6])
+                      + (f" ... +{len(others)-6}" if len(others) > 6 else ''))
             continue
         f = b.fps.get(spec)
         if not f:
@@ -725,6 +833,11 @@ def c_where(b, a):
         nets = sorted({p['net'] for p in f.pads if p['net']}, key=natkey)
         print(f"  nets ({len(nets)}) : {trunc(' '.join(unesc_disp(n) for n in nets), 300)}")
         _neigh(b, c, f, a)
+        pts.append((spec, (f.x, f.y)))
+    if len(pts) == 2:
+        (n1, p1), (n2, p2) = pts
+        print(f"\n{n1} -> {n2}: {math.dist(p1, p2):.2f} mm "
+              f"(dx {p2[0]-p1[0]:+.2f}, dy {p2[1]-p1[1]:+.2f})")
     return 1 if miss else 0
 
 def _neigh(b, box, self_fp, a):
@@ -1826,7 +1939,7 @@ def sync_findings(b, netpath, a):
     look perfectly valid."""
     from kcommon import Netlist
     n = Netlist(netpath)
-    F, add = [], None
+    F = []
     def add(sev, rule, msg, refs=()):
         F.append({'severity': sev, 'rule': rule, 'msg': msg, 'refs': list(refs)})
 
@@ -1961,6 +2074,9 @@ def c_review(b, a):
         nxt.append(f"knet.py {netpath} check   # the electrical half; placement cannot see it")
     if b.zones:
         nxt.append(f"kpcb.py {b.path} zones   # pour coverage per layer (cached fill state)")
+    if any(re.search(r'RF|50', b.netclass(n), re.I) for n in b.nets):
+        nxt.append(f"kpcb.py {b.path} rf   # 50-ohm nets: width necks, Zo, reference plane, via fence")
+    nxt.append(f"kpcb.py {b.path} height   # Z stack from the 3D models (cell + board + tallest part)")
     nxt.append(f"kdrc.py {b.path}   # KiCad's own DRC + ERC - real clearance/rules, not heuristics")
     nxt.append(f"kpcb.py {b.path} sync   # re-run after any schematic change")
     print("\n### next\n" + '\n'.join('  ' + x for x in nxt))
@@ -1980,9 +2096,25 @@ def _zones_under(b, a):
         if not f:
             print(f"{ref}: no such footprint"); fail = 1; continue
         rect = f.crtyd
-        pts = _sample_grid(rect, 11)
+        # an edge-mount SMA/USB-C courtyard overhangs the outline; copper can't
+        # exist there, so sampling it would read a good launch as MOSTLY MISSING.
+        # Grid only the on-board part (then drop any point a notch still excludes).
+        o = b.outline or rect
+        on = (max(rect[0], o[0]), max(rect[1], o[1]), min(rect[2], o[2]), min(rect[3], o[3]))
+        # ponytail: fixed 0.5 mm inset on clipped sides for the pour's edge pullback;
+        # read the zone/edge clearances if a board pulls back further
+        e = 0.5
+        g = (on[0] + e * (on[0] > rect[0]), on[1] + e * (on[1] > rect[1]),
+             on[2] - e * (on[2] < rect[2]), on[3] - e * (on[3] < rect[3]))
+        pts = _sample_grid(g, 11) if g[0] < g[2] and g[1] < g[3] else []
+        if b.rings:
+            pts = [p for p in pts if inside(p, b.rings)]
+        off = 1 - overlap_area(on, rect) / max(f.area, 1e-9) if pts else 1.0
         print(f"{ref}: courtyard {rect[2]-rect[0]:.1f} x {rect[3]-rect[1]:.1f} mm "
-              f"@ {ctr(rect)[0]:.1f},{ctr(rect)[1]:.1f}")
+              f"@ {ctr(rect)[0]:.1f},{ctr(rect)[1]:.1f}"
+              + (f"  ({100*off:.0f}% hangs off the board edge, not sampled)" if off > 0.005 else ''))
+        if not pts:
+            continue
         for ly in b.copper:
             # bbox overlap is only a coarse prefilter: a net's OWN pour can be
             # substantial yet still never actually reach this courtyard (its
@@ -2014,6 +2146,8 @@ def _zones_under(b, a):
                 # code; a few holes just get listed for a look, not a verdict.
                 if hit_n == len(pts):
                     tag = 'continuous'
+                elif not (GND_RE.match(net.split('/')[-1]) or rail_voltage(net.split('/')[-1]) is not None):
+                    tag = 'local signal pour, not a reference plane'   # no verdict
                 elif pct >= 50:
                     tag = 'has gaps (normal near non-plane pads/vias unless clustered)'
                 else:
@@ -2345,11 +2479,12 @@ def _amp_row(b, net, need, a, graph=False):
         elif g:
             meshed = True                        # a full mesh: no single mandatory seg
     per_via = [via_current(d, a.plating / 1000.0, a.dt) for d in vd]
-    farea = defaultdict(float)                  # real filled copper per layer (mm2)
+    farea = defaultdict(list)                   # real filled copper per layer (mm2)
     for fl in b.fills:
         if fl['net'] == net:
-            farea[fl['layer']] += fl['area']
-    poured = sorted(ly for ly, ar in farea.items() if ar > POUR_MIN)
+            farea[fl['layer']].append(fl['area'])
+    poured = sorted(ly for ly, ar in farea.items() if sum(ar) > POUR_MIN)
+    pour = {ly: (sum(farea[ly]), len(farea[ly]), max(farea[ly])) for ly in poured}
     bf = _bott_fields(b, bott, a.dt) if bott else {'i': 0.0, 'ly': '-', 'w': 0.0,
                                                    'mid': (0.0, 0.0), 'seg': 0.0, 'ext': False}
     nf = _bott_fields(b, naive, a.dt) if naive else bf
@@ -2373,15 +2508,21 @@ def _amp_row(b, net, need, a, graph=False):
             'need_w_outer': ipc_width(need or 0, thick_of(b, b.copper[0]), True, a.dt)
                             if b.copper and not bf['ext'] else 0.0,
             'vias': len(vd), 'via_bound': sum(per_via),
-            'via_min': min(per_via) if per_via else 0.0, 'r': r, 'poured': poured}
+            'via_min': min(per_via) if per_via else 0.0, 'r': r, 'poured': poured,
+            'pour': pour}
 
 def _amp_verdicts(row, a):
     need = row['need']
     if need is None:
         return []
     if row['poured']:                    # a plane net: the pour carries it, not these stubs
-        return [('POURED', f"carried by the {'/'.join(row['poured'])} plane(s) - track/via "
-                          f"ampacity is not the limiter; check the pour with `zones`")]
+        # area > POUR_MIN says a pour EXISTS, not that it is wide enough: a
+        # fragmented fill or one thin neck can still be the real limiter
+        shape = '; '.join(f"{ly} {ar:.0f} mm2 in {n} fragment(s), largest {100*mx/ar:.0f}%"
+                          for ly, (ar, n, mx) in sorted(row['pour'].items()))
+        return [('POURED', f"a pour carries it ({shape}). UNVERIFIED, not a pass: the "
+                          f"pour's narrowest neck is not measured - check the path between "
+                          f"the end pads in KiCad, and `zones` for fill state")]
     out = []
     if row['meshed']:                    # a full mesh: no single segment is mandatory
         if row['naive_i'] < need:
@@ -2437,6 +2578,9 @@ def _print_amp(row, a):
         head += f"need {need:.2f} A   "
     if row['meshed']:
         kind = 'meshed, no series bottleneck'
+    elif row['poured']:
+        kind = (f"POURED - thinnest TRACK {row['bott_i']:.2f} A on {row['bott_ly']} is not "
+                f"the net's capacity")
     else:
         tag = ' (narrowest bridge)' if row['graphed'] else ''
         near = f" near {row['bott_near']}" if row['bott_near'] else ''
@@ -2455,7 +2599,7 @@ def _print_amp(row, a):
         landmarks = ' '.join(row['ends'][:10]) + (' ...' if len(row['ends']) > 10 else '')
         print(f"    find it: click any of these in KiCad to highlight the net -> {landmarks}")
     for ly, minw, ln, i, ext, mid, seg in row['layers']:
-        mark = '  <- bottleneck layer' if ly == row['bott_ly'] else ''
+        mark = ('' if row['poured'] else '  <- bottleneck layer') if ly == row['bott_ly'] else ''
         print(f"    {ly:<8} len {ln:6.1f}  minw {minw:.3f}  ->  {i:5.2f} A  "
               f"({'external' if ext else 'internal'}){mark}")
     if row['vias']:
@@ -2463,7 +2607,8 @@ def _print_amp(row, a):
               f"parallel bound ({row['via_min']:.2f} A each)")
     if need is not None:
         print(f"    R<={row['r'] * 1000:.1f} mohm  Vdrop<={need * row['r'] * 1000:.0f} mV  "
-              f"P<={need * need * row['r'] * 1000:.0f} mW  (series upper bound)")
+              f"P<={need * need * row['r'] * 1000:.0f} mW  (series upper bound"
+              + (", tracks only - the pour is ignored)" if row['poured'] else ")"))
     for tag, msg in v:
         print(f"    !! {tag}: {msg}")
     return v
@@ -2483,7 +2628,10 @@ def _amp_json(row):
             'layers': [{'layer': l, 'minw_mm': w, 'len_mm': round(ln, 2), 'amp_A': round(i, 3),
                         'external': e} for l, w, ln, i, e, _m, _s in row['layers']],
             'vias': row['vias'], 'via_bound_A': round(row['via_bound'], 3),
-            'r_mohm': round(row['r'] * 1000, 2)}
+            'r_mohm': round(row['r'] * 1000, 2),
+            # when present, bottleneck_A is track-only and NOT the net's capacity
+            'pour': {ly: {'area_mm2': round(ar, 1), 'fragments': n, 'largest_mm2': round(mx, 1)}
+                     for ly, (ar, n, mx) in row['pour'].items()}}
 
 def _amp_footer():
     print("\nIPC-2221: I = k*dT^0.44*A^0.725 (k=0.048 outer, 0.024 inner). Outer-layer\n"
@@ -2577,16 +2725,13 @@ def _via_in_pad(pad, vx, vy):
     circle pad is treated as its bounding box - a hair generous at the corners,
     which is the safe direction for a manufacturing flag."""
     dx, dy = vx - pad['x'], vy - pad['y']
-    if pad['shape'] == 'custom':
-        # a custom pad's real copper is in (primitives ...), which we don't parse;
-        # its `size` under-states the true extent. Use the size-envelope circle so
-        # a via-in-pad here isn't missed.
-        # ponytail: custom-pad envelope approximated from size, not the primitives
-        return math.hypot(dx, dy) <= max(pad['sx'], pad['sy']) / 2
     th = math.radians(pad['prot'])
     c, s = math.cos(th), math.sin(th)
     u, v = c * dx - s * dy, s * dx + c * dy
-    return abs(u) <= pad['sx'] / 2 and abs(v) <= pad['sy'] / 2
+    if abs(u) <= pad['sx'] / 2 and abs(v) <= pad['sy'] / 2:
+        return True
+    # a custom pad's copper is its anchor PLUS its primitives (pad-local frame)
+    return any(point_in_poly((u, v), poly) for poly in pad.get('prims') or ())
 
 def c_viapad(b, a):
     """Every component with a via centred inside one of its SMD pads (via-in-pad).
@@ -2629,44 +2774,472 @@ def c_viapad(b, a):
                         slot['pad'] = pad
                         slot['vias'][vi] = mism
 
+    sw = b.sw_nets()
+    def role(net):                          # the netclass catches Net-(BT1-+) etc.
+        n = (net or '').split('/')[-1]
+        if GND_RE.match(n):
+            return 'GND'
+        return 'PWR' if (rail_voltage(n) is not None or len(b.nets.get(net, [])) > a.fanout
+                         or net in sw or re.search(r'PWR|POWER', b.netclass(net), re.I)) else 'SIG'
+    roles = defaultdict(int)
+    for pads in hits.values():
+        for s_ in pads.values():
+            s_['role'] = role(s_['pad']['net'])
+            roles[s_['role']] += 1
+            # a foreign-net via (possible short) is never filtered out
+            s_['show'] = any(s_['vias'].values()) or (
+                (not a.signal or s_['role'] == 'SIG') and len(s_['vias']) >= a.min_vias)
     n_pads = sum(len(pads) for pads in hits.values())
     n_via = sum(len(s['vias']) for pads in hits.values() for s in pads.values())
     n_mism = sum(1 for pads in hits.values() for s in pads.values()
                  for m in s['vias'].values() if m)
     if a.json:
-        out = {r: [{'pad': num, 'pad_net': s['pad']['net'],
+        out = {r: [{'pad': num, 'pad_net': s['pad']['net'], 'role': s['role'],
                     'vias': len(s['vias']),
                     'via_nets': sorted({b.vias[vi]['net'] for vi in s['vias']}),
                     'mismatch': any(s['vias'].values())}
-                   for num, s in pads.items()]
+                   for num, s in pads.items() if s['show']]
                for r, pads in hits.items()}
         print(json.dumps({'components': len(hits), 'pads': n_pads, 'vias': n_via,
                           'net_mismatches': n_mism, 'hits': out}, indent=2))
         return 2 if n_mism else 0
     if not hits:
         print("no via-in-pad: no via centre lands inside any SMD pad."); return 0
+    shown = sum(1 for pads in hits.values() for s in pads.values() if s['show'])
     print(f"via-in-pad: {n_via} via(s) in {n_pads} SMD pad(s) across {len(hits)} "
-          f"component(s).\nSame-net via-in-pad needs filled+capped (or type-VII) "
-          f"vias - flag it in the fab quote.\n")
+          f"component(s)  [pads: {roles['GND']} GND / {roles['PWR']} PWR / {roles['SIG']} SIG]"
+          + (f"\nshowing {shown} (--signal/--min filter; net mismatches always shown)"
+             if shown < n_pads else '')
+          + "\nSame-net via-in-pad needs filled+capped (or type-VII) vias - flag it in the "
+            "fab quote.\n")
     for ref in sorted(hits, key=natkey):
+        if not any(s['show'] for s in hits[ref].values()):
+            continue
         f = b.fps[ref]
         print(f"  {ref:<6} {trunc(f.value, 22):<22} {'B.Cu' if f.back else 'F.Cu'}")
         for num in sorted(hits[ref], key=natkey):
             s = hits[ref][num]
+            if not s['show']:
+                continue
             p = s['pad']
             mnets = sorted({b.vias[vi]['net'] or '(none)' for vi, m in s['vias'].items() if m})
             note = (f"OK same net ({p['net']})" if not mnets else
                     f"!! via net {'/'.join(mnets)} != pad net {p['net']} - possible short")
-            print(f"       pad {num:<4} {len(s['vias']):>2} via(s)   {note}")
+            print(f"       pad {num:<4} {s['role']:<3} {len(s['vias']):>2} via(s)   {note}")
     if n_mism:
         print(f"\n{n_mism} via(s) sit in a pad of a DIFFERENT net - that is a short, "
               f"not via-in-pad. Confirm with `kdrc.py {os.path.basename(a.file)}`.")
     return 2 if n_mism else 0
 
+# ---------------- pad / net geometry ----------------
+
+def _find_pad(b, spec):
+    """'F5.1' -> (footprint, pad), or None. Several pads may share a number
+    (split thermal pads); the first is returned, the rest share its net."""
+    m = re.match(r'^([A-Za-z]+\d+)\.(\S+)$', spec)
+    f = b.fps.get(m.group(1)) if m else None
+    return next(((f, p) for p in f.pads if p['num'] == m.group(2)), None) if f else None
+
+def _resolve_net(b, name):
+    """Exact net name, else a unique match on the last path component or the
+    unescaped display form ('LORA_ANT' -> '/Root/LoRa/LORA_ANT'). Returns
+    (net, candidates)."""
+    allnets = set(b.nets) | {t['net'] for t in b.tracks if t['net']}
+    if name in allnets:
+        return name, []
+    c = sorted(n for n in allnets if n.split('/')[-1] == name or unesc_disp(n) == name)
+    if len(c) == 1:
+        return c[0], []
+    return None, c or sorted(n for n in allnets if name.lower() in n.lower())[:8]
+
+def c_net(b, a):
+    """Every pad on a net with its absolute position, plus the routed copper
+    per layer, vias, zones and the physical extent - pad-level geometry that
+    `where REF` (footprint level) can't answer."""
+    names = list(a.args) + list(a.net or [])
+    if not names:
+        print("net needs a net name (use --net=-BATT for a leading dash)", file=sys.stderr); return 1
+    rc = 0
+    for name in names:
+        net, cand = _resolve_net(b, name)
+        if not net:
+            print(f"{name}: no such net" + (f"; did you mean {' | '.join(cand)}" if cand else ''))
+            rc = 1; continue
+        pads = sorted(((f, p) for f in b.fps.values() for p in f.pads if p['net'] == net),
+                      key=lambda fp: (natkey(fp[0].ref), natkey(fp[1]['num'])))
+        segs = [t for t in b.tracks if t['net'] == net]
+        vias = [v for v in b.vias if v['net'] == net]
+        fills = [fl for fl in b.fills if fl['net'] == net]
+        print(f"\n=== {unesc_disp(net)}   netclass {b.netclass(net) or 'Default'}   "
+              f"{len(pads)} pad(s), {len(segs)} track seg(s), {len(vias)} via(s)")
+        for f, p in pads[:a.max * 3]:
+            ly = '/'.join(l.split('.')[0] for l in p['layers'] if l.endswith('.Cu'))
+            print(f"  {f.ref + '.' + p['num']:<10} {p['x']:8.3f} {p['y']:8.3f}  {ly:<6} "
+                  f"{p['sx']:.2f}x{p['sy']:.2f} {trunc(p['fn'], 16)}")
+        if len(pads) > a.max * 3:
+            print(f"  ... +{len(pads) - a.max * 3} more pad(s)")
+        for ly in b.copper:
+            ss = [t for t in segs if t['layer'] == ly]
+            if ss:
+                ws = sorted({t['w'] for t in ss})
+                print(f"  {ly:<7} {len(ss):>3} seg  {sum(t['len'] for t in ss):7.2f} mm  width "
+                      + (f"{ws[0]:.3f}" if len(ws) == 1 else f"{ws[0]:.3f}..{ws[-1]:.3f}"))
+        if vias:
+            dr = sorted({v['drill'] for v in vias})
+            print(f"  vias    {len(vias):>3}      drill {' '.join(f'{d:g}' for d in dr)} mm")
+        by = defaultdict(list)
+        for fl in fills:
+            by[fl['layer']].append(fl['area'])
+        for ly, ar in sorted(by.items()):
+            print(f"  zone    {ly:<7} {sum(ar):7.1f} mm2 in {len(ar)} fragment(s)")
+        xy = [(p['x'], p['y']) for _, p in pads] + [q for t in segs for q in (t['a'], t['b'])] \
+            + [(v['x'], v['y']) for v in vias]
+        if xy:
+            e = bbox(xy)
+            print(f"  extent  {e[2]-e[0]:.1f} x {e[3]-e[1]:.1f} mm  "
+                  f"({e[0]:.1f},{e[1]:.1f} .. {e[2]:.1f},{e[3]:.1f})")
+    return rc
+
+# ---------------- RF traces ----------------
+
+RF_FREQ = ((re.compile(r'GNSS|GPS|L1|L5', re.I), 1575.42),     # sheet/net -> MHz, for lambda/20
+           (re.compile(r'LORA|915|SX12', re.I), 915.0))
+
+def _ref_below(b, layer):
+    """(next copper layer, dielectric height mm, thickness-weighted er) toward
+    the board centre from an OUTER layer, from the stackup."""
+    names = [n for n, *_ in b.stack]
+    if layer not in names:
+        return None
+    i = names.index(layer)
+    step = 1 if layer == (b.copper[0] if b.copper else 'F.Cu') else -1
+    h = her = 0.0
+    j = i + step
+    while 0 <= j < len(b.stack) and b.stack[j][1] != 'copper':
+        _, _, th, er = b.stack[j]
+        h += th; her += th * er
+        j += step
+    if not (0 <= j < len(b.stack)) or h <= 0:
+        return None
+    return b.stack[j][0], h, her / h
+
+def _mask_on(b, layer):
+    """(thickness mm, er) of the solder mask over an outer copper layer, from
+    the stackup, or None."""
+    names = [n for n, *_ in b.stack]
+    if layer not in names:
+        return None
+    i = names.index(layer)
+    for j in (i - 1, i + 1):
+        if 0 <= j < len(b.stack) and b.stack[j][0].endswith('.Mask') and b.stack[j][2] > 0:
+            return b.stack[j][2], b.stack[j][3] or 3.8
+    return None
+
+def _side_gap(t, fills, w):
+    """Per-side gap (left, right) in mm from a trace segment's midpoint to the
+    nearest edge of a same-layer GND fill: the CPWG slot width. None = no fill
+    edge within 2 mm on that side."""
+    (ax, ay), (bx, by) = t['a'], t['b']
+    mx, my = t['mid']
+    gaps = [None, None]
+    for fl in fills:
+        x0, y0, x1, y1 = fl['bbox']
+        if mx < x0 - 2 or mx > x1 + 2 or my < y0 - 2 or my > y1 + 2:
+            continue
+        pts = fl['pts']
+        for i in range(len(pts)):
+            p, q = pts[i - 1], pts[i]
+            if min(p[0], q[0]) > mx + 2 or max(p[0], q[0]) < mx - 2 or \
+               min(p[1], q[1]) > my + 2 or max(p[1], q[1]) < my - 2:
+                continue
+            vx, vy = q[0] - p[0], q[1] - p[1]
+            L = vx * vx + vy * vy
+            u = 0.0 if L <= 0 else max(0.0, min(1.0, ((mx - p[0]) * vx + (my - p[1]) * vy) / L))
+            cx, cy = p[0] + u * vx, p[1] + u * vy
+            d = math.hypot(cx - mx, cy - my) - w / 2
+            if d > 2 or d < -1e-6:
+                continue
+            side = 0 if (bx - ax) * (cy - ay) - (by - ay) * (cx - ax) < 0 else 1
+            if gaps[side] is None or d < gaps[side]:
+                gaps[side] = d
+    return gaps
+
+def c_rf(b, a):
+    """`rf [NET...]`: one-call review of a 50-ohm trace. With no net, every net
+    whose netclass names RF/50 ohm. Per net: routed width uniformity (necks),
+    microstrip Zo from the stackup plus the same-layer GND gap (coplanar
+    coupling), reference-plane coverage under the trace, and the GND via fence."""
+    names = list(a.args) + list(a.net or [])
+    if not names:
+        names = sorted({n for n in set(b.nets) | {t['net'] for t in b.tracks}
+                        if n and re.search(r'RF|50', b.netclass(n), re.I)}, key=natkey)
+        if not names:
+            print("no net in an RF/50-ohm netclass - name one: `rf NET`", file=sys.stderr); return 1
+    fence = a.fence
+    rc = 0
+    for name in names:
+        net, cand = _resolve_net(b, name)
+        if not net:
+            print(f"{name}: no such net" + (f"; did you mean {' | '.join(cand)}" if cand else ''))
+            rc = 1; continue
+        segs = [t for t in b.tracks if t['net'] == net and t['w'] > 0]
+        refs = sorted({r for r, _ in b.nets.get(net, [])}, key=natkey)
+        sheets = ' '.join(sorted({b.fps[r].sheet for r in refs if r in b.fps}))
+        f_mhz = a.freq or next((mhz for rx, mhz in RF_FREQ if rx.search(net + ' ' + sheets)), None)
+        print(f"\n=== {unesc_disp(net)}   netclass {b.netclass(net) or 'Default'}   pads "
+              f"{' '.join(refs[:8])}   {sheets}"
+              + (f"   f {f_mhz:g} MHz{'' if a.freq else ' (inferred; --freq to set)'}" if f_mhz else ''))
+        if not segs:
+            print("  no routed track (pads only, or joined by pour)"); continue
+        eeff_net = None
+        for ly in b.copper:
+            ss = [t for t in segs if t['layer'] == ly]
+            if not ss:
+                continue
+            bylen = defaultdict(float)
+            for t in ss:
+                bylen[round(t['w'], 4)] += t['len']
+            dom = max(bylen, key=bylen.get)
+            tot = sum(bylen.values())
+            widths = ', '.join(f"{w:.3f} x {l:.1f} mm" for w, l in sorted(bylen.items()))
+            print(f"  {ly:<7} {len(ss)} seg, {tot:.1f} mm   widths: {widths}")
+            necks = sorted((t for t in ss if t['w'] < dom * 0.95), key=lambda t: t['w'])
+            for t in necks[:4]:
+                print(f"    !! NECK {t['w']:.3f} mm (dominant {dom:.3f}) for {t['len']:.2f} mm "
+                      f"at {t['mid'][0]:.2f},{t['mid'][1]:.2f}")
+            if ly not in b.outer:
+                print("    Zo: inner-layer stripline, not modelled here"); continue
+            ref = _ref_below(b, ly)
+            if not ref:
+                print("    Zo: no stackup in the board file"); continue
+            rly, h, er = ref
+            z, eeff = microstrip(dom, h, er, thick_of(b, ly))
+            eeff_net = eeff_net or eeff
+            gnd_same = [fl for fl in b.fills if fl['layer'] == ly and GND_RE.match(fl['net'].split('/')[-1] or '')]
+            gl, gr = [], []
+            for t in ss:
+                if t['len'] >= 0.2:
+                    l_, r_ = _side_gap(t, gnd_same, t['w'])
+                    if l_ is not None: gl.append(l_)
+                    if r_ is not None: gr.append(r_)
+            med = lambda v: sorted(v)[len(v) // 2] if v else None
+            fmt2 = lambda x: '-' if x is None else f"{x:.2f}"
+            print(f"    Zo {z:.1f} ohm microstrip ({dom:.3f} mm over {rly}, h {h:.3f} er {er:.2f}, "
+                  f"closed form, uncoated)")
+            # Side grounds within a few h pull Zo down (CPWG). The closed forms
+            # for that need h >> w+2s, the opposite of a 4-layer board, so it is
+            # field-solved (kzo.py) with the median gap per side and the mask.
+            if gl or gr:
+                sl, sr = med(gl), med(gr)
+                near = [x for x in (sl, sr) if x is not None and x < 5 * h]
+                print(f"    same-layer GND gap L {fmt2(sl)} / R {fmt2(sr)} mm (min {min(gl + gr):.2f})"
+                      + ("" if near else "  -> >= 5h away: the microstrip figure holds"))
+                if near:
+                    # 0.01 mm steps (~0.1 ohm): nets and sides then share solves
+                    gaps = tuple(round(x, 2) if x is not None and x < 5 * h else None for x in (sl, sr))
+                    mask = _mask_on(b, ly)
+                    zc, ee = field_zo(dom, h, er, thick_of(b, ly), s=gaps, mask=mask)
+                    zu = field_zo(dom, h, er, thick_of(b, ly), s=gaps)[0] if mask else None
+                    eeff_net = ee
+                    print(f"    Zo {zc:.1f} ohm CPWG, field-solved"
+                          + (f" with {ly[0]}.Mask {mask[0] * 1000:.0f} um er {mask[1]:g}"
+                             f" ({zu:.1f} uncoated)" if mask else ', uncoated'))
+            # reference plane continuity under the trace
+            rfills = [fl for fl in b.fills if fl['layer'] == rly]
+            samp = [q for t in ss for q in (t['a'], t['mid'], t['b'])]
+            under = defaultdict(int)
+            for q in samp:
+                hitn = next((fl['net'] for fl in rfills if fl['bbox'][0] <= q[0] <= fl['bbox'][2]
+                             and fl['bbox'][1] <= q[1] <= fl['bbox'][3] and point_in_poly(q, fl['pts'])), None)
+                under[hitn] += 1
+            desc = ', '.join(f"{'NOTHING' if n is None else n} {100*c/len(samp):.0f}%"
+                             for n, c in sorted(under.items(), key=lambda kv: -kv[1]))
+            bad = under.get(None, 0) or any(n and not GND_RE.match(n.split('/')[-1]) for n in under)
+            print(f"    reference {rly} under the trace: {desc}"
+                  + ("   <-- BROKEN/NON-GND RETURN PATH" if bad else ''))
+            rc = rc or (2 if bad else 0)
+        # GND via fence: vias within `fence` mm of the trace edge, per side
+        side_v = ([], [])
+        for v in b.vias:
+            if not GND_RE.match((v['net'] or '').split('/')[-1] or ''):
+                continue
+            best = min(((pt_seg_dist((v['x'], v['y']), t['a'], t['b']) - t['w'] / 2, t) for t in segs),
+                       key=lambda x: x[0])
+            if best[0] <= fence:
+                t = best[1]
+                (ax, ay), (bx, by) = t['a'], t['b']
+                sd = 0 if (bx - ax) * (v['y'] - ay) - (by - ay) * (v['x'] - ax) < 0 else 1
+                side_v[sd].append((v['x'], v['y']))
+        def maxnn(vs):
+            return max((min(math.dist(p, q) for q in vs if q is not p) for p in vs), default=None) \
+                if len(vs) > 1 else None
+        nl, nr = maxnn(side_v[0]), maxnn(side_v[1])
+        lim = (299792.458 / f_mhz / math.sqrt(eeff_net or 1) / 20) if f_mhz else None
+        fmt = lambda x: '-' if x is None else f"{x:.1f}"
+        verdict = ''
+        if lim:
+            worst = max((x for x in (nl, nr) if x is not None), default=None)
+            verdict = (f"   lambda/20 = {lim:.1f} mm: " +
+                       ('NO FENCE' if not side_v[0] and not side_v[1] else
+                        'one side unfenced' if not (side_v[0] and side_v[1]) else
+                        'OK' if worst is not None and worst <= lim else 'GAPS WIDER THAN lambda/20'))
+        print(f"  GND fence (<= {fence:g} mm from the trace edge): {len(side_v[0]) + len(side_v[1])} vias, "
+              f"L {len(side_v[0])} / R {len(side_v[1])}, widest nearest-neighbour gap "
+              f"L {fmt(nl)} / R {fmt(nr)} mm{verdict}")
+    print("\nZo: microstrip is Hammerstad's closed form (uncoated, ~1%); CPWG is a 2D field solve\n"
+          "(kzo.py, ~1% vs exact cases) on the board file's stackup, rectangular copper, median\n"
+          "gap per side. The fab's stackup (and its etch trapezoid) is the arbiter: check h and er\n"
+          "above match it. Fills are the LAST SAVED state. Fence gaps are nearest-neighbour\n"
+          "spacing along each side, a proxy for pitch on a bent trace.")
+    return rc
+
+# ---------------- 3D height (Z) ----------------
+
+def _mat(node):
+    """glTF node -> 4x4 row-major local transform (matrix, or T*R*S)."""
+    if 'matrix' in node:
+        m = node['matrix']                              # column-major
+        return [[m[c * 4 + r] for c in range(4)] for r in range(4)]
+    x, y, z, w = node.get('rotation', [0, 0, 0, 1])
+    sx, sy, sz = node.get('scale', [1, 1, 1])
+    tx, ty, tz = node.get('translation', [0, 0, 0])
+    R = [[1 - 2 * (y * y + z * z), 2 * (x * y - z * w), 2 * (x * z + y * w)],
+         [2 * (x * y + z * w), 1 - 2 * (x * x + z * z), 2 * (y * z - x * w)],
+         [2 * (x * z - y * w), 2 * (y * z + x * w), 1 - 2 * (x * x + y * y)]]
+    return [[R[0][0] * sx, R[0][1] * sy, R[0][2] * sz, tx],
+            [R[1][0] * sx, R[1][1] * sy, R[1][2] * sz, ty],
+            [R[2][0] * sx, R[2][1] * sy, R[2][2] * sz, tz], [0, 0, 0, 1]]
+
+def _mul(a, b):
+    return [[sum(a[i][k] * b[k][j] for k in range(4)) for j in range(4)] for i in range(4)]
+
+def heights(b):
+    """({ref: height mm above its own board face}, [missing model files]).
+
+    From KiCad's own GLB export: OCCT meshes each STEP model and places it, so
+    this is the real model geometry, not a package-name guess. glTF is Y-up in
+    metres and each part's node origin sits on its board face. A part with no
+    loadable model is simply absent from the dict - never read that as 0 mm."""
+    import struct, subprocess, tempfile
+    from kcommon import kicad_cli
+    with tempfile.TemporaryDirectory() as td:
+        out = os.path.join(td, 'b.glb')
+        r = subprocess.run([kicad_cli(b.path), 'pcb', 'export', 'glb', '--no-board-body',
+                            '--no-dnp', '-f', '-o', out, b.path], capture_output=True, text=True)
+        if not os.path.exists(out):
+            raise RuntimeError((r.stderr or r.stdout)[-400:])
+        blob = open(out, 'rb').read()
+    missing = sorted(set(re.findall(r'File not found: (\S+)', r.stdout + r.stderr)))
+    j = json.loads(blob[20:20 + struct.unpack('<I', blob[12:16])[0]])
+    nodes, meshes, acc = j['nodes'], j.get('meshes', []), j.get('accessors', [])
+    def walk(i, W, ys):
+        n = nodes[i]
+        W = _mul(W, _mat(n))
+        for pr in (meshes[n['mesh']]['primitives'] if 'mesh' in n else []):
+            a_ = acc[pr['attributes']['POSITION']]
+            lo, hi = a_.get('min'), a_.get('max')
+            if lo and hi:
+                for cx in (lo[0], hi[0]):
+                    for cy in (lo[1], hi[1]):
+                        for cz in (lo[2], hi[2]):
+                            ys.append(W[1][0] * cx + W[1][1] * cy + W[1][2] * cz + W[1][3])
+        for c in n.get('children', []):
+            walk(c, W, ys)
+    out = {}
+    root = j['scenes'][j.get('scene', 0)]['nodes']
+    for ri in root:
+        W0 = _mat(nodes[ri])
+        for ci in nodes[ri].get('children', []):
+            ref = nodes[ci].get('name')
+            f = b.fps.get(ref)
+            if not f:
+                continue
+            ys = []
+            walk(ci, W0, ys)
+            if ys:
+                oy = _mul(W0, _mat(nodes[ci]))[1][3]
+                out[ref] = 1000 * ((oy - min(ys)) if f.back else (max(ys) - oy))
+    return out, missing
+
+def c_height(b, a):
+    """`height [REF...]`: 3D model height per part, and the board's Z stack -
+    at each tall back-side part (the cells): its height + board + the tallest
+    front part over its courtyard. The pocket-thickness budget in one call."""
+    try:
+        H, missing = heights(b)
+    except Exception as e:
+        print(f"GLB export failed: {e}", file=sys.stderr); return 3
+    real = [f for f in b.fps.values() if f.placed and not f.dnp and not b.is_hole(f)]
+    cfgd = {k: _f(v) for k, v in (a.height_cfg or {}).items() if k in b.fps}
+    H.update(cfgd)                                  # kpcb.json "height": measured > model
+    # model-less footprints that are only copper (jumpers, net ties, test pads/holes)
+    flat = sorted((f.ref for f in real if f.ref not in H and
+                   re.search(r'SolderJumper|NetTie|TestPoint|Fiducial', f.fp, re.I)), key=natkey)
+    H.update({r: 0.0 for r in flat})
+    nomodel = sorted((f.ref for f in real if f.ref not in H), key=natkey)
+    gone = {os.path.basename(m) for m in missing}
+    partial = sorted((f.ref for f in real if f.ref in H and f.ref not in cfgd
+                      and any(os.path.basename(m) in gone for m in f.models)), key=natkey)
+    holder = lambda r: prefix(r) == 'BT' or re.search(r'BatteryHolder|BAT-SMD', b.fps[r].fp)
+    thick = sum(t for _, ty, t, _ in b.stack if ty in ('copper', 'core', 'prepreg')) or 1.6
+    fmt = lambda r: (f"{r} {H[r]:.2f}" + ('*' if r in cfgd else '')) if r in H else f"{r} ?"
+    if a.args:
+        for ref in a.args:
+            f = b.fps.get(ref)
+            if not f:
+                print(f"{ref}: no such footprint"); continue
+            miss = [os.path.basename(m) for m in f.models if os.path.basename(m) in gone]
+            print(f"{ref:<6} {'B' if f.back else 'F'}  " +
+                  (f"{H[ref]:.2f} mm above its face" + (' (kpcb.json)' if ref in cfgd else '')
+                   if ref in H else "NO 3D MODEL loaded - height UNKNOWN") + f"   {trunc(f.fp, 50)}"
+                  + (f"   !! not found: {' '.join(miss)}" if miss else ''))
+        return 0
+    print(f"{b.path}: 3D heights (KiCad GLB export of the STEP models; board {thick:.3f} mm)")
+    for side, back in (('front', False), ('back', True)):
+        top = sorted((r for r in H if b.fps[r].back == back), key=lambda r: -H[r])
+        print(f"  {side:<5} tallest: " + ', '.join(fmt(r) for r in top[:a.max]))
+    if cfgd:
+        print(f"  * = kpcb.json \"height\" override: {' '.join(f'{k}={v:g}' for k, v in cfgd.items())}")
+    if flat:
+        print(f"\n  assumed flat copper, no model ({len(flat)}): {trunc(refrange(flat), 200)}"
+              f"  - a header or probe pin fitted to a TH test point adds height")
+    if nomodel:
+        print(f"\n  NO 3D MODEL ({len(nomodel)}) - height UNKNOWN, not zero: "
+              f"{trunc(' '.join(nomodel), 300)}")
+    if missing:
+        print(f"  model files not found: {trunc(' '.join(sorted(gone)), 300)}")
+    if partial:
+        print(f"  PARTIAL (one of several models missing, height may be low): {' '.join(partial)}")
+    print("\nZ stack (back part + board + tallest front part over its courtyard):")
+    worst = None
+    for r in sorted((r for r in H if b.fps[r].back), key=lambda r: -H[r])[:4]:
+        g = b.fps[r]
+        over = [f for f in real if not f.back and hit(f.crtyd, g.crtyd)]
+        known = [f for f in over if f.ref in H]
+        tf = max(known, key=lambda f: H[f.ref]) if known else None
+        z = H[r] + thick + (H[tf.ref] if tf else 0)
+        unk = [f.ref for f in over if f.ref not in H]
+        worst = max(worst or 0, z)
+        print(f"  at {r:<5} {H[r]:6.2f} + {thick:.2f} + {(H[tf.ref] if tf else 0):5.2f}"
+              f" ({tf.ref if tf else 'nothing over it'}) = {z:6.2f} mm"
+              + (f"   + UNKNOWN from {' '.join(unk[:6])}" if unk else '')
+              + ("\n        !! battery-holder MODEL height: it may not include the cell (a 21700"
+                 " is 21.7 mm across).\n        Measure the seated cell top and set kpcb.json "
+                 f"{{\"height\": {{\"{r}\": MM}}}}" if holder(r) and r not in cfgd else ''))
+    fr = [H[r] for r in H if not b.fps[r].back]
+    bk = [H[r] for r in H if b.fps[r].back]
+    if fr and bk:
+        print(f"  whole-board bound (tallest back + board + tallest front): "
+              f"{max(bk) + thick + max(fr):.2f} mm")
+    print("\nHeights are model geometry as placed (incl. the model's own offset), meshed by\n"
+          "OCCT - accurate to its tessellation (~0.01 mm). A part with no model is UNKNOWN.\n"
+          "Enclosure, gasket, display and standoffs are not on the board and not counted.")
+    return 0
+
 CMDS = {'summary': c_summary, 'check': c_check, 'where': c_where, 'map': c_map,
         'sheet': c_sheet, 'unplaced': c_unplaced, 'ic': c_ic, 'span': c_span,
         'zones': c_zones, 'sync': c_sync, 'review': c_review, 'ampacity': c_ampacity,
-        'viapad': c_viapad}
+        'viapad': c_viapad, 'net': c_net, 'rf': c_rf, 'height': c_height}
 
 def main():
     ap = argparse.ArgumentParser(add_help=False)
@@ -2713,6 +3286,15 @@ def main():
                     help='for `ampacity`: net name, repeatable. For a name starting with '
                          '"-", use =, e.g. --net=-BATT (a space before the dash still '
                          'confuses argparse, as does the positional arg)')
+    ap.add_argument('--freq', type=float, default=None,
+                    help='for `rf`: signal frequency in MHz, for the lambda/20 fence check '
+                         '(default: inferred from the net/sheet name)')
+    ap.add_argument('--fence', type=float, default=1.5,
+                    help='for `rf`: a GND via this close to the trace edge counts as fence, mm (1.5)')
+    ap.add_argument('--signal', action='store_true',
+                    help='for `viapad`: hide GND/power pads (routine drops), keep signal pads')
+    ap.add_argument('--min', dest='min_vias', type=int, default=1,
+                    help='for `viapad`: only pads holding >= N vias, e.g. 4 for thermal pads (1)')
     ap.add_argument('--only', default='')
     ap.add_argument('--skip', default='')
     ap.add_argument('--json', action='store_true')
@@ -2739,6 +3321,7 @@ def main():
             except (TypeError, ValueError):
                 setattr(a, name, dflt)
     a.current = cfg.get('current') if isinstance(cfg.get('current'), dict) else {}
+    a.height_cfg = cfg.get('height') if isinstance(cfg.get('height'), dict) else {}
     a.suppress = {}
     if not a.no_suppress:
         for entry in cfg.get('suppress') or []:

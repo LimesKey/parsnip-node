@@ -8,7 +8,8 @@ Read this before touching `part.py`'s HTTP layer. Do not re-probe what is here.
 | --- | --- |
 | `wmsc.lcsc.com/ftps/wm/product/detail` | works, detail by C-code, full parameters |
 | `easyeda.com/api/eda/product/search` (POST, form-encoded) | works, keyword search, `pageSize` up to 200 |
-| `jlcpcb.com/api/overseas-pcb-order/v1/shoppingCart/smtGood/selectSmtComponentList` (POST, JSON) | works, no auth, 200 rows/call **with parsed attributes** |
+| `jlcpcb.com/api/overseas-pcb-order/v1/shoppingCart/smtGood/selectSmtComponentList` (POST, JSON) | works, no auth, 200 rows/call **with parsed attributes**; package/category/price-sort/attribute filters server-side (see below). `pick`'s default pool |
+| `jlcpcb.com/api/overseas-pcb-order/v1/componentSearch/filterComponentAttribute` (POST, JSON) | works, no auth: the parts sidebar's facets - every attribute value with its part count, per category id (+ package). Unfiltered: all ~850 category names with ids (2.5 MB). Captured 2026-09-23 |
 | `wmsc.lcsc.com/wmsc/product/detail` | dead, 404 JSON |
 | `wmsc.lcsc.com/ftps/wm/search/global` | blocked, Akamai Access Denied |
 | `wmsc.lcsc.com/ftps/wm/{search/product,product/search,product/list,catalog/list}` | dead, "static resource unavailable" |
@@ -27,9 +28,53 @@ Its search rows carry **no parameters at all** - only mpn, number, manufacturer,
 package, stock, price, url. `needAggs=true` returns facet lists but they cannot be
 sent back as filters.
 
-This is why `pick` works the way it does: LCSC candidates must be fetched by
+This is why the LCSC pool works the way it does: candidates must be fetched by
 `product/detail` one at a time to learn their parameters. That is cached and parallel,
 so it is fast, but it is why there is a `--pool` cap.
+
+One thing `needAggs=true` IS good for: its `paramList` carries a `Category` facet (plus
+`Package`, `Manufacturer`), names only, no counts. The union over four broad keywords
+(`1`, `SMD`, `IC`, `resistor capacitor diode transistor connector`) is ~475 category
+names, the same strings JLC's category filter takes. `part.py` caches that list 7 days
+(`categories()`) to resolve `--cat` and to infer a category from a `pick` keyword. An
+empty keyword returns nothing; `a` returns total 0.
+
+## JLC search: what filters server-side (probed 2026-09-23)
+
+The `selectSmtComponentList` index holds ~7.26M parts with no filter, i.e. the LCSC
+catalog, not just JLC's assembly library. Prices match LCSC retail within ~1% on the
+same break points (JLC quotes from qty 1); JLC's stock runs higher (its own warehouse).
+Attribute names match LCSC's on the specs `pick` filters (a few secondary names
+differ, e.g. `Input Capacitance(Ciss)` vs `Ciss-Input Capacitance`).
+
+| body field | effect |
+| --- | --- |
+| `componentSpecificationList: ["SOT-23"]` | **works**: exact package filter (MOSFET 75,127 -> 5,744) |
+| `secondSortName: "MOSFETs"` | **works**: category filter, JLC's exact name (a row's `componentTypeEn`). The response's `firstSortName` is the leaf, `secondSortName` the parent - the request uses them the other way round |
+| `firstSortName: "MOSFETs"` | total 0 |
+| `sortMode: "PRICE_SORT", sortASC: "ASC"` | **works**: price ascending (all 75k MOSFETs, cheapest first) |
+| `currentPage: N` | **works**, keeps the sort order |
+| `stockFlag: true` | works: in stock only |
+| `componentLibraryType: "base"` | works: Basic only |
+| `stockSort: "desc"` | error response |
+| `componentAttributeList: [{"Drain to Source Voltage": ["30V", "40V"]}, {"Type": ["N-Channel"]}]` | **works** (captured from the jlcpcb.com/parts sidebar in a browser, 2026-09-23): a list of one-key maps, attribute name -> exact values; values OR, maps AND. The `/v2` path the site uses behaves the same. Earlier guesses (`attributeName`/`attributeValueList`, `attribute_name_en`/`attribute_value_name`, `componentAttributes`) error or return 0 |
+| `needAggs`, `searchSource`, `searchType`, `needSortAndCount` | `sortAndCountVoList` / `brandList` stay null: no facets |
+
+Values match exactly and there are no ranges: the sidebar's Min/Max boxes only
+narrow the value LIST client-side. So `pick` fetches the facet values for the
+category (+ package) - body `{"baseQueryDto": {"componentTypeIdList": [ID],
+"componentSpecificationList": [PKG], ...}, "catalogLevel": 2, "paramList": []}`,
+see `_facet_query` - runs its own predicate (ranges, >=, any-of) over them, and
+sends the passing values (`_server_attrs`). The id comes from an unfiltered facet
+call's `productTypeAggs` (`jlc_category_ids`, cached 7 days). Facet responses
+carry `docCount` per value, which is how `pick` reports how many parts in the
+category meet each limit on its own.
+
+Keyword matching ANDs tokens and does not reliably index category names: `TVS` 355,
+`TVS diode` 5 (mostly LEDs), `TVS` + `SMA(DO-214AC)` 0, while the category filter on
+`SMA(DO-214AC)` finds 515 in-stock TVS parts. Hence the category resolution in `pick`.
+Rows carry `describe`, a one-line spec string (`30V 40A 7.5mΩ@10V DFN-8(3x3) MOSFETs`),
+used as `desc`.
 
 ## JLCPCB Basic vs Extended
 
@@ -37,8 +82,8 @@ LCSC has no concept of "Basic" - it is a JLC assembly-library field. So:
 
 - `--basic` pools straight from JLC's base library (server-side filter, authoritative,
   ~1 call per keyword, and much faster than filtering LCSC results).
-- Without `--basic`, `pick` annotates only the rows it finally displays, one lookup per
-  C-code. The `jlc` column shows `BASIC`, `ext` or `-`.
+- Without `--basic`, JLC-pooled rows carry their library already; LCSC-pooled rows are
+  annotated one lookup per displayed C-code. The `jlc` column shows `BASIC`, `ext` or `-`.
 - **Do not infer Basic/Extended from a JLC keyword search**: its relevance ranking
   drops parts that do exist in the library, which shows up as a false `-`.
 
