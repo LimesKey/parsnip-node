@@ -21,7 +21,9 @@ found 3.3 V LDOs in SOT-23-5 where the LCSC pool found none.
 
 - **Category.** JLC's keyword matcher ANDs tokens and ignores category names (`TVS` +
   SMA finds 0 of the 2,802 SMA parts), so `pick` filters by category instead when it
-  can: `--cat TEXT` (any unique part of the name; ambiguous text lists the matches),
+  can: `--cat TEXT` (any unique part of the name; ambiguous text lists the matches,
+  text matching no category exits with the closest names - `Fixed Inductors` is LCSC's
+  old name, JLC's is `Power Inductors` or `Inductors (SMD)`),
   or inferred from the keyword when the phrase, or a word of it, names exactly one
   category (`TVS diode` -> `ESD and Surge Protection (TVS/ESD)`, `schottky` ->
   `Schottky Diodes`, `LDO`, `I2C GPIO expander` -> `I/O Expanders`, `test point`).
@@ -34,10 +36,15 @@ found 3.3 V LDOs in SOT-23-5 where the LCSC pool found none.
   asks JLC for exactly those values. The pool is then every in-stock part meeting
   all limits, cheapest first - not the cheapest 600 of the category filtered after.
   The header says `N limit(s) server-side`. A limit no listed value meets stops
-  there (`no X value in '<cat>' meets the limit`) without an LCSC fallback.
+  there (`no X value in '<cat>' meets the limit`) without an LCSC fallback. When the
+  sidebar spells one attribute two ways (Power Inductors: `Current - Saturation (Isat)`
+  on 14 parts, `...Saturation(Isat)` on 79k), the filter uses the spelling most parts
+  carry.
 - **Ambiguous keyword.** When a keyword names several categories, the one that IS
   the word wins (`MOSFET` -> MOSFETs, not the SiC one), else the only one stocking
-  `--pkg` (`MLCC` + 0805 -> MLCC - SMD/SMT). Still ambiguous: keyword match, as before.
+  `--pkg` (`MLCC` + 0805 -> MLCC - SMD/SMT). Still ambiguous: keyword match, and a
+  `category:` line lists the candidates - `pick inductor --isat '>=8'` pools the
+  cheapest 2.2uH chip inductors and finds none; add `--cat 'Power Inductors'`.
 - **Fallback.** JLC finding nothing falls back to the LCSC pool (keyword search, then
   one `product/detail` call per candidate, `--pool` cap) and says so. `--source lcsc`
   forces it, `both` unions them.

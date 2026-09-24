@@ -10,14 +10,21 @@ Read this before touching `part.py`'s HTTP layer. Do not re-probe what is here.
 | `easyeda.com/api/eda/product/search` (POST, form-encoded) | works, keyword search, `pageSize` up to 200 |
 | `jlcpcb.com/api/overseas-pcb-order/v1/shoppingCart/smtGood/selectSmtComponentList` (POST, JSON) | works, no auth, 200 rows/call **with parsed attributes**; package/category/price-sort/attribute filters server-side (see below). `pick`'s default pool |
 | `jlcpcb.com/api/overseas-pcb-order/v1/componentSearch/filterComponentAttribute` (POST, JSON) | works, no auth: the parts sidebar's facets - every attribute value with its part count, per category id (+ package). Unfiltered: all ~850 category names with ids (2.5 MB). Captured 2026-09-23 |
-| `easyeda.com/api/products/{C-code}/components?version=6.4.19.5` (GET) | works with a browser UA + `Referer: https://easyeda.com/`: the symbol and the footprint LCSC links to the code. `result.packageDetail.dataStr.shape[]` holds `PAD~shape~x~y~w~h~layer~net~num~holeR~pts~rot~...` in 10-mil units. CloudFront **403s after ~150 quick calls** (any client, for a while), so `fpcheck` asks only for leadless parts, 2 at a time, cached 30 days. Probed 2026-09-23 |
+| `easyeda.com/api/products/{C-code}/components?version=6.4.19.5` (GET) | works with a browser UA + `Referer: https://easyeda.com/`: the symbol and the footprint LCSC links to the code. `result.packageDetail.dataStr.shape[]` holds `PAD~shape~x~y~w~h~layer~net~num~holeR~pts~rot~...` in 10-mil units. CloudFront **403s after ~150 quick calls** (any client, for a while), so `fpcheck` asks only for leadless parts, 2 at a time, retries a refusal once after 10 s, caches 30 days. A code with no land answers 200 `{"success":false,"code":404,"message":"Component not found"}`, cached as "no land" (C42409135, C5830655). Probed 2026-09-23 |
 | `wmsc.lcsc.com/wmsc/product/detail` | dead, 404 JSON |
 | `wmsc.lcsc.com/ftps/wm/search/global` | blocked, Akamai Access Denied |
 | `wmsc.lcsc.com/ftps/wm/{search/product,product/search,product/list,catalog/list}` | dead, "static resource unavailable" |
 | `cart.jlcpcb.com/.../selectSmtComponentList` | superseded by the `jlcpcb.com/api/...` path above |
 
-The constants are at the top of `part.py`. When `selftest` shows DEAD, fix the
+The constants are at the top of `part_core.py`. When `selftest` shows DEAD, fix the
 constant. Never write a replacement scraper.
+
+**JLC-assembly-only codes** (C408408 Sunlord MWSA0503S-2R2MT, C51912672 E22P-915M30S)
+are not sold retail: LCSC detail returns no `result`, the JLC endpoint has the full
+record. `resolve`/`fpcheck`/`bom`/`check` fall back to it (`jlc_detail`) and label it.
+Its `dataManualUrl` (`www.lcsc.com/datasheet/lcsc_datasheet_..._C408408.pdf`) and the
+short `www.lcsc.com/datasheet/C<n>.pdf` serve an HTML viewer, not a PDF: never put
+either in a Datasheet field. Only `datasheet.lcsc.com/datasheet/pdf/<hash>` verifies.
 
 ## LCSC cannot filter or sort server-side. Do not go looking again.
 

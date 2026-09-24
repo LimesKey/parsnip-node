@@ -7,6 +7,11 @@ description: Look up and choose electronic components on LCSC, JLCPCB and DigiKe
 
 `scripts/part.py` is stdlib-only Python 3. No install, no API key needed for LCSC or JLC.
 
+Code map (to patch one command, open only its module): `part.py` is the CLI plus
+`search`/`show`/`ds`/`compare`/`selftest`; HTTP, cache, FX and the LCSC/DigiKey/JLC
+clients are `part_core.py`; value parsing and the constraint grammar `part_value.py`;
+`pick`/`alt` `part_pick.py`; `bom`/`jlc`/`check` `part_bom.py`; `fpcheck` `part_fpcheck.py`.
+
 ```bash
 P=<this-skill>/scripts/part.py
 python3 $P selftest
@@ -57,15 +62,18 @@ constraints, use `pick`, not `search`.**
 | `jlc board.net` | Basic vs Extended per part + total $3/line assembly fees |
 | `show C18164413` | ladder, stock, MOQ, multiple, params, category, verified datasheet |
 | `ds C42409135` | datasheet URL only, with pass/fail per candidate |
-| `ds C42409135 --save [--dir D]` | ...then download the verified PDF to `docs/datasheets/<MPN>.pdf`, or `docs/datasheets/<sheet>/` when that folder is split per sheet (sheet from the netlist; refuses and asks for `--dir` when it can't tell) (checks the `%PDF` header, keeps an existing file unless `--fresh`) and `kdoc.py index` it, so `kdoc.py grep -d <MPN>` works next |
+| `ds C42409135 --save [--dir D] [--name N]` | ...then download the verified PDF to `docs/datasheets/<PART>.pdf` (the base part number, uppercase: a ti.com link names it, `BQ25798RQMR` -> `BQ25798`; else the MPN cut at `,` `(` `+` `#`; vendor variant codes like `NEO-F10N-00B` need `--name NEO-F10N`; companion docs `--name <PART>_<DocType>`), or `docs/datasheets/<sheet>/` when that folder is split per sheet (sheet from the netlist; refuses and asks for `--dir` when it can't tell) (checks the `%PDF` header, keeps an existing file unless `--fresh`) and `kdoc.py index` it, so `kdoc.py grep -d <MPN>` works next |
 | `compare C1525 C60474` | side-by-side, differing parameters only |
 | `search 'TPS61033'` | keyword search, LCSC rows then JLC rows (JLC catalog price, spec string as desc). Add `--instock`. |
 | `bom board.net --qty 5` | prices a whole KiCad netlist by its LCSC Part property |
 | `check board.net --qty 5` | one-shot sourcing triage: `bom` pricing + `jlc` Basic/Extended, one table, one pass over the netlist |
-| `fpcheck board.net` | each symbol's KiCad footprint AND value vs the assigned LCSC part. Footprint: flags size/family mismatches and one LCSC code reused across different bodies (chip sizes and MPN-named footprints auto-clear; divergent nomenclature -> a small REVIEW bucket). Value: R/C/L symbol value vs LCSC's resistance/capacitance/inductance param (catches a right-footprint, wrong-value part, e.g. a 36R part on a 37.4R symbol). Body sizes stated in both names (`DFN-8(3x3)` vs `_2x2mm`) must agree. Leadless parts (DFN/QFN/SON/LGA/PicoStar) also get a **land check**: the board footprint's copper extent and largest pad vs the EasyEDA footprint LCSC links to the code (the one JLC assembles on); a >25% pad / >20% extent difference goes to REVIEW even if `fpcheck.json` confirmed the names. Board = the one `.kicad_pcb` beside the netlist or `--pcb`; `--no-land` skips it (EasyEDA 403s after ~150 quick calls; results cache 30 days). Also lists any assigned part LCSC marks EOL/NRND. `--show-ok`, `--json`; no `.net` runs the offline self-test. |
+| `fpcheck board.net` | each symbol's KiCad footprint AND value vs the assigned LCSC part. Footprint: flags size/family mismatches and one LCSC code reused across different bodies (chip sizes and MPN-named footprints auto-clear; divergent nomenclature -> a small REVIEW bucket). Value: R/C/L symbol value vs LCSC's resistance/capacitance/inductance param (catches a right-footprint, wrong-value part, e.g. a 36R part on a 37.4R symbol). MPN: the symbol's `MPN` field vs the code's part (a swapped `LCSC Part` or a stale MPN) is a MISMATCH. The header counts rows: a code on two footprints or values is two. Body sizes stated in both names (`DFN-8(3x3)` vs `_2x2mm`) must agree. Leadless parts (DFN/QFN/SON/LGA/PicoStar) also get a **land check**: the board footprint's copper extent and largest pad vs the EasyEDA footprint LCSC links to the code (the one JLC assembles on); a >25% pad / >20% extent difference goes to REVIEW even if `fpcheck.json` confirmed the names. Board = the one `.kicad_pcb` beside the netlist or `--pcb`; `--no-land` skips it (EasyEDA 403s after ~150 quick calls; results cache 30 days). Also lists any assigned part LCSC marks EOL/NRND. `--show-ok`, `--json`; no `.net` runs the offline self-test. |
 | `selftest` | which providers and the FX rate source work right now |
 
 `show`, `ds`, `compare` and `alt` accept a C-code, a bare MPN, or a pasted LCSC URL.
+A JLC-assembly-only code (not sold retail on LCSC, e.g. C408408, C51912672) falls back
+to JLC's record, labelled `[JLC ...]` with JLC catalog prices; `bom`/`check` list those
+separately and never add them to the LCSC total, and `fpcheck` checks them.
 `show` with several SKUs prints one verbose block per part by default; `--table`
 switches to one compact row per part, `--json` for machine-readable output.
 Exit codes: 0 ok, 1 nothing found.
@@ -100,14 +108,16 @@ part of another size (CSD25480F3 -> CSD25481F4 both read `PicoStar-3`).
 
 ## Run selftest first in a new session
 
-(`selftest --offline` is the no-network logic check to run after editing part.py.)
+(`selftest --offline` is the no-network logic check to run after editing part.py;
+`selftest --golden DIR board.net` records 16 real outputs on its first run and diffs
+them after, with every cached reply frozen - a refactor must leave them unchanged.)
 
 LCSC has no public API. `part.py` uses undocumented endpoints that can start
 returning 403/404 without notice. `selftest` reports in one line which providers are
 alive, so you never debug endpoints by hand or rebuild a scraper.
 
 If a provider shows DEAD, the endpoint moved. **The constants are at the top of
-`part.py`. Do not write a replacement script; fix the constant.** The full probed
+`part_core.py`. Do not write a replacement script; fix the constant.** The full probed
 endpoint table, and the exhaustive list of LCSC filter/sort parameters that were
 tested and do not work, are in [references/endpoints.md](references/endpoints.md).
 That file exists so nobody re-probes them. Read it before touching the HTTP layer,
