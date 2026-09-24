@@ -8898,7 +8898,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/fc71c00d1492142d2947c53c2600ec92.pdf?productCode=C202388"
 			(at 87.63 87.63 0)
 			(hide yes)
 			(show_name no)
@@ -8909,8 +8909,30 @@
 				)
 			)
 		)
-		(property "Description" "Push button switch, generic, two pins"
+		(property "Description" "SWITCH TACTILE SPST-NO 1N, 12V 50mA, 3.9x2.9mm SMD"
 			(at 87.63 92.71 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "SKRKAHE020"
+			(at 87.63 87.63 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "Alps Alpine"
+			(at 87.63 87.63 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -8921,72 +8943,6 @@
 			)
 		)
 		(property "LCSC Part" "C202388"
-			(at 87.63 92.71 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Voltage Rating" ""
-			(at 87.63 92.71 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Tolerance" ""
-			(at 87.63 92.71 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "LCSC" ""
-			(at 87.63 92.71 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "KLC_S3.3" ""
-			(at 87.63 92.71 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "KLC_S5.1" ""
-			(at 87.63 92.71 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Capacitor Rating" ""
 			(at 87.63 92.71 0)
 			(hide yes)
 			(show_name no)
@@ -9055,7 +9011,7 @@
 				)
 			)
 		)
-		(property "Datasheet" "https://www.lcsc.com/datasheet/C2862740.pdf"
+		(property "Datasheet" "https://www.ti.com/lit/ds/symlink/tps7a20.pdf"
 			(at 177.8 66.04 0)
 			(hide yes)
 			(show_name no)
@@ -9066,19 +9022,8 @@
 				)
 			)
 		)
-		(property "Description" ""
+		(property "Description" "IC LDO 3.3V 300mA, 7uVrms, 1.6-6V in, active discharge, SOT-23-5"
 			(at 177.8 53.34 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Manufacturer" "TI(德州仪器)"
-			(at 177.8 68.58 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -9090,6 +9035,17 @@
 		)
 		(property "MPN" "TPS7A2033PDBVR"
 			(at 177.8 71.12 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "Texas Instruments"
+			(at 177.8 68.58 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -9253,7 +9209,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/837b5ba54f8063c3882b949c35751654.pdf?productCode=C723682"
 			(at 257.81 66.04 0)
 			(hide yes)
 			(show_name no)
@@ -9264,7 +9220,29 @@
 				)
 			)
 		)
-		(property "Description" "Resistor, small symbol"
+		(property "Description" "RES 200kΩ ±0.1% 25ppm 100mW 0603 thin film"
+			(at 257.81 66.04 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "AT0603BRD07200KL"
+			(at 257.81 66.04 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "YAGEO"
 			(at 257.81 66.04 0)
 			(hide yes)
 			(show_name no)
@@ -9286,17 +9264,7 @@
 				)
 			)
 		)
-		(property "Voltage Rating" ""
-			(at 257.81 66.04 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Tolerance" "1%"
+		(property "Tolerance" "0.1%"
 			(at 260.858 67.056 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -9306,7 +9274,7 @@
 				)
 			)
 		)
-		(property "Capacitor Rating" ""
+		(property "Power Rating" "100mW"
 			(at 257.81 66.04 0)
 			(hide yes)
 			(show_name no)
@@ -9377,7 +9345,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/960fc76f20dcdbc93ff4d1e2164767dc.pdf?productCode=C696856"
 			(at 85.09 149.86 0)
 			(hide yes)
 			(show_name no)
@@ -9388,7 +9356,29 @@
 				)
 			)
 		)
-		(property "Description" "Unpolarized capacitor, small symbol"
+		(property "Description" "CAP MLCC 10nF ±20% 50V X7R 0402"
+			(at 85.09 149.86 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "TCC0402X7R103M500AT"
+			(at 85.09 149.86 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "CCTC"
 			(at 85.09 149.86 0)
 			(hide yes)
 			(show_name no)
@@ -9410,8 +9400,9 @@
 				)
 			)
 		)
-		(property "Voltage Rating" ""
+		(property "Voltage Rating" "50V"
 			(at 85.09 149.86 0)
+			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -9420,8 +9411,9 @@
 				)
 			)
 		)
-		(property "Tolerance" ""
+		(property "Dielectric" "X7R"
 			(at 85.09 149.86 0)
+			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -9430,7 +9422,7 @@
 				)
 			)
 		)
-		(property "Capacitor Rating" ""
+		(property "Tolerance" "20%"
 			(at 85.09 149.86 0)
 			(hide yes)
 			(show_name no)
@@ -9511,7 +9503,7 @@
 				)
 			)
 		)
-		(property "Description" "u-blox F10 standard precision GNSS module"
+		(property "Description" "MODULE GNSS u-blox F10, L1/L5 dual-band, LCC-24 12.2x16mm"
 			(at 124.206 27.94 0)
 			(hide yes)
 			(show_name no)
@@ -9522,8 +9514,8 @@
 				)
 			)
 		)
-		(property "Voltage Rating" ""
-			(at 121.92 69.85 0)
+		(property "MPN" "NEO-F10N-00B"
+			(at 108.712 92.964 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -9533,8 +9525,8 @@
 				)
 			)
 		)
-		(property "Tolerance" ""
-			(at 121.92 69.85 0)
+		(property "Manufacturer" "u-blox"
+			(at 108.712 92.964 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -9544,29 +9536,7 @@
 				)
 			)
 		)
-		(property "LCSC" ""
-			(at 121.92 69.85 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Capacitor Rating" ""
-			(at 121.92 69.85 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "LCSC Part" ""
+		(property "LCSC Part" "C21709333"
 			(at 121.92 69.85 0)
 			(hide yes)
 			(show_name no)
@@ -9703,7 +9673,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/d0d02de47642fe4f4639912f1a5cccad.pdf?productCode=C23901508"
 			(at 41.91 91.44 0)
 			(hide yes)
 			(show_name no)
@@ -9714,8 +9684,30 @@
 				)
 			)
 		)
-		(property "Description" "Resistor"
+		(property "Description" "RES 2.2kΩ ±0.1% 25ppm 62.5mW 0402 thin film"
 			(at 41.91 91.44 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "TC0225B2201TCC"
+			(at 40.132 91.44 90)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "UNI-ROYAL"
+			(at 40.132 91.44 90)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -9736,7 +9728,7 @@
 				)
 			)
 		)
-		(property "Voltage Rating" ""
+		(property "Tolerance" "0.1%"
 			(at 41.91 91.44 0)
 			(hide yes)
 			(show_name no)
@@ -9747,41 +9739,8 @@
 				)
 			)
 		)
-		(property "Tolerance" ""
-			(at 41.91 91.44 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "LCSC" ""
-			(at 41.91 91.44 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "KLC_S3.3" ""
-			(at 41.91 91.44 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "KLC_S5.1" ""
-			(at 41.91 91.44 0)
+		(property "Power Rating" "62.5mW"
+			(at 40.132 91.44 90)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -9848,7 +9807,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/ccccb98d57cdf4695ed28b626310d892.pdf?productCode=C51933309"
 			(at 53.34 59.69 0)
 			(hide yes)
 			(show_name no)
@@ -9859,7 +9818,7 @@
 				)
 			)
 		)
-		(property "Description" "Light emitting diode"
+		(property "Description" "LED blue 465nm, water clear, 0805"
 			(at 53.34 59.69 0)
 			(hide yes)
 			(show_name no)
@@ -9870,7 +9829,18 @@
 				)
 			)
 		)
-		(property "Sim.Pins" "1=K 2=A"
+		(property "MPN" "GL0805UB01"
+			(at 53.34 59.69 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "Guiguang"
 			(at 53.34 59.69 0)
 			(hide yes)
 			(show_name no)
@@ -9892,62 +9862,7 @@
 				)
 			)
 		)
-		(property "Voltage Rating" ""
-			(at 53.34 59.69 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Tolerance" ""
-			(at 53.34 59.69 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "LCSC" ""
-			(at 53.34 59.69 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "KLC_S3.3" ""
-			(at 53.34 59.69 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "KLC_S5.1" ""
-			(at 53.34 59.69 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Capacitor Rating" ""
+		(property "Sim.Pins" "1=K 2=A"
 			(at 53.34 59.69 0)
 			(hide yes)
 			(show_name no)
@@ -10169,7 +10084,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/b1266b0c87197fb3f02855f4cd0e28e3.pdf?productCode=C6119795"
 			(at 129.54 173.99 0)
 			(hide yes)
 			(show_name no)
@@ -10180,7 +10095,29 @@
 				)
 			)
 		)
-		(property "Description" "Unpolarized capacitor, small symbol"
+		(property "Description" "CAP MLCC 4.7uF ±20% 25V X5R 0402"
+			(at 129.54 173.99 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "CGA0402X5R475M250GT"
+			(at 129.54 173.99 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "HRE"
 			(at 129.54 173.99 0)
 			(hide yes)
 			(show_name no)
@@ -10202,7 +10139,7 @@
 				)
 			)
 		)
-		(property "Voltage Rating" ""
+		(property "Voltage Rating" "25V"
 			(at 129.54 173.99 0)
 			(hide yes)
 			(show_name no)
@@ -10213,7 +10150,7 @@
 				)
 			)
 		)
-		(property "Tolerance" ""
+		(property "Dielectric" "X5R"
 			(at 129.54 173.99 0)
 			(hide yes)
 			(show_name no)
@@ -10224,30 +10161,8 @@
 				)
 			)
 		)
-		(property "LCSC" ""
-			(at 129.54 173.99 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "KLC_S3.3" ""
-			(at 129.54 173.99 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "KLC_S5.1" ""
-			(at 129.54 173.99 90)
+		(property "Tolerance" "20%"
+			(at 129.54 173.99 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -10314,7 +10229,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://fscdn.rohm.com/en/products/databook/datasheet/discrete/diode/schottky_barrier/rb531sm-30t2r-e.pdf"
 			(at 119.38 30.48 0)
 			(hide yes)
 			(show_name no)
@@ -10325,7 +10240,29 @@
 				)
 			)
 		)
-		(property "Description" "Schottky diode"
+		(property "Description" "DIODE Schottky 30V 200mA, Vf 350mV @10mA, SOD-523"
+			(at 119.38 30.48 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "RB531SM-30T2R"
+			(at 119.38 30.48 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "ROHM"
 			(at 119.38 30.48 0)
 			(hide yes)
 			(show_name no)
@@ -10337,39 +10274,6 @@
 			)
 		)
 		(property "LCSC Part" "C2766159"
-			(at 119.38 30.48 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Voltage Rating" ""
-			(at 119.38 30.48 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Tolerance" ""
-			(at 119.38 30.48 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Capacitor Rating" ""
 			(at 119.38 30.48 0)
 			(hide yes)
 			(show_name no)
@@ -10751,7 +10655,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/ae687d21155af07a1c72ad1115e7421f.pdf?productCode=C2987940"
 			(at 217.17 77.47 0)
 			(hide yes)
 			(show_name no)
@@ -10762,7 +10666,29 @@
 				)
 			)
 		)
-		(property "Description" "Unpolarized capacitor, small symbol"
+		(property "Description" "CAP MLCC 2.2nF ±2% 50V C0G 0402"
+			(at 217.17 77.47 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "GRM1555C1H222GA01D"
+			(at 217.17 77.47 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "Murata"
 			(at 217.17 77.47 0)
 			(hide yes)
 			(show_name no)
@@ -10784,8 +10710,9 @@
 				)
 			)
 		)
-		(property "Voltage Rating" ""
+		(property "Voltage Rating" "50V"
 			(at 217.17 77.47 0)
+			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -10794,8 +10721,20 @@
 				)
 			)
 		)
-		(property "Tolerance" ""
+		(property "Dielectric" "C0G"
 			(at 217.17 77.47 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Tolerance" "2%"
+			(at 217.17 77.47 0)
+			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -10884,39 +10823,6 @@
 				)
 			)
 		)
-		(property "LCSC Part" ""
-			(at 175.26 139.7 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Voltage Rating" ""
-			(at 175.26 139.7 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Tolerance" ""
-			(at 175.26 139.7 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
 		(pin "2"
 			(uuid "09f92707-e262-438f-b47a-1a159bcabe3b")
 		)
@@ -10977,7 +10883,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/26cdfc55b8426b7658fe52a27bb4d16c.pdf?productCode=C844711"
 			(at 77.47 144.78 0)
 			(hide yes)
 			(show_name no)
@@ -10988,8 +10894,30 @@
 				)
 			)
 		)
-		(property "Description" "Resistor"
+		(property "Description" "RES 0Ω jumper 0402"
 			(at 77.47 144.78 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "CRCW04020000Z0EDHP"
+			(at 77.47 146.558 90)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "Vishay"
+			(at 77.47 146.558 90)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -11002,26 +10930,6 @@
 		(property "LCSC Part" "C844711"
 			(at 77.47 144.78 0)
 			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Voltage Rating" ""
-			(at 77.47 144.78 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Tolerance" ""
-			(at 77.47 144.78 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -11067,7 +10975,7 @@
 				(justify right)
 			)
 		)
-		(property "Value" "Conn_Coaxial_Small"
+		(property "Value" "U.FL"
 			(at 44.704 125.984 90)
 			(hide yes)
 			(show_name no)
@@ -11090,7 +10998,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/ade8681cf25347ad817fa65440db6a2c.pdf?productCode=C88374"
 			(at 46.99 132.08 0)
 			(hide yes)
 			(show_name no)
@@ -11101,7 +11009,29 @@
 				)
 			)
 		)
-		(property "Description" "small coaxial connector (BNC, SMA, SMB, SMC, Cinch/RCA, LEMO, ...)"
+		(property "Description" "CONN U.FL receptacle 50Ω, 6GHz, SMD"
+			(at 46.99 132.08 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "U.FL-R-SMT-1(80)"
+			(at 46.99 132.08 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "Hirose"
 			(at 46.99 132.08 0)
 			(hide yes)
 			(show_name no)
@@ -11113,72 +11043,6 @@
 			)
 		)
 		(property "LCSC Part" "C88374"
-			(at 46.99 132.08 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Voltage Rating" ""
-			(at 46.99 132.08 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Tolerance" ""
-			(at 46.99 132.08 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "LCSC" ""
-			(at 46.99 132.08 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "KLC_S3.3" ""
-			(at 46.99 132.08 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "KLC_S5.1" ""
-			(at 46.99 132.08 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Capacitor Rating" ""
 			(at 46.99 132.08 0)
 			(hide yes)
 			(show_name no)
@@ -11324,7 +11188,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/f38cc67c7d42c83cd043a2a714280f66.pdf?productCode=C6119763"
 			(at 198.12 80.01 0)
 			(hide yes)
 			(show_name no)
@@ -11335,7 +11199,29 @@
 				)
 			)
 		)
-		(property "Description" "Unpolarized capacitor, small symbol"
+		(property "Description" "CAP MLCC 10uF ±20% 10V X5R 0402"
+			(at 198.12 80.01 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "CGA0402X5R106M100GT"
+			(at 198.12 80.01 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "HRE"
 			(at 198.12 80.01 0)
 			(hide yes)
 			(show_name no)
@@ -11357,7 +11243,7 @@
 				)
 			)
 		)
-		(property "Voltage Rating" ""
+		(property "Voltage Rating" "10V"
 			(at 198.12 80.01 0)
 			(hide yes)
 			(show_name no)
@@ -11368,7 +11254,7 @@
 				)
 			)
 		)
-		(property "Tolerance" ""
+		(property "Dielectric" "X5R"
 			(at 198.12 80.01 0)
 			(hide yes)
 			(show_name no)
@@ -11379,30 +11265,8 @@
 				)
 			)
 		)
-		(property "LCSC" ""
-			(at 198.12 80.01 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "KLC_S3.3" ""
-			(at 198.12 80.01 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "KLC_S5.1" ""
-			(at 198.12 80.01 90)
+		(property "Tolerance" "20%"
+			(at 198.12 80.01 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -11469,7 +11333,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/68379ec060dbf46ca58f0ea52f41dfcd.pdf?productCode=C54951138"
 			(at 34.29 40.64 0)
 			(hide yes)
 			(show_name no)
@@ -11480,8 +11344,30 @@
 				)
 			)
 		)
-		(property "Description" "Resistor"
+		(property "Description" "RES 10kΩ ±0.5% 62.5mW 0402 thick film"
 			(at 34.29 40.64 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "FRH0402D1002TS"
+			(at 34.29 42.418 90)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "FOJAN"
+			(at 34.29 42.418 90)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -11502,7 +11388,7 @@
 				)
 			)
 		)
-		(property "Voltage Rating" ""
+		(property "Tolerance" "0.5%"
 			(at 34.29 40.64 0)
 			(hide yes)
 			(show_name no)
@@ -11513,41 +11399,8 @@
 				)
 			)
 		)
-		(property "Tolerance" ""
-			(at 34.29 40.64 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "LCSC" ""
-			(at 34.29 40.64 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "KLC_S3.3" ""
-			(at 34.29 40.64 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "KLC_S5.1" ""
-			(at 34.29 40.64 90)
+		(property "Power Rating" "62.5mW"
+			(at 34.29 42.418 90)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -11614,7 +11467,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/1a751e5cacd14ca30f43df4722fba38e.pdf?productCode=C319853"
 			(at 153.67 152.4 0)
 			(hide yes)
 			(show_name no)
@@ -11625,8 +11478,30 @@
 				)
 			)
 		)
-		(property "Description" "Resistor"
+		(property "Description" "RES 150Ω ±0.5% 25ppm 62.5mW 0402 thin film"
 			(at 153.67 152.4 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "AR02DTC1500"
+			(at 155.448 152.4 90)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "Viking Tech"
+			(at 155.448 152.4 90)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -11647,17 +11522,7 @@
 				)
 			)
 		)
-		(property "Voltage Rating" ""
-			(at 153.67 152.4 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Tolerance" "1%"
+		(property "Tolerance" "0.5%"
 			(at 156.718 152.4 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -11667,8 +11532,8 @@
 				)
 			)
 		)
-		(property "Capacitor Rating" ""
-			(at 153.67 152.4 0)
+		(property "Power Rating" "62.5mW"
+			(at 155.448 152.4 90)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -11923,7 +11788,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/ec3e308e963624b453a77b63220f4bbf.pdf?productCode=C1509597"
 			(at 204.47 69.85 0)
 			(hide yes)
 			(show_name no)
@@ -11934,7 +11799,29 @@
 				)
 			)
 		)
-		(property "Description" "Resistor, small symbol"
+		(property "Description" "RES 113kΩ ±0.1% 25ppm 62.5mW 0402 thin film"
+			(at 204.47 69.85 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "ARG02BTC1133"
+			(at 204.47 69.85 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "Viking Tech"
 			(at 204.47 69.85 0)
 			(hide yes)
 			(show_name no)
@@ -11956,16 +11843,6 @@
 				)
 			)
 		)
-		(property "Voltage Rating" ""
-			(at 204.47 69.85 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
 		(property "Tolerance" "0.1%"
 			(at 208.28 71.628 0)
 			(show_name no)
@@ -11976,7 +11853,7 @@
 				)
 			)
 		)
-		(property "Capacitor Rating" ""
+		(property "Power Rating" "62.5mW"
 			(at 204.47 69.85 0)
 			(hide yes)
 			(show_name no)
@@ -12044,7 +11921,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/46d7760c582640714d605308a25a220a.pdf?productCode=C861226"
 			(at 196.85 62.23 0)
 			(hide yes)
 			(show_name no)
@@ -12055,7 +11932,29 @@
 				)
 			)
 		)
-		(property "Description" "Resistor, small symbol"
+		(property "Description" "RES 215kΩ ±0.1% 25ppm 100mW 0603 thin film"
+			(at 196.85 62.23 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "RT0603BRD07215KL"
+			(at 196.85 62.23 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "YAGEO"
 			(at 196.85 62.23 0)
 			(hide yes)
 			(show_name no)
@@ -12077,16 +11976,6 @@
 				)
 			)
 		)
-		(property "Voltage Rating" ""
-			(at 196.85 62.23 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
 		(property "Tolerance" "0.1%"
 			(at 197.104 66.04 90)
 			(show_name no)
@@ -12097,7 +11986,7 @@
 				)
 			)
 		)
-		(property "Capacitor Rating" ""
+		(property "Power Rating" "100mW"
 			(at 196.85 62.23 0)
 			(hide yes)
 			(show_name no)
@@ -12274,7 +12163,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/f38cc67c7d42c83cd043a2a714280f66.pdf?productCode=C6119763"
 			(at 102.87 39.37 0)
 			(hide yes)
 			(show_name no)
@@ -12285,7 +12174,29 @@
 				)
 			)
 		)
-		(property "Description" "Unpolarized capacitor, small symbol"
+		(property "Description" "CAP MLCC 10uF ±20% 10V X5R 0402"
+			(at 102.87 39.37 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "CGA0402X5R106M100GT"
+			(at 102.87 39.37 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "HRE"
 			(at 102.87 39.37 0)
 			(hide yes)
 			(show_name no)
@@ -12307,7 +12218,7 @@
 				)
 			)
 		)
-		(property "Voltage Rating" ""
+		(property "Voltage Rating" "10V"
 			(at 102.87 39.37 0)
 			(hide yes)
 			(show_name no)
@@ -12318,7 +12229,7 @@
 				)
 			)
 		)
-		(property "Tolerance" ""
+		(property "Dielectric" "X5R"
 			(at 102.87 39.37 0)
 			(hide yes)
 			(show_name no)
@@ -12329,40 +12240,7 @@
 				)
 			)
 		)
-		(property "LCSC" ""
-			(at 102.87 39.37 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "KLC_S3.3" ""
-			(at 102.87 39.37 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "KLC_S5.1" ""
-			(at 102.87 39.37 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Capacitor Rating" ""
+		(property "Tolerance" "20%"
 			(at 102.87 39.37 0)
 			(hide yes)
 			(show_name no)
@@ -12507,7 +12385,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/68379ec060dbf46ca58f0ea52f41dfcd.pdf?productCode=C54951138"
 			(at 87.63 85.09 0)
 			(hide yes)
 			(show_name no)
@@ -12518,7 +12396,29 @@
 				)
 			)
 		)
-		(property "Description" "Resistor, small symbol"
+		(property "Description" "RES 10kΩ ±0.5% 62.5mW 0402 thick film"
+			(at 87.63 85.09 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "FRH0402D1002TS"
+			(at 87.63 85.09 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "FOJAN"
 			(at 87.63 85.09 0)
 			(hide yes)
 			(show_name no)
@@ -12540,7 +12440,7 @@
 				)
 			)
 		)
-		(property "Voltage Rating" ""
+		(property "Tolerance" "0.5%"
 			(at 87.63 85.09 0)
 			(hide yes)
 			(show_name no)
@@ -12551,41 +12451,8 @@
 				)
 			)
 		)
-		(property "Tolerance" ""
+		(property "Power Rating" "62.5mW"
 			(at 87.63 85.09 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "LCSC" ""
-			(at 87.63 85.09 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "KLC_S3.3" ""
-			(at 87.63 85.09 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "KLC_S5.1" ""
-			(at 87.63 85.09 90)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -12675,50 +12542,6 @@
 				)
 			)
 		)
-		(property "LCSC Part" ""
-			(at 29.21 95.25 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Voltage Rating" ""
-			(at 29.21 95.25 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Tolerance" ""
-			(at 29.21 95.25 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Capacitor Rating" ""
-			(at 29.21 95.25 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
 		(pin "2"
 			(uuid "fde63037-6adf-44e2-896b-aaf121034c76")
 		)
@@ -12776,7 +12599,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/f38cc67c7d42c83cd043a2a714280f66.pdf?productCode=C6119763"
 			(at 147.32 35.56 0)
 			(hide yes)
 			(show_name no)
@@ -12787,7 +12610,29 @@
 				)
 			)
 		)
-		(property "Description" "Unpolarized capacitor, small symbol"
+		(property "Description" "CAP MLCC 10uF ±20% 10V X5R 0402"
+			(at 147.32 35.56 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "CGA0402X5R106M100GT"
+			(at 147.32 35.56 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "HRE"
 			(at 147.32 35.56 0)
 			(hide yes)
 			(show_name no)
@@ -12809,8 +12654,9 @@
 				)
 			)
 		)
-		(property "Voltage Rating" ""
+		(property "Voltage Rating" "10V"
 			(at 147.32 35.56 0)
+			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -12819,8 +12665,20 @@
 				)
 			)
 		)
-		(property "Tolerance" ""
+		(property "Dielectric" "X5R"
 			(at 147.32 35.56 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Tolerance" "20%"
+			(at 147.32 35.56 0)
+			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -12886,7 +12744,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://www.ti.com/lit/ds/symlink/tpd1e10b06.pdf"
 			(at 198.12 86.36 0)
 			(hide yes)
 			(show_name no)
@@ -12897,7 +12755,29 @@
 				)
 			)
 		)
-		(property "Description" ""
+		(property "Description" "TVS ESD 5.5V Vrwm, bidirectional, X1SON-2 0.6x1"
+			(at 198.12 86.36 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "TPD1E10B06DPYR"
+			(at 198.12 86.36 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "Texas Instruments"
 			(at 198.12 86.36 0)
 			(hide yes)
 			(show_name no)
@@ -12909,39 +12789,6 @@
 			)
 		)
 		(property "LCSC Part" "C48260"
-			(at 198.12 86.36 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Voltage Rating" ""
-			(at 198.12 86.36 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Tolerance" ""
-			(at 198.12 86.36 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Capacitor Rating" ""
 			(at 198.12 86.36 0)
 			(hide yes)
 			(show_name no)
@@ -13088,7 +12935,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://www.ti.com/lit/ds/symlink/esd351.pdf"
 			(at 102.87 29.21 0)
 			(hide yes)
 			(show_name no)
@@ -13099,7 +12946,29 @@
 				)
 			)
 		)
-		(property "Description" "Bidirectional transient-voltage-suppression diode"
+		(property "Description" "TVS ESD 3.6V Vrwm, 1.8pF, unidirectional, ±30kV, X1SON-2 0.6x1"
+			(at 102.87 29.21 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "ESD351DPYR"
+			(at 102.87 29.21 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "Texas Instruments"
 			(at 102.87 29.21 0)
 			(hide yes)
 			(show_name no)
@@ -13111,39 +12980,6 @@
 			)
 		)
 		(property "LCSC Part" "C1974929"
-			(at 102.87 29.21 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Voltage Rating" ""
-			(at 102.87 29.21 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Tolerance" ""
-			(at 102.87 29.21 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Capacitor Rating" ""
 			(at 102.87 29.21 0)
 			(hide yes)
 			(show_name no)
@@ -13344,50 +13180,6 @@
 				)
 			)
 		)
-		(property "LCSC Part" ""
-			(at 48.26 40.64 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Voltage Rating" ""
-			(at 48.26 40.64 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Tolerance" ""
-			(at 48.26 40.64 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Capacitor Rating" ""
-			(at 48.26 40.64 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
 		(pin "3"
 			(uuid "a2c08e42-cfa7-4c56-92ab-7760600a8f72")
 		)
@@ -13470,50 +13262,6 @@
 				)
 			)
 		)
-		(property "LCSC Part" ""
-			(at 266.7 92.71 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Voltage Rating" ""
-			(at 266.7 92.71 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Tolerance" ""
-			(at 266.7 92.71 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Capacitor Rating" ""
-			(at 266.7 92.71 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
 		(pin "2"
 			(uuid "f11a3bfb-99d6-46f4-a02e-96cf1d70e1b9")
 		)
@@ -13573,7 +13321,7 @@
 				)
 			)
 		)
-		(property "Datasheet" "https://www.ti.com.cn/cn/lit/ds/symlink/esd501.pdf?ts=1748892533434"
+		(property "Datasheet" "https://www.ti.com/lit/ds/symlink/esd501.pdf"
 			(at 54.61 133.35 0)
 			(hide yes)
 			(show_name no)
@@ -13584,7 +13332,29 @@
 				)
 			)
 		)
-		(property "Description" "Bidirectional transient-voltage-suppression diode"
+		(property "Description" "TVS ESD RF low-cap 0.3pF, bidirectional, ±15kV, X1SON-2 0.6x1"
+			(at 54.61 133.35 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "ESD501DPYR"
+			(at 54.61 133.35 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "Texas Instruments"
 			(at 54.61 133.35 0)
 			(hide yes)
 			(show_name no)
@@ -13596,28 +13366,6 @@
 			)
 		)
 		(property "LCSC Part" "C42409135"
-			(at 54.61 133.35 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Voltage Rating" ""
-			(at 54.61 133.35 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Tolerance" ""
 			(at 54.61 133.35 0)
 			(hide yes)
 			(show_name no)
@@ -13762,7 +13510,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/dc7c513e4a82d65cc376cc0e5be62e16.pdf?productCode=C20069324"
 			(at 60.96 144.78 0)
 			(hide yes)
 			(show_name no)
@@ -13773,7 +13521,29 @@
 				)
 			)
 		)
-		(property "Description" "Unpolarized capacitor, small symbol"
+		(property "Description" "CAP MLCC 47pF ±5% 50V C0G 0402"
+			(at 60.96 144.78 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "CGA0402C0G470J500GT"
+			(at 60.96 144.78 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "HRE"
 			(at 60.96 144.78 0)
 			(hide yes)
 			(show_name no)
@@ -13795,7 +13565,7 @@
 				)
 			)
 		)
-		(property "Voltage Rating" "25V"
+		(property "Voltage Rating" "50V"
 			(at 60.96 144.78 0)
 			(hide yes)
 			(show_name no)
@@ -13806,52 +13576,19 @@
 				)
 			)
 		)
-		(property "Tolerance" ""
-			(at 60.96 144.78 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "LCSC" ""
-			(at 60.96 144.78 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "KLC_S3.3" ""
-			(at 60.96 144.78 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "KLC_S5.1" ""
-			(at 60.96 144.78 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Capacitor Rating" "C0G/NP0"
+		(property "Dielectric" "C0G"
 			(at 60.96 150.622 90)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Tolerance" "5%"
+			(at 60.96 144.78 0)
+			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -13917,7 +13654,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/2f82b35c4cf051a1d6cd28b95b66d0d6.pdf?productCode=C85830"
 			(at 175.26 152.4 0)
 			(hide yes)
 			(show_name no)
@@ -13928,8 +13665,30 @@
 				)
 			)
 		)
-		(property "Description" "Ferrite bead"
+		(property "Description" "FERRITE BEAD 600Ω @100MHz, 200mA, 1Ω DCR, 0603"
 			(at 175.26 152.4 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "BLM18HG601SN1D"
+			(at 177.038 152.4 90)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "Murata"
+			(at 177.038 152.4 90)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -13940,28 +13699,6 @@
 			)
 		)
 		(property "LCSC Part" "C85830"
-			(at 175.26 152.4 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Voltage Rating" ""
-			(at 175.26 152.4 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Tolerance" ""
 			(at 175.26 152.4 0)
 			(hide yes)
 			(show_name no)
@@ -14031,7 +13768,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/f608324e16dc58a8d3bf770f2f4184bc.pdf?productCode=C33546001"
 			(at 165.1 55.88 0)
 			(hide yes)
 			(show_name no)
@@ -14042,7 +13779,29 @@
 				)
 			)
 		)
-		(property "Description" "Unpolarized capacitor, small symbol"
+		(property "Description" "CAP MLCC 2.2uF ±10% 35V X5R 0402"
+			(at 165.1 55.88 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "HGC0402R5225K350NTEJ"
+			(at 165.1 55.88 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "Chinocera"
 			(at 165.1 55.88 0)
 			(hide yes)
 			(show_name no)
@@ -14064,7 +13823,7 @@
 				)
 			)
 		)
-		(property "Voltage Rating" "16V"
+		(property "Voltage Rating" "35V"
 			(at 165.1 55.88 0)
 			(hide yes)
 			(show_name no)
@@ -14075,7 +13834,18 @@
 				)
 			)
 		)
-		(property "Tolerance" ""
+		(property "Dielectric" "X5R"
+			(at 165.1 55.88 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Tolerance" "10%"
 			(at 165.1 55.88 0)
 			(hide yes)
 			(show_name no)
@@ -14143,7 +13913,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/a1d284d6e484d8894ccf91c9838f4642.pdf?productCode=C51933307"
 			(at 53.34 49.53 0)
 			(hide yes)
 			(show_name no)
@@ -14154,7 +13924,7 @@
 				)
 			)
 		)
-		(property "Description" "Light emitting diode"
+		(property "Description" "LED red 622nm, water clear, 0805"
 			(at 53.34 49.53 0)
 			(hide yes)
 			(show_name no)
@@ -14165,7 +13935,18 @@
 				)
 			)
 		)
-		(property "Sim.Pins" "1=K 2=A"
+		(property "MPN" "GL0805UR01"
+			(at 53.34 49.53 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "Guiguang"
 			(at 53.34 49.53 0)
 			(hide yes)
 			(show_name no)
@@ -14187,62 +13968,7 @@
 				)
 			)
 		)
-		(property "Voltage Rating" ""
-			(at 53.34 49.53 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Tolerance" ""
-			(at 53.34 49.53 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "LCSC" ""
-			(at 53.34 49.53 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "KLC_S3.3" ""
-			(at 53.34 49.53 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "KLC_S5.1" ""
-			(at 53.34 49.53 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Capacitor Rating" ""
+		(property "Sim.Pins" "1=K 2=A"
 			(at 53.34 49.53 0)
 			(hide yes)
 			(show_name no)
@@ -14312,7 +14038,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/26cdfc55b8426b7658fe52a27bb4d16c.pdf?productCode=C844711"
 			(at 50.8 140.97 0)
 			(hide yes)
 			(show_name no)
@@ -14323,7 +14049,29 @@
 				)
 			)
 		)
-		(property "Description" "Resistor, small symbol"
+		(property "Description" "RES 0Ω jumper 0402"
+			(at 50.8 140.97 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "CRCW04020000Z0EDHP"
+			(at 50.8 140.97 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "Vishay"
 			(at 50.8 140.97 0)
 			(hide yes)
 			(show_name no)
@@ -14335,61 +14083,6 @@
 			)
 		)
 		(property "LCSC Part" "C844711"
-			(at 50.8 140.97 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Voltage Rating" ""
-			(at 50.8 140.97 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Tolerance" ""
-			(at 50.8 140.97 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "LCSC" ""
-			(at 50.8 140.97 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "KLC_S3.3" ""
-			(at 50.8 140.97 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "KLC_S5.1" ""
 			(at 50.8 140.97 0)
 			(hide yes)
 			(show_name no)
@@ -14457,7 +14150,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/f38cc67c7d42c83cd043a2a714280f66.pdf?productCode=C6119763"
 			(at 261.62 76.2 0)
 			(hide yes)
 			(show_name no)
@@ -14468,7 +14161,29 @@
 				)
 			)
 		)
-		(property "Description" "Unpolarized capacitor, small symbol"
+		(property "Description" "CAP MLCC 10uF ±20% 10V X5R 0402"
+			(at 261.62 76.2 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "CGA0402X5R106M100GT"
+			(at 261.62 76.2 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "HRE"
 			(at 261.62 76.2 0)
 			(hide yes)
 			(show_name no)
@@ -14490,7 +14205,7 @@
 				)
 			)
 		)
-		(property "Voltage Rating" ""
+		(property "Voltage Rating" "10V"
 			(at 261.62 76.2 0)
 			(hide yes)
 			(show_name no)
@@ -14501,7 +14216,7 @@
 				)
 			)
 		)
-		(property "Tolerance" ""
+		(property "Dielectric" "X5R"
 			(at 261.62 76.2 0)
 			(hide yes)
 			(show_name no)
@@ -14512,30 +14227,8 @@
 				)
 			)
 		)
-		(property "LCSC" ""
-			(at 261.62 76.2 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "KLC_S3.3" ""
-			(at 261.62 76.2 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "KLC_S5.1" ""
-			(at 261.62 76.2 90)
+		(property "Tolerance" "20%"
+			(at 261.62 76.2 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -14605,7 +14298,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://fscdn.rohm.com/en/products/databook/datasheet/discrete/diode/schottky_barrier/rb531sm-30t2r-e.pdf"
 			(at 180.34 132.08 0)
 			(hide yes)
 			(show_name no)
@@ -14616,7 +14309,29 @@
 				)
 			)
 		)
-		(property "Description" "Schottky diode"
+		(property "Description" "DIODE Schottky 30V 200mA, Vf 350mV @10mA, SOD-523"
+			(at 180.34 132.08 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "RB531SM-30T2R"
+			(at 180.34 132.08 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "ROHM"
 			(at 180.34 132.08 0)
 			(hide yes)
 			(show_name no)
@@ -14628,39 +14343,6 @@
 			)
 		)
 		(property "LCSC Part" "C2766159"
-			(at 180.34 132.08 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Voltage Rating" ""
-			(at 180.34 132.08 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Tolerance" ""
-			(at 180.34 132.08 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Capacitor Rating" ""
 			(at 180.34 132.08 0)
 			(hide yes)
 			(show_name no)
@@ -14729,7 +14411,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/eab07ffddc7092a73be1e657f827b881.pdf?productCode=C5556161"
 			(at 111.76 147.32 0)
 			(hide yes)
 			(show_name no)
@@ -14740,7 +14422,29 @@
 				)
 			)
 		)
-		(property "Description" "SAW RF Filter for GNSS L1/L5 System"
+		(property "Description" "FILTER SAW GNSS L1/L5 dual-band (1575/1176MHz), 50Ω, 1.4x1.1mm"
+			(at 111.76 147.32 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "B39162B8389P810"
+			(at 111.76 147.32 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "Qualcomm (RF360)"
 			(at 111.76 147.32 0)
 			(hide yes)
 			(show_name no)
@@ -14752,28 +14456,6 @@
 			)
 		)
 		(property "LCSC Part" "C5556161"
-			(at 111.76 147.32 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Voltage Rating" ""
-			(at 111.76 147.32 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Tolerance" ""
 			(at 111.76 147.32 0)
 			(hide yes)
 			(show_name no)
@@ -14850,7 +14532,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/f38cc67c7d42c83cd043a2a714280f66.pdf?productCode=C6119763"
 			(at 147.32 31.75 0)
 			(hide yes)
 			(show_name no)
@@ -14861,7 +14543,29 @@
 				)
 			)
 		)
-		(property "Description" "Unpolarized capacitor, small symbol"
+		(property "Description" "CAP MLCC 10uF ±20% 10V X5R 0402"
+			(at 147.32 31.75 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "CGA0402X5R106M100GT"
+			(at 147.32 31.75 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "HRE"
 			(at 147.32 31.75 0)
 			(hide yes)
 			(show_name no)
@@ -14883,8 +14587,9 @@
 				)
 			)
 		)
-		(property "Voltage Rating" ""
+		(property "Voltage Rating" "10V"
 			(at 147.32 31.75 0)
+			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -14893,8 +14598,20 @@
 				)
 			)
 		)
-		(property "Tolerance" ""
+		(property "Dielectric" "X5R"
 			(at 147.32 31.75 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Tolerance" "20%"
+			(at 147.32 31.75 0)
+			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -15037,7 +14754,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/1a751e5cacd14ca30f43df4722fba38e.pdf?productCode=C319853"
 			(at 138.43 152.4 0)
 			(hide yes)
 			(show_name no)
@@ -15048,8 +14765,30 @@
 				)
 			)
 		)
-		(property "Description" "Resistor"
+		(property "Description" "RES 150Ω ±0.5% 25ppm 62.5mW 0402 thin film"
 			(at 138.43 152.4 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "AR02DTC1500"
+			(at 140.208 152.4 90)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "Viking Tech"
+			(at 140.208 152.4 90)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -15070,17 +14809,7 @@
 				)
 			)
 		)
-		(property "Voltage Rating" ""
-			(at 138.43 152.4 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Tolerance" "1%"
+		(property "Tolerance" "0.5%"
 			(at 141.224 152.4 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -15090,8 +14819,8 @@
 				)
 			)
 		)
-		(property "Capacitor Rating" ""
-			(at 138.43 152.4 0)
+		(property "Power Rating" "62.5mW"
+			(at 140.208 152.4 90)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -15161,7 +14890,7 @@
 				(justify left)
 			)
 		)
-		(property "Datasheet" "https://www.onsemi.com/pub/Collateral/BSS138-D.PDF"
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/e6afae9ee592dc8ff3f4f777ab821073.pdf?productCode=C3015220"
 			(at 109.22 176.53 0)
 			(hide yes)
 			(show_name no)
@@ -15173,7 +14902,7 @@
 				(justify left)
 			)
 		)
-		(property "Description" "50V Vds, 0.22A Id, N-Channel MOSFET, SOT-23"
+		(property "Description" "MOSFET N-ch 50V 220mA, SOT-23"
 			(at 105.41 181.61 0)
 			(hide yes)
 			(show_name no)
@@ -15182,6 +14911,32 @@
 				(font
 					(size 1.27 1.27)
 				)
+			)
+		)
+		(property "MPN" "BSS138"
+			(at 107.315 176.53 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+					(italic yes)
+				)
+				(justify left)
+			)
+		)
+		(property "Manufacturer" "KUU"
+			(at 107.315 176.53 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+					(italic yes)
+				)
+				(justify left)
 			)
 		)
 		(property "LCSC Part" "C3015220"
@@ -15255,7 +15010,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/f4da32bad2b63678770dda69cfcd538f.pdf?productCode=C2984406"
 			(at 110.49 187.96 0)
 			(hide yes)
 			(show_name no)
@@ -15266,7 +15021,29 @@
 				)
 			)
 		)
-		(property "Description" "Resistor, small symbol"
+		(property "Description" "RES 100kΩ ±0.1% 25ppm 62.5mW 0402 thin film"
+			(at 110.49 187.96 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "ARG02BTC1003"
+			(at 110.49 187.96 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "Viking Tech"
 			(at 110.49 187.96 0)
 			(hide yes)
 			(show_name no)
@@ -15288,7 +15065,7 @@
 				)
 			)
 		)
-		(property "Voltage Rating" ""
+		(property "Tolerance" "0.1%"
 			(at 110.49 187.96 0)
 			(hide yes)
 			(show_name no)
@@ -15299,7 +15076,7 @@
 				)
 			)
 		)
-		(property "Tolerance" ""
+		(property "Power Rating" "62.5mW"
 			(at 110.49 187.96 0)
 			(hide yes)
 			(show_name no)
@@ -15367,7 +15144,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/f38cc67c7d42c83cd043a2a714280f66.pdf?productCode=C6119763"
 			(at 189.23 58.42 0)
 			(hide yes)
 			(show_name no)
@@ -15378,7 +15155,29 @@
 				)
 			)
 		)
-		(property "Description" "Unpolarized capacitor, small symbol"
+		(property "Description" "CAP MLCC 10uF ±20% 10V X5R 0402"
+			(at 189.23 58.42 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "CGA0402X5R106M100GT"
+			(at 189.23 58.42 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "HRE"
 			(at 189.23 58.42 0)
 			(hide yes)
 			(show_name no)
@@ -15400,7 +15199,7 @@
 				)
 			)
 		)
-		(property "Voltage Rating" ""
+		(property "Voltage Rating" "10V"
 			(at 189.23 58.42 0)
 			(hide yes)
 			(show_name no)
@@ -15411,7 +15210,7 @@
 				)
 			)
 		)
-		(property "Tolerance" ""
+		(property "Dielectric" "X5R"
 			(at 189.23 58.42 0)
 			(hide yes)
 			(show_name no)
@@ -15422,30 +15221,8 @@
 				)
 			)
 		)
-		(property "LCSC" ""
-			(at 189.23 58.42 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "KLC_S3.3" ""
-			(at 189.23 58.42 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "KLC_S5.1" ""
-			(at 189.23 58.42 90)
+		(property "Tolerance" "20%"
+			(at 189.23 58.42 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -15699,7 +15476,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/c3fe41080cc311a09e2390c2e42d8ed5.pdf?productCode=C49655648"
 			(at 246.38 77.47 0)
 			(hide yes)
 			(show_name no)
@@ -15710,7 +15487,29 @@
 				)
 			)
 		)
-		(property "Description" "Resistor, small symbol"
+		(property "Description" "RES 6.65kΩ ±1% 62.5mW 0402 thick film"
+			(at 246.38 77.47 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "GR0402F6K65TAG00"
+			(at 246.38 77.47 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "GiantOhm"
 			(at 246.38 77.47 0)
 			(hide yes)
 			(show_name no)
@@ -15732,16 +15531,6 @@
 				)
 			)
 		)
-		(property "Voltage Rating" ""
-			(at 246.38 77.47 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
 		(property "Tolerance" "1%"
 			(at 249.682 78.74 0)
 			(show_name no)
@@ -15752,7 +15541,7 @@
 				)
 			)
 		)
-		(property "Capacitor Rating" ""
+		(property "Power Rating" "62.5mW"
 			(at 246.38 77.47 0)
 			(hide yes)
 			(show_name no)
@@ -15820,7 +15609,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/fc71c00d1492142d2947c53c2600ec92.pdf?productCode=C202388"
 			(at 87.63 77.47 0)
 			(hide yes)
 			(show_name no)
@@ -15831,8 +15620,30 @@
 				)
 			)
 		)
-		(property "Description" "Push button switch, generic, two pins"
+		(property "Description" "SWITCH TACTILE SPST-NO 1N, 12V 50mA, 3.9x2.9mm SMD"
 			(at 87.63 82.55 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "SKRKAHE020"
+			(at 87.63 77.47 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "Alps Alpine"
+			(at 87.63 77.47 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -15843,72 +15654,6 @@
 			)
 		)
 		(property "LCSC Part" "C202388"
-			(at 87.63 82.55 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Voltage Rating" ""
-			(at 87.63 82.55 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Tolerance" ""
-			(at 87.63 82.55 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "LCSC" ""
-			(at 87.63 82.55 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "KLC_S3.3" ""
-			(at 87.63 82.55 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "KLC_S5.1" ""
-			(at 87.63 82.55 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Capacitor Rating" ""
 			(at 87.63 82.55 0)
 			(hide yes)
 			(show_name no)
@@ -15979,7 +15724,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/d0d02de47642fe4f4639912f1a5cccad.pdf?productCode=C23901508"
 			(at 54.61 91.44 0)
 			(hide yes)
 			(show_name no)
@@ -15990,8 +15735,30 @@
 				)
 			)
 		)
-		(property "Description" "Resistor"
+		(property "Description" "RES 2.2kΩ ±0.1% 25ppm 62.5mW 0402 thin film"
 			(at 54.61 91.44 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "TC0225B2201TCC"
+			(at 52.832 91.44 90)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "UNI-ROYAL"
+			(at 52.832 91.44 90)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -16012,7 +15779,7 @@
 				)
 			)
 		)
-		(property "Voltage Rating" ""
+		(property "Tolerance" "0.1%"
 			(at 54.61 91.44 0)
 			(hide yes)
 			(show_name no)
@@ -16023,41 +15790,8 @@
 				)
 			)
 		)
-		(property "Tolerance" ""
-			(at 54.61 91.44 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "LCSC" ""
-			(at 54.61 91.44 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "KLC_S3.3" ""
-			(at 54.61 91.44 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "KLC_S5.1" ""
-			(at 54.61 91.44 0)
+		(property "Power Rating" "62.5mW"
+			(at 52.832 91.44 90)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -16124,7 +15858,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/26cdfc55b8426b7658fe52a27bb4d16c.pdf?productCode=C844711"
 			(at 165.1 46.99 0)
 			(hide yes)
 			(show_name no)
@@ -16135,7 +15869,29 @@
 				)
 			)
 		)
-		(property "Description" "Resistor, small symbol"
+		(property "Description" "RES 0Ω jumper 0402"
+			(at 165.1 46.99 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "CRCW04020000Z0EDHP"
+			(at 165.1 46.99 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "Vishay"
 			(at 165.1 46.99 0)
 			(hide yes)
 			(show_name no)
@@ -16147,39 +15903,6 @@
 			)
 		)
 		(property "LCSC Part" "C844711"
-			(at 165.1 46.99 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Voltage Rating" ""
-			(at 165.1 46.99 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Tolerance" ""
-			(at 165.1 46.99 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Capacitor Rating" ""
 			(at 165.1 46.99 0)
 			(hide yes)
 			(show_name no)
@@ -16250,7 +15973,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/960fc76f20dcdbc93ff4d1e2164767dc.pdf?productCode=C696856"
 			(at 69.85 149.86 0)
 			(hide yes)
 			(show_name no)
@@ -16261,7 +15984,29 @@
 				)
 			)
 		)
-		(property "Description" "Unpolarized capacitor, small symbol"
+		(property "Description" "CAP MLCC 10nF ±20% 50V X7R 0402"
+			(at 69.85 149.86 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "TCC0402X7R103M500AT"
+			(at 69.85 149.86 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "CCTC"
 			(at 69.85 149.86 0)
 			(hide yes)
 			(show_name no)
@@ -16283,8 +16028,9 @@
 				)
 			)
 		)
-		(property "Voltage Rating" ""
+		(property "Voltage Rating" "50V"
 			(at 69.85 149.86 0)
+			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -16293,8 +16039,9 @@
 				)
 			)
 		)
-		(property "Tolerance" ""
+		(property "Dielectric" "X7R"
 			(at 69.85 149.86 0)
+			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -16303,7 +16050,7 @@
 				)
 			)
 		)
-		(property "Capacitor Rating" ""
+		(property "Tolerance" "20%"
 			(at 69.85 149.86 0)
 			(hide yes)
 			(show_name no)
@@ -16371,7 +16118,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/1a751e5cacd14ca30f43df4722fba38e.pdf?productCode=C317921"
 			(at 129.54 30.48 0)
 			(hide yes)
 			(show_name no)
@@ -16382,7 +16129,29 @@
 				)
 			)
 		)
-		(property "Description" "Resistor, small symbol"
+		(property "Description" "RES 4.7kΩ ±0.1% 25ppm 62.5mW 0402 thin film"
+			(at 129.54 30.48 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "AR02BTC4701"
+			(at 129.54 30.48 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "Viking Tech"
 			(at 129.54 30.48 0)
 			(hide yes)
 			(show_name no)
@@ -16404,7 +16173,7 @@
 				)
 			)
 		)
-		(property "Voltage Rating" ""
+		(property "Tolerance" "0.1%"
 			(at 129.54 30.48 0)
 			(hide yes)
 			(show_name no)
@@ -16415,41 +16184,8 @@
 				)
 			)
 		)
-		(property "Tolerance" ""
+		(property "Power Rating" "62.5mW"
 			(at 129.54 30.48 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "LCSC" ""
-			(at 129.54 30.48 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "KLC_S3.3" ""
-			(at 129.54 30.48 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "KLC_S5.1" ""
-			(at 129.54 30.48 90)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -16518,7 +16254,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/26cdfc55b8426b7658fe52a27bb4d16c.pdf?productCode=C844711"
 			(at 35.56 140.97 0)
 			(hide yes)
 			(show_name no)
@@ -16529,7 +16265,29 @@
 				)
 			)
 		)
-		(property "Description" "Resistor, small symbol"
+		(property "Description" "RES 0Ω jumper 0402"
+			(at 35.56 140.97 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "CRCW04020000Z0EDHP"
+			(at 35.56 140.97 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "Vishay"
 			(at 35.56 140.97 0)
 			(hide yes)
 			(show_name no)
@@ -16541,61 +16299,6 @@
 			)
 		)
 		(property "LCSC Part" "C844711"
-			(at 35.56 140.97 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Voltage Rating" ""
-			(at 35.56 140.97 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Tolerance" ""
-			(at 35.56 140.97 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "LCSC" ""
-			(at 35.56 140.97 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "KLC_S3.3" ""
-			(at 35.56 140.97 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "KLC_S5.1" ""
 			(at 35.56 140.97 0)
 			(hide yes)
 			(show_name no)
@@ -16772,7 +16475,7 @@
 				)
 			)
 		)
-		(property "Datasheet" "https://www.lcsc.com/datasheet/C2864845.pdf"
+		(property "Datasheet" "https://www.ti.com/lit/ds/symlink/tps25947.pdf"
 			(at 229.87 81.28 0)
 			(hide yes)
 			(show_name no)
@@ -16783,19 +16486,8 @@
 				)
 			)
 		)
-		(property "Description" ""
+		(property "Description" "IC EFUSE 2.7-23V 5.5A 28mΩ, adj. OVLO/ILIM, reverse blocking, latch-off, VQFN-HR-10 2x2"
 			(at 229.87 66.04 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Manufacturer" "TI(德州仪器)"
-			(at 229.87 83.82 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -16807,6 +16499,17 @@
 		)
 		(property "MPN" "TPS259474LRPWR"
 			(at 229.87 86.36 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "Texas Instruments"
+			(at 229.87 83.82 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -16908,7 +16611,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/960fc76f20dcdbc93ff4d1e2164767dc.pdf?productCode=C696857"
 			(at 29.21 154.94 0)
 			(hide yes)
 			(show_name no)
@@ -16919,7 +16622,29 @@
 				)
 			)
 		)
-		(property "Description" "Unpolarized capacitor, small symbol"
+		(property "Description" "CAP MLCC 22pF ±5% 50V C0G 0402"
+			(at 29.21 154.94 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "TCC0402COG220J500AT"
+			(at 29.21 154.94 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "CCTC"
 			(at 29.21 154.94 0)
 			(hide yes)
 			(show_name no)
@@ -16941,7 +16666,7 @@
 				)
 			)
 		)
-		(property "Voltage Rating" "25V"
+		(property "Voltage Rating" "50V"
 			(at 29.21 154.94 0)
 			(hide yes)
 			(show_name no)
@@ -16952,52 +16677,19 @@
 				)
 			)
 		)
-		(property "Tolerance" ""
-			(at 29.21 154.94 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "LCSC" ""
-			(at 29.21 154.94 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "KLC_S3.3" ""
-			(at 29.21 154.94 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "KLC_S5.1" ""
-			(at 29.21 154.94 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Capacitor Rating" "C0G/NP0"
+		(property "Dielectric" "C0G"
 			(at 29.464 157.734 90)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Tolerance" "5%"
+			(at 29.21 154.94 0)
+			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -17042,7 +16734,7 @@
 				)
 			)
 		)
-		(property "Value" "XUNPU SMA-KE-347-H13.5-1.6"
+		(property "Value" "SMA-KE-347-H13.5-1.6"
 			(at 35.8532 124.46 90)
 			(hide yes)
 			(show_name no)
@@ -17064,7 +16756,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/e3e9b75c1c094a8b2b2fd16eda6a22a3.pdf?productCode=C5723200"
 			(at 35.56 128.27 0)
 			(hide yes)
 			(show_name no)
@@ -17075,7 +16767,29 @@
 				)
 			)
 		)
-		(property "Description" "coaxial connector (BNC, SMA, SMB, SMC, Cinch/RCA, LEMO, ...)"
+		(property "Description" "CONN SMA jack 50Ω, edge mount for 1.6mm PCB"
+			(at 35.56 128.27 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "SMA-KE-347-H13.5-1.6"
+			(at 35.56 128.27 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "XUNPU"
 			(at 35.56 128.27 0)
 			(hide yes)
 			(show_name no)
@@ -17087,72 +16801,6 @@
 			)
 		)
 		(property "LCSC Part" "C5723200"
-			(at 35.56 128.27 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Voltage Rating" ""
-			(at 35.56 128.27 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Tolerance" ""
-			(at 35.56 128.27 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "LCSC" ""
-			(at 35.56 128.27 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "KLC_S3.3" ""
-			(at 35.56 128.27 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "KLC_S5.1" ""
-			(at 35.56 128.27 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Capacitor Rating" ""
 			(at 35.56 128.27 0)
 			(hide yes)
 			(show_name no)
@@ -17222,7 +16870,7 @@
 				)
 			)
 		)
-		(property "Datasheet" "https://www.ti.com.cn/cn/lit/ds/symlink/esd501.pdf?ts=1748892533434"
+		(property "Datasheet" "https://www.ti.com/lit/ds/symlink/esd501.pdf"
 			(at 24.13 140.97 0)
 			(hide yes)
 			(show_name no)
@@ -17233,7 +16881,29 @@
 				)
 			)
 		)
-		(property "Description" "Bidirectional transient-voltage-suppression diode"
+		(property "Description" "TVS ESD RF low-cap 0.3pF, bidirectional, ±15kV, X1SON-2 0.6x1"
+			(at 24.13 140.97 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "ESD501DPYR"
+			(at 24.13 140.97 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "Texas Instruments"
 			(at 24.13 140.97 0)
 			(hide yes)
 			(show_name no)
@@ -17245,28 +16915,6 @@
 			)
 		)
 		(property "LCSC Part" "C42409135"
-			(at 24.13 140.97 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Voltage Rating" ""
-			(at 24.13 140.97 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Tolerance" ""
 			(at 24.13 140.97 0)
 			(hide yes)
 			(show_name no)
@@ -17646,7 +17294,7 @@
 				(justify left)
 			)
 		)
-		(property "Datasheet" "http://www.aosmd.com/pdfs/datasheet/AO3401A.pdf"
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/86cb8cf73c64cfcb0a49116b603c9133.pdf?productCode=C347476"
 			(at 83.82 167.64 0)
 			(hide yes)
 			(show_name no)
@@ -17658,7 +17306,7 @@
 				(justify left)
 			)
 		)
-		(property "Description" "-4.0A Id, -30V Vds, P-Channel MOSFET, SOT-23"
+		(property "Description" "MOSFET P-ch 30V 4.2A, 50mΩ @10V, SOT-23"
 			(at 80.01 172.72 0)
 			(hide yes)
 			(show_name no)
@@ -17667,6 +17315,32 @@
 				(font
 					(size 1.27 1.27)
 				)
+			)
+		)
+		(property "MPN" "AO3401A"
+			(at 81.915 167.64 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+					(italic yes)
+				)
+				(justify left)
+			)
+		)
+		(property "Manufacturer" "UMW"
+			(at 81.915 167.64 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+					(italic yes)
+				)
+				(justify left)
 			)
 		)
 		(property "LCSC Part" "C347476"
@@ -17742,7 +17416,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/ae687d21155af07a1c72ad1115e7421f.pdf?productCode=C2987940"
 			(at 226.06 77.47 0)
 			(hide yes)
 			(show_name no)
@@ -17753,7 +17427,29 @@
 				)
 			)
 		)
-		(property "Description" "Unpolarized capacitor, small symbol"
+		(property "Description" "CAP MLCC 2.2nF ±2% 50V C0G 0402"
+			(at 226.06 77.47 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "GRM1555C1H222GA01D"
+			(at 226.06 77.47 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "Murata"
 			(at 226.06 77.47 0)
 			(hide yes)
 			(show_name no)
@@ -17775,8 +17471,9 @@
 				)
 			)
 		)
-		(property "Voltage Rating" ""
+		(property "Voltage Rating" "50V"
 			(at 226.06 77.47 0)
+			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -17785,8 +17482,9 @@
 				)
 			)
 		)
-		(property "Tolerance" ""
+		(property "Dielectric" "C0G"
 			(at 226.06 77.47 0)
+			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -17795,7 +17493,7 @@
 				)
 			)
 		)
-		(property "Capacitor Rating" "C0G"
+		(property "Tolerance" "2%"
 			(at 226.06 77.47 0)
 			(hide yes)
 			(show_name no)
@@ -17886,72 +17584,6 @@
 				)
 			)
 		)
-		(property private "KLC_S5.1" "This is a generic symbol, it has fp-filter, but no default footprint"
-			(at 48.26 64.77 0)
-			(hide yes)
-			(show_name yes)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property private "KLC_S3.3" "Graphical-Symbol: thickness is 6mm, fill is background"
-			(at 48.26 62.23 0)
-			(hide yes)
-			(show_name yes)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "LCSC Part" ""
-			(at 48.26 82.55 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Voltage Rating" ""
-			(at 48.26 82.55 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Tolerance" ""
-			(at 48.26 82.55 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "LCSC" ""
-			(at 48.26 82.55 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
 		(pin "2"
 			(uuid "f7407b80-8397-41f7-bf23-67a05d7f2be3")
 		)
@@ -18014,7 +17646,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/fe4699cfe0567e4501e6fca39e0f92ff.pdf?productCode=C404625"
 			(at 128.27 148.59 0)
 			(hide yes)
 			(show_name no)
@@ -18025,8 +17657,31 @@
 				)
 			)
 		)
-		(property "Description" "Q=42 @ 1.8GHz"
-			(at 128.27 143.256 0)
+		(property "Description" "IND RF 5.1nH, 600mA, 130mΩ, multilayer, 0402"
+			(at 128.27 148.59 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "MLG1005S5N1CTD25"
+			(at 128.27 148.59 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "TDK"
+			(at 128.27 148.59 0)
+			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -18046,20 +17701,8 @@
 				)
 			)
 		)
-		(property "Voltage Rating" ""
-			(at 128.27 148.59 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Tolerance" ""
-			(at 128.27 148.59 0)
-			(hide yes)
+		(property "Note" "Q=42 @ 1.8GHz"
+			(at 128.27 143.256 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -18202,7 +17845,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/f38cc67c7d42c83cd043a2a714280f66.pdf?productCode=C6119763"
 			(at 102.87 34.29 0)
 			(hide yes)
 			(show_name no)
@@ -18213,7 +17856,29 @@
 				)
 			)
 		)
-		(property "Description" "Unpolarized capacitor, small symbol"
+		(property "Description" "CAP MLCC 10uF ±20% 10V X5R 0402"
+			(at 102.87 34.29 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "CGA0402X5R106M100GT"
+			(at 102.87 34.29 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "HRE"
 			(at 102.87 34.29 0)
 			(hide yes)
 			(show_name no)
@@ -18235,7 +17900,7 @@
 				)
 			)
 		)
-		(property "Voltage Rating" ""
+		(property "Voltage Rating" "10V"
 			(at 102.87 34.29 0)
 			(hide yes)
 			(show_name no)
@@ -18246,7 +17911,7 @@
 				)
 			)
 		)
-		(property "Tolerance" ""
+		(property "Dielectric" "X5R"
 			(at 102.87 34.29 0)
 			(hide yes)
 			(show_name no)
@@ -18257,40 +17922,7 @@
 				)
 			)
 		)
-		(property "LCSC" ""
-			(at 102.87 34.29 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "KLC_S3.3" ""
-			(at 102.87 34.29 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "KLC_S5.1" ""
-			(at 102.87 34.29 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Capacitor Rating" ""
+		(property "Tolerance" "20%"
 			(at 102.87 34.29 0)
 			(hide yes)
 			(show_name no)
@@ -18358,7 +17990,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/cf3f6680026d0b4e24a67f9c0020b354.pdf?productCode=C316909"
 			(at 146.05 144.78 0)
 			(hide yes)
 			(show_name no)
@@ -18369,8 +18001,30 @@
 				)
 			)
 		)
-		(property "Description" "Resistor"
+		(property "Description" "RES 37.4Ω ±1% 100mW 0402 thick film"
 			(at 146.05 144.78 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "RK73H1ETTP37R4F"
+			(at 146.05 146.558 90)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "KOA Speer"
+			(at 146.05 146.558 90)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -18391,16 +18045,6 @@
 				)
 			)
 		)
-		(property "Voltage Rating" ""
-			(at 146.05 144.78 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
 		(property "Tolerance" "1%"
 			(at 146.05 147.32 90)
 			(show_name no)
@@ -18411,8 +18055,8 @@
 				)
 			)
 		)
-		(property "Capacitor Rating" ""
-			(at 146.05 144.78 0)
+		(property "Power Rating" "100mW"
+			(at 146.05 146.558 90)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -18481,7 +18125,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/fe4699cfe0567e4501e6fca39e0f92ff.pdf?productCode=C404625"
 			(at 95.25 148.59 0)
 			(hide yes)
 			(show_name no)
@@ -18492,8 +18136,31 @@
 				)
 			)
 		)
-		(property "Description" "Q=42 @ 1.8GHz"
-			(at 95.25 143.256 0)
+		(property "Description" "IND RF 5.1nH, 600mA, 130mΩ, multilayer, 0402"
+			(at 95.25 148.59 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "MLG1005S5N1CTD25"
+			(at 95.25 148.59 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "TDK"
+			(at 95.25 148.59 0)
+			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -18513,20 +18180,8 @@
 				)
 			)
 		)
-		(property "Voltage Rating" ""
-			(at 95.25 148.59 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Tolerance" ""
-			(at 95.25 148.59 0)
-			(hide yes)
+		(property "Note" "Q=42 @ 1.8GHz"
+			(at 95.25 143.256 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -18592,7 +18247,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://www.sii.co.jp/en/me/datasheets/ms-rechargeable/ms621fe/"
 			(at 147.066 26.67 90)
 			(hide yes)
 			(show_name no)
@@ -18603,8 +18258,30 @@
 				)
 			)
 		)
-		(property "Description" "Single-cell battery"
+		(property "Description" "BATTERY Li rechargeable coin 3V 5.5mAh, 6.8mm, solder tabs (hand-solder, not reflowable)"
 			(at 148.59 26.67 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "MS621FE-FL11E"
+			(at 147.066 26.67 90)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "Seiko Instruments"
+			(at 147.066 26.67 90)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -18639,37 +18316,6 @@
 		(property "Sim.Pins" "1=+ 2=-"
 			(at 148.59 26.67 0)
 			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "LCSC Part" ""
-			(at 148.59 26.67 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Voltage Rating" ""
-			(at 148.59 26.67 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Tolerance" ""
-			(at 148.59 26.67 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -18735,7 +18381,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/268cae34e8e40050f3b235878c2547d6.pdf?productCode=C560547"
 			(at 57.15 170.18 0)
 			(hide yes)
 			(show_name no)
@@ -18746,8 +18392,30 @@
 				)
 			)
 		)
-		(property "Description" "Resistor"
+		(property "Description" "RES 62Ω ±5% 500mW 0805 thick film"
 			(at 57.15 170.18 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "AS05W2J0620T5E"
+			(at 57.15 171.958 90)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "UNI-ROYAL"
+			(at 57.15 171.958 90)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -18768,52 +18436,8 @@
 				)
 			)
 		)
-		(property "Voltage Rating" ""
+		(property "Tolerance" "5%"
 			(at 57.15 170.18 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Tolerance" ""
-			(at 57.15 170.18 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "LCSC" ""
-			(at 57.15 170.18 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "KLC_S3.3" ""
-			(at 57.15 170.18 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "KLC_S5.1" ""
-			(at 57.15 170.18 90)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -18825,17 +18449,6 @@
 		)
 		(property "Power Rating" "500mW"
 			(at 57.15 170.18 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Capacitor Rating" ""
-			(at 57.15 170.18 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -18904,7 +18517,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/dcb62c832dd79d37c154ec20e16fb58d.pdf?productCode=C48533754"
 			(at 44.45 59.69 0)
 			(hide yes)
 			(show_name no)
@@ -18915,7 +18528,29 @@
 				)
 			)
 		)
-		(property "Description" "Resistor, small symbol"
+		(property "Description" "RES 1kΩ ±0.1% 62.5mW 0402 thick film"
+			(at 44.45 59.69 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "FRH0402B1001TS"
+			(at 44.45 59.69 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "FOJAN"
 			(at 44.45 59.69 0)
 			(hide yes)
 			(show_name no)
@@ -18937,7 +18572,7 @@
 				)
 			)
 		)
-		(property "Voltage Rating" ""
+		(property "Tolerance" "0.1%"
 			(at 44.45 59.69 0)
 			(hide yes)
 			(show_name no)
@@ -18948,51 +18583,7 @@
 				)
 			)
 		)
-		(property "Tolerance" ""
-			(at 44.45 59.69 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "LCSC" ""
-			(at 44.45 59.69 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "KLC_S3.3" ""
-			(at 44.45 59.69 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "KLC_S5.1" ""
-			(at 44.45 59.69 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Capacitor Rating" ""
+		(property "Power Rating" "62.5mW"
 			(at 44.45 59.69 0)
 			(hide yes)
 			(show_name no)
@@ -19060,7 +18651,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/71a9f8eccc4da164324d4a716182c5e3.pdf?productCode=C53426846"
 			(at 29.21 165.1 0)
 			(hide yes)
 			(show_name no)
@@ -19071,7 +18662,29 @@
 				)
 			)
 		)
-		(property "Description" "Unpolarized capacitor, small symbol"
+		(property "Description" "CAP MLCC 1uF ±10% 25V X7R 0402"
+			(at 29.21 165.1 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "TCC0402X7R105K250AT"
+			(at 29.21 165.1 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "CCTC"
 			(at 29.21 165.1 0)
 			(hide yes)
 			(show_name no)
@@ -19093,7 +18706,7 @@
 				)
 			)
 		)
-		(property "Voltage Rating" "16V"
+		(property "Voltage Rating" "25V"
 			(at 29.21 165.1 0)
 			(hide yes)
 			(show_name no)
@@ -19104,7 +18717,7 @@
 				)
 			)
 		)
-		(property "Tolerance" ""
+		(property "Dielectric" "X7R"
 			(at 29.21 165.1 0)
 			(hide yes)
 			(show_name no)
@@ -19115,40 +18728,7 @@
 				)
 			)
 		)
-		(property "LCSC" ""
-			(at 29.21 165.1 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "KLC_S3.3" ""
-			(at 29.21 165.1 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "KLC_S5.1" ""
-			(at 29.21 165.1 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Capacitor Rating" "X7R"
+		(property "Tolerance" "10%"
 			(at 29.21 165.1 0)
 			(hide yes)
 			(show_name no)
@@ -19216,7 +18796,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/f38cc67c7d42c83cd043a2a714280f66.pdf?productCode=C6119763"
 			(at 147.32 40.64 0)
 			(hide yes)
 			(show_name no)
@@ -19227,7 +18807,29 @@
 				)
 			)
 		)
-		(property "Description" "Unpolarized capacitor, small symbol"
+		(property "Description" "CAP MLCC 10uF ±20% 10V X5R 0402"
+			(at 147.32 40.64 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "CGA0402X5R106M100GT"
+			(at 147.32 40.64 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "HRE"
 			(at 147.32 40.64 0)
 			(hide yes)
 			(show_name no)
@@ -19249,8 +18851,9 @@
 				)
 			)
 		)
-		(property "Voltage Rating" ""
+		(property "Voltage Rating" "10V"
 			(at 147.32 40.64 0)
+			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -19259,8 +18862,20 @@
 				)
 			)
 		)
-		(property "Tolerance" ""
+		(property "Dielectric" "X5R"
 			(at 147.32 40.64 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Tolerance" "20%"
+			(at 147.32 40.64 0)
+			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -19328,7 +18943,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/f4da32bad2b63678770dda69cfcd538f.pdf?productCode=C2984406"
 			(at 201.93 69.85 0)
 			(hide yes)
 			(show_name no)
@@ -19339,7 +18954,29 @@
 				)
 			)
 		)
-		(property "Description" "Resistor, small symbol"
+		(property "Description" "RES 100kΩ ±0.1% 25ppm 62.5mW 0402 thin film"
+			(at 201.93 69.85 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "ARG02BTC1003"
+			(at 201.93 69.85 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "Viking Tech"
 			(at 201.93 69.85 0)
 			(hide yes)
 			(show_name no)
@@ -19361,8 +18998,8 @@
 				)
 			)
 		)
-		(property "Voltage Rating" ""
-			(at 201.93 69.85 0)
+		(property "Tolerance" "0.1%"
+			(at 198.12 72.136 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -19371,8 +19008,9 @@
 				)
 			)
 		)
-		(property "Tolerance" "0.5%"
-			(at 198.12 72.136 0)
+		(property "Power Rating" "62.5mW"
+			(at 201.93 69.85 0)
+			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -19516,7 +19154,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/1a751e5cacd14ca30f43df4722fba38e.pdf?productCode=C319872"
 			(at 196.85 57.15 0)
 			(hide yes)
 			(show_name no)
@@ -19527,7 +19165,29 @@
 				)
 			)
 		)
-		(property "Description" "Resistor, small symbol"
+		(property "Description" "RES 150kΩ ±0.1% 25ppm 62.5mW 0402 thin film"
+			(at 196.85 57.15 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "AR02BTC1503"
+			(at 196.85 57.15 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "Viking Tech"
 			(at 196.85 57.15 0)
 			(hide yes)
 			(show_name no)
@@ -19549,8 +19209,8 @@
 				)
 			)
 		)
-		(property "Voltage Rating" ""
-			(at 196.85 57.15 0)
+		(property "Tolerance" "0.1%"
+			(at 202.184 55.118 90)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -19559,8 +19219,9 @@
 				)
 			)
 		)
-		(property "Tolerance" "0.5%"
-			(at 202.184 55.118 90)
+		(property "Power Rating" "62.5mW"
+			(at 196.85 57.15 0)
+			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -19705,7 +19366,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/d0d02de47642fe4f4639912f1a5cccad.pdf?productCode=C23539935"
 			(at 38.1 49.53 0)
 			(hide yes)
 			(show_name no)
@@ -19716,7 +19377,29 @@
 				)
 			)
 		)
-		(property "Description" "Resistor, small symbol"
+		(property "Description" "RES 2kΩ ±0.1% 25ppm 62.5mW 0402 thin film"
+			(at 38.1 49.53 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "TC0225B2001TCC"
+			(at 38.1 49.53 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "UNI-ROYAL"
 			(at 38.1 49.53 0)
 			(hide yes)
 			(show_name no)
@@ -19738,7 +19421,7 @@
 				)
 			)
 		)
-		(property "Voltage Rating" ""
+		(property "Tolerance" "0.1%"
 			(at 38.1 49.53 0)
 			(hide yes)
 			(show_name no)
@@ -19749,41 +19432,8 @@
 				)
 			)
 		)
-		(property "Tolerance" ""
+		(property "Power Rating" "62.5mW"
 			(at 38.1 49.53 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "LCSC" ""
-			(at 38.1 49.53 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "KLC_S3.3" ""
-			(at 38.1 49.53 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "KLC_S5.1" ""
-			(at 38.1 49.53 90)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -20082,7 +19732,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/d90f79507c4f0181520be84507a3ee5e.pdf?productCode=C2936623"
 			(at 261.62 57.15 0)
 			(hide yes)
 			(show_name no)
@@ -20093,7 +19743,29 @@
 				)
 			)
 		)
-		(property "Description" "Resistor, small symbol"
+		(property "Description" "RES 301kΩ ±0.1% 62.5mW 0402 thick film"
+			(at 261.62 57.15 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "RE0402BRE07301KL"
+			(at 261.62 57.15 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "YAGEO"
 			(at 261.62 57.15 0)
 			(hide yes)
 			(show_name no)
@@ -20115,8 +19787,9 @@
 				)
 			)
 		)
-		(property "Voltage Rating" ""
+		(property "Tolerance" "0.1%"
 			(at 261.62 57.15 0)
+			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -20125,8 +19798,9 @@
 				)
 			)
 		)
-		(property "Tolerance" ""
+		(property "Power Rating" "62.5mW"
 			(at 261.62 57.15 0)
+			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -20194,7 +19868,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/f4da32bad2b63678770dda69cfcd538f.pdf?productCode=C2984406"
 			(at 95.25 173.99 0)
 			(hide yes)
 			(show_name no)
@@ -20205,7 +19879,29 @@
 				)
 			)
 		)
-		(property "Description" "Resistor, small symbol"
+		(property "Description" "RES 100kΩ ±0.1% 25ppm 62.5mW 0402 thin film"
+			(at 95.25 173.99 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "ARG02BTC1003"
+			(at 95.25 173.99 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "Viking Tech"
 			(at 95.25 173.99 0)
 			(hide yes)
 			(show_name no)
@@ -20227,7 +19923,7 @@
 				)
 			)
 		)
-		(property "Voltage Rating" ""
+		(property "Tolerance" "0.1%"
 			(at 95.25 173.99 0)
 			(hide yes)
 			(show_name no)
@@ -20238,7 +19934,7 @@
 				)
 			)
 		)
-		(property "Tolerance" ""
+		(property "Power Rating" "62.5mW"
 			(at 95.25 173.99 0)
 			(hide yes)
 			(show_name no)
@@ -20495,7 +20191,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/d18d069bcb310402631d9011b9a41597.pdf?productCode=C98076"
 			(at 35.56 149.86 0)
 			(hide yes)
 			(show_name no)
@@ -20506,7 +20202,29 @@
 				)
 			)
 		)
-		(property "Description" "SRF >= 2GHz"
+		(property "Description" "IND RF 47nH ±2%, 380mA, 290mΩ, wirewound, 0603"
+			(at 35.56 149.86 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "LQW18AN47NG00D"
+			(at 35.56 149.86 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "Murata"
 			(at 35.56 149.86 0)
 			(hide yes)
 			(show_name no)
@@ -20528,7 +20246,7 @@
 				)
 			)
 		)
-		(property "Voltage Rating" ""
+		(property "Tolerance" "2%"
 			(at 35.56 149.86 0)
 			(hide yes)
 			(show_name no)
@@ -20539,40 +20257,7 @@
 				)
 			)
 		)
-		(property "Tolerance" ""
-			(at 35.56 149.86 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "KLC_S3.3" ""
-			(at 35.56 149.86 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "KLC_S5.1" ""
-			(at 35.56 149.86 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "MPN" "LQW18AN47NG00D"
+		(property "Note" "SRF >= 2GHz"
 			(at 35.56 149.86 0)
 			(hide yes)
 			(show_name no)
@@ -20718,7 +20403,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/dcb62c832dd79d37c154ec20e16fb58d.pdf?productCode=C48533754"
 			(at 99.06 187.96 0)
 			(hide yes)
 			(show_name no)
@@ -20729,7 +20414,29 @@
 				)
 			)
 		)
-		(property "Description" "Resistor, small symbol"
+		(property "Description" "RES 1kΩ ±0.1% 62.5mW 0402 thick film"
+			(at 99.06 187.96 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "FRH0402B1001TS"
+			(at 99.06 187.96 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "FOJAN"
 			(at 99.06 187.96 0)
 			(hide yes)
 			(show_name no)
@@ -20751,7 +20458,7 @@
 				)
 			)
 		)
-		(property "Voltage Rating" ""
+		(property "Tolerance" "0.1%"
 			(at 99.06 187.96 0)
 			(hide yes)
 			(show_name no)
@@ -20762,7 +20469,7 @@
 				)
 			)
 		)
-		(property "Tolerance" ""
+		(property "Power Rating" "62.5mW"
 			(at 99.06 187.96 0)
 			(hide yes)
 			(show_name no)
@@ -20831,7 +20538,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/71a9f8eccc4da164324d4a716182c5e3.pdf?productCode=C22392391"
 			(at 261.62 71.12 0)
 			(hide yes)
 			(show_name no)
@@ -20842,7 +20549,29 @@
 				)
 			)
 		)
-		(property "Description" "Unpolarized capacitor, small symbol"
+		(property "Description" "CAP MLCC 10uF ±20% 35V X5R 0603"
+			(at 261.62 71.12 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "TCC0603X5R106M350CT"
+			(at 261.62 71.12 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "CCTC"
 			(at 261.62 71.12 0)
 			(hide yes)
 			(show_name no)
@@ -20864,7 +20593,7 @@
 				)
 			)
 		)
-		(property "Voltage Rating" ""
+		(property "Voltage Rating" "35V"
 			(at 261.62 71.12 0)
 			(hide yes)
 			(show_name no)
@@ -20875,7 +20604,7 @@
 				)
 			)
 		)
-		(property "Tolerance" ""
+		(property "Dielectric" "X5R"
 			(at 261.62 71.12 0)
 			(hide yes)
 			(show_name no)
@@ -20886,40 +20615,7 @@
 				)
 			)
 		)
-		(property "LCSC" ""
-			(at 261.62 71.12 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "KLC_S3.3" ""
-			(at 261.62 71.12 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "KLC_S5.1" ""
-			(at 261.62 71.12 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Capacitor Rating" ""
+		(property "Tolerance" "20%"
 			(at 261.62 71.12 0)
 			(hide yes)
 			(show_name no)
@@ -21065,7 +20761,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/f4da32bad2b63678770dda69cfcd538f.pdf?productCode=C2984406"
 			(at 269.24 57.15 0)
 			(hide yes)
 			(show_name no)
@@ -21076,7 +20772,29 @@
 				)
 			)
 		)
-		(property "Description" "Resistor, small symbol"
+		(property "Description" "RES 100kΩ ±0.1% 25ppm 62.5mW 0402 thin film"
+			(at 269.24 57.15 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "ARG02BTC1003"
+			(at 269.24 57.15 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "Viking Tech"
 			(at 269.24 57.15 0)
 			(hide yes)
 			(show_name no)
@@ -21098,8 +20816,9 @@
 				)
 			)
 		)
-		(property "Voltage Rating" ""
+		(property "Tolerance" "0.1%"
 			(at 269.24 57.15 0)
+			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -21108,8 +20827,9 @@
 				)
 			)
 		)
-		(property "Tolerance" ""
+		(property "Power Rating" "62.5mW"
 			(at 269.24 57.15 0)
+			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects

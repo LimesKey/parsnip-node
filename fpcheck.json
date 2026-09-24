@@ -181,6 +181,13 @@
    "example": "C5830655",
    "note": "verified 2026-09-07: LCSC encapStandard wording differs from the KiCad/easyeda2kicad footprint name, but pin count and body dimensions agree (same land pattern)",
    "added": "2026-09-07"
+  },
+  {
+   "lcsc_pkg": "LCC-24(16x12.2)",
+   "footprint": "ublox_NEO",
+   "example": "C21709333",
+   "note": "u-blox NEO form factor: LCC-24 12.2x16.0mm, 24 pads; RF_GPS:ublox_NEO is the same land (NEO-6/7/8/M9/F10 share it)",
+   "added": "2026-09-24"
   }
  ]
 }
