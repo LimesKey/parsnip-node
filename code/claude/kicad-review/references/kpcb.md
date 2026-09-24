@@ -7,6 +7,12 @@ Reads KiCad 10.0 `(at X Y R)` and 10.99 nightly `(transform (translate) (rotate)
 footprint placement (validated against `pcb export pos` 443/443 and IPC-2581 pad
 centres 1329/1329).
 
+Code map (to patch one command, open only its module): `kpcb.py` is the CLI plus
+summary/where/map/sheet/unplaced/span/net/sync/review; the Board model, part
+classification regexes and geometry are `kpcb_board.py`; `check` rules are
+`kpcb_check.py`; `ic`, `zones`, `ampacity`, `viapad`, `rf`, `height` are
+`kpcb_<ic|zones|amp|viapad|rf|height>.py`.
+
 | command | use |
 | --- | --- |
 | `summary` | outline size, stackup, zones, how much of each sheet is placed, biggest parts. Run first. |
@@ -225,10 +231,13 @@ neither GND-named nor a rail (a small signal pour) is listed without a verdict,
   inductor from a 470nH 0603 antenna match). Named power rails are excluded, or
   every load on +3V3 would look noisy.
 - **`THERMAL`** pairs heat sources (power inductors, switching/charger/eFuse/LDO
-  parts) against heat-sensitive ones (crystals, oscillators, battery cells, the GPS
-  module). Thermistors are deliberately **not** sensitive - sitting next to
-  something hot is their job. Cross-side pairs are reported and labelled: heat
-  couples through the board.
+  parts, RF PA modules >= 27 dBm such as the E22P) against heat-sensitive ones
+  (crystals, oscillators, battery cells, the GPS module). A thermistor (TH/NTC/RT)
+  near a heat source is reported separately as a **measurement bias**: it reads
+  that part instead of what it is wired to watch (e.g. a charger TS thermistor
+  meant for the cells). Suppress the intentional ones in kpcb.json
+  (`"THERMAL:TH5"`). Cross-side pairs are reported and labelled: heat couples
+  through the board.
 - **`BYPASS`** measures each supply pin to the nearest **placed** cap on the same
   net. It stays quiet when no cap on that net is placed yet. Matched on pin NAME,
   never on `pintype`: easyeda2kicad types nearly every pin `passive`, so a
@@ -365,6 +374,10 @@ section, solved directly (skyline Cholesky), capacitance from the field energy,
 Zo = eta0 / sqrt(C C0). Unequal gaps solve each half with its own gap (within 0.1%
 of a full solve). `kzo.py --selftest` holds it to exact stripline and CPW and to
 Hammerstad microstrip, each within 2%; on a real 35 um trace it reads ~1% low.
+Against JLC's own calculator (Polar SI9000, 2026-09-23, JLC04161H-7628 uncoated,
+50 ohm widths for gaps 5/8/10 mil and microstrip) it reads 0.7-1.6% low, i.e.
+JLC would put an `rf` line ~0.5-0.8 ohm higher. At a 16 mil gap JLC returns the
+bare microstrip width (ignores the side ground); kzo does not, and reads 2.6% low there.
 It models rectangular copper and the board file's stackup - the fab's trapezoid and
 its own stackup numbers (check h and er in the `Zo ... microstrip` line against the
 fab's) are the arbiter. ~0.1 s per solve, memoised; gaps round to 0.01 mm.

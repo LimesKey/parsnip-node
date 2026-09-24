@@ -57,12 +57,12 @@ constraints, use `pick`, not `search`.**
 | `jlc board.net` | Basic vs Extended per part + total $3/line assembly fees |
 | `show C18164413` | ladder, stock, MOQ, multiple, params, category, verified datasheet |
 | `ds C42409135` | datasheet URL only, with pass/fail per candidate |
-| `ds C42409135 --save [--dir D]` | ...then download the verified PDF to `docs/datasheets/<MPN>.pdf` (checks the `%PDF` header, keeps an existing file unless `--fresh`) and `kdoc.py index` it, so `kdoc.py grep -d <MPN>` works next |
+| `ds C42409135 --save [--dir D]` | ...then download the verified PDF to `docs/datasheets/<MPN>.pdf`, or `docs/datasheets/<sheet>/` when that folder is split per sheet (sheet from the netlist; refuses and asks for `--dir` when it can't tell) (checks the `%PDF` header, keeps an existing file unless `--fresh`) and `kdoc.py index` it, so `kdoc.py grep -d <MPN>` works next |
 | `compare C1525 C60474` | side-by-side, differing parameters only |
 | `search 'TPS61033'` | keyword search, LCSC rows then JLC rows (JLC catalog price, spec string as desc). Add `--instock`. |
 | `bom board.net --qty 5` | prices a whole KiCad netlist by its LCSC Part property |
 | `check board.net --qty 5` | one-shot sourcing triage: `bom` pricing + `jlc` Basic/Extended, one table, one pass over the netlist |
-| `fpcheck board.net` | each symbol's KiCad footprint AND value vs the assigned LCSC part. Footprint: flags size/family mismatches and one LCSC code reused across different bodies (chip sizes and MPN-named footprints auto-clear; divergent nomenclature -> a small REVIEW bucket). Value: R/C/L symbol value vs LCSC's resistance/capacitance/inductance param (catches a right-footprint, wrong-value part, e.g. a 36R part on a 37.4R symbol). Also lists any assigned part LCSC marks EOL/NRND. `--show-ok`, `--json`; no `.net` runs the offline self-test. |
+| `fpcheck board.net` | each symbol's KiCad footprint AND value vs the assigned LCSC part. Footprint: flags size/family mismatches and one LCSC code reused across different bodies (chip sizes and MPN-named footprints auto-clear; divergent nomenclature -> a small REVIEW bucket). Value: R/C/L symbol value vs LCSC's resistance/capacitance/inductance param (catches a right-footprint, wrong-value part, e.g. a 36R part on a 37.4R symbol). Body sizes stated in both names (`DFN-8(3x3)` vs `_2x2mm`) must agree. Leadless parts (DFN/QFN/SON/LGA/PicoStar) also get a **land check**: the board footprint's copper extent and largest pad vs the EasyEDA footprint LCSC links to the code (the one JLC assembles on); a >25% pad / >20% extent difference goes to REVIEW even if `fpcheck.json` confirmed the names. Board = the one `.kicad_pcb` beside the netlist or `--pcb`; `--no-land` skips it (EasyEDA 403s after ~150 quick calls; results cache 30 days). Also lists any assigned part LCSC marks EOL/NRND. `--show-ok`, `--json`; no `.net` runs the offline self-test. |
 | `selftest` | which providers and the FX rate source work right now |
 
 `show`, `ds`, `compare` and `alt` accept a C-code, a bare MPN, or a pasted LCSC URL.
@@ -93,7 +93,10 @@ same), and OK. REVIEW is a "look at these", not a bug list. Work it once:
 
 `fpcheck.json` is board data like `knet.json`/`kpcb.json` - **commit it** so the
 confirmations persist across sessions. `--confirm` only clears the nomenclature
-REVIEW path, never a MISMATCH and never the "same code on two bodies" flag.
+REVIEW path, never a MISMATCH, the "same code on two bodies" flag or a "land
+differs" row. A confirmation is keyed on the package WORDING, so it covers every
+part LCSC files under that string; the land check is what catches a same-wording
+part of another size (CSD25480F3 -> CSD25481F4 both read `PicoStar-3`).
 
 ## Run selftest first in a new session
 

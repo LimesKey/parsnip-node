@@ -265,20 +265,6 @@
             "error_type": "DRCET_TRACK_WIDTH",
             "items": [
               {
-                "value": "80b59215-6b1a-46dd-98ce-b964f1ed3f10"
-              }
-            ],
-            "position": {
-              "x_nm": "116323750",
-              "y_nm": "125537500"
-            }
-          }
-        },
-        {
-          "marker": {
-            "error_type": "DRCET_TRACK_WIDTH",
-            "items": [
-              {
                 "value": "081a7da6-e0e6-4f05-a389-84ffce7609e1"
               }
             ],
@@ -341,20 +327,6 @@
             "position": {
               "x_nm": "129762500",
               "y_nm": "87950000"
-            }
-          }
-        },
-        {
-          "marker": {
-            "error_type": "DRCET_TRACK_WIDTH",
-            "items": [
-              {
-                "value": "7ed1939e-2b18-4bf2-92a2-9b2607ef5ee9"
-              }
-            ],
-            "position": {
-              "x_nm": "117693125",
-              "y_nm": "126850000"
             }
           }
         },
@@ -461,40 +433,12 @@
             "error_type": "DRCET_TRACK_WIDTH",
             "items": [
               {
-                "value": "d2b6c2bf-3116-455b-9f98-a1497f7a7810"
-              }
-            ],
-            "position": {
-              "x_nm": "118550000",
-              "y_nm": "126850000"
-            }
-          }
-        },
-        {
-          "marker": {
-            "error_type": "DRCET_TRACK_WIDTH",
-            "items": [
-              {
                 "value": "2c9dd593-e593-441e-bf43-fc7a3da3370c"
               }
             ],
             "position": {
               "x_nm": "131350000",
               "y_nm": "108000000"
-            }
-          }
-        },
-        {
-          "marker": {
-            "error_type": "DRCET_TRACK_WIDTH",
-            "items": [
-              {
-                "value": "efaa45d4-c3d6-424d-ad4b-b2114f6992d2"
-              }
-            ],
-            "position": {
-              "x_nm": "116811250",
-              "y_nm": "126225000"
             }
           }
         },
@@ -1430,6 +1374,16 @@
       "field_names": [
         {
           "name": "MPN",
+          "url": false,
+          "visible": false
+        },
+        {
+          "name": "LCSC Part",
+          "url": false,
+          "visible": false
+        },
+        {
+          "name": "JLCPCB Part",
           "url": false,
           "visible": false
         }

@@ -21,9 +21,9 @@ matters. Invalid regex is treated as a literal. Other flags: `-C N`, `-m N`,
 `--case`, `--dpi N`, `--force`, `--ocr` (index only). Cache in `~/.cache/kdoc`
 (`KDOC_CACHE` overrides).
 
-`-d` matching is punctuation-insensitive: the slug for `lm61460-q1.pdf` is stored
-as `lm61460_q1`, but `-d lm61460-q1`, `-d "lm61460 q1"`, `-d lm61460q1`,
-`-d lm61460-q1.pdf` and `-d docs/datasheets/lm61460-q1.pdf` all resolve to it (a path
+`-d` matching is punctuation-insensitive: the slug for `LM61460-Q1.pdf` is stored
+as `LM61460_Q1`, but `-d lm61460-q1`, `-d "lm61460 q1"`, `-d lm61460q1`,
+`-d lm61460-q1.pdf` and `-d docs/datasheets/rails/LM61460-Q1.pdf` all resolve to it (a path
 to a file that was never indexed indexes it on first use). Copy the name straight
 off the filename; don't hand-convert hyphens.
 

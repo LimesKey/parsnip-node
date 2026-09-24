@@ -130,10 +130,13 @@ def vio_finding(v, prefix):
     zero_clear = bool(ZERO_CLEAR_RE.search(raw_desc))
     force = zero_clear or v.get('type') == 'shorting_items'    # a short never goes silent
     # "Clearance violation (rule 'X' clearance 0.1270 mm; actual 0.1000 mm)" loses
-    # the number to truncation; lead with it instead
-    m = re.search(r"\(rule '([^']*)'.*?([\d.]+) mm; actual ([\d.]+) mm\)", raw_desc)
+    # the number to truncation; lead with it instead. Same for the netclass form
+    # "(netclass 'Default' clearance ...)", which used to print as "actual 0~".
+    m = re.search(r"\(((?:'[^']*'|[^()'])*?)\s*([\d.]+) mm; actual ([\d.]+) mm\)", raw_desc)
     if m:
-        raw_desc = f"actual {float(m[3]):g} < {float(m[2]):g} mm ({m[1]})"
+        lim, act = float(m[2]), float(m[3])
+        what = re.sub(r"^rule '([^']*)'.*", r"\1", m[1])
+        raw_desc = f"actual {act:g} {'<' if act < lim else '>'} {lim:g} mm ({what})"
     body = trunc(raw_desc or rule, 70)
     tail = '; '.join(trunc(p, 34) for p in parts if p)
     # the 70-char truncation above can cut "actual N mm" off a long rule name
@@ -148,7 +151,10 @@ def vio_finding(v, prefix):
             msg += ' ' + loc
     if tail and not refs:
         msg += ' - ' + tail
-    return {'severity': sev, 'rule': rule, 'msg': msg, 'refs': refs, 'zero_clear': force}
+    return {'severity': sev, 'rule': rule, 'msg': msg, 'refs': refs, 'zero_clear': force,
+            'items': [{'desc': it.get('description', ''),
+                       'pos': [it['pos']['x'], it['pos']['y']] if 'x' in (it.get('pos') or {}) else None}
+                      for it in items]}
 
 
 def run_cli(args, tag):
@@ -288,6 +294,12 @@ def _selftest():
                       'type': 'shorting_items', 'items': []}, 'DRC')
     kept, _, _ = apply_suppress([fs], {'DRC:SHORTING_ITEMS': {''}})
     checks.append((fs in kept, "shorting_items finding was suppressed"))
+    fc = vio_finding({'description': "Clearance violation (netclass 'Default' clearance 0.1500 mm; "
+                      "actual 0.1000 mm)", 'severity': 'error', 'type': 'clearance',
+                      'items': [{'description': 'Via [-BATT]', 'pos': {'x': 1, 'y': 2}},
+                                {'description': 'Pad 2 of BT2'}]}, 'DRC')
+    checks.append((fc['msg'].startswith("actual 0.1 < 0.15 mm (netclass 'Default'")
+                   and len(fc['items']) == 2, "netclass clearance number or items lost"))
     fails = [msg for ok, msg in checks if not ok]
     for msg in fails:
         print(f"FAIL  {msg}")

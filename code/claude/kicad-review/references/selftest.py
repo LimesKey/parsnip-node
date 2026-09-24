@@ -47,7 +47,7 @@ CASES = [
     ("knet walk",    ['knet.py', NET, 'walk', '/DANGLE'],       0, ["R2.2", "DNP"]),
     ("knet draw",    ['knet.py', NET, 'draw', 'U1', '-d', '2', '-o', svg1], 0, []),
     ("ksch render",  ['ksch.py', 'render', '-o', svg2, KSCH],   0, []),   # + no ERROR (checked below)
-    ("kdrc selftest", ['kdrc.py', '--selftest'],                0, ["6/6 passed"]),
+    ("kdrc selftest", ['kdrc.py', '--selftest'],                0, ["7/7 passed"]),
     ("kpcb check",   ['kpcb.py', PCB, 'check'],                 2, ["4 error, 7 warn, 2 info"]),
     ("kpcb summary", ['kpcb.py', PCB, 'summary'],               0, ["40.00 x 30.00 mm", "placed 16"]),
     # nightly writes (transform (translate X Y) (rotate R)); read as (at) it parks all at 0,0
@@ -193,8 +193,11 @@ def mini_project(d):
     os.utime(sch, (t, t))
     return os.path.join(d, 't.net')
 
-GOLDEN = [['kpcb.py', '{pcb}', c] for c in ('summary', 'check', 'span', 'zones', 'rf', 'viapad', 'ic')] \
-    + [['kpcb.py', '{pcb}', 'sync', '{net}']] \
+GOLDEN = [['kpcb.py', '{pcb}', c] for c in ('summary', 'check', 'span', 'zones', 'rf', 'viapad', 'ic',
+                                            'height', 'unplaced', 'sheet', 'map', 'review')] \
+    + [['kpcb.py', '{pcb}', 'sync', '{net}'], ['kpcb.py', '{pcb}', 'ic', 'U13'],
+       ['kpcb.py', '{pcb}', 'ampacity', 'VSYS'], ['kpcb.py', '{pcb}', 'where', 'U12'],
+       ['kpcb.py', '{pcb}', 'net', 'VSYS'], ['kpcb.py', '{pcb}', 'check', '--json']] \
     + [['knet.py', '{net}', c] for c in ('summary', 'check', 'rails', 'revpol', 'unconnected', 'bom')]
 
 def golden(d, pcb, net):
@@ -266,14 +269,13 @@ def main():
             print(f"ok    {label}")
     # rf's microstrip Zo: 0.36 mm on 0.203 mm / er 4.4 / 35 um is ~49.7 ohm (hand-computed)
     sys.path.insert(0, S)
-    import kpcb
-    z = kpcb.microstrip(0.36, 0.203, 4.4, 0.035)[0]
+    import kzo, kpcb_height
+    z = kzo.microstrip(0.36, 0.203, 4.4, 0.035)[0]
     ok = 49.0 < z < 51.0
     fails += not ok
     print(f"{'ok  ' if ok else 'FAIL'}  microstrip Zo {z:.1f} ohm")
     # rf's CPWG field solver vs exact stripline / CPW and Hammerstad microstrip,
     # and side grounds can only LOWER Zo (the closed forms got that backwards)
-    import kzo
     zs = kzo._selftest()
     ms = kzo.field_zo(0.306, 0.203, 4.4, 0.035)[0]
     cp = [kzo.field_zo(0.306, 0.203, 4.4, 0.035, s=g)[0] for g in (0.15, 0.3, 1.0)]
@@ -282,7 +284,7 @@ def main():
     print(f"{'ok  ' if ok4 else 'FAIL'}  field solver " + ', '.join(f"{(z - r) / r * 100:+.1f}%" for _, z, r in zs)
           + f"; CPWG {cp[0]:.1f} < {cp[1]:.1f} < {cp[2]:.1f} < microstrip {ms:.1f}")
     # `height`'s glTF transform: 90 deg about Y (x,y,z,w quaternion) then +2 in Y
-    M = kpcb._mat({'rotation': [0, 0.7071068, 0, 0.7071068], 'translation': [0, 2, 0]})
+    M = kpcb_height._mat({'rotation': [0, 0.7071068, 0, 0.7071068], 'translation': [0, 2, 0]})
     p = [sum(M[r][c] * v for c, v in enumerate((1, 0, 0, 1))) for r in range(3)]
     ok2 = all(abs(x - y) < 1e-6 for x, y in zip(p, (0, 2, -1)))
     fails += not ok2

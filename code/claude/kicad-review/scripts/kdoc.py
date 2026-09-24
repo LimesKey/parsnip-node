@@ -40,7 +40,7 @@ Searching is line-wrap insensitive by default: whitespace is collapsed before
 matching, so a phrase broken across two lines in the PDF still hits. Use --raw
 for column/table-layout sensitive patterns.
 
-Cache defaults to ./.kdoc_cache (override with KDOC_CACHE). Re-extraction is
+Cache defaults to ~/.cache/kdoc (override with KDOC_CACHE). Re-extraction is
 automatic when the source file's size or mtime changes.
 """
 import sys, os, re, json, zipfile, subprocess, argparse, glob, shutil
@@ -338,6 +338,13 @@ def autodirs():
             seen.add(rp); out.append(rp)
     return out
 
+def _ls(d, deep=False):
+    """Files under d. One level, except a `datasheets` dir (or deep=True), which is
+    walked: datasheets live in per-sheet subfolders (docs/datasheets/<sheet>/).
+    Recursing the cwd autodir would drag in firmware submodules and build trees."""
+    deep = deep or os.path.basename(d.rstrip(os.sep)) == 'datasheets'
+    return sorted(glob.glob(os.path.join(d, '**', '*') if deep else os.path.join(d, '*'), recursive=deep))
+
 def autoindex():
     """Index the usual locations if the cache is empty, so `grep` works on the first
     call instead of failing and forcing a second round trip."""
@@ -345,7 +352,7 @@ def autoindex():
         return False
     found, dirs = [], autodirs()
     for d in dirs:
-        found += sorted(glob.glob(os.path.join(d, '*')))
+        found += _ls(d)
     def cache_bytes():
         t = 0
         for root, _, fs in os.walk(CACHE):
@@ -399,7 +406,7 @@ def _matching_files(filt):
     if os.path.isfile(os.path.expanduser(filt)):
         return [os.path.expanduser(filt)]
     fk = _fkey(filt)
-    return [f for d in autodirs() for f in sorted(glob.glob(os.path.join(d, '*')))
+    return [f for d in autodirs() for f in _ls(d)
             if os.path.isfile(f) and fk in _key(slug(f))
             and os.path.splitext(f)[1].lower() not in AUTOSKIP_EXT][:5]
 
@@ -468,10 +475,11 @@ def c_index(a):
         # `index -d NAME` used to ignore -d and index every autodir, which is how
         # two 250-page netlists ended up in every unfiltered grep
         targets = [(f, True) for f in _matching_files(a.doc)]
-    for p in a.args or ([] if a.doc else [os.path.join(d, '*') for d in autodirs()]):
+    for p in a.args or ([] if a.doc else autodirs()):
         p = os.path.expanduser(p)
-        # a bare directory means everything in it, which is what people type
-        hits = sorted(glob.glob(os.path.join(p, '*') if os.path.isdir(p) else p))
+        # a bare directory means everything in it, which is what people type;
+        # one named on the command line is walked, an autodir per _ls()
+        hits = _ls(p, deep=bool(a.args)) if os.path.isdir(p) else sorted(glob.glob(p))
         if a.args and not hits:
             print(f"  {p}: no such file")
         targets += [(f, bool(a.args) and hits == [p]) for f in hits]

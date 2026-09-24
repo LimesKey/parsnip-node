@@ -82,7 +82,7 @@ or put them in ~/.config/partsearch/config.json as {"digikey_client_id": "...",
 Cache: ~/.cache/partsearch (override PARTSEARCH_CACHE), 24 h TTL. Cache hits are
 free, so re-querying the same part in a later chat costs nothing.
 """
-import sys, os, re, json, time, math, argparse, hashlib, subprocess
+import sys, os, re, json, time, math, glob, argparse, hashlib, subprocess
 import concurrent.futures as cf
 import urllib.request, urllib.parse, urllib.error
 
@@ -98,6 +98,9 @@ TTL = 24 * 3600
 LCSC_DETAIL = 'https://wmsc.lcsc.com/ftps/wm/product/detail?productCode={code}'
 LCSC_SEARCH = 'https://easyeda.com/api/eda/product/search'      # POST, form-encoded
 LCSC_PAGE = 'https://www.lcsc.com/product-detail/{code}.html'
+# the EasyEDA footprint LCSC links to a C-code (the land JLC assembles on). CloudFront
+# 403s after ~150 quick calls, so fpcheck asks only for leadless parts, 2 at a time
+EE_COMP = 'https://easyeda.com/api/products/{code}/components?version=6.4.19.5'
 DK_TOKEN = 'https://api.digikey.com/v1/oauth2/token'
 DK_KEYWORD = 'https://api.digikey.com/products/v4/search/keyword'
 DK_DETAIL = 'https://api.digikey.com/products/v4/search/{pn}/productdetails'
@@ -675,11 +678,36 @@ def c_ds(a):
             if a.save and url:
                 save_datasheet(r, url, a)
 
+def _ds_dir(r, root='docs/datasheets'):
+    """Default ds --save folder. When root is split per schematic sheet
+    (docs/datasheets/<sheet>/), the folder named by a word of the part's sheet in
+    the netlist ('/Root/GNSS/' -> gnss, '/USB Interface/' -> usb). None, after
+    saying why, when that is not one folder: guessing files it where kdoc and the
+    next reader will not look."""
+    if not os.path.isdir(root):
+        return '.'
+    subs = sorted(x for x in os.listdir(root) if os.path.isdir(os.path.join(root, x)))
+    if not subs:
+        return root
+    nets = glob.glob('*-merged.net') or glob.glob('*.net')
+    nl = load_knet(nets[0]) if len(nets) == 1 else None
+    sheets = sorted({c['sheet'] for c in (nl.comps.values() if nl else [])
+                     if c['lcsc'] == r.get('sku') or (r.get('mpn') and c['value'] == r.get('mpn'))})
+    hit = {x for sh in sheets for x in subs if x in re.findall(r'[a-z0-9]+', sh.lower())}
+    if len(hit) == 1:
+        return os.path.join(root, hit.pop())
+    print(f"  saved     : NOT saved - {root} is split per sheet ({' '.join(subs)}); "
+          + (f"{r.get('sku')} is on {', '.join(sheets)}, " if sheets else 'part not in the netlist, ')
+          + f"pass --dir {root}/<sheet>")
+    return None
+
 def save_datasheet(r, url, a):
     """Fetch the whole verified PDF, file it as <dir>/<MPN>.pdf and index it with
     kicad-review's kdoc.py, so pinout / abs-max checks go straight to
     `kdoc.py grep -d <MPN>` instead of a hand curl + pdftotext."""
-    d = a.dir or ('docs/datasheets' if os.path.isdir('docs/datasheets') else '.')
+    d = a.dir or _ds_dir(r)
+    if not d:
+        return
     name = re.sub(r'[^\w.+-]+', '_', r.get('mpn') or r.get('sku') or 'datasheet').strip('_') + '.pdf'
     out = os.path.join(d, name)
     if os.path.exists(out) and not a.fresh:
@@ -1022,7 +1050,7 @@ def fmt_si(x, unit=''):
                      (1e-6, 'u'), (1e-9, 'n'), (1e-12, 'p')):
         if abs(x) >= mag * 0.999:
             return f"{x/mag:.10g}{suf}{unit}"
-    return f"{x:g}{unit}"
+    return f"{x/1e-12:.10g}p{unit}" if x else f"0{unit}"     # 0.06pF, not 6e-14 (enum can't read it)
 
 def _norm(s):
     return re.sub(r'[^a-z0-9]', '', (s or '').lower())
@@ -1145,11 +1173,13 @@ def make_pred(spec):
                             '=': abs(x - lim) <= abs(lim) * 1e-3}[op]
             else:
                 alts = [t.strip() for t in s.split(',') if t.strip()]
-                def f(v, alts=alts):
+                def f(v, alts=alts, whole=_norm(s) if len(alts) > 1 else None):
                     # _norm() drops the decimal point, so '2.2uF' and '22uF' collapse
                     # to the same string. Anything numeric MUST compare numerically and
                     # must not fall through to the text branch.
                     x = enum(v)
+                    if whole and x is None and _norm(v) == whole:
+                        return True     # a value with a comma in it: 'SMD,11.5x10mm'
                     for a in alts:
                         ax = enum(a)
                         if ax is not None:
@@ -1302,18 +1332,32 @@ def _pick_category(a):
     same = [c for c in whole if c.lower().rstrip('s') == text.lower().rstrip('s')]
     if len(same) == 1:
         return same[0]
-    pkg = a.pkg if a.pkg and not re.search(r'[,~!<>]|\.\.', a.pkg) else None
+    pkg = _one_pkg(a.pkg)
     if pkg and 1 < len(whole) <= 6:
-        stocked = [c for c in whole if jlc_facets(c, pkg, a.fresh)]
+        stocked = {c: f for c in whole for f in [jlc_facets(c, pkg, a.fresh)] if f}
         if len(stocked) == 1:
-            return stocked[0]
+            return next(iter(stocked))
+        # several stock it ('resistor' 0402: chip, shunt, array): take the dominant
+        # one by facet part count. Multi-valued attributes inflate the sums, but
+        # alike in every category, so only the ratio is trusted.
+        size = sorted(((max(sum(v.values()) for v in f.values()), c) for c, f in stocked.items()),
+                      reverse=True)
+        if len(size) > 1 and size[0][0] >= 10 * size[1][0]:
+            return size[0][1]
     uniq = {h[0] for w in text.split() if len(w) >= 3 for h in [_cat_hits(w, cats)] if len(h) == 1}
     return uniq.pop() if len(uniq) == 1 else None
 
+def _one_pkg(s):
+    """s when it names one exact package, else None. A comma normally means any-of
+    ('0402,0603'), but JLC names sized parts 'SMD,11.5x10mm' / 'Plugin,P=5mm':
+    WORD,<something with a size> is one name."""
+    if not s or re.search(r'[~!<>]|\.\.', s):
+        return None
+    return s if ',' not in s or re.fullmatch(r'[A-Za-z]+,[^,]*(\d[xX*]|mm|=)[^,]*', s) else None
+
 def _pkg_literal(cons):
     """The --pkg value when it names one exact package (JLC filters that server-side)."""
-    lab = next((str(lab) for n, lab, _ in cons if n == 'pkg'), '')
-    return lab if lab and not re.search(r'[,~!<>]|\.\.', lab) else None
+    return _one_pkg(next((str(lab) for n, lab, _ in cons if n == 'pkg'), ''))
 
 def _stock_ok(rows, a):
     """Rows with stock >= --minstock; counts the rest for the pick header."""
@@ -1566,12 +1610,16 @@ _DIEL_RANK = ['Y5V', 'Z5U', 'X7T', 'X6S', 'X5R', 'X7S', 'X7R', 'C0G', 'NP0']
 # polarity wording) and not held when it is a number nobody ranked.
 _ALT_RULES = (
     ('eq', r'^output voltage|^type$|polarity|^number|configuration|channels|output type'
-           r'|^frequency$|load capacitance|colou?r'),
-    ('skip', r'breakdown|temperature|feature|capacitance|charge|surge|ciss|coss|crss'),
+           r'|^frequency$|load capacitance|colou?r|zener voltage\(nom|resistance @|b constant \('),
+    ('le', r'^capacitance$|junction capacitance'),     # a TVS/ESD's C (an MLCC's is held exact)
+    ('skip', r'temperature|feature|capacitance|charge|surge|ciss|coss|crss|\(range\)'),
     ('le', r'rds|resistance|dcr|esr|forward(?!.*current)|leakage|clamping|quiescent'
-           r'|supply current|dropout|threshold|tolerance|stability'),
-    ('ge', r'voltage|current|power|dissipation|vgs'),
+           r'|supply current|dropout|threshold|tolerance|stability|impedance\(zz'),
+    ('ge', r'voltage|current|power|dissipation|vgs|breakdown'),
 )
+# an NTC lists B at up to four reference temperatures, most alternates only one:
+# hold the first listed of these, not all of them
+_B_PREF = ('25/50', '25/85', '25/100', '25/75')
 
 def _alt_hold(name, value):
     """--w spec that keeps a replacement at least as good on one parameter, or None."""
@@ -1617,6 +1665,13 @@ def c_alt(a):
     mine = {_norm(w.split('=', 1)[0]) for w in a.w}
     holds = [(n, s) for n, v in p if n not in used and _norm(n) not in mine
              for s in [_alt_hold(n, v)] if s]
+    bs = sorted((h for h in holds if h[0].lower().startswith('b constant (')),
+                key=lambda h: next((i for i, t in enumerate(_B_PREF)
+                                    if t in re.sub(r'[^\d/]', '', h[0])), 9))
+    holds = [h for h in holds if h not in bs[1:]]
+    if re.search(r'TVS|ESD', b.get('category') or '') and not _exact(p, 'cap')[0]:
+        print(f"note: {b.get('sku')} lists no capacitance, so none is held - on an RF or "
+              f"high-speed line check each candidate's C in its datasheet")
     # numeric limits first (they become the table columns), secondary ratings last
     holds.sort(key=lambda h: (h[1][:1] not in '<>',
                               bool(re.search(r'dissipation|^vgs$', h[0].lower()))))
@@ -1873,8 +1928,39 @@ def _fp_sig(fp):
         return ('chip', m.group(1))
     return _fam(k) or ('name', k)
 
+_DIM = r'(\d+(?:\.\d+)?)\s*[xX*]\s*(\d+(?:\.\d+)?)'
+
+def _body_dims(name, kicad):
+    """Sorted body (a, b) mm stated in a package/footprint name, or None. LCSC:
+    'DFN-8(3x3)', 'SMD,10.8x10mm'. KiCad: '_2x3mm_', 'L3.1-W3.1' - never the
+    'EP0.61x2.2mm' pad or a 'P0.5mm' pitch."""
+    if kicad:
+        m = (re.search(r'(?<![A-Z\d.])' + _DIM + r'(?:X[\d.]+)?MM', name, re.I)
+             or re.search(r'L(\d+(?:\.\d+)?)-W(\d+(?:\.\d+)?)', name, re.I))
+    else:
+        m = re.search(r'[(,]' + _DIM + r'(?:mm)?\)?$', name, re.I)
+    return tuple(sorted(float(x) for x in m.groups())) if m else None
+
 def _fp_match(pkg, fp, mpn=None):
-    """-> ('ok'|'mismatch'|'review', reason)."""
+    """-> ('ok'|'mismatch'|'review', reason). A name match whose stated body sizes
+    disagree (LCSC 'DFN-8(3x3)' on KiCad 'DFN-8_2x2mm') is a mismatch."""
+    v, why = _fp_match_name(pkg, fp, mpn)
+    k = _fp_base(fp or '')
+    a, b = _body_dims(pkg or '', False), _body_dims(k, True)
+    if not (a and b):
+        return v, why
+    if any(abs(x - y) > 0.3 for x, y in zip(a, b)):
+        return (('mismatch', f'body {a[0]:g}x{a[1]:g} mm (LCSC {pkg}) vs {b[0]:g}x{b[1]:g} mm ({k})')
+                if v == 'ok' else (v, why))
+    # same base name ('WQFN-38' in '..._WQFN-38-2EP_6x4mm') and same body: no human needed
+    base = re.sub(r'\(.*|,.*', '', (pkg or '').upper()).strip()
+    pat = r'[-_ ]?'.join(map(re.escape, re.findall(r'[A-Z]+|\d+', base)))
+    if v == 'review' and pat and re.search(r'(?<![A-Z0-9])' + pat + r'(?!\d)', k):
+        return ('ok', f'{base} {a[0]:g}x{a[1]:g} mm ~ {k}')
+    return v, why
+
+def _fp_match_name(pkg, fp, mpn=None):
+    """-> ('ok'|'mismatch'|'review', reason) from the names alone."""
     p = (pkg or '').strip().upper()
     if not fp:
         return ('review', 'no footprint set on the symbol')
@@ -1909,6 +1995,10 @@ def _fp_match(pkg, fp, mpn=None):
         return ('mismatch', f'LCSC {p} ({pp}-lead) vs KiCad {k} ({kp}-lead)')
 
     if _bcontains(k, canon) or _bcontains(canon, k):   # 3) boundary substring
+        return ('ok', f'{canon} ~ {k}')
+    # 'SOD-523(SC-79)': a parenthetical that is another package NAME (not '(3x3)')
+    m = re.fullmatch(r'(.+?)\(([A-Z]+-?\d+[A-Z]?)\)', canon)
+    if m and any(_bcontains(k, t) for t in m.groups()):
         return ('ok', f'{canon} ~ {k}')
 
     return ('review', f'LCSC "{pkg}"  vs  KiCad "{fp.split(":")[-1]}"')  # 4) human
@@ -1963,6 +2053,12 @@ def _fpcheck_selftest():
         ('SMD,25.5x18mm', 'RF:ESP32-S3-WROOM-1', 'ok', 'ESP32-S3-WROOM-1-N16R8'),
         # divergent package nomenclature stays in review (the real 5%)
         ('DFN-8(3x3)', 'Package_DFN_QFN:PQFN-8_L3.1-W3.1', 'review', 'AON7534'),
+        # stated body sizes: disagree -> mismatch, agree with the same base name -> ok
+        ('DFN-8(3x3)', 'Package_DFN_QFN:DFN-8_2x2mm_P0.5mm', 'mismatch'),
+        ('WQFN-38(6x4)', 'Texas_REF0038A_WQFN-38-2EP_6x4mm_P0.4', 'ok'),
+        ('X2-SON-8(1x1.4)', 'X2SON-8_1.4x1mm_P0.35mm', 'ok'),
+        ('UDFN-8(2x3)', 'DFN-8-1EP_2x3mm_P0.5mm_EP0.61x2.2mm', 'review'),   # EP is no body size
+        ('SOD-523(SC-79)', 'Diode_SMD:D_SOD-523', 'ok'),
     ]
     for c in cases:
         pkg, fp, want = c[0], c[1], c[2]
@@ -1981,7 +2077,14 @@ def _fpcheck_selftest():
     for prefix, val, params, want in vcases:
         got = _val_check(prefix, val, params)[0]
         assert got == want, f"val {prefix} {val!r}: got {got}, want {want}"
-    n = len(cases) + len(vcases)
+    # land geometry: the U6 case (CAT24C256HU4 EasyEDA land vs LTC DDB footprint)
+    ltc = [[str(i), -0.94 if i < 5 else 0.94, 0.25 * (2 * ((i - 1) % 4) - 3) * (1 if i < 5 else -1), 0.87, 0.25]
+           for i in range(1, 9)] + [['9', 0, 0, 0.61, 2.2]]
+    cat = [[str(i), -1.43 if i < 5 else 1.43, 0.5 * ((i - 1) % 4) - 0.75, 0.5, 0.28] for i in range(1, 9)] \
+        + [['9', 0, 0, 1.4, 1.6]]
+    assert 'largest pad 0.61x2.20 vs 1.40x1.60' in _land_diff(ltc, cat), _land_diff(ltc, cat)
+    assert _land_diff(ltc, ltc) == ''
+    n = len(cases) + len(vcases) + 2
     return f"{n}/{n}"
 
 def _pick_selftest():
@@ -2007,6 +2110,15 @@ def _pick_selftest():
         _cat_hits('led', ['LED Drivers', 'Multilayer Ceramic Capacitors MLCC - Leaded']) == ['LED Drivers'],
         _cat_hits('tvs', ['ESD and Surge Protection (TVS/ESD)', 'Crystals']) == ['ESD and Surge Protection (TVS/ESD)'],
         _cat_hits('test point', ['Test Points / Test Rings', 'Test Clips']) == ['Test Points / Test Rings'],
+        # JLC's sized package names carry a comma: one literal, not an any-of
+        _one_pkg('SMD,11.5x10mm') == 'SMD,11.5x10mm' and _one_pkg('0402,0603') is None,
+        make_pred('SMD,11.5x10mm')[0]('SMD,11.5x10mm') and not make_pred('SMD,11.5x10mm')[0]('SMD,4x4mm'),
+        # alt holds: Vz / R25 / B equal, Vbr up, a TVS's C down (sub-pF must round-trip)
+        [_alt_hold(n, v) for n, v in (('Zener Voltage(Nom)', '15V'), ('Zener Voltage(Range)', '14.25V~15.75V'),
+                                      ('Resistance @ 25℃', '10kΩ'), ('B Constant (25℃/50℃)', '3380K'),
+                                      ('Voltage - Breakdown', '15V'), ('Capacitance', '0.06pF'))]
+        == ['15V', None, '10kΩ', '3380K', '>=15', '<=0.06p'],
+        make_pred('<=0.06p')[0]('0.05pF') and not make_pred('<=0.06p')[0]('0.5pF'),
     ]
     # JLC server-side filter: facet values the local predicate accepts, '-' never
     cons = [(n, lab, make_pred(lab)[0]) for n, lab in (('volt', '>=25'), ('cap', '10u'))]
@@ -2024,6 +2136,75 @@ def _pick_selftest():
     bad = [i for i, ok in enumerate(checks, 1) if not ok]
     assert not bad, f"pick self-test failed check(s) {bad}"
     return f"{len(checks)}/{len(checks)}"
+
+def ee_land(code, fresh=False):
+    """[[num, x, y, w, h]] mm, copper pads of the EasyEDA footprint for a C-code,
+    or None. Cached 30 days: a published land does not change."""
+    def go():
+        d = http(EE_COMP.format(code=code), headers={'Referer': 'https://easyeda.com/'})
+        if '_error' in (d or {}):
+            return d
+        ds = (((d or {}).get('result') or {}).get('packageDetail') or {}).get('dataStr') or {}
+        out = []
+        for sh in ds.get('shape') or []:
+            f = sh.split('~')       # PAD~shape~x~y~w~h~layer~net~num~holeR~pts~rot~...
+            if f[0] == 'PAD' and len(f) > 11:
+                w, h = float(f[4]) * 0.254, float(f[5]) * 0.254      # 1 unit = 10 mil
+                if round(float(f[11] or 0)) % 180 == 90:
+                    w, h = h, w
+                out.append([f[8], float(f[2]) * 0.254, float(f[3]) * 0.254, w, h])
+        return out or None
+    v = cached('eeland1', code, go, fresh, ttl=30 * 24 * 3600)
+    return v if isinstance(v, list) else None
+
+# where the land IS the body: a same-name match can still be the wrong size or
+# orientation (UDFN-8 2x3 pins on the 2 mm edges vs LTC DDB on the 3 mm edges)
+_LEADLESS = re.compile(r'DFN|QFN|SON|LGA|BGA|CSP|WLB|PicoStar', re.I)
+
+def _fp_pads(f):
+    """Board footprint's copper pads, [[num, x, y, w, h]] in its own frame."""
+    r = math.radians(f.rot)
+    c, s = math.cos(r), math.sin(r)
+    out = []
+    for p in f.pads:
+        if not any(l.endswith('.Cu') for l in p['layers']):
+            continue                                  # paste-only apertures
+        w, h = (p['sy'], p['sx']) if round(p['prot'] - f.rot) % 180 == 90 else (p['sx'], p['sy'])
+        dx, dy = p['x'] - f.x, p['y'] - f.y
+        out.append([p['num'], dx * c - dy * s, dx * s + dy * c, w, h])
+    return out
+
+def _land_diff(mine, theirs):
+    """'' when two lands agree, else why. Compares the copper extent and the
+    largest pad (the EP, or a PicoStar drain), both sorted so rotation cannot
+    matter. Thresholds from all 21 leadless parts on parsnip (2026-09-23): real
+    same-package lands differ <= 20% in the largest pad and <= 16% in extent."""
+    def sig(pads):
+        ext = sorted((max(p[1] + p[3] / 2 for p in pads) - min(p[1] - p[3] / 2 for p in pads),
+                      max(p[2] + p[4] / 2 for p in pads) - min(p[2] - p[4] / 2 for p in pads)))
+        big = max(pads, key=lambda p: p[3] * p[4])
+        return ext, sorted(big[3:5])
+    (ea, pa), (eb, pb) = sig(mine), sig(theirs)
+    off = lambda a, b, rel: any(abs(x - y) > max(0.08, rel * max(x, y)) for x, y in zip(a, b))
+    why = []
+    if off(pa, pb, 0.25):
+        why.append(f"largest pad {pa[0]:.2f}x{pa[1]:.2f} vs {pb[0]:.2f}x{pb[1]:.2f} mm")
+    if off(ea, eb, 0.20):
+        why.append(f"copper extent {ea[0]:.2f}x{ea[1]:.2f} vs {eb[0]:.2f}x{eb[1]:.2f} mm")
+    return ('land differs from LCSC\'s EasyEDA footprint: ' + '; '.join(why)) if why else ''
+
+def _load_board(src, pcb):
+    """kicad-review's Board for --pcb, else the one .kicad_pcb beside the netlist."""
+    if not pcb:
+        c = glob.glob(os.path.join(os.path.dirname(os.path.abspath(src)), '*.kicad_pcb'))
+        pcb = c[0] if len(c) == 1 else None
+    if not pcb:
+        return None, None
+    try:
+        import kpcb_board                      # load_knet() already put its dir on sys.path
+        return kpcb_board.Board(pcb), pcb
+    except Exception:
+        return None, pcb
 
 def _conf_key(pkg, footprint):
     """Normalised (LCSC package, KiCad footprint) key for the confirmed store,
@@ -2054,7 +2235,7 @@ def c_fpcheck(a):
     lcsc_detail's 24 h cache; no netlist arg -> runs the offline matcher self-test."""
     if not a.args or not a.args[0].endswith('.net'):
         print(f"footprint matcher self-test: {_fpcheck_selftest()} ok\n"
-              f"usage: part.py fpcheck board.net  [--show-ok] [--json] [--fresh]")
+              f"usage: part.py fpcheck board.net  [--pcb FILE] [--no-land] [--show-ok] [--json] [--fresh]")
         return 0
     src = a.args[0]
     nl = load_knet(src)
@@ -2080,6 +2261,14 @@ def c_fpcheck(a):
     with cf.ThreadPoolExecutor(max_workers=a.jobs) as ex:
         details = dict(ex.map(lambda code: (code, lcsc_detail(code, a.fresh)),
                               sorted(want)))
+    # pad geometry, leadless parts only: the name check cannot see size/orientation
+    board, pcb = (None, None) if a.noland else _load_board(src, a.pcb)
+    lands = {}
+    if board:
+        todo = sorted({code for code, g in want.items() for (fp, _v, _p) in g
+                       if _LEADLESS.search(fp)})
+        with cf.ThreadPoolExecutor(max_workers=2) as ex:
+            lands = dict(zip(todo, ex.map(lambda c: ee_land(c, a.fresh), todo)))
 
     ok, mism, review, unresolved, eol = [], [], [], [], []
     for code in sorted(want):
@@ -2108,6 +2297,12 @@ def c_fpcheck(a):
                     verdict, why = 'review', fpwhy
             else:
                 verdict, why = 'ok', fpwhy
+            f0 = board.fps.get(sorted(refs)[0]) if board else None
+            land = _land_diff(_fp_pads(f0), lands[code]) if f0 and f0.pads and lands.get(code) else ''
+            if land and verdict == 'ok':
+                verdict, why = 'review', land + (f'  (name: {why})' if why else '')
+            elif land:
+                why += '; ' + land
             row = {'lcsc': code, 'mpn': mpn, 'lcsc_pkg': pkg, 'value': value,
                    'footprint': fp.split(':')[-1], 'why': why, 'refs': sorted(refs)}
             {'ok': ok, 'mismatch': mism, 'review': review}[verdict].append(row)
@@ -2120,8 +2315,8 @@ def c_fpcheck(a):
             return 1
         rev_by_code = {}
         for row in review:
-            if 'another body' in row['why']:      # multi-body review is not a nomenclature call
-                continue
+            if 'another body' in row['why'] or 'land differs' in row['why']:
+                continue        # a body/land question, not a nomenclature call
             rev_by_code.setdefault(row['lcsc'], []).append(row)
         added, skipped = [], []
         for code in req:
@@ -2154,6 +2349,14 @@ def c_fpcheck(a):
 
     print(f"footprint + value vs LCSC part - {len(want)} LCSC parts, "
           f"{len(mism)} mismatch, {len(review)} review, {len(ok)} ok")
+    if a.noland:
+        pass
+    elif not board:
+        print(f"  (land check skipped: {'could not load ' + pcb if pcb else 'no single .kicad_pcb beside the netlist; --pcb FILE'})")
+    else:
+        miss = sorted(c for c, v in lands.items() if not v)
+        print(f"  land check: {len(lands) - len(miss)} leadless part(s) vs EasyEDA pads on {os.path.basename(pcb)}"
+              + (f"; no EasyEDA land for {' '.join(miss)} (unchecked)" if miss else ''))
     def emit(title, rows):
         if not rows:
             return
@@ -2200,7 +2403,8 @@ def main():
     ap.add_argument('--nods', action='store_true', help='skip datasheet verification')
     ap.add_argument('--save', action='store_true',
                     help='ds: download the verified PDF and index it with kdoc.py')
-    ap.add_argument('--dir', default='', help='ds --save: target folder (default docs/datasheets)')
+    ap.add_argument('--dir', default='', help='ds --save: target folder (default docs/datasheets, or its '
+                    'per-sheet subfolder from the netlist)')
     ap.add_argument('--fresh', action='store_true')
     ap.add_argument('--json', action='store_true')
     ap.add_argument('--show-ok', dest='show_ok', action='store_true',
@@ -2208,6 +2412,10 @@ def main():
     ap.add_argument('--confirm', action='store_true',
                     help='fpcheck: record the listed REVIEW codes as confirmed-equivalent in fpcheck.json')
     ap.add_argument('--note', default='', help='fpcheck --confirm: provenance note stored with each entry')
+    ap.add_argument('--pcb', default='', help='fpcheck: board for the pad-land check '
+                    '(default: the one .kicad_pcb beside the netlist)')
+    ap.add_argument('--no-land', dest='noland', action='store_true',
+                    help='fpcheck: skip the EasyEDA pad-land check (offline)')
     # pick / alt. The long synonyms are the names sessions actually guessed.
     syn = {'cap': ['--capacitance'], 'res': ['--resistance'], 'ind': ['--inductance'],
            'volt': ['--voltage'], 'pkg': ['--package'], 'diel': ['--dielectric'],

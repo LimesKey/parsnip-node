@@ -233,6 +233,15 @@ def _selftest():
     # microstrip, the kpcb selftest geometry: Hammerstad is itself ~1%
     out.append(("microstrip w0.36 h0.203 er4.4 t35u",
                 field_zo(0.36, 0.203, 4.4, t=0.035)[0], microstrip(0.36, 0.203, 4.4, 0.035)[0]))
+    # JLC's calculator (Polar SI9000 CPWG, trapezoid W2 = W1 - 0.5 mil), read in a
+    # browser 2026-09-23: 50 ohm uncoated on JLC04161H-7628 (h 0.2104, er 4.4, 1 oz),
+    # 8 mil gap -> W1 13.17 mil. Taken at the mean width, gap widened to match.
+    # Gaps 5/10 mil agree the same (-1.2%), microstrip -0.7%. At 16 mil JLC returns the
+    # bare microstrip width, i.e. no side-ground effect; the solver says ~0.9 ohm
+    # (-2.6%), and physically the grounds are still there, so that point is not a ref.
+    mil = 0.0254
+    out.append(("JLC/Polar CPWG 8 mil gap, 50 ohm", field_zo((13.17 - 0.25) * mil, 0.2104, 4.4, t=0.035,
+                                                               s=(8 + 0.25) * mil)[0], 50.0))
     return out
 
 if __name__ == '__main__':

@@ -10,6 +10,7 @@ Read this before touching `part.py`'s HTTP layer. Do not re-probe what is here.
 | `easyeda.com/api/eda/product/search` (POST, form-encoded) | works, keyword search, `pageSize` up to 200 |
 | `jlcpcb.com/api/overseas-pcb-order/v1/shoppingCart/smtGood/selectSmtComponentList` (POST, JSON) | works, no auth, 200 rows/call **with parsed attributes**; package/category/price-sort/attribute filters server-side (see below). `pick`'s default pool |
 | `jlcpcb.com/api/overseas-pcb-order/v1/componentSearch/filterComponentAttribute` (POST, JSON) | works, no auth: the parts sidebar's facets - every attribute value with its part count, per category id (+ package). Unfiltered: all ~850 category names with ids (2.5 MB). Captured 2026-09-23 |
+| `easyeda.com/api/products/{C-code}/components?version=6.4.19.5` (GET) | works with a browser UA + `Referer: https://easyeda.com/`: the symbol and the footprint LCSC links to the code. `result.packageDetail.dataStr.shape[]` holds `PAD~shape~x~y~w~h~layer~net~num~holeR~pts~rot~...` in 10-mil units. CloudFront **403s after ~150 quick calls** (any client, for a while), so `fpcheck` asks only for leadless parts, 2 at a time, cached 30 days. Probed 2026-09-23 |
 | `wmsc.lcsc.com/wmsc/product/detail` | dead, 404 JSON |
 | `wmsc.lcsc.com/ftps/wm/search/global` | blocked, Akamai Access Denied |
 | `wmsc.lcsc.com/ftps/wm/{search/product,product/search,product/list,catalog/list}` | dead, "static resource unavailable" |
