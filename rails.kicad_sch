@@ -4587,22 +4587,22 @@
 		(uuid "05feaebf-ce79-4839-8ba1-83326a0fd9f8")
 	)
 	(junction
-		(at 234.95 62.23)
+		(at 234.95 57.15)
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "0a775ab1-dad2-43c4-879c-2cd300ab3fed")
-	)
-	(junction
-		(at 234.95 58.42)
-		(diameter 0)
-		(color 0 0 0 0)
-		(uuid "0ad823a3-b08b-4d7e-8195-8b1e0c8a7fd5")
 	)
 	(junction
 		(at 232.41 71.12)
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "0c936513-68a7-4092-bb05-42145b5a4c2c")
+	)
+	(junction
+		(at 167.64 66.04)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "0cef91ef-bc76-4732-81a8-d5330694c078")
 	)
 	(junction
 		(at 265.43 137.16)
@@ -4693,6 +4693,12 @@
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "2fb121a0-24eb-4317-94dd-120291eaf45c")
+	)
+	(junction
+		(at 160.02 62.23)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "3147b548-caed-4cb9-9fcb-86a2a3d7a873")
 	)
 	(junction
 		(at 113.03 161.29)
@@ -4941,7 +4947,7 @@
 		(uuid "99271e2c-4395-4361-8304-c40d27e441de")
 	)
 	(junction
-		(at 167.64 64.77)
+		(at 167.64 62.23)
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "99867df0-d178-4d40-9a94-b512271eefaf")
@@ -5011,6 +5017,12 @@
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "abf591a6-c665-40bc-b2d1-e47ffb92f399")
+	)
+	(junction
+		(at 252.73 60.96)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "aed488fc-c0f9-4b1e-80f4-3ac76804dfa6")
 	)
 	(junction
 		(at 218.44 127)
@@ -5157,7 +5169,13 @@
 		(uuid "edaeb009-8a2e-4fa2-885a-903fc3691bbb")
 	)
 	(junction
-		(at 252.73 62.23)
+		(at 160.02 66.04)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "f06dd817-18ae-4d16-836c-c20baca22fb9")
+	)
+	(junction
+		(at 252.73 57.15)
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "f1159cad-8869-47b5-9d40-bf7930963023")
@@ -5524,6 +5542,16 @@
 	)
 	(wire
 		(pts
+			(xy 166.37 66.04) (xy 167.64 66.04)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "1a76897e-2cbe-4765-9d6b-ba8031a6ecf2")
+	)
+	(wire
+		(pts
 			(xy 220.98 134.62) (xy 224.79 134.62)
 		)
 		(stroke
@@ -5644,7 +5672,7 @@
 	)
 	(wire
 		(pts
-			(xy 234.95 58.42) (xy 238.76 58.42)
+			(xy 234.95 53.34) (xy 238.76 53.34)
 		)
 		(stroke
 			(width 0)
@@ -5691,6 +5719,16 @@
 			(type default)
 		)
 		(uuid "2996b9bf-99f3-445f-98f0-e0f25305a518")
+	)
+	(wire
+		(pts
+			(xy 234.95 60.96) (xy 238.76 60.96)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "2b6cbc5e-01e4-417f-99e0-ed735e2c34da")
 	)
 	(wire
 		(pts
@@ -5781,16 +5819,6 @@
 			(type default)
 		)
 		(uuid "35e9b9e2-4c88-4c58-8974-ac4eb74acd78")
-	)
-	(wire
-		(pts
-			(xy 234.95 58.42) (xy 234.95 60.96)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "366c1428-bee4-4fa2-939f-17e330a6a8f7")
 	)
 	(wire
 		(pts
@@ -6034,6 +6062,16 @@
 	)
 	(wire
 		(pts
+			(xy 160.02 62.23) (xy 160.02 64.77)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "4b389ee9-7644-4923-90fa-c2aae72500a1")
+	)
+	(wire
+		(pts
 			(xy 147.32 77.47) (xy 151.13 77.47)
 		)
 		(stroke
@@ -6104,7 +6142,7 @@
 	)
 	(wire
 		(pts
-			(xy 160.02 58.42) (xy 160.02 64.77)
+			(xy 160.02 58.42) (xy 160.02 62.23)
 		)
 		(stroke
 			(width 0)
@@ -6141,16 +6179,6 @@
 			(type default)
 		)
 		(uuid "544cfae0-1b34-49e7-a778-eb55a047aae9")
-	)
-	(wire
-		(pts
-			(xy 234.95 60.96) (xy 234.95 62.23)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "545651d0-62c8-4c73-946a-213781e265c4")
 	)
 	(wire
 		(pts
@@ -6234,6 +6262,16 @@
 	)
 	(wire
 		(pts
+			(xy 160.02 66.04) (xy 160.02 69.85)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "5ba79959-8bbd-4703-b87c-240d65d9284d")
+	)
+	(wire
+		(pts
 			(xy 158.75 157.48) (xy 158.75 161.29)
 		)
 		(stroke
@@ -6311,16 +6349,6 @@
 			(type default)
 		)
 		(uuid "625b0200-7340-4058-9350-fea41362f06e")
-	)
-	(wire
-		(pts
-			(xy 252.73 58.42) (xy 252.73 62.23)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "62a91e1e-4df4-42e4-a30f-d00730e9d0e7")
 	)
 	(wire
 		(pts
@@ -6404,6 +6432,16 @@
 	)
 	(wire
 		(pts
+			(xy 252.73 60.96) (xy 252.73 78.74)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "6b868e29-0f51-4fbe-8825-e917d602a914")
+	)
+	(wire
+		(pts
 			(xy 113.03 161.29) (xy 116.84 161.29)
 		)
 		(stroke
@@ -6484,6 +6522,16 @@
 	)
 	(wire
 		(pts
+			(xy 160.02 66.04) (xy 161.29 66.04)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "7456efc4-272c-4e1d-82a0-520d063b2843")
+	)
+	(wire
+		(pts
 			(xy 154.94 77.47) (xy 167.64 77.47)
 		)
 		(stroke
@@ -6524,16 +6572,6 @@
 	)
 	(wire
 		(pts
-			(xy 252.73 62.23) (xy 252.73 66.04)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "7a20ccdd-ae7d-4adb-8781-0db9761bc2cf")
-	)
-	(wire
-		(pts
 			(xy 67.31 54.61) (xy 67.31 57.15)
 		)
 		(stroke
@@ -6564,7 +6602,7 @@
 	)
 	(wire
 		(pts
-			(xy 243.84 62.23) (xy 252.73 62.23)
+			(xy 243.84 57.15) (xy 252.73 57.15)
 		)
 		(stroke
 			(width 0)
@@ -6614,7 +6652,7 @@
 	)
 	(wire
 		(pts
-			(xy 160.02 64.77) (xy 160.02 68.58)
+			(xy 160.02 64.77) (xy 160.02 66.04)
 		)
 		(stroke
 			(width 0)
@@ -6634,7 +6672,7 @@
 	)
 	(wire
 		(pts
-			(xy 166.37 64.77) (xy 167.64 64.77)
+			(xy 166.37 62.23) (xy 167.64 62.23)
 		)
 		(stroke
 			(width 0)
@@ -6724,16 +6762,6 @@
 	)
 	(wire
 		(pts
-			(xy 233.68 66.04) (xy 238.76 66.04)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "8fdb09b8-3e93-4067-99e6-ff7a04b82ca3")
-	)
-	(wire
-		(pts
 			(xy 66.04 140.97) (xy 69.85 140.97)
 		)
 		(stroke
@@ -6744,7 +6772,7 @@
 	)
 	(wire
 		(pts
-			(xy 167.64 58.42) (xy 167.64 77.47)
+			(xy 167.64 58.42) (xy 167.64 66.04)
 		)
 		(stroke
 			(width 0)
@@ -6954,7 +6982,7 @@
 	)
 	(wire
 		(pts
-			(xy 234.95 62.23) (xy 238.76 62.23)
+			(xy 234.95 57.15) (xy 238.76 57.15)
 		)
 		(stroke
 			(width 0)
@@ -7054,7 +7082,7 @@
 	)
 	(wire
 		(pts
-			(xy 234.95 62.23) (xy 234.95 66.04)
+			(xy 234.95 53.34) (xy 234.95 66.04)
 		)
 		(stroke
 			(width 0)
@@ -7264,6 +7292,16 @@
 	)
 	(wire
 		(pts
+			(xy 167.64 66.04) (xy 167.64 77.47)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "c011a2b7-5de6-4f7e-a65f-bf07f00942d9")
+	)
+	(wire
+		(pts
 			(xy 87.63 83.82) (xy 92.71 83.82)
 		)
 		(stroke
@@ -7281,6 +7319,26 @@
 			(type default)
 		)
 		(uuid "c1659a92-b97c-4c5c-a18e-3eb0328079c3")
+	)
+	(wire
+		(pts
+			(xy 243.84 60.96) (xy 252.73 60.96)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "c1f367d4-60b5-4263-a48b-88eec85646f1")
+	)
+	(wire
+		(pts
+			(xy 252.73 53.34) (xy 252.73 60.96)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "c2414d83-f560-4a10-a806-72991c252468")
 	)
 	(wire
 		(pts
@@ -7304,7 +7362,7 @@
 	)
 	(wire
 		(pts
-			(xy 243.84 58.42) (xy 252.73 58.42)
+			(xy 243.84 53.34) (xy 252.73 53.34)
 		)
 		(stroke
 			(width 0)
@@ -7434,16 +7492,6 @@
 	)
 	(wire
 		(pts
-			(xy 252.73 66.04) (xy 252.73 78.74)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "ceee449b-f17a-4b07-849d-310cc2979ecf")
-	)
-	(wire
-		(pts
 			(xy 80.01 58.42) (xy 80.01 57.15)
 		)
 		(stroke
@@ -7521,6 +7569,16 @@
 			(type default)
 		)
 		(uuid "d65656d0-17d2-4b0f-be9f-b2b28e91dac1")
+	)
+	(wire
+		(pts
+			(xy 233.68 66.04) (xy 238.76 66.04)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "d790694b-62cc-41b9-ae8c-bfecc97285e3")
 	)
 	(wire
 		(pts
@@ -7754,16 +7812,6 @@
 	)
 	(wire
 		(pts
-			(xy 234.95 53.34) (xy 234.95 58.42)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "f5957a12-14c8-4d54-9136-daabbafdfbab")
-	)
-	(wire
-		(pts
 			(xy 151.13 148.59) (xy 152.4 148.59)
 		)
 		(stroke
@@ -7824,7 +7872,7 @@
 	)
 	(wire
 		(pts
-			(xy 160.02 64.77) (xy 161.29 64.77)
+			(xy 160.02 62.23) (xy 161.29 62.23)
 		)
 		(stroke
 			(width 0)
@@ -8792,7 +8840,7 @@
 	)
 	(symbol
 		(lib_id "Device:C_Small")
-		(at 241.3 62.23 90)
+		(at 241.3 57.15 90)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -8802,7 +8850,7 @@
 		(dnp no)
 		(uuid "10a7a890-a609-4b9b-bec5-ffa3d02b244f")
 		(property "Reference" "C169"
-			(at 237.744 60.96 90)
+			(at 237.744 55.88 90)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -8812,7 +8860,7 @@
 			)
 		)
 		(property "Value" "10uF"
-			(at 244.602 61.214 90)
+			(at 244.602 56.134 90)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -8822,7 +8870,7 @@
 			)
 		)
 		(property "Footprint" "Capacitor_SMD:C_0603_1608Metric"
-			(at 241.3 62.23 0)
+			(at 241.3 57.15 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -8833,7 +8881,7 @@
 			)
 		)
 		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/71a9f8eccc4da164324d4a716182c5e3.pdf?productCode=C22392391"
-			(at 241.3 62.23 0)
+			(at 241.3 57.15 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -8844,7 +8892,7 @@
 			)
 		)
 		(property "Description" "CAP MLCC 10uF ±20% 35V X5R 0603"
-			(at 241.3 62.23 0)
+			(at 241.3 57.15 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -8855,7 +8903,7 @@
 			)
 		)
 		(property "MPN" "TCC0603X5R106M350CT"
-			(at 241.3 62.23 0)
+			(at 241.3 57.15 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -8866,7 +8914,7 @@
 			)
 		)
 		(property "Manufacturer" "CCTC"
-			(at 241.3 62.23 0)
+			(at 241.3 57.15 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -8877,7 +8925,7 @@
 			)
 		)
 		(property "LCSC Part" "C22392391"
-			(at 241.3 62.23 0)
+			(at 241.3 57.15 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -8888,7 +8936,7 @@
 			)
 		)
 		(property "Voltage Rating" "35V"
-			(at 241.3 62.23 0)
+			(at 241.3 57.15 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -8899,7 +8947,7 @@
 			)
 		)
 		(property "Dielectric" "X5R"
-			(at 241.3 62.23 0)
+			(at 241.3 57.15 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -8910,7 +8958,7 @@
 			)
 		)
 		(property "Tolerance" "20%"
-			(at 241.3 62.23 0)
+			(at 241.3 57.15 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -9332,6 +9380,153 @@
 			(project "parsnip"
 				(path "/fe9d4a31-2311-442f-997c-52ad8ca5cfe9/ef3187a0-acf7-454f-a4ee-a309d9d8c27d"
 					(reference "#PWR0145")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Device:C_Small")
+		(at 241.3 60.96 90)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "2081e797-00e6-40c8-9aca-83e3972563f2")
+		(property "Reference" "C166"
+			(at 240.284 59.69 90)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "22uF"
+			(at 247.65 59.69 90)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Capacitor_SMD:C_0603_1608Metric"
+			(at 241.3 60.96 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/5a5c1da7b8866d662b18403c954de811.pdf?productCode=C22367828"
+			(at 241.3 60.96 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "CAP MLCC 22uF ±20% 16V X5R 0603"
+			(at 241.3 60.96 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "HGC0603R5226M160NTHJ"
+			(at 241.3 60.96 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "Chinocera"
+			(at 241.3 60.96 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC Part" "C22367828"
+			(at 241.3 60.96 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Voltage Rating" "16V"
+			(at 241.3 60.96 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Dielectric" "X5R"
+			(at 241.3 60.96 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Tolerance" "20%"
+			(at 241.3 60.96 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "4a3e9bba-9ba0-4bc7-a2cf-925cba44b625")
+		)
+		(pin "2"
+			(uuid "43acc45e-6ec9-4c84-93dc-7b209ab17eef")
+		)
+		(instances
+			(project "parsnip"
+				(path "/fe9d4a31-2311-442f-997c-52ad8ca5cfe9/ef3187a0-acf7-454f-a4ee-a309d9d8c27d"
+					(reference "C166")
 					(unit 1)
 				)
 			)
@@ -12496,7 +12691,7 @@
 	)
 	(symbol
 		(lib_id "Device:C_Small")
-		(at 163.83 64.77 90)
+		(at 163.83 62.23 90)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -12506,7 +12701,8 @@
 		(dnp no)
 		(uuid "50528050-ce94-49ea-9f1c-a58bb7813f7c")
 		(property "Reference" "C156"
-			(at 163.83 62.23 90)
+			(at 163.83 59.69 90)
+			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -12516,7 +12712,8 @@
 			)
 		)
 		(property "Value" "10uF"
-			(at 163.83 67.818 90)
+			(at 162.052 60.96 90)
+			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -12526,7 +12723,7 @@
 			)
 		)
 		(property "Footprint" "Capacitor_SMD:C_0603_1608Metric"
-			(at 163.83 64.77 0)
+			(at 163.83 62.23 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -12537,7 +12734,7 @@
 			)
 		)
 		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/71a9f8eccc4da164324d4a716182c5e3.pdf?productCode=C22392391"
-			(at 163.83 64.77 0)
+			(at 163.83 62.23 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -12548,7 +12745,7 @@
 			)
 		)
 		(property "Description" "CAP MLCC 10uF ±20% 35V X5R 0603"
-			(at 163.83 64.77 0)
+			(at 163.83 62.23 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -12559,7 +12756,7 @@
 			)
 		)
 		(property "MPN" "TCC0603X5R106M350CT"
-			(at 163.83 64.77 0)
+			(at 163.83 62.23 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -12570,7 +12767,7 @@
 			)
 		)
 		(property "Manufacturer" "CCTC"
-			(at 163.83 64.77 0)
+			(at 163.83 62.23 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -12581,7 +12778,7 @@
 			)
 		)
 		(property "LCSC Part" "C22392391"
-			(at 163.83 64.77 0)
+			(at 163.83 62.23 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -12592,7 +12789,7 @@
 			)
 		)
 		(property "Voltage Rating" "35V"
-			(at 163.83 64.77 0)
+			(at 163.83 62.23 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -12603,7 +12800,7 @@
 			)
 		)
 		(property "Dielectric" "X5R"
-			(at 163.83 64.77 0)
+			(at 163.83 62.23 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -12614,7 +12811,7 @@
 			)
 		)
 		(property "Tolerance" "20%"
-			(at 163.83 64.77 0)
+			(at 163.83 62.23 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -12634,6 +12831,154 @@
 			(project "parsnip"
 				(path "/fe9d4a31-2311-442f-997c-52ad8ca5cfe9/ef3187a0-acf7-454f-a4ee-a309d9d8c27d"
 					(reference "C156")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Device:C_Small")
+		(at 163.83 66.04 90)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "513b159b-c249-4cdb-aa97-9c5834b7bf78")
+		(property "Reference" "C167"
+			(at 161.29 64.516 90)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "22uF"
+			(at 166.37 68.834 90)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Capacitor_SMD:C_0603_1608Metric"
+			(at 163.83 66.04 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/5a5c1da7b8866d662b18403c954de811.pdf?productCode=C22367828"
+			(at 163.83 66.04 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "CAP MLCC 22uF ±20% 16V X5R 0603"
+			(at 163.83 66.04 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "HGC0603R5226M160NTHJ"
+			(at 163.83 66.04 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "Chinocera"
+			(at 163.83 66.04 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC Part" "C22367828"
+			(at 163.83 66.04 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Voltage Rating" "16V"
+			(at 163.83 66.04 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Dielectric" "X5R"
+			(at 163.83 66.04 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Tolerance" "20%"
+			(at 163.83 66.04 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "02d45af9-a920-4dd7-9b96-8f62ef2e6b73")
+		)
+		(pin "2"
+			(uuid "436c7285-a5a1-4b30-b18e-06b842544977")
+		)
+		(instances
+			(project "parsnip"
+				(path "/fe9d4a31-2311-442f-997c-52ad8ca5cfe9/ef3187a0-acf7-454f-a4ee-a309d9d8c27d"
+					(reference "C167")
 					(unit 1)
 				)
 			)
@@ -13599,7 +13944,7 @@
 	)
 	(symbol
 		(lib_id "Device:C_Small")
-		(at 241.3 58.42 90)
+		(at 241.3 53.34 90)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -13609,7 +13954,7 @@
 		(dnp no)
 		(uuid "596af223-75bc-4d6a-a2cf-1c78b6141c5f")
 		(property "Reference" "C168"
-			(at 237.744 57.15 90)
+			(at 237.744 52.07 90)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -13619,7 +13964,7 @@
 			)
 		)
 		(property "Value" "10uF"
-			(at 244.348 57.15 90)
+			(at 244.348 52.07 90)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -13629,7 +13974,7 @@
 			)
 		)
 		(property "Footprint" "Capacitor_SMD:C_0603_1608Metric"
-			(at 241.3 58.42 0)
+			(at 241.3 53.34 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -13640,7 +13985,7 @@
 			)
 		)
 		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/71a9f8eccc4da164324d4a716182c5e3.pdf?productCode=C22392391"
-			(at 241.3 58.42 0)
+			(at 241.3 53.34 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -13651,7 +13996,7 @@
 			)
 		)
 		(property "Description" "CAP MLCC 10uF ±20% 35V X5R 0603"
-			(at 241.3 58.42 0)
+			(at 241.3 53.34 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -13662,7 +14007,7 @@
 			)
 		)
 		(property "MPN" "TCC0603X5R106M350CT"
-			(at 241.3 58.42 0)
+			(at 241.3 53.34 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -13673,7 +14018,7 @@
 			)
 		)
 		(property "Manufacturer" "CCTC"
-			(at 241.3 58.42 0)
+			(at 241.3 53.34 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -13684,7 +14029,7 @@
 			)
 		)
 		(property "LCSC Part" "C22392391"
-			(at 241.3 58.42 0)
+			(at 241.3 53.34 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -13695,7 +14040,7 @@
 			)
 		)
 		(property "Voltage Rating" "35V"
-			(at 241.3 58.42 0)
+			(at 241.3 53.34 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -13706,7 +14051,7 @@
 			)
 		)
 		(property "Dielectric" "X5R"
-			(at 241.3 58.42 0)
+			(at 241.3 53.34 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -13717,7 +14062,7 @@
 			)
 		)
 		(property "Tolerance" "20%"
-			(at 241.3 58.42 0)
+			(at 241.3 53.34 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -21698,7 +22043,7 @@
 	)
 	(symbol
 		(lib_id "power:GND")
-		(at 160.02 68.58 0)
+		(at 160.02 69.85 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -21708,7 +22053,7 @@
 		(dnp no)
 		(uuid "e1735d61-e1a3-4ff7-864b-63b8bc301663")
 		(property "Reference" "#PWR0153"
-			(at 160.02 74.93 0)
+			(at 160.02 76.2 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -21719,7 +22064,7 @@
 			)
 		)
 		(property "Value" "GND"
-			(at 160.02 72.898 0)
+			(at 160.02 74.168 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -21729,7 +22074,7 @@
 			)
 		)
 		(property "Footprint" ""
-			(at 160.02 68.58 0)
+			(at 160.02 69.85 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -21740,7 +22085,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 160.02 68.58 0)
+			(at 160.02 69.85 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -21751,7 +22096,7 @@
 			)
 		)
 		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
-			(at 160.02 68.58 0)
+			(at 160.02 69.85 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)

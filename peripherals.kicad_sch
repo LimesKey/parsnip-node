@@ -2973,6 +2973,12 @@
 		(uuid "14582367-5c73-4e1b-b1a3-96b9c972a75f")
 	)
 	(junction
+		(at 252.73 41.91)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "1b374a3c-e5ee-4bf0-a1d5-c8292e237006")
+	)
+	(junction
 		(at 132.08 124.46)
 		(diameter 0)
 		(color 0 0 0 0)
@@ -3033,6 +3039,12 @@
 		(uuid "d4627552-9067-481e-a0d8-c3663ef81fd1")
 	)
 	(junction
+		(at 256.54 34.29)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "d7bea98c-691d-483e-98df-3dd8a63cd8a5")
+	)
+	(junction
 		(at 210.82 41.91)
 		(diameter 0)
 		(color 0 0 0 0)
@@ -3059,6 +3071,16 @@
 			(type default)
 		)
 		(uuid "0c48cfcc-803d-4a49-8669-039703b4276b")
+	)
+	(wire
+		(pts
+			(xy 252.73 34.29) (xy 256.54 34.29)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "15a695db-5a2d-4ca7-bbd1-76da979f7679")
 	)
 	(wire
 		(pts
@@ -3272,7 +3294,7 @@
 	)
 	(wire
 		(pts
-			(xy 247.65 41.91) (xy 262.89 41.91)
+			(xy 247.65 41.91) (xy 252.73 41.91)
 		)
 		(stroke
 			(width 0)
@@ -3282,7 +3304,7 @@
 	)
 	(wire
 		(pts
-			(xy 262.89 34.29) (xy 260.35 34.29)
+			(xy 262.89 34.29) (xy 256.54 34.29)
 		)
 		(stroke
 			(width 0)
@@ -3452,7 +3474,7 @@
 	)
 	(wire
 		(pts
-			(xy 247.65 31.75) (xy 252.73 31.75)
+			(xy 247.65 31.75) (xy 248.92 31.75)
 		)
 		(stroke
 			(width 0)
@@ -3469,6 +3491,16 @@
 			(type default)
 		)
 		(uuid "8f67320b-1316-48ca-b3fa-0690f82d527c")
+	)
+	(wire
+		(pts
+			(xy 252.73 41.91) (xy 262.89 41.91)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "99fb5488-eb33-4dbb-aa6f-1d27b5c749d5")
 	)
 	(wire
 		(pts
@@ -3502,6 +3534,16 @@
 	)
 	(wire
 		(pts
+			(xy 252.73 39.37) (xy 252.73 41.91)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "b49c31f2-9991-4d9d-be74-fe44bb10f4c5")
+	)
+	(wire
+		(pts
 			(xy 168.91 39.37) (xy 181.61 39.37)
 		)
 		(stroke
@@ -3512,7 +3554,7 @@
 	)
 	(wire
 		(pts
-			(xy 260.35 34.29) (xy 260.35 31.75)
+			(xy 256.54 34.29) (xy 256.54 31.75)
 		)
 		(stroke
 			(width 0)
@@ -6218,7 +6260,7 @@
 	)
 	(symbol
 		(lib_id "Device:Polyfuse")
-		(at 256.54 31.75 90)
+		(at 252.73 31.75 90)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -6228,7 +6270,7 @@
 		(dnp no)
 		(uuid "82c11ecb-de65-4b29-8073-5e50b26b0f05")
 		(property "Reference" "F6"
-			(at 256.54 27.432 90)
+			(at 252.73 27.432 90)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -6238,7 +6280,7 @@
 			)
 		)
 		(property "Value" "3A hold"
-			(at 257.048 29.464 90)
+			(at 253.238 29.464 90)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -6248,7 +6290,7 @@
 			)
 		)
 		(property "Footprint" "Fuse:Fuse_1812_4532Metric"
-			(at 261.62 30.48 0)
+			(at 257.81 30.48 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -6260,7 +6302,7 @@
 			)
 		)
 		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/82552fc8944c2b3427e6cd651b8d9c76.pdf?productCode=C2972730"
-			(at 256.54 31.75 0)
+			(at 252.73 31.75 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -6271,7 +6313,7 @@
 			)
 		)
 		(property "Description" "FUSE PTC resettable 3A hold, 5A trip, 6V, 1812"
-			(at 256.54 31.75 0)
+			(at 252.73 31.75 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -6282,7 +6324,7 @@
 			)
 		)
 		(property "MPN" "JSMD1812-300"
-			(at 261.62 30.48 0)
+			(at 257.81 30.48 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -6294,7 +6336,7 @@
 			)
 		)
 		(property "Manufacturer" "JKSEMI"
-			(at 261.62 30.48 0)
+			(at 257.81 30.48 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -6306,7 +6348,7 @@
 			)
 		)
 		(property "LCSC Part" "C2972730"
-			(at 256.54 31.75 0)
+			(at 252.73 31.75 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -6894,6 +6936,154 @@
 			(project "parsnip"
 				(path "/fe9d4a31-2311-442f-997c-52ad8ca5cfe9/8523a718-fda3-4580-a612-9f8de7a7dbdb"
 					(reference "U19")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Device:C_Small")
+		(at 252.73 36.83 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "d3348559-9bc4-4981-9457-29fe960c3731")
+		(property "Reference" "C137"
+			(at 249.936 40.386 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "10uF"
+			(at 247.396 39.116 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Capacitor_SMD:C_0603_1608Metric"
+			(at 252.73 36.83 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/71a9f8eccc4da164324d4a716182c5e3.pdf?productCode=C22392391"
+			(at 252.73 36.83 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "CAP MLCC 10uF ±20% 35V X5R 0603"
+			(at 252.73 36.83 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "TCC0603X5R106M350CT"
+			(at 252.73 36.83 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "CCTC"
+			(at 252.73 36.83 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC Part" "C22392391"
+			(at 252.73 36.83 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Voltage Rating" "35V"
+			(at 256.794 39.878 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Dielectric" "X5R"
+			(at 252.73 36.83 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Tolerance" "20%"
+			(at 252.73 36.83 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "bb27449f-2e66-47d9-8f89-2462df89d7e8")
+		)
+		(pin "2"
+			(uuid "f81b353b-1e1d-4e4b-bc33-e738001b3c6a")
+		)
+		(instances
+			(project "parsnip"
+				(path "/fe9d4a31-2311-442f-997c-52ad8ca5cfe9/8523a718-fda3-4580-a612-9f8de7a7dbdb"
+					(reference "C137")
 					(unit 1)
 				)
 			)

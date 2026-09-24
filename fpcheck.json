@@ -189,5 +189,15 @@
    "note": "u-blox NEO form factor: LCC-24 12.2x16.0mm, 24 pads; RF_GPS:ublox_NEO is the same land (NEO-6/7/8/M9/F10 share it)",
    "added": "2026-09-24"
   }
+ ],
+ "land": [
+  {
+   "lcsc": "C48260",
+   "footprint": "Texas_DPY0002A_0.6x1mm_P0.65mm",
+   "land": "land differs from LCSC's EasyEDA footprint: largest pad 0.30x0.50 vs 0.60x0.60 mm; copper extent 0.50x1.00 vs 0.60x1.60 mm",
+   "datasheet": "TPD1E10B06 p20",
+   "note": "board land = TI EXAMPLE BOARD LAYOUT DPY0002A (2x 0.3x0.5 pads, 0.7 pitch); EasyEDA's 0.6x0.6 is not TI's land",
+   "added": "2026-09-24"
+  }
  ]
 }
