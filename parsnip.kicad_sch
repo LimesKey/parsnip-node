@@ -7323,6 +7323,30 @@
 			)
 		)
 	)
+	(global_label "I2C_HOST_SDA"
+		(shape bidirectional)
+		(at 41.91 157.48 180)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "1c92897c-2bf1-4baf-ae06-beeddf618448")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 24.3878 157.48 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+	)
 	(global_label "UART0_TX"
 		(shape output)
 		(at 119.38 48.26 0)
@@ -7659,30 +7683,6 @@
 			)
 		)
 	)
-	(global_label "I2C_HOST_SDA"
-		(shape bidirectional)
-		(at 41.91 160.02 180)
-		(fields_autoplaced yes)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right)
-		)
-		(uuid "8b8e0cd2-ddf7-4c55-a335-4a5602fa59bf")
-		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 24.3878 160.02 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify right)
-			)
-		)
-	)
 	(global_label "MISO"
 		(shape input)
 		(at 30.48 184.15 180)
@@ -7696,6 +7696,30 @@
 		(uuid "8dbc94cf-0ce2-484c-be29-78dc9899926a")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
 			(at 22.8986 184.15 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+	)
+	(global_label "I2C_HOST_SCL"
+		(shape bidirectional)
+		(at 41.91 160.02 180)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "8e85e383-2f87-4e7e-aabc-e53f7165a22f")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 24.4483 160.02 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -7984,30 +8008,6 @@
 		(uuid "be97a4b0-3cfd-4cd2-88a4-31e3c8ea72c3")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
 			(at 235.6539 34.29 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify right)
-			)
-		)
-	)
-	(global_label "I2C_HOST_SCL"
-		(shape bidirectional)
-		(at 41.91 157.48 180)
-		(fields_autoplaced yes)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right)
-		)
-		(uuid "c2c17114-4037-4582-bee1-ca0b87a520cc")
-		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 24.4483 157.48 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
