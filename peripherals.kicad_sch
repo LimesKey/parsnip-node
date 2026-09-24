@@ -6,7 +6,7 @@
 	(paper "A4")
 	(title_block
 		(title "GPIO Expander / LEDs / Magnetometer")
-		(date "2026-08-30")
+		(date "2026-09-24")
 		(company "LimesKey")
 	)
 	(lib_symbols
