@@ -214,3 +214,12 @@
 #     5mm tooling edges + 2mm tooling holes + 1mm fiducials for a panel.
 #   - Fine pitch: the 0.35mm-pitch X2SON exceeds JLC *Economic* assembly
 #     (0.4mm min IC pitch). It needs JLC *Standard* assembly or PCBWay (0.35mm).
+
+# ================= UNFUSED PACK POSITIVE (2026-09-24) =========================
+# Net-(BT1-+) is the cell stack + upstream of F5. A short from it to pack negative
+# (-BATT, GND through the 5 mOhm shunt, or the raw cell minus Net-(BT2--)) is an
+# unfused dead short of both cells that bypasses F5, Q5/Q6 and R41. Keep those nets
+# 0.4 mm away, pour fills included. Placed last so it is evaluated first.
+(rule "unfused_pack_plus"
+    (constraint clearance (min 0.4mm))
+    (condition "A.NetName == 'Net-(BT1-+)' && (B.NetName == '-BATT' || B.NetName == 'GND' || B.NetName == 'Net-(BT2--)')"))
