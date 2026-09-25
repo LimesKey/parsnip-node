@@ -307,20 +307,6 @@
             "error_type": "DRCET_TRACK_WIDTH",
             "items": [
               {
-                "value": "3e5f43e6-ab84-4aaa-8193-24ac29b73a0d"
-              }
-            ],
-            "position": {
-              "x_nm": "137500000",
-              "y_nm": "58250000"
-            }
-          }
-        },
-        {
-          "marker": {
-            "error_type": "DRCET_TRACK_WIDTH",
-            "items": [
-              {
                 "value": "7b2e2b5a-f9cd-43b8-b21b-34c5b8031c5f"
               }
             ],
@@ -453,7 +439,7 @@
         "footprint_symbol_mismatch": "warning",
         "footprint_type_mismatch": "warning",
         "hole_clearance": "error",
-        "hole_to_hole": "warning",
+        "hole_to_hole": "error",
         "holes_co_located": "warning",
         "invalid_outline": "error",
         "isolated_copper": "warning",
