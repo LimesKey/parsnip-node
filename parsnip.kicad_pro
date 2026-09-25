@@ -363,20 +363,6 @@
             "error_type": "DRCET_TRACK_WIDTH",
             "items": [
               {
-                "value": "2c9dd593-e593-441e-bf43-fc7a3da3370c"
-              }
-            ],
-            "position": {
-              "x_nm": "131350000",
-              "y_nm": "108000000"
-            }
-          }
-        },
-        {
-          "marker": {
-            "error_type": "DRCET_TRACK_WIDTH",
-            "items": [
-              {
                 "value": "2d928546-dc83-4de5-b17e-c19b2c2c1a0a"
               }
             ],
