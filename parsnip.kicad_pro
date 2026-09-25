@@ -125,8 +125,8 @@
         "other_text_upright": false,
         "pads": {
           "drill": 0.0,
-          "height": 2.0,
-          "width": 2.75
+          "height": 1.0,
+          "width": 0.2
         },
         "silk_line_width": 0.15,
         "silk_text_italic": false,
@@ -251,34 +251,6 @@
             "error_type": "DRCET_TRACK_WIDTH",
             "items": [
               {
-                "value": "081a7da6-e0e6-4f05-a389-84ffce7609e1"
-              }
-            ],
-            "position": {
-              "x_nm": "132303535",
-              "y_nm": "88253535"
-            }
-          }
-        },
-        {
-          "marker": {
-            "error_type": "DRCET_TRACK_WIDTH",
-            "items": [
-              {
-                "value": "d43f98f0-04f9-4fa6-8c1e-1cb3ee33c979"
-              }
-            ],
-            "position": {
-              "x_nm": "132303535",
-              "y_nm": "92839395"
-            }
-          }
-        },
-        {
-          "marker": {
-            "error_type": "DRCET_TRACK_WIDTH",
-            "items": [
-              {
                 "value": "d0a9c63d-a13f-4395-a514-2fddd782bebe"
               }
             ],
@@ -341,20 +313,6 @@
             "position": {
               "x_nm": "137500000",
               "y_nm": "58250000"
-            }
-          }
-        },
-        {
-          "marker": {
-            "error_type": "DRCET_TRACK_WIDTH",
-            "items": [
-              {
-                "value": "6a6f0467-2084-4936-8085-87dda33fc3df"
-              }
-            ],
-            "position": {
-              "x_nm": "132300000",
-              "y_nm": "90546465"
             }
           }
         },
@@ -1154,7 +1112,7 @@
     "last_paths": {
       "idf": "",
       "netlist": "",
-      "plot": "/home/limeskey/Downloads/",
+      "plot": "/home/limeskey/Downloads/plotted-files",
       "specctra_dsn": "../../../Downloads/parsnip.dsn",
       "step": "parsnip.step",
       "vrml": "parsnip.wrl"
@@ -1405,7 +1363,7 @@
         "uuid": "9f6a091f-857b-49d0-a04b-55dd2f7de6dd"
       }
     ],
-    "used_designators": "#FLG1-13,#PWR1-186,BT1-5,C1-199,D1-23,F1-9,FB1-3,FL1-2,H1-4,J1-15,JP1-18,L1-7,NT1-6,Q1-17,R1-137,RN1-2,SW1-6,TH1-6,TP1-20,U1-21,Y1-2",
+    "used_designators": "#FLG1-13,#PWR1-186,BT1-5,C1-199,D1-23,F1-9,FB1-3,FID1-3,FL1-2,H1-4,J1-15,JP1-18,L1-7,NT1-6,Q1-17,R1-137,RN1-2,SW1-6,TH1-6,TP1-20,U1-21,Y1-2",
     "variants": []
   },
   "sheets": [
