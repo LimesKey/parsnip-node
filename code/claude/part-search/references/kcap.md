@@ -11,6 +11,7 @@ refinement, but never requires it.
 python3 $skill/scripts/kcap.py compare '10u/25V/X5R/0805' '10u/25V/X7R/1206' --vop 8.4 --temp 45
 python3 $skill/scripts/kcap.py compare C19666 C1791 --vop 5.0        # LCSC C-numbers work too
 python3 $skill/scripts/kcap.py solve MLCC --need 8uF --vop 8.4 --temp 45   # smallest/cheapest that clears it
+python3 $skill/scripts/kcap.py derate '10u/50V/X7R/1206' C19666 --vop 8.4,20,25  # parts x rails table
 ```
 
 A spec string is slash-separated and order-independent: `CAP/VOLT/DIEL/PKG`, e.g.

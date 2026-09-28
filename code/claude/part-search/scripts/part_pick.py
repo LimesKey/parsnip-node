@@ -108,6 +108,10 @@ def _keywords(a, cons):
         jkws = [f"{v} {pkg}" for v in exp]
     return kws, (jkws[:a.maxq] or kws)
 
+# lighting (not indicator) LEDs: a class neither catalogue has a category for
+LIGHT_LED = re.compile(r'(?=.*\bLEDs?\b)(?=.*\b(white|warm|cool|neutral|lighting|illumination|'
+                       r'high[- ]?power|mid[- ]?power|\d{4}\s?K|CRI|lumens?|lm)\b)', re.I)
+
 def categories(fresh=False):
     """LCSC/JLC category names (the names JLC's category filter takes), from the
     'Category' facet of a few broad LCSC searches: ~475 names, cached 7 days."""
@@ -380,6 +384,15 @@ def c_pick(a):
         print(f"  category: {' '.join(a.args)!r} names {len(a._catamb)} JLC categories, none chosen, "
               f"so the pool is keyword-only; --cat picks one: "
               + ', '.join(repr(c) for c in a._catamb[:8]))
+    elif not getattr(a, '_jcat', None) and a.args and not getattr(a, '_catamb', None):
+        print(f"  category: no JLC category is named {' '.join(a.args)!r}, so the pool is keyword-only "
+              f"and limits only filter what the keyword happens to find")
+    if LIGHT_LED.search(' '.join(a.args)):
+        print("  note: JLC and LCSC have no category for white/lighting LEDs (2026-09-27: LED ones are "
+              "Indication, IR, RGB, UV, COB), and discrete emitters (SST-20, XHP50, LH351D, 3030/5050 "
+              "mid-power) sit at 0 LCSC stock, so CCT/CRI/flux cannot be filtered here. DigiKey is the "
+              "source for this class (set DIGIKEY_CLIENT_ID / DIGIKEY_CLIENT_SECRET); COBs: "
+              "--cat 'Chip On Board (COB) Light Sources'.")
     if amb:
         print("  resolved: " + ';  '.join(
             f"{k} -> {' | '.join(sorted(v)[:3])}" for k, v in sorted(amb.items())))

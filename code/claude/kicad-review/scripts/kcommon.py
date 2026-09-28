@@ -8,14 +8,14 @@ of its own and imports nothing from the tools - the dependency only ever points
 tools -> kcommon, never back. Edit a parser or a check-formatter here once and
 every tool sees it; guard the change with references/selftest.py.
 """
-import sys, os, re, glob, json, shutil, hashlib, marshal
+import sys, os, re, glob, json, math, shutil, hashlib, marshal, subprocess, time
 from collections import defaultdict
 
 __all__ = [
     'GND_RE', 'KNOWN_RAILS', 'Netlist', 'SchInfo', 'eng', 'fp_lib_dirs', 'fp_pads',
-    'has', 'kicad_cli',
+    'has', 'kicad_cli', 'sym_geometry',
     'kid', 'kids', 'load_sexp', 'natkey', 'netlist_warnings', 'parse_sexp', 'parse_value',
-    'prefix', 'print_findings', 'rail_voltage', 'refrange', 'sch_files', 'smart_re',
+    'prefix', 'print_findings', 'rail_voltage', 'refrange', 'refresh_netlist', 'sch_files', 'smart_re',
     'suppressed', 'top_level_sheets', 'trunc', 'tvs_standoff', 'unesc_disp',
     'val', '_fkey',
 ]
@@ -67,8 +67,10 @@ def netlist_warnings(path, source='', sheets=()):
     if sch:
         t, f = max(sch)
         lag = t - os.path.getmtime(path)
-        if lag > 60:
-            out.append(f"{os.path.basename(path)} is {lag/3600:.1f} h older than "
+        if lag > 1:            # any save after the export: 70 s was enough to mislead
+            age = (f"{lag:.0f} s" if lag < 120 else f"{lag/60:.0f} min" if lag < 3600
+                   else f"{lag/3600:.1f} h")
+            out.append(f"{os.path.basename(path)} is {age} older than "
                        f"{os.path.basename(f)} - answers may be stale. Regenerate: {regen}")
     names = [n for _, n in sheets]
     miss = [n for fn, n in tls if fn != os.path.basename(source or '')
@@ -78,6 +80,36 @@ def netlist_warnings(path, source='', sheets=()):
                    f"{', '.join(miss)} - a single-root export, whole sheets are "
                    f"missing. Regenerate: {regen}")
     return out
+
+def refresh_netlist(path):
+    """Re-run kmerge on `path` when a .kicad_sch beside it was saved after it (the
+    board is edited live; a stale answer costs more than the ~3 s). Returns a
+    note for stderr, or None when nothing was due. $KREVIEW_NO_REGEN=1 opts out;
+    a failed run leaves the old file and netlist_warnings() still flags it."""
+    if os.environ.get('KREVIEW_NO_REGEN') or not os.path.isfile(path):
+        return None
+    d = os.path.dirname(os.path.abspath(path))
+    t = os.path.getmtime(path)
+    newer = [f for f in sch_files(d) if os.path.getmtime(f) > t + 1]
+    if not newer:
+        return None
+    tls = top_level_sheets(d)
+    root = tls[0][0] if tls else ''
+    if not root:
+        with open(path, encoding='utf-8', errors='replace') as fh:
+            m = re.search(r'\(source "([^"]+)"\)', fh.read(4000))
+        root = os.path.basename(m.group(1)) if m else ''
+    root = os.path.join(d, root) if root else ''
+    if not os.path.isfile(root):
+        return None
+    t0 = time.time()
+    km = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'kmerge.py')
+    r = subprocess.run([sys.executable, km, path, root], capture_output=True, text=True)
+    if r.returncode:
+        return (f"auto-regenerate of {os.path.basename(path)} failed: "
+                f"{trunc(r.stderr or r.stdout, 160)}")
+    return (f"({os.path.basename(path)} was older than {os.path.basename(max(newer, key=os.path.getmtime))}: "
+            f"regenerated with kmerge in {time.time() - t0:.1f} s; KREVIEW_NO_REGEN=1 skips this)")
 
 # ---------------- footprint libraries ----------------
 
@@ -366,6 +398,9 @@ class Netlist:
     def __init__(self, path, rail_overrides=None, no_dnp=False):
         self.path = path
         self.no_dnp = no_dnp
+        note = refresh_netlist(path)
+        if note:
+            print(note if note.startswith('(') else f"WARNING: {note}", file=sys.stderr)
         tree = load_sexp(path)
         self.comps, self.libparts, self.nets = {}, {}, {}
         self.pinnet, self.netclass = {}, {}
@@ -546,6 +581,9 @@ class SchInfo:
         self.ncflag = set()      # {(ref, pin)} with an explicit no_connect marker
         self.notes = []          # [(sheetpath, x, y, text)]
         self.pos = {}            # ref -> [(sheetpath, x, y)]
+        self.place = {}          # ref -> [(file, sheetpath, x, y, rot, mirror, unit, lib_id)]
+        self.libsyms = {}        # file -> {lib_id: lib symbol node}
+        self.sheetpath = {}      # file -> sheet path ('/BMS/')
         self.nc_total = self.nc_matched = 0
         self.files = []
 
@@ -638,7 +676,10 @@ class SchInfo:
 
         for base, tree in parsed.items():
             path = sheetpath.get(base, f"/{base}/")
+            self.sheetpath[base] = path
             libpins = {}
+            self.libsyms[base] = {sym[1]: sym for ls in kids(tree, 'lib_symbols')
+                                  for sym in kids(ls, 'symbol')}
             for ls in kids(tree, 'lib_symbols'):
                 for sym in kids(ls, 'symbol'):
                     pins = []
@@ -669,6 +710,7 @@ class SchInfo:
                 if not ref or ref.startswith('#'):
                     continue
                 self.pos.setdefault(ref, []).append((path, sx, sy))
+                self.place.setdefault(ref, []).append((base, path, sx, sy, rot, mir, unit, libid))
                 for u, st, num, px, py in libpins.get(libid, []):
                     if u not in (0, unit) or st != 1:
                         continue
@@ -721,6 +763,60 @@ class SchInfo:
                   f"{self.nc_total} no_connect markers land on a computed pin - "
                   f"NC annotations disabled)", file=sys.stderr)
             self.ncflag = set()
+
+
+def _xf(x, y, rot, mir):
+    """lib vector -> sheet vector (Y down): mirror, CCW rotation, Y flip - the
+    transform SchInfo validates against every no_connect marker"""
+    if mir == 'x':
+        y = -y
+    elif mir == 'y':
+        x = -x
+    for _ in range(int(rot) // 90 % 4):
+        x, y = -y, x
+    return x, -y
+
+def sym_geometry(libsym, unit, sx, sy, rot, mir):
+    """A placed symbol in sheet mm: ({pin: (x, y, side, name)}, body bbox). side is
+    where the wire leaves the pin (L/R/U/D); the body is the lib graphics only
+    (rectangles, polylines, circles, arcs), None if it draws none."""
+    pins, pts = {}, []
+    f = SchInfo._fnum
+    for sub in kids(libsym, 'symbol'):
+        bits = sub[1].rsplit('_', 2)
+        try:
+            u, st = int(bits[1]), int(bits[2])
+        except (IndexError, ValueError):
+            u, st = 0, 1
+        if u not in (0, unit) or st not in (0, 1):
+            continue
+        for p in kids(sub, 'pin'):
+            at = kid(p, 'at')
+            ang = f(at[3]) if len(at) > 3 else 0
+            x, y = _xf(f(at[1]), f(at[2]), rot, mir)
+            dx, dy = _xf(round(math.cos(math.radians(ang))), round(math.sin(math.radians(ang))), rot, mir)
+            side = 'R' if dx < -.5 else 'L' if dx > .5 else 'D' if dy < -.5 else 'U'
+            nm = kid(p, 'name')
+            pins[val(p, 'number')] = (round(sx + x, 2), round(sy + y, 2), side,
+                                     nm[1] if nm and len(nm) > 1 else '')
+        for g in sub:
+            if not isinstance(g, list):
+                continue
+            if g[0] == 'rectangle':
+                pts += [(f(kid(g, k)[1]), f(kid(g, k)[2])) for k in ('start', 'end')]
+            elif g[0] in ('polyline', 'bezier'):
+                pts += [(f(q[1]), f(q[2])) for q in kids(kid(g, 'pts') or [], 'xy')]
+            elif g[0] == 'arc':
+                pts += [(f(kid(g, k)[1]), f(kid(g, k)[2])) for k in ('start', 'mid', 'end') if kid(g, k)]
+            elif g[0] == 'circle':
+                c, r = kid(g, 'center'), f(val(g, 'radius'))
+                pts += [(f(c[1]) - r, f(c[2]) - r), (f(c[1]) + r, f(c[2]) + r)]
+    body = None
+    if pts:
+        q = [_xf(x, y, rot, mir) for x, y in pts]
+        body = (round(sx + min(x for x, _ in q), 2), round(sy + min(y for _, y in q), 2),
+                round(sx + max(x for x, _ in q), 2), round(sy + max(y for _, y in q), 2))
+    return pins, body
 
 
 def suppressed(f, supp):

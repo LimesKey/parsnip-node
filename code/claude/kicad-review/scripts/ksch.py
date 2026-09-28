@@ -21,11 +21,13 @@ SPEC LANGUAGE (one statement per line, '#' starts a comment)
   title  <text>                       diagram title, top left
   ic   REF x,y NAME [w=N] [h=N] L:1=EN,2=OVLO R:6=OUT T:5=IN B:8=GND
   conn REF x,y NAME R:1=VCC,2=GND     connector: box, pins one side
-  r|c|cp|l|fb|d|ds|dz|led|tvs|sw|fuse|xtal|bat|jp|tp|ant  REF x,y [ORIENT] [value]
+  r|c|cp|l|fb|d|ds|dz|led|tvs|sw|fuse|xtal|bat|jp|tp|ant|ntc  REF x,y [ORIENT] [value]
+  d2s|d2a|d2c REF x,y [ORIENT] [value] [schottky]   dual diode, COM = pin 3
+  rsense REF x,y [ORIENT] [value]     4-terminal Kelvin shunt (1/4 force, 2/3 sense)
   nmos|pmos|npn|pnp  REF x,y [ORIENT] [value]
-  wire  A.1 B.2 [8,4 ...]             route between pins/points, in order
+  wire  A.1 [x,y ...] B.2             routed through the points IN THE ORDER WRITTEN
   net   NAME [@x=N|@y=N] A.1 B.2 ...  named net, optional trunk column/row
-  gnd   A.2 [gnd|gnda|earth]          ground symbol hung off a pin
+  gnd   A.2 [gnd|gnda|earth|NAME]     ground symbol hung off a pin (NAME: -BATT...)
   pwr   +3V3 A.1                      power rail symbol hung off a pin
   label NAME A.1                      local net label at a pin
   hlabel NAME A.1 [in|out|bidi]       hierarchical label (sheet pin)
@@ -40,7 +42,8 @@ Pins are addressed by number (U8.6) or by name (U8.OUT, R1.2, Q1.g, D1.k).
 
 FLAGS
   --net board.net   pull IC value + pin names from a netlist, so `L:1,2,5`
-                    needs numbers only. Implies --verify.
+                    needs numbers only, and renumber diode/FET/BJT pins to the
+                    real part's by name (Device:D is 1=K). Implies --verify.
   --verify          check every drawn connection against that netlist and
                     report any wire the real board does not have.
   --px N            pixels per grid unit (22). --theme kicad|mono|dark
@@ -219,6 +222,51 @@ def s_d(kind='d'):
     return pr, {'1': (0, 0, 'U'), '2': (0, 2, 'D'), 'a': (0, 0, 'U'), 'k': (0, 2, 'D')}, bb
 
 
+def _mapy(prims, f):
+    """re-map the y of line/polygon prims (flip or shift a diode body)"""
+    out = []
+    for p in prims:
+        if p[0] == 'l':
+            out.append(('l', p[1], f(p[2]), p[3], f(p[4]), p[5]))
+        elif p[0] == 'p':
+            out.append(('p', [(x, f(y)) for x, y in p[1]], p[2], p[3]))
+    return out
+
+
+# dual diodes, KiCad numbering: pin 1 top, pin 2 bottom, 3 = the common node
+# (left; `l` mirrors it right).
+# (top diode, bottom diode) conduct 'down' (anode up) or 'up'; letter aliases
+# follow the part's own pin names so `--net` can map them.
+DUAL = {'d2s': (('down', 'down'), {'a': '1', 'k': '2', 'com': '3'}),     # BAT54S, BAV99
+        'd2a': (('up', 'down'), {'k1': '1', 'k2': '2', 'a': '3'}),       # BAT54A
+        'd2c': (('down', 'up'), {'a1': '1', 'a2': '2', 'k': '3'})}       # BAT54C
+
+
+def s_dual(form, kind='d'):
+    (top, bot), alias = DUAL[form]
+    body = _diode_body(kind)
+    pr = _mapy(body, (lambda y: y) if top == 'down' else (lambda y: 2 - y))
+    pr += _mapy(body, (lambda y: 2 + y) if bot == 'down' else (lambda y: 4 - y))
+    pr += [L(0, 2, -2, 2), ('c', 0, 2, .12, 2)]      # COM out left, clear of the text
+    pins = {'1': (0, 0, 'U'), '2': (0, 4, 'D'), '3': (-2, 2, 'L')}
+    pins.update({k: pins[v] for k, v in alias.items()})
+    return pr, pins, (-.5, .68, .5, 3.32)
+
+
+def s_ntc(us=False):
+    pr, pins, _ = s_r(us)
+    return pr + [L(-.6, 1.6, .6, .4), L(-.6, 1.6, -.85, 1.6)], pins, (-.85, .4, .6, 1.6)
+
+
+def s_rshunt():
+    """4-terminal Kelvin shunt, KiCad R_Shunt numbering: force 1 (top) / 4
+    (bottom), sense 2 / 3 on the right beside pins 1 / 4."""
+    pr = [L(0, 0, 0, .8), L(0, 3.2, 0, 4), ('r', -.35, .8, .7, 2.4, 1),
+          L(.35, 1, 2, 1), L(.35, 3, 2, 3)]
+    return pr, {'1': (0, 0, 'U'), '4': (0, 4, 'D'), '2': (2, 1, 'R'), '3': (2, 3, 'R')}, \
+        (-.35, .8, .35, 3.2)
+
+
 def s_tvs():
     pr = [L(0, 0, 0, .5), L(0, 1.5, 0, 2),
           POLY([(-.5, .5), (.5, .5), (0, 1.0)], True, 1),
@@ -317,6 +365,10 @@ TWO_PIN = {
     'jp': lambda o: s_jp(), 'tp': lambda o: s_tp(), 'ant': lambda o: s_ant(),
     'nmos': lambda o: s_fet(False), 'pmos': lambda o: s_fet(True),
     'npn': lambda o: s_bjt(False), 'pnp': lambda o: s_bjt(True),
+    'ntc': lambda o: s_ntc(o.get('us')), 'rsense': lambda o: s_rshunt(),
+    'd2s': lambda o: s_dual('d2s', o.get('kind', 'd')),
+    'd2a': lambda o: s_dual('d2a', o.get('kind', 'd')),
+    'd2c': lambda o: s_dual('d2c', o.get('kind', 'd')),
 }
 
 ANCHOR_NOTE = {
@@ -470,35 +522,44 @@ class Sym:
             if self.value:
                 out.append(('t', (x0 + x1) / 2, y1 + .85, self.value, TXT, 'middle', 0, 'val'))
         else:
+            # side leads (a dual diode's COM, a shunt's sense pins) push text across
+            left = any(d == 'R' for _x, _y, d in self.pins().values())
+            tx, anc = (x0 - .35, 'end') if left else (x1 + .35, 'start')
             if self.ref:
-                out.append(('t', x1 + .35, (y0 + y1) / 2 - .05, self.ref, TXT, 'start', 0, 'ref'))
+                out.append(('t', tx, (y0 + y1) / 2 - .05, self.ref, TXT, anc, 0, 'ref'))
             if self.value:
-                out.append(('t', x1 + .35, (y0 + y1) / 2 + .65, self.value, TXT, 'start', 0, 'val'))
+                out.append(('t', tx, (y0 + y1) / 2 + .65, self.value, TXT, anc, 0, 'val'))
         return out
 
 
 # ---------------- power / label glyphs ----------------
 
-def glyph_gnd(x, y, kind='gnd', name=''):
-    pr = [('l', x, y, x, y + .8, 1.0)]
+def glyph_gnd(x, y, kind='gnd', name='', up=False):
+    """hangs down from (x,y); `up` flips it for a pin that faces up, so the
+    stub never runs back through the glyph"""
+    s = -1 if up else 1
+    pr = [('l', x, y, x, y + s * .8, 1.0)]
     if kind == 'earth':
-        pr += [('l', x - .6, y + .8, x + .6, y + .8, 1.1),
-               ('l', x - .38, y + 1.1, x + .38, y + 1.1, 1.1),
-               ('l', x - .16, y + 1.4, x + .16, y + 1.4, 1.1)]
-        bb = (x - .6, y, x + .6, y + 1.4)
+        pr += [('l', x - .6, y + s * .8, x + .6, y + s * .8, 1.1),
+               ('l', x - .38, y + s * 1.1, x + .38, y + s * 1.1, 1.1),
+               ('l', x - .16, y + s * 1.4, x + .16, y + s * 1.4, 1.1)]
+        ext = 1.4
     else:
-        pr += [('p', [(x - .62, y + .8), (x + .62, y + .8), (x, y + 1.5)], True, False)]
-        bb = (x - .62, y, x + .62, y + 1.5)
-    if name and name.upper() not in ('GND', ''):
-        pr.append(('t', x, y + 2.15, name, TXT, 'middle', 0))
-        bb = (bb[0], bb[1], bb[2], y + 2.3)
-    return pr, bb
+        pr += [('p', [(x - .62, y + s * .8), (x + .62, y + s * .8), (x, y + s * 1.5)], True, False)]
+        ext = 1.5
+    x1 = x + .62
+    if name and name.upper() not in ('GND', ''):     # beside it: below lands in the next row
+        pr.append(('t', x + .85, y + s * 1.15 + .18, name, TXT, 'start', 0))
+        x1 = x + .85 + twid(name, TXT)
+    return pr, (x - .62, min(y, y + s * ext), x1, max(y, y + s * ext))
 
 
-def glyph_pwr(x, y, name):
-    pr = [('l', x, y, x, y - .8, 1.0), ('l', x - .62, y - .8, x + .62, y - .8, 1.1),
-          ('t', x, y - 1.15, name, TXT, 'middle', 0)]
-    return pr, (x - .62, y - 1.6, x + .62, y)
+def glyph_pwr(x, y, name, down=False):
+    """bar above (x,y); `down` flips it for a pin that faces down"""
+    s = 1 if down else -1
+    pr = [('l', x, y, x, y + s * .8, 1.0), ('l', x - .62, y + s * .8, x + .62, y + s * .8, 1.1),
+          ('t', x, y + (1.65 if down else -1.15), name, TXT, 'middle', 0)]
+    return pr, (x - .62, min(y, y + s * 1.7), x + .62, max(y, y + s * 1.7))
 
 
 def glyph_label(x, y, d, name, kind='label', flow='in'):
@@ -618,6 +679,18 @@ def on_seg(p, s):
     if abs(y1 - y2) < 1e-6 and abs(y - y1) < 1e-6:
         return min(x1, x2) + 1e-6 < x < max(x1, x2) - 1e-6
     return False
+
+
+def retrace(segs):
+    """start of the first stretch two collinear segments share, else None"""
+    for i, ((ax, ay), (bx, by)) in enumerate(segs):
+        for (cx, cy), (dx, dy) in segs[i + 1:]:
+            for v, (p, q), (r, s) in ((ax == bx == cx == dx, (ay, by), (cy, dy)),
+                                      (ay == by == cy == dy, (ax, bx), (cx, dx))):
+                lo, hi = max(min(p, q), min(r, s)), min(max(p, q), max(r, s))
+                if v and hi - lo > 1e-6:
+                    return (ax, lo) if ax == bx else (lo, ay)
+    return None
 
 
 def junctions(segs):
@@ -784,8 +857,15 @@ class Doc:
             if len(a) < 2:
                 raise SpecError('wire needs at least two endpoints')
             eps = [self.ep(t) for t in a]
+            segs = []
             for i in range(len(eps) - 1):
-                self.wire(eps[i][:3], eps[i + 1][:3])
+                segs += self.wire(eps[i][:3], eps[i + 1][:3])
+            back = retrace(segs)
+            if back:
+                self.warns.append(
+                    f"line {ln}: the wire doubles back over itself at ({back[0]:g},{back[1]:g}). "
+                    f"Points are routed in the order written: put waypoints BETWEEN "
+                    f"the ends, `wire A.1 x,y ... B.2`")
             pins = [e[3] for e in eps if e[3]]
             if len(pins) > 1:
                 self.netdecl.append((None, pins, 'wire'))
@@ -803,8 +883,8 @@ class Doc:
                 p = (x, y - 2)
             else:
                 p = (x + (2 if d == 'R' else -2), y + 1)
-            self.wire((x, y, d), (p[0], p[1], 'U'))
-            pr, bb = glyph_gnd(p[0], p[1], 'earth' if kind == 'earth' else 'gnd', name)
+            self.wire((x, y, d), (p[0], p[1], 'D' if d == 'U' else 'U'))
+            pr, bb = glyph_gnd(p[0], p[1], 'earth' if kind == 'earth' else 'gnd', name, up=d == 'U')
             for q in pr:
                 self.add(*q, 'pwr')
             if e[3]:
@@ -822,8 +902,8 @@ class Doc:
                 p = (x, y + 2)
             else:
                 p = (x + (2 if d == 'R' else -2), y - 1)
-            self.wire((x, y, d), (p[0], p[1], 'D'))
-            pr, bb = glyph_pwr(p[0], p[1], name)
+            self.wire((x, y, d), (p[0], p[1], 'U' if d == 'D' else 'D'))
+            pr, bb = glyph_pwr(p[0], p[1], name, down=d == 'D')
             for q in pr:
                 self.add(*q, 'pwr')
             if e[3]:
@@ -859,15 +939,33 @@ class Doc:
             if not (kw in ('r',) and len(rest) == 1 and rest[0].lower() == 'r'):
                 orient = rest[0].lower(); rest = rest[1:]
         dnp = any(t.lower() == 'dnp' for t in rest)
-        rest = [t for t in rest if t.lower() != 'dnp']
+        sk = any(t.lower() == 'schottky' for t in rest)
+        rest = [t for t in rest if t.lower() not in ('dnp', 'schottky')]
         val = ' '.join(rest)
         if ref in self.syms:
             raise SpecError(f"duplicate ref '{ref}'")
         if val == '@' and self.nl:
             val = unesc(self.nl.value(ref))
-        self.syms[ref] = Sym(kw, ref, x, y, orient, val, dnp=dnp,
-                             opts={'us': self.o.get('us')})
+        sym = Sym(kw, ref, x, y, orient, val, dnp=dnp,
+                  opts={'us': self.o.get('us'), 'kind': 'ds' if sk else 'd'})
+        self.syms[ref] = sym
         self.order.append(ref)
+        self.real_pins(ref, sym)
+
+    def real_pins(self, ref, sym):
+        """With --net, renumber a symbol's pins to the real part's by pin NAME:
+        KiCad's Device:D is 1=K 2=A, so the drawing's anode must answer to 2, and
+        `D1.a` must verify as the netlist's pin 2. Only when every real pin
+        matches a letter the symbol draws (A/K, G/D/S, B/C/E, COM...)."""
+        sp = self.nl.sympins(ref) if self.nl else {}
+        letters = {k: v for k, v in sym.lpins.items() if not k.isdigit()}
+        want = {num: _norm(nm) for num, (nm, _t) in sp.items()}
+        if not sp or not letters or not all(n in letters for n in want.values()):
+            return
+        sym.lpins = {num: letters[n] for num, n in want.items()}
+        self.alias[ref] = {}
+        for num, n in sorted(want.items(), key=lambda z: (len(z[0]), z[0])):
+            self.alias[ref].setdefault(n, num)
 
     def st_ic(self, kw, a):
         if len(a) < 2:
@@ -1161,7 +1259,7 @@ def _seg_hits_box(s, bb):
 
 
 def check_doc(d):
-    out, unwired = [], []
+    out, unwired = [('WARN', w) for w in d.warns], []
     refs = d.order
     for i in range(len(refs)):
         for j in range(i + 1, len(refs)):
@@ -1218,17 +1316,17 @@ def drawn_nets(d):
                            # its '1'/'2', a FET's 'g'/'d'/'s', a battery's '+'/'-')
                            # sit at the same point as a numbered pin; only check
                            # the pin the spec actually referenced, not every alias
-            k = _k(x, y)
-            if k in uf.p:
-                groups.setdefault(uf.find(k), [set(), set()])[0].add((ref, pin))
+            # a pin with no wire (a label straight on it) is its own node
+            groups.setdefault(uf.find(_k(x, y)), [set(), set()])[0].add((ref, pin))
     for name, pins, kind in d.netdecl:
         if not name or not pins:
             continue
         x, y, _dir = d.syms[pins[0][0]].pins()[pins[0][1]]
-        k = _k(x, y)
-        if k in uf.p:
-            groups.setdefault(uf.find(k), [set(), set()])[1].add(name)
+        groups.setdefault(uf.find(_k(x, y)), [set(), set()])[1].add(name)
     return list(groups.values())
+
+
+_GNDISH = re.compile(r'^(\w*GND\w*|VSS\w*|EARTH)$', re.I)
 
 
 def verify_doc(d, nl):
@@ -1259,8 +1357,10 @@ def verify_doc(d, nl):
         elif real:
             rn = list(real)[0]
             for nm in names:
+                # a GND glyph may sit on PGND/GNDA/VSS, never on -BATT: GND_RE
+                # counts a pack negative as ground, but it is its own net
                 if rn and _norm(nm.split('/')[-1]) != _norm(rn.split('/')[-1]) \
-                        and not (nl.is_gnd(rn) and 'GND' in nm.upper()):
+                        and not (_GNDISH.match(rn.split('/')[-1]) and 'GND' in nm.upper()):
                     out.append(('WARN', f"label '{nm}' sits on net {rn}"))
     return out
 
@@ -1272,7 +1372,11 @@ def cmd_syms():
         ('r', '1 2', 'pin1', 'resistor (IEC box; --us for zigzag)'),
         ('c cp', '1 2', 'pin1', 'capacitor / polarised capacitor'),
         ('l fb', '1 2', 'pin1', 'inductor / ferrite bead'),
-        ('d ds dz led', '1 2 a k', 'anode', 'diode / schottky / zener / LED'),
+        ('d ds dz led', '1 2 a k', 'anode', 'diode / schottky / zener / LED (--net: real numbers)'),
+        ('d2s', '1 2 3 a k com', 'pin 1', 'dual series diode (BAT54S, BAV99); COM left'),
+        ('d2a d2c', '1 2 3 k1 k2 a', 'pin 1', 'dual common-anode / (a1 a2 k) common-cathode'),
+        ('ntc', '1 2', 'pin1', 'NTC thermistor'),
+        ('rsense', '1 2 3 4', 'pin1', 'Kelvin shunt: 1/4 force, 2/3 sense on the right'),
         ('tvs', '1 2', 'pin1', 'bidirectional TVS'),
         ('fuse', '1 2', 'pin1', 'fuse'),
         ('sw', '1 2', 'pin1', 'momentary switch'),
@@ -1293,7 +1397,9 @@ Anchor = the coordinate you write in the spec. Two-pin parts are 2 units long,
 so `c C1 6,4 v` puts pin 1 at 6,4 and pin 2 at 6,6.
 ORIENT: v (default, pin1 top) h (pin1 left) vr (pin1 bottom) hr (pin1 right).
 Transistors: default gate/base on the left; `l` mirrors it.
-Connection glyphs: gnd  pwr  label  hlabel  glabel  nc.""")
+Connection glyphs: gnd  pwr  label  hlabel  glabel  nc. `gnd`/`pwr` flip to
+face the pin, and `gnd PIN -BATT` names a non-GND return.
+Add `schottky` after a dual diode's value for schottky bars.""")
 
 
 # ---------------- CLI ----------------

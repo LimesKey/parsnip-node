@@ -1,14 +1,15 @@
 ---
 name: kicad-review
-description: Query and review KiCad netlists (.net), schematics (.kicad_sch), board placement (.kicad_pcb) and datasheets, and draw schematics: knet.py, kpcb.py, ksch.py, kdoc.py. Use for any question touching a KiCad schematic, netlist, ERC, BOM, footprint, pin, net, connectivity, decoupling or power rail ("what does U2 pin 9 connect to"), and for board layout, placement, floorplan, footprint position, courtyard, edge clearance, mounting hole or keepout ("is U8 too close to the antenna"). `kpcb.py FILE ic U13` also RECOMMENDS where a regulator's caps, inductor and feedback divider go, with a diagram: use it for "where do these go", "lay out this buck/LDO", "minimise the switching loop". Never answer connectivity or geometry from memory or by eyeballing a schematic or board image; exports go stale within a session. Use it too for ANY request to draw or show a circuit, even one not on the board yet: ksch.py draws real symbols from a text spec and hand-written SVG is never right.
+description: Query and review KiCad netlists (.net), schematics (.kicad_sch), board placement (.kicad_pcb) and datasheets, and draw schematics: knet.py, kpcb.py, ksheet.py, ksch.py, kdoc.py. Use for any question touching a KiCad schematic, netlist, ERC, BOM, footprint, pin, net, connectivity, decoupling or power rail ("what does U2 pin 9 connect to"), and for board layout, placement, floorplan, footprint position, courtyard, edge clearance, mounting hole or keepout ("is U8 too close to the antenna"), and schematic-sheet geometry or readability ("where is U7 on the sheet", "is this drawing misleading", "show me that part of the schematic"). `kpcb.py FILE ic U13` also RECOMMENDS where a regulator's caps, inductor and feedback divider go, with a diagram: use it for "where do these go", "lay out this buck/LDO", "minimise the switching loop". Never answer connectivity or geometry from memory or by eyeballing a schematic or board image; exports go stale within a session. Use it too for ANY request to draw or show a circuit, even one not on the board yet: ksch.py draws real symbols from a text spec and hand-written SVG is never right.
 ---
 
 # KiCad netlist review, placement review and schematic drawing
 
-Four stdlib-only tools in this skill's `scripts/`. Nothing to install.
+Stdlib-only tools in this skill's `scripts/`. Nothing to install (`view` uses
+`rsvg-convert` when present).
 
 ```bash
-K=<skill>/scripts/knet.py   P=<skill>/scripts/kpcb.py
+K=<skill>/scripts/knet.py   P=<skill>/scripts/kpcb.py   H=<skill>/scripts/ksheet.py
 D=<skill>/scripts/kdoc.py   S=<skill>/scripts/ksch.py
 ```
 
@@ -18,6 +19,7 @@ D=<skill>/scripts/kdoc.py   S=<skill>/scripts/ksch.py
 | where is it, does it fit, does it clash, where do the passives go | `.kicad_pcb` | `kpcb.py` | [kpcb](references/kpcb.md) |
 | does it pass DRC/ERC, real clearance/rule violations | `.kicad_pcb` + roots | `kdrc.py` | [kdrc](references/kdrc.md) |
 | what does the part's datasheet say | PDFs | `kdoc.py` | [kdoc](references/kdoc.md) |
+| where is it on the schematic sheet, is the drawing readable, show me that region | `.kicad_sch` + `.net` | `ksheet.py` | [ksheet](references/ksheet.md) |
 | show me the circuit | - | `ksch.py` | [ksch](references/ksch.md) |
 
 `knet check` and `kpcb check` are heuristics on the netlist and placement;
@@ -35,8 +37,9 @@ file), so a kpcb call on a 12 MB board costs ~0.3 s instead of ~0.9 s. `kzo.py`
 `.net` - pads carry their own net names and pin functions. Find the `.net` first:
 usually beside the board, else `/mnt/project/*.net` or `/mnt/user-data/uploads/*.net`.
 If `*.kicad_sch` files sit beside the `.net`, knet parses them as a sidecar
-(no_connect flags, text notes, symbol positions), and warns when a sheet was saved
-after the `.net` or the `.net` lacks a top-level sheet the `.kicad_pro` lists.
+(no_connect flags, text notes, symbol positions). A sheet saved after the `.net`
+makes every loader re-run kmerge first (~3 s, `KREVIEW_NO_REGEN=1` opts out), and a
+`.net` lacking a top-level sheet the `.kicad_pro` lists is warned about.
 
 **KiCad stable and nightly both work.** kpcb reads 10.0 `(at X Y R)` and 10.99
 `(transform (translate) (rotate))` placement. Tools that shell out (`kdrc`, `kmerge`,
@@ -72,6 +75,12 @@ scrambled. The plot only tells you which sheet a symbol lives on.
 | which PWR_FLAGs are needed / redundant | `kdrc.py FILE.kicad_pcb flags` - each flag's net, and whether ERC fails without it |
 | is the ground pour filled / covering | `kpcb.py FILE zones` - fill coverage per copper layer |
 | can a net carry its current / is the trace too thin | `kpcb.py FILE ampacity NET --amps X` - IPC-2221 vs the routed copper + vias |
+| does the power path between two pads carry X A | `kpcb.py FILE ampacity --from Q16.1 --to R41.1 --amps 6` - current split by conductance, pours as conductors, hottest tracks/vias |
+| is the net's copper one piece | `kpcb.py FILE net NET` - ends with `copper one piece` or the pads cut off |
+| pour islands KiCad removed / where a stitching via rescues one | `kpcb.py FILE zones --voids` |
+| where is U7 on its sheet, what is near it, with nets | `ksheet.py FILE.net sch U7` |
+| is the schematic drawing misleading (wire through a body, bypass-looking gaps) | `ksheet.py FILE.net lint [--around REF]` |
+| picture of a schematic region | `ksheet.py FILE.net view REF` -> PNG path |
 | where is this PAD / how far apart are two pads | `kpcb.py FILE where F5.1 BT1.1` |
 | everything on one net, with coordinates | `kpcb.py FILE net NET` - pads (absolute xy), copper per layer, vias, zones |
 | is this 50-ohm trace right | `kpcb.py FILE rf [NET]` - width necks, microstrip Zo, GND gap + field-solved CPWG Zo, reference plane, via fence |

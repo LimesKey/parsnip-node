@@ -226,8 +226,12 @@ def c_selftest(a):
             == ['ESD501', 'TPN2R203NC', 'MAX17320G22'], 'ds --save names'
         import kcap
         assert kcap._partsearch(), 'kcap cannot import its part_core/part_value calls'
+        from part_pick import LIGHT_LED
+        assert [bool(LIGHT_LED.search(t)) for t in ('white LED', 'LED 5000K', 'high power LEDs',
+                                                    'red LED', 'LED', 'ledger white')] \
+            == [True, True, True, False, False, False], 'lighting-LED gap note'
         off = (f"OK    pick/alt parsing {_pick_selftest()}, fpcheck matcher {_fpcheck_selftest()}, "
-               f"ds names 3/3, kcap bridge")
+               f"ds names 3/3, kcap bridge, lighting-LED note")
     except AssertionError as e:
         off = f"FAIL  {e}"
     if a.offline:

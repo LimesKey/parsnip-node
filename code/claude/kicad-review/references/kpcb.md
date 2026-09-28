@@ -11,7 +11,9 @@ Code map (to patch one command, open only its module): `kpcb.py` is the CLI plus
 summary/where/map/sheet/unplaced/span/net/sync/review; the Board model, part
 classification regexes and geometry are `kpcb_board.py`; `check` rules are
 `kpcb_check.py`; `ic`, `zones`, `ampacity`, `viapad`, `rf`, `height` are
-`kpcb_<ic|zones|amp|viapad|rf|height>.py`.
+`kpcb_<ic|zones|amp|viapad|rf|height>.py`. `kpcb_copper.py` is one net's copper as
+a graph (pads, tracks split at tees, via barrels, fill fragments as conductors):
+`net` counts its pieces and `ampacity --from/--to` solves current through it.
 
 | command | use |
 | --- | --- |
@@ -27,11 +29,13 @@ classification regexes and geometry are `kpcb_board.py`; `check` rules are
 | `sync [board.net]` | **run this first.** Board vs netlist: same parts, footprints, values, DNP flags and net on every pad. Finds a `.net` beside the board automatically. |
 | `review [board.net]` | one call for a fresh session: sync, summary, check, longest nets, then the specific next calls worth making. |
 | `ampacity [NET...]` | current a routed net can carry (IPC-2221): narrowest segment per layer, via bound, length -> R/Vdrop. With `--amps X` or a kpcb.json budget it warns TRACE-THIN / VIA-FEW / LONG-DROP. See below. |
+| `ampacity --from U8.1 --to C5.2 --amps X` | **the real power path**: a nodal solve between two pads (tracks + via barrels resistive, pours ideal), so current splits by conductance; lists the hottest tracks/vias at their share. Use it on a POURED or MIXED-NET verdict. |
 | `zones` | pour coverage per layer from the last saved fill: area%, island count, edge margins. |
-| `zones REF...` | does a net's fill actually cover THIS footprint's courtyard - point-sampled, not just the fill's bounding box. Closes "is GND continuous under U9" without a KiCad render. See below. |
+| `zones REF...` | does a net's fill actually cover THIS footprint's courtyard - point-sampled, not just the fill's bounding box - and which foreign tracks SLOT that plane under it. Closes "is GND continuous under U9" without a KiCad render. See below. |
+| `zones --voids [--area 2]` | copper-free regions in the plane pour (removed islands) and, for each, a via spot that clears everything and lands in the plane on another layer. See below. |
 | `viapad [--signal] [--min N]` | every component with a via centred inside one of its SMD pads (via-in-pad), each pad tagged GND/PWR/SIG. See below. |
 | `where REF.PAD ...` | a pad's absolute centre, size, layer, net and nearest same-net pads. Two specs (pads, refs or x,y) also print the distance between them. |
-| `net NET` | every pad on a net with absolute xy, copper per layer (segments, length, width range), vias, zones, extent. Accepts the short name (`LORA_ANT`). |
+| `net NET` | every pad on a net with absolute xy, copper per layer (segments, length, width range), vias, zones, extent, and whether the copper is **one piece** (else the pads in each cut-off piece) plus padless islands. Accepts the short name (`LORA_ANT`). |
 | `rf [NET...]` | 50-ohm trace review. No net = every net whose netclass names RF/50. See below. |
 | `height [REF...]` | 3D-model height of each part and the board's Z stack. Shells out to KiCad's GLB export (~3 s). See below. |
 
@@ -46,7 +50,9 @@ classification regexes and geometry are `kpcb_board.py`; `check` rules are
 `--ncin 3`, `--ncout 3`, `--assoc 6`. For `ampacity`: `--amps X` (required
 current on the named net), `--net=NAME` (repeatable, for a net name that starts
 with `-`), `--dt 10` (allowed temp rise, C), `--plating 20` (via barrel copper,
-um), `--vdrop 0.25` (V-drop flag threshold). For `viapad`: `--signal`, `--min N`.
+um), `--vdrop 0.25` (V-drop flag threshold), `--from REF.PIN --to REF.PIN` (path
+solve). For `zones`: `--voids`, `--area 2` (smallest void core, mm2), `--net=NAME`
+(the plane net, default the biggest pour). For `viapad`: `--signal`, `--min N`.
 For `rf`: `--freq MHz`, `--fence 1.5` (mm from the trace edge that counts as fence).
 
 ## Project config
@@ -163,6 +169,12 @@ Warnings (each fires only with a known current; exit 2 on TRACE-THIN or VIA-FEW)
   stub landing right on a pad. IPC-2221's long-trace formula overstates the risk
   here because the pad copper sinks heat locally; not a real limiter unless the
   copper stays that narrow past the pad.
+- **SHORT-NECK** (advisory, not a failure) - IPC-2221 says the bottleneck is thin,
+  but it is a short piece with both ends in big copper (a pad, a pour, or a
+  junction with >= 3x its width of other track). A rod heated along its length
+  with its ends held at ambient rises `dT = P*L/(8*k*A)`; when that is under
+  `--dt` the long-trace fit is the wrong model. A TRACE-THIN on a sunk piece also
+  prints this bound. (5V_RAW's 1.5 x 0.3 mm stub into U15.5 at 3 A: ~1.1 C.)
 - **MIXED-NET** (advisory) - a bridge is excluded from bottleneck-picking when its
   only far-side pads are sense taps (a thermistor `TH*`, a test point `TP*`, or a
   resistor >= 1k ohm - never a real power path). If *every* bridge on the net turns
@@ -175,6 +187,24 @@ What it still can't see: two traces that only **cross mid-span** with no shared
 end/via/pad are separate copper here (KiCad would merge them); a parallel group
 that individually passes but **sums short** is left to you (PARALLEL-CHECK). And
 IPC-2221 internal ampacity is conservative for a planed board (see the footer).
+`--from/--to` answers both of the last two, below.
+
+### `--from PAD --to PAD` - current along the real path
+
+`ampacity --from Q16.1 --to R41.1 --amps 6` solves the copper between two pads of
+one net as a resistor network (Jacobi-preconditioned CG, ~0.02 s): tracks and via
+barrels are resistors (`rho*L/A`, barrel = two halves of the board thickness),
+pads and zone fills are ideal nodes. The copper graph (`kpcb_copper.py`) joins
+what KiCad joins: track ends on pads/vias, a track teeing into another's body, a
+via or pad sitting on a track mid-span, overlapping pads (fused leads), fills to
+the pads/vias/tracks they touch and to other fills of the net on the same layer.
+On parsnip it finds 0 split nets and 0 islands, matching KiCad's 0 unconnected / 0
+isolated_copper. Output: R, Vdrop, P between the pads, the pours crossed, and the
+hottest elements at THEIR share of the current (rise from IPC-2221, or the
+end-sunk bound for a short piece between big copper, whichever is lower; vias
+IPC-2221 barrel only). A sense tap (thermistor leg) carries nothing, so it can
+never be named. Pours are ideal: a pour neck is invisible here, so check it in
+KiCad. Exit 2 when an element exceeds `--dt`; not joined at all also exits 2.
 
 ## `zones REF...` - does the plane actually reach under this part
 
@@ -200,20 +230,49 @@ you know where to click. Only trust a MOSTLY MISSING verdict, or a large
 contiguous run of misses inside a "has gaps" layer, as a real broken reference;
 a handful of scattered misses next to signal pads is expected and not a defect.
 
+**SLOT**: the samples can miss a thin cut that runs between grid columns, so for
+each plane (GND/rail net) it also measures foreign-net tracks on that layer inside
+the courtyard and prints `!! SLOT: +5V track(s) (1.80 mm) run 52.2 mm through the
+GND plane under U12 (...)` for runs across >= half the courtyard's shorter side
+(two per layer, then a count). The part's own nets on its own side are its fan-out,
+not a slot. The coverage tag then reads `has gaps, and a SLOT cuts it`.
+
 Edge-mount parts (SMA, USB-C) are judged on the ON-BOARD part of the courtyard only:
 the grid covers the courtyard clipped to the outline, inset 0.5 mm on clipped sides
 for the pour's edge pullback, and the header says what % hangs off. A net that is
 neither GND-named nor a rail (a small signal pour) is listed without a verdict,
 `local signal pour, not a reference plane`, and never fails the exit code.
 
+## `zones --voids` - removed islands, and where one via rescues each
+
+Rasterises every plane layer at 0.25 mm (layers where the plane net covers > 30%)
+from the last saved fill, marks ALL copper (fills, tracks, pads, vias), and keeps
+only board cells >= 0.5 mm from any copper and from the edge - a clearance moat
+never reads as a void. Connected regions over `--area` mm2 are reported with their
+extent; one mostly inside a no-pour keepout (U1's antenna) says `intended`.
+
+For every other void it looks for a **rescue via** (the plane netclass's via,
+0.6/0.3 here): a cell in the void where, on every layer, no foreign track, pad or
+via is within via radius + clearance (netclass clearances raised by any
+`.kicad_dru` rule naming the net pair with `A.NetName`/`B.NetName`, so the 0.4 mm
+unfused-pack rule counts), no drill is within 0.25 mm hole-to-hole, no via keepout
+covers it, and the plane net's fill is there on another layer. A spot clear of
+foreign pours too is preferred; else it names the pours the via would punch (they
+refill around it). No spot prints how many cells each constraint blocked.
+Validated: on the board before 573c130 it proposes 113.72,155.13 and 108.97,150.38;
+the two GND stitching vias placed by hand landed at 113.45,155.16 and 109.05,150.36.
+
 ## check rules
 
 `OVERLAP EDGECLR HOLECLR CONNACC RFNOISE THERMAL BYPASS NETSPAN NOCRTYD UNPLACED`.
 `--rules` for the legend.
 
-- **`OVERLAP`** compares courtyard **bounding boxes**, not their true outlines, so a
-  rotated or L-shaped part reports a slightly larger box than it occupies -
-  conservative, never permissive. Parts on opposite sides only collide where a
+- **`OVERLAP`** screens on courtyard bounding boxes, then confirms against the real
+  CrtYd outlines (lines/arcs/rects/polys chained into rings): a cross- or L-shaped
+  courtyard whose box overlaps but whose outline does not is dropped, as KiCad's
+  DRC drops it (L4's 0603 neighbours clear by 0.02-0.06 mm). A part with no
+  chainable CrtYd falls back to its box. `where`'s neighbour distances and OVERLAP
+  flags use the same outline distance. Parts on opposite sides only collide where a
   drilled barrel actually lands in the other's area; a back-side battery holder
   sitting over front-side 0402s is not a finding.
 - **`EDGECLR`** is an ERROR when the courtyard crosses the outline, a WARN when it

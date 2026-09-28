@@ -45,6 +45,14 @@ found 3.3 V LDOs in SOT-23-5 where the LCSC pool found none.
   `--pkg` (`MLCC` + 0805 -> MLCC - SMD/SMT). Still ambiguous: keyword match, and a
   `category:` line lists the candidates - `pick inductor --isat '>=8'` pools the
   cheapest 2.2uH chip inductors and finds none; add `--cat 'Power Inductors'`.
+- **No category at all.** A keyword that names no JLC category says so (`category: no
+  JLC category is named ...`): the pool is keyword-only and limits filter only what
+  the keyword happens to match. White/lighting LEDs are the known gap: neither JLC
+  nor LCSC has a category for them (LED ones are Indication, IR, RGB, UV, COB), and
+  SST-20 / XHP50 / LH351D / 3030-5050 mid-power emitters sit at 0 LCSC stock, so a
+  keyword naming white/CCT/CRI/high-power LEDs prints a note pointing at DigiKey
+  (needs `DIGIKEY_CLIENT_ID`/`_SECRET`) and at `--cat 'Chip On Board (COB) Light
+  Sources'` for COBs. Checked 2026-09-27.
 - **Fallback.** JLC finding nothing falls back to the LCSC pool (keyword search, then
   one `product/detail` call per candidate, `--pool` cap) and says so. `--source lcsc`
   forces it, `both` unions them.

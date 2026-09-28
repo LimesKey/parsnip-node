@@ -68,6 +68,16 @@ python3 <skill>/scripts/knet.py parsnip-merged.net around REF
 
 DRC has no such blind spot - it is one board file.
 
+## Demoted rules
+
+The header lists what the `.kicad_pro` demoted, since kicad-cli leaves an
+`ignore` rule out of its report entirely: `DRC demoted in parsnip.kicad_pro:
+IGNORED pth_inside_courtyard, silk_over_copper, silk_overlap; warning-only fab
+limits connection_width, copper_sliver, holes_co_located, starved_thermal`, and the
+same for ERC. "Fab limits" are the manufacturability rules (clearance, drill,
+annular ring, courtyard, hole-to-hole...) where a warning still means a board the
+fab may reject. `--all` checks them at full severity.
+
 ## Flags
 
 | flag | effect |
@@ -76,7 +86,7 @@ DRC has no such blind spot - it is one board file.
 | `--only R1,R2` / `--skip R` | keep or drop rules by name (e.g. `DRC:CLEARANCE`) |
 | `--unconnected` | include the DRC `unconnected_items` (unrouted nets; hidden by default because mid-layout there are hundreds) |
 | `--parity` | add DRC schematic-parity. Noisy: it uses the single project root, so it will flag all of /Charger/ and /USB Interface/. |
-| `--all` | pass `--severity-all` to kicad-cli. Here kicad-cli already ignores the `.kicad_pro` severities, so this rarely changes anything. |
+| `--all` | pass `--severity-all` to kicad-cli: every rule at full severity. kicad-cli HONOURS the `.kicad_pro` severities (an `ignore` rule is absent from its report), so without this a demoted rule is silent; the header names them. |
 | `--no-suppress` | ignore kdrc.json |
 | `--rules` | print the rule legend |
 | `--json` | machine-readable findings |

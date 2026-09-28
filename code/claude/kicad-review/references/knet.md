@@ -8,7 +8,7 @@
 | `around REF...` | **highest value per call.** Pins, types, nets, position, every part one hop away. Use instead of `comp` + several `pin` calls. |
 | `check` | 17 rule-based findings, grouped ERROR/WARN/INFO. Exit 2 if any ERROR. Three or more findings sharing a message fold into one line, `tail [N]: refs` - `[49]` means 49 separate findings, not one. |
 | `check --since old.net` | only findings NEW vs an older export, plus a fixed/unchanged tally. |
-| `draw REF\|NET [-d N] [-o x.svg] [--spec]` | KiCad-style schematic from the netlist; `--spec` gives the editable ksch source. |
+| `draw REF\|NET [-d N] [-o x.svg] [--spec]` | KiCad-style schematic from the netlist; `--spec` gives the editable ksch source. The focal part keeps its real pin sides and order (from the sheet's lib symbol), GND/rail pins get their glyph where they sit (`gnd PIN -BATT` for a non-GND return), a big or global net ends in a `glabel`, and a global net's other ICs are named on the note, not drawn as stubs. |
 | `notes` | schematic text notes by sheet - designer intent that exists nowhere in the netlist. |
 | `rails` | each power rail: what feeds it, total decoupling, loads. |
 | `divider REF.PIN\|NET` | resistor-divider trip voltage from netlist resistor values, worst case from tolerance if stated. See below. |
@@ -24,10 +24,13 @@
 | `sheets` | components per hierarchical sheet. |
 | `revpol [--stack BT1,BT2 \| --pair P,N --volts V]` | reverse-polarity what-if. See below. |
 
-Every load prints a `WARNING:` on stderr when a `.kicad_sch` beside the netlist
-was saved after it (KiCad `_autosave-*` files ignored), or when the `.kicad_pro`
-lists a top-level sheet the netlist lacks (a single-root export). Both print the
-exact `kmerge.py` command that fixes them.
+**A stale netlist regenerates itself.** When a `.kicad_sch` beside the `.net` was
+saved after it (KiCad `_autosave-*` ignored), every loader (knet, `kpcb sync`,
+ksheet, part.py) re-runs `kmerge.py` first (~3 s, then quiet until the next save)
+and says so on stderr. `KREVIEW_NO_REGEN=1` opts out; the selftest sets it. If the
+regeneration fails, or is off, a `WARNING:` names the lag and the exact `kmerge.py`
+command, as it does when the `.kicad_pro` lists a top-level sheet the netlist lacks
+(a single-root export).
 
 ## Reading `around`
 
@@ -51,6 +54,14 @@ the shape and reports VIN_UV/VIN_OV once given `--vth <threshold from the
 datasheet>`; add `--vth-tol <%>`, since the IC's own threshold accuracy usually
 dominates the resistor tolerance. Use it for any FB/OVLO/UVLO/ADC-sense divider
 instead of tracing it by hand across several `pin`/`net` calls.
+
+Legs to the same top net combine in parallel, and a top net with no known voltage
+still gives the tap as a fraction of it (`58.94% of /Charger/REGN`; `--rail
+REGN=5` for volts). Thermistors (`TH*`/`RT*`/`NTC*` or a Thermistor symbol) are
+legs at their 25 C value, flagged as such, and when Value/Description carries a B
+constant (`B25/50 3380K`) it prints the tap from -20 to 60 C - a TS pin reads
+straight against the charger's TS thresholds (`divider U8.TS`: 73.6% of REGN at
+0 C).
 
 ## Flags
 

@@ -3,7 +3,7 @@ import json, math
 from collections import defaultdict
 from kcommon import (refrange, natkey, trunc, prefix, unesc_disp, GND_RE, rail_voltage,
                      print_findings, suppressed)
-from kpcb_board import (bbox, box_dist, EDGEMNT, grow, hit, overlap_area, pt_box_dist,
+from kpcb_board import (bbox, box_dist, EDGEMNT, grow, hit, overlap_area, poly_dist, pt_box_dist,
                         RF_FP, RF_VAL, sheet_of, SUP_PIN, THERM_PFX)
 
 # ---------------- net span ----------------
@@ -110,6 +110,10 @@ def gen_findings(b, a):
             if b.is_hole(f) or b.is_hole(g):
                 continue                               # HOLECLR owns this pair
             A = overlap_area(grow(f.crtyd, a.clear / 2), grow(g.crtyd, a.clear / 2))
+            if A > 1e-6 and (f.cpoly or g.cpoly):
+                d, ov = poly_dist(f.outline, g.outline)     # the bboxes of a cross-shaped
+                if not ov and d >= a.clear:                 # courtyard overlap more than it does
+                    A = 0.0
             if A > 1e-6:
                 add('ERROR', 'OVERLAP', f"{f.ref} and {g.ref} courtyards overlap by "
                                         f"{A:.2f} mm2 ({'same' if f.back == g.back else 'opposite'} side)",

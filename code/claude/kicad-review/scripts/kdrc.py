@@ -449,6 +449,38 @@ def do_flags(path, a):
     return 0
 
 
+# fab-capability limits: a 'warning' here reads as optional while the fab rejects it
+FAB_RULES = {'clearance', 'hole_clearance', 'hole_to_hole', 'annular_width', 'track_width',
+             'via_diameter', 'drill_out_of_range', 'copper_edge_clearance', 'edge_clearance',
+             'connection_width', 'shorting_items', 'solder_mask_bridge', 'copper_sliver',
+             'pth_inside_courtyard', 'npth_inside_courtyard', 'courtyards_overlap',
+             'holes_co_located', 'starved_thermal'}
+
+
+def demoted(board):
+    """Header lines naming rules the .kicad_pro demoted: 'ignore' ones vanish from
+    every report, a 'warning' fab limit reads as optional. [] when none."""
+    d = os.path.dirname(os.path.abspath(board)) or '.'
+    out = []
+    for pro in sorted(f for f in os.listdir(d) if f.endswith('.kicad_pro')):
+        try:
+            p = json.load(open(os.path.join(d, pro)))
+        except (OSError, ValueError):
+            continue
+        for tag, sect in (('DRC', p.get('board', {}).get('design_settings', {})), ('ERC', p.get('erc', {}))):
+            rs = sect.get('rule_severities') or {}
+            ign = sorted(k for k, v in rs.items() if v == 'ignore')
+            warn = sorted(k for k, v in rs.items() if v == 'warning' and k in FAB_RULES)
+            if ign or warn:
+                out.append(f"{tag} demoted in {pro}:"
+                           + (f" IGNORED {', '.join(ign)}" if ign else '')
+                           + (';' if ign and warn else '')
+                           + (f" warning-only fab limits {', '.join(warn)}" if warn else '')
+                           + " - `--all` checks them at full severity")
+        break
+    return out
+
+
 def load_cfg(board):
     cp = os.path.join(os.path.dirname(os.path.abspath(board)), 'kdrc.json')
     try:
@@ -535,6 +567,9 @@ def main():
                 + ("  (one report covers every top-level sheet)" if whole else ""))
     if a.cmd in ('both', 'drc') and not a.unconnected:
         hdr += f"\nDRC: {unconn} unconnected_items hidden (unrouted, mid-layout) - `--unconnected` to show"
+    if not a.all:
+        hdr += ''.join('\n' + ln for ln in demoted(a.file)
+                       if a.cmd == 'both' or ln.startswith(a.cmd.upper()))
     print_findings(F, hdr + '\n', rules=LEGEND, cap=a.max)
     if not F:
         print("no findings")

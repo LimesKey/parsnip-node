@@ -9,6 +9,7 @@ thinning, temperature and aging - and how each candidate's life margin compares.
   kcap.py compare '10u/25V/X5R/0805' '10u/25V/X7R/1206' --vop 8.4 --temp 45
   kcap.py compare C19666 C1791     --vop 5.0            # LCSC C-numbers work too
   kcap.py solve MLCC --need 8uF --vop 8.4 --temp 45      # smallest/cheapest that clears it
+  kcap.py derate '10u/50V/X7R/1206' --vop 8.4,20,25      # one part (or several) across rails
 
 A "spec string" is slash-separated, order-independent: CAP/VOLT/DIEL/PKG, e.g.
 '10u/25V/X5R/0805' or '22nF/50V/C0G/0603'. An LCSC C-number resolves live via
@@ -398,6 +399,36 @@ def c_compare(a, part_mod):
           "not a datasheet-certified figure.)")
     return 0
 
+# ---------------------------------------------------------------- derate
+
+def c_derate(a, part_mod):
+    """One or more parts across every --vop in the list (one part, many rails)."""
+    out = []
+    for spec in a.args:
+        try:
+            p = resolve_part(spec, part_mod, a.fresh)
+            p['dims'] = tuple(float(x) for x in a.dim_a.split(',')) if a.dim_a else dims_for(p['pkg'])
+        except ValueError as e:
+            print(str(e)); return 1
+        rows = [(v, effective(p, v, a.temp, a.hours, a.retained_a, a.catalog_max_a)) for v in a.vops]
+        if a.json:
+            out.append({**{k: v for k, v in p.items() if k != 'dims'}, 'spec': spec,
+                        'rows': [{'vop': v, **e_, 'margin': margin_factor(p['volt'], v, a.life_n)}
+                                 for v, e_ in rows]})
+            continue
+        print(f"{spec}  ({fmt_si(p['cap'])}F {p['volt']:g}V {p['diel']} {p['pkg']})   "
+              f"T={a.temp:g} C   t={a.hours:g} h")
+        print(f"  {'Vop':>6} {'Vop/Vr':>7} {'bias':>6} {'density':>7} {'eff C':>8} {'of nom':>7} {'Vr/Vop':>7}")
+        for v, e_ in rows:
+            print(f"  {v:>6g} {e_['x']:>7.3f} {e_['bias']*100:>5.1f}% {e_['density']*100:>6.1f}% "
+                  f"{fmt_si(e_['eff_uF']*1e-6) + 'F':>8} {e_['eff_uF']/(p['cap']*1e6)*100:>6.1f}% "
+                  f"{p['volt']/v if v else float('inf'):>7.2f}"
+                  + ('  OVER RATING' if v > p['volt'] else ''))
+        print()
+    if a.json:
+        print(json.dumps(out, indent=1))
+    return 0
+
 # ---------------------------------------------------------------- solve
 
 def c_solve(a, part_mod):
@@ -479,9 +510,10 @@ def c_solve(a, part_mod):
 
 def main():
     ap = argparse.ArgumentParser(add_help=False)
-    ap.add_argument('cmd', choices=['compare', 'solve'])
+    ap.add_argument('cmd', choices=['compare', 'solve', 'derate'])
     ap.add_argument('args', nargs='*')
-    ap.add_argument('--vop', type=float, default=None, help='operating voltage (required)')
+    ap.add_argument('--vop', default=None,
+                    help='operating voltage (required); derate takes a comma list')
     ap.add_argument('--temp', type=float, default=25.0, help='operating temperature, C')
     ap.add_argument('--hours', type=float, default=1000.0,
                     help='aging reference point, hours post-firing (default 1000, where '
@@ -515,7 +547,21 @@ def main():
         print(__doc__); return 0
     if a.vop is None:
         print("give --vop (the actual operating voltage this part sees)"); return 1
+    try:
+        a.vops = [float(x) for x in a.vop.split(',') if x.strip()]
+    except ValueError:
+        print(f"--vop {a.vop!r}: give volts, e.g. 8.4 or (derate) 8.4,20,25"); return 1
+    if not a.vops:
+        print("give --vop (the actual operating voltage this part sees)"); return 1
+    if len(a.vops) > 1 and a.cmd != 'derate':
+        print(f"{a.cmd} takes one --vop; `kcap.py derate SPEC --vop {a.vop}` sweeps a list"); return 1
+    a.vop = a.vops[0]
     part_mod = _partsearch()
+    if a.cmd == 'derate':
+        if not a.args:
+            print("derate needs a part spec, e.g. kcap.py derate '10u/50V/X7R/1206' --vop 8.4,20,25")
+            return 1
+        return c_derate(a, part_mod)
     if a.cmd == 'compare':
         if len(a.args) < 2:
             print("compare needs two part specs, e.g. kcap.py compare "

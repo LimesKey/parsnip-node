@@ -32,15 +32,18 @@ Scripts (stdlib Python, already permitted):
    the next calls. **If `sync` reports the board is stale, STOP and report that
    first**: every placement finding below it is about a circuit the board no
    longer matches. (It was IN SYNC on 2026-09-22; the old ~150-error "blocker" was
-   a stable-vs-nightly netlist artifact, fixed in kmerge.) If any tool prints a
-   `WARNING: ... older than` / `lacks top-level sheet`, regenerate the netlist with
-   the command it prints before going on.
+   a stable-vs-nightly netlist artifact, fixed in kmerge.) A stale netlist
+   regenerates itself on load; if a tool still prints `WARNING: ... older than`
+   (the regeneration failed) or `lacks top-level sheet`, run the command it prints
+   before going on.
 2. `kdrc.py parsnip.kicad_pcb` - KiCad's OWN DRC (uses parsnip.kicad_dru) + ERC.
    This is the authoritative rules half; `kpcb check` is only geometric
    heuristics. Any `DRC:STALE_FILL` is a pre-fab blocker: the saved zone fill
    (what gerbers export) differs from a refill - report it at the top.
 3. `kpcb.py parsnip.kicad_pcb zones` - pour coverage per layer; flag any zone
-   that is declared-but-unfilled or badly fragmented.
+   that is declared-but-unfilled or badly fragmented. Then `zones --voids` (pour
+   islands KiCad removed, with a rescue-via spot or the reason there is none) and
+   `zones U12 U9` (reference plane under the RF modules, incl. SLOTs).
 4. `knet.py parsnip-merged.net check` - the electrical half, incl. PINOUT (a
    generic symbol whose pin order contradicts the real part). **Always the merged
    netlist**: 8 sheets including /Charger/, /BMS/ and /USB Interface/ (kmerge prints the
@@ -49,8 +52,11 @@ Scripts (stdlib Python, already permitted):
 4b. `kpcb.py parsnip.kicad_pcb rf` (50-ohm nets: necks, Zo, reference plane,
    via fence), `kpcb.py parsnip.kicad_pcb height` (the Z stack - the binding
    pocket constraint; read its battery-holder caveat before quoting a number),
-   `knet.py parsnip-merged.net revpol` (reversed cell/pack), and
-   `kpcb.py parsnip.kicad_pcb viapad --signal`.
+   `knet.py parsnip-merged.net revpol` (reversed cell/pack),
+   `kpcb.py parsnip.kicad_pcb viapad --signal`, the power paths with
+   `kpcb.py parsnip.kicad_pcb ampacity --from PAD --to PAD --amps X` (e.g. Q16.1 ->
+   R41.1 at 6 A OTG, the charge path at 2.7 A), and `ksheet.py parsnip-merged.net
+   lint` for schematic readability (WARNs are drawing defects, not netlist bugs).
 5. For each surviving finding, before you report it: `knet.py parsnip-merged.net
    around REF` for connectivity, `kdoc.py grep '<string>' -d <doc>` for the
    datasheet rule, `kpcb.py parsnip.kicad_pcb where REF` for geometry.

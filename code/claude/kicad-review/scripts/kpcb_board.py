@@ -129,6 +129,63 @@ def seg_box_dist(a, b, box):
     return min([pt_box_dist(a, box), pt_box_dist(b, box)] +
                [pt_seg_dist(c, a, b) for c in corners])
 
+def _edges(R):
+    return [(r[i], r[i + 1]) for r in R for i in range(len(r) - 1)]
+
+def poly_dist(A, B):
+    """Gap between two courtyards given as closed rings (lists of points), and
+    whether they truly overlap: edges crossing, or one inside the other. Two
+    outlines that only touch are 0.0 apart but do not overlap."""
+    ea, eb = _edges(A), _edges(B)
+    if any(seg_cross(a0, a1, b0, b1) for a0, a1 in ea for b0, b1 in eb):
+        return 0.0, True
+    d = min([pt_seg_dist(p, b0, b1) for r in A for p in r for b0, b1 in eb] +
+            [pt_seg_dist(p, a0, a1) for r in B for p in r for a0, a1 in ea])
+    for X, Y, ey in ((A, B, eb), (B, A, ea)):          # containment: an off-edge vertex inside
+        p = next((q for r in X for q in r if min(pt_seg_dist(q, c, e) for c, e in ey) > 1e-4), None)
+        if p is None or inside(p, Y):
+            return 0.0, True
+    return d, False
+
+class PolyIndex:
+    """Even-odd point-in-polygon on a big ring (a zone fill has 10k+ points) in
+    O(edges in one 0.5 mm row): an edge a horizontal ray at y can cross must
+    span y, so bucketing edges by y is exact."""
+    def __init__(self, pts, cell=0.5):
+        self.cell, self.rows, self.grid = cell, defaultdict(list), defaultdict(list)
+        self.bbox = bbox(pts)
+        n = len(pts)
+        for i in range(n):
+            (x1, y1), (x2, y2) = pts[i], pts[(i + 1) % n]
+            for cx in range(math.floor(min(x1, x2) / cell), math.floor(max(x1, x2) / cell) + 1):
+                for k in range(math.floor(min(y1, y2) / cell), math.floor(max(y1, y2) / cell) + 1):
+                    self.grid[(cx, k)].append(((x1, y1), (x2, y2)))
+            if y1 == y2:
+                continue
+            for k in range(math.floor(min(y1, y2) / cell), math.floor(max(y1, y2) / cell) + 1):
+                self.rows[k].append((x1, y1, x2, y2))
+
+    def touches(self, p, tol=0.01):
+        """inside, or within tol of the outline (a shared boundary reads either way)"""
+        if p in self:
+            return True
+        c = self.cell
+        return any(pt_seg_dist(p, a, b) <= tol
+                   for gx in (math.floor((p[0] - tol) / c), math.floor((p[0] + tol) / c))
+                   for gy in (math.floor((p[1] - tol) / c), math.floor((p[1] + tol) / c))
+                   for a, b in self.grid.get((gx, gy), ()))
+
+    def __contains__(self, p):
+        x, y = p
+        b = self.bbox
+        if not (b[0] <= x <= b[2] and b[1] <= y <= b[3]):
+            return False
+        c = False
+        for x1, y1, x2, y2 in self.rows.get(math.floor(y / self.cell), ()):
+            if (y1 > y) != (y2 > y) and x < x1 + (y - y1) * (x2 - x1) / (y2 - y1):
+                c = not c
+        return c
+
 def arc_pts(start, mid, end, n=8):
     """Flatten a KiCad 3-point arc into n chords. Falls back to the three given
     points if they are collinear (a degenerate arc KiCad still accepts)."""
@@ -221,7 +278,16 @@ def ipc_width(need_a, thick_mm, external, dt):
 
 class FP:
     __slots__ = ('ref', 'value', 'fp', 'layer', 'x', 'y', 'rot', 'sheet', 'attr',
-                 'dnp', 'pads', 'crtyd', 'crtyd_real', 'body', 'placed', '_edge', 'models')
+                 'dnp', 'pads', 'crtyd', 'crtyd_real', 'cpoly', 'body', 'placed', '_edge', 'models')
+
+    @property
+    def outline(self):
+        """courtyard as closed rings: the real CrtYd shape when it chains, else
+        the bbox rectangle"""
+        if self.cpoly:
+            return self.cpoly
+        x0, y0, x1, y1 = self.crtyd
+        return [[(x0, y0), (x1, y0), (x1, y1), (x0, y1), (x0, y0)]]
 
     @property
     def edge(self):
@@ -305,7 +371,7 @@ class Board:
             vx, vy = self._xy(v, 'at')
             lys = kid(v, 'layers') or []
             self.vias.append({'net': val(v, 'net'), 'drill': _f(val(v, 'drill')),
-                              'x': vx, 'y': vy,
+                              'size': _f(val(v, 'size')), 'x': vx, 'y': vy,
                               'layers': [l for l in lys[1:] if isinstance(l, str)]})
 
         edge += self._graphics(root, None, 'gr_')
@@ -422,7 +488,7 @@ class Board:
                 f.value = p[2]
 
         f.pads = []
-        pad_pts, all_pts, crt_pts = [], [], []
+        pad_pts, all_pts, crt_pts, crt_segs = [], [], [], []
         for p in kids(node, 'pad'):
             num = p[1] if len(p) > 1 else '?'
             pat = kid(p, 'at')
@@ -480,10 +546,30 @@ class Board:
                 all_pts += pts
                 if lay.endswith('.CrtYd'):
                     crt_pts += pts
+                    crt_segs.append(self._crt_seg(g, tag, f))
         f.body = bbox(pad_pts + all_pts) if (pad_pts or all_pts) else (f.x, f.y, f.x, f.y)
         f.crtyd = bbox(crt_pts) if crt_pts else f.body
         f.crtyd_real = bool(crt_pts)
+        f.cpoly = rings([s for s in crt_segs if s]) or None
         return f
+
+    def _crt_seg(self, g, tag, f):
+        """one courtyard primitive as a board-frame polyline, for rings()"""
+        T = lambda p: xf(p[0], p[1], f.x, f.y, f.rot)      # noqa: E731
+        if tag == 'fp_line':
+            return [T(self._xy(g, 'start')), T(self._xy(g, 'end'))]
+        if tag == 'fp_rect':
+            (x0, y0), (x1, y1) = self._xy(g, 'start'), self._xy(g, 'end')
+            return [T(p) for p in ((x0, y0), (x1, y0), (x1, y1), (x0, y1), (x0, y0))]
+        if tag == 'fp_arc':
+            return [T(p) for p in arc_pts(self._xy(g, 'start'), self._xy(g, 'mid'), self._xy(g, 'end'))]
+        if tag == 'fp_poly':
+            pts = self._pts(g)
+            return [T(p) for p in pts + pts[:1]] if pts else None
+        c, e = self._xy(g, 'center'), self._xy(g, 'end')
+        r = math.hypot(e[0] - c[0], e[1] - c[1])
+        return [T((c[0] + r * math.cos(k * math.pi / 8), c[1] + r * math.sin(k * math.pi / 8)))
+                for k in range(17)]
 
     # -- derived ---------------------------------------------------------
     def _placed(self, f):

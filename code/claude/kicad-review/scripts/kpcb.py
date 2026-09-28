@@ -86,9 +86,10 @@ except ImportError:                                     # pragma: no cover
           file=sys.stderr)
     raise
 # The heavy commands live in kpcb_<cmd>.py beside this; the Board model in kpcb_board.py.
-from kpcb_board import (_find_pad, _resolve_net, bbox, Board, box_dist, ctr, hit, inside,
+from kpcb_board import (_find_pad, _resolve_net, bbox, Board, box_dist, ctr, hit, inside, poly_dist,
                         pt_seg_dist, sheet_of)
 from kpcb_check import c_check, gen_findings, net_spans
+from kpcb_copper import Copper
 from kpcb_amp import c_ampacity
 from kpcb_zones import c_zones
 from kpcb_viapad import c_viapad
@@ -278,16 +279,19 @@ def _neigh(b, box, self_fp, a):
         if g is self_fp or not g.placed:
             continue
         d = box_dist(box, g.crtyd)
+        ov = d <= 0 and hit(box, g.crtyd)
+        if d <= r and self_fp is not None and (self_fp.cpoly or g.cpoly):
+            d, ov = poly_dist(self_fp.outline, g.outline)   # a cross/L courtyard is not its bbox
         if d <= r:
-            rows.append((d, g))
+            rows.append((d, g, ov))
     rows.sort(key=lambda t: (t[0], natkey(t[1].ref)))
     print(f"  neighbours within {r:g} mm ({len(rows)}):")
-    for d, g in rows[:a.max]:
+    for d, g, ov in rows[:a.max]:
         side = 'B' if g.back else 'F'
         # same-side contact is what `check` calls OVERLAP; a cross-side one is
         # just a projection, so label it differently and do not cry wolf
         flag = ''
-        if d <= 0 and hit(box, g.crtyd):
+        if ov:
             flag = '  OVERLAP' if (self_fp is None or g.back == self_fp.back) \
                    else '  (overlaps, opposite side)'
         print(f"    {d:>6.2f} mm  {g.ref:<6} {side} {trunc(g.value,20):<20} {trunc(g.fp,30)}{flag}")
@@ -603,6 +607,23 @@ def c_net(b, a):
             e = bbox(xy)
             print(f"  extent  {e[2]-e[0]:.1f} x {e[3]-e[1]:.1f} mm  "
                   f"({e[0]:.1f},{e[1]:.1f} .. {e[2]:.1f},{e[3]:.1f})")
+        P = Copper(b, net).pieces()
+        pp, stray = [q for q in P if q['pads']], [q for q in P if not q['pads']]
+        def what(q):
+            f = ', '.join(f"{ly} fill {ar:.1f} mm2" for ly, ar in sorted(q['fills'], key=lambda z: -z[1])[:2])
+            return ', '.join(x for x in (f, f"{q['tracks']} trk" if q['tracks'] else '',
+                                          f"{q['vias']} via" if q['vias'] else '',
+                                          f"@{q['at'][0]:.1f},{q['at'][1]:.1f}") if x)
+        if len(pp) <= 1:
+            print("  copper  one piece" + (f" joins all {len(pads)} pad(s)" if pads else ""))
+        else:
+            print(f"  copper  {len(pp)} PIECES - not one conductor. Main: {len(pp[0]['pads'])} pad(s). Cut off:")
+            for q in pp[1:1 + a.max]:
+                print(f"    {' '.join(q['pads'][:8])}{' ...' if len(q['pads']) > 8 else ''}  ({what(q)})")
+        if stray:
+            big = sorted(stray, key=lambda q: -sum(ar for _l, ar in q['fills']))
+            print(f"  islands {len(stray)} padless piece(s) (isolated copper), largest: "
+                  + '; '.join(what(q) for q in big[:3]))
     return rc
 
 CMDS = {'summary': c_summary, 'check': c_check, 'where': c_where, 'map': c_map,
@@ -651,6 +672,13 @@ def main():
                     help='for `ampacity`: via barrel plating thickness, um (20)')
     ap.add_argument('--vdrop', type=float, default=0.25,
                     help='for `ampacity`: flag if series-bound Vdrop exceeds this, V (0.25)')
+    ap.add_argument('--voids', action='store_true',
+                    help='for `zones`: copper-free regions in the plane pour + a via spot to rescue each')
+    ap.add_argument('--area', type=float, default=2.0, help='for `zones --voids`: smallest void core, mm2 (2)')
+    ap.add_argument('--from', dest='src', default='',
+                    help='for `ampacity`: source pad REF.PIN; with --to, solve how the current '
+                         'splits between the two pads (tracks + via barrels resistive, pours ideal)')
+    ap.add_argument('--to', dest='dst', default='', help='for `ampacity`: sink pad REF.PIN')
     ap.add_argument('--net', action='append', default=[],
                     help='for `ampacity`: net name, repeatable. For a name starting with '
                          '"-", use =, e.g. --net=-BATT (a space before the dash still '

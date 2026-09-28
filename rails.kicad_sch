@@ -23215,7 +23215,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Inductor_SMD:L_Sunlord_MWSA1003S"
+		(property "Footprint" "Inductor_SMD:L_APV_APH1040"
 			(at 121.92 161.29 0)
 			(hide yes)
 			(show_name no)
@@ -23282,6 +23282,17 @@
 			)
 		)
 		(property "Tolerance" "20%"
+			(at 121.92 161.29 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Voltage Rating" ""
 			(at 121.92 161.29 0)
 			(hide yes)
 			(show_name no)

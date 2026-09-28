@@ -74,12 +74,12 @@ after a big rewire.
 Exit codes: 0 clean, 1 not found, 2 `check` found an ERROR (or `draw` produced a
 diagram that fails its own layout/netlist verification), 3 bad file/spec.
 """
-import sys, os, re, json, argparse
+import sys, os, re, json, math, argparse
 from collections import defaultdict, deque
 
 from kcommon import (GND_RE, Netlist, eng, fp_pads, natkey, parse_value, prefix,
-                     print_findings, refrange, smart_re, suppressed, trunc, tvs_standoff,
-                     unesc_disp, _fkey)
+                     print_findings, refrange, smart_re, suppressed, sym_geometry, trunc,
+                     tvs_standoff, unesc_disp, _fkey)
 
 def c_notes(nl, a):
     s = nl.sch()
@@ -363,15 +363,31 @@ def res_tolerance(c):
     m = _TOLRE.search(c.get('value') or '')
     return float(m.group(1)) / 100.0 if m else None
 
+def is_thermistor(nl, ref):
+    c = nl.comps.get(ref, {})
+    return c.get('prefix') in ('TH', 'RT', 'NTC') or 'thermistor' in (c.get('part') or '').lower()
+
+_BETA = re.compile(r'\bB\s*(?:25\s*/\s*(\d+))?\s*(?:=|:)?\s*(\d{4})\s*K\b')
+
+def ntc_beta(nl, ref):
+    """(B in K, 'B25/50') from the Value/Description/props of an NTC, else None.
+    The first B listed wins: B25/50 is the usual datasheet headline."""
+    c = nl.comps.get(ref, {})
+    txt = ' '.join([c.get('value') or '', c.get('description') or '']
+                   + [v for v in c.get('props', {}).values() if isinstance(v, str)])
+    m = _BETA.search(txt)
+    return (float(m[2]), f"B25/{m[1]}" if m[1] else 'B') if m else None
+
 def divider_legs(nl, net, fanout=8):
-    """2-pin resistors touching `net` (a suspected divider tap), classified by
-    what their far end reaches: [(ref, kind, far, volts_or_None, ohms_or_None)]
-    with kind in 'rail'|'gnd'|'other'. Only resistors, only DNP-aware,
-    matching the pass-through convention used everywhere else in this file."""
+    """2-pin resistors (thermistors too, at their 25 C value) touching `net` (a
+    suspected divider tap), classified by what their far end reaches:
+    [(ref, kind, far, volts_or_None, ohms_or_None)] with kind in
+    'rail'|'gnd'|'other'. DNP-aware, matching the pass-through convention used
+    everywhere else in this file."""
     out = []
     for nd in nl.nets.get(net, []):
         r = nd['ref']
-        if nl.comps.get(r, {}).get('prefix') != 'R':
+        if nl.comps.get(r, {}).get('prefix') != 'R' and not is_thermistor(nl, r):
             continue
         if nl.no_dnp and nl.comps[r]['dnp']:
             continue
@@ -448,29 +464,64 @@ def c_divider(nl, a):
     rails = [l for l in legs if l[1] == 'rail']
     gnds = [l for l in legs if l[1] == 'gnd']
     others = [l for l in legs if l[1] == 'other']
-    if len(legs) == 2 and len(rails) == 1 and len(gnds) == 1:
-        rtop, _, _, vtop, ohms_top = rails[0]
-        rbot, _, _, _, ohms_bot = gnds[0]
-        if not (ohms_top and ohms_bot):
-            print("\ncould not parse both resistor values as numbers"); return
+    tops = rails + others
+    if gnds and tops and len({l[2] for l in tops}) == 1:
+        # every non-GND leg reaches the same net: parallel legs combine, and a top
+        # net with no known voltage still gives the tap as a fraction of it
+        if not all(l[4] for l in legs):
+            print("\ncould not parse every leg's value as a number"); return
+        W = chr(0x2126)
+        def par(ls, k=lambda l: l[4]):
+            return 1 / sum(1 / k(l) for l in ls)
+        rtop, rbot = '||'.join(l[0] for l in tops), '||'.join(l[0] for l in gnds)
+        ohms_top, ohms_bot = par(tops), par(gnds)
+        top_net, vtop = tops[0][2], tops[0][3]
         ratio = ohms_bot / (ohms_top + ohms_bot)
-        vnom = vtop * ratio
-        print(f"\nsimple 2-resistor divider: {rtop} (top, {eng(ohms_top,chr(0x2126))}, "
-              f"rail-side) / {rbot} (bottom, {eng(ohms_bot,chr(0x2126))}, GND-side), fed from {vtop:g} V")
-        print(f"  V_tap nominal = {vtop:g} * {rbot}/({rtop}+{rbot}) = {vnom:.4f} V")
-        ttop, tbot = res_tolerance(nl.comps[rtop]), res_tolerance(nl.comps[rbot])
-        if ttop is not None and tbot is not None:
-            rt_lo, rt_hi = ohms_top * (1 - ttop), ohms_top * (1 + ttop)
-            rb_lo, rb_hi = ohms_bot * (1 - tbot), ohms_bot * (1 + tbot)
-            vmax = vtop * rb_hi / (rt_lo + rb_hi)
-            vmin = vtop * rb_lo / (rt_hi + rb_lo)
-            print(f"  worst case ({rtop} {ttop*100:g}%, {rbot} {tbot*100:g}%): "
-                  f"{vmin:.4f} - {vmax:.4f} V")
+        fed = f"{vtop:g} V" if vtop else f"{top_net} (voltage unknown)"
+        print(f"\n{'simple 2-resistor' if len(legs) == 2 else f'{len(legs)}-leg'} divider: "
+              f"{rtop} (top, {eng(ohms_top, W)}, rail-side) / {rbot} (bottom, "
+              f"{eng(ohms_bot, W)}, GND-side), fed from {fed}")
+        if vtop:
+            print(f"  V_tap nominal = {vtop:g} * {rbot}/({rtop}+{rbot}) = {vtop * ratio:.4f} V")
         else:
-            print("  worst-case range not computed: tolerance missing on one or both "
-                  "resistors (add a 'Tolerance' property or 'N%' in Value)")
-        print("  (V_top here is the rail's name-derived or --rail/knet.json voltage - "
-              "override it if the regulator's actual output differs from the net name)")
+            print(f"  tap = {rbot}/({rtop}+{rbot}) = {ratio*100:.2f}% of {top_net}  "
+                  f"(--rail '{top_net.split('/')[-1]}=V' for volts)")
+        tol = {l[0]: res_tolerance(nl.comps[l[0]]) for l in legs}
+        if None not in tol.values():
+            lo = lambda l: l[4] * (1 - tol[l[0]])
+            hi = lambda l: l[4] * (1 + tol[l[0]])
+            fmax = par(gnds, hi) / (par(tops, lo) + par(gnds, hi))
+            fmin = par(gnds, lo) / (par(tops, hi) + par(gnds, lo))
+            what = ', '.join(f"{r} {t*100:g}%" for r, t in tol.items())
+            print(f"  worst case ({what}): " + (f"{vtop*fmin:.4f} - {vtop*fmax:.4f} V" if vtop
+                                               else f"{fmin*100:.2f} - {fmax*100:.2f}%"))
+        else:
+            print("  worst-case range not computed: tolerance missing on "
+                  + ', '.join(r for r, t in tol.items() if t is None)
+                  + " (add a 'Tolerance' property or 'N%' in Value)")
+        ths = [l for l in legs if is_thermistor(nl, l[0])]
+        if ths:
+            print(f"  {', '.join(l[0] for l in ths)}: thermistor counted at its 25 C value "
+                  f"({', '.join(nl.value(l[0]) for l in ths)}); the tap moves with temperature")
+            betas = {l[0]: ntc_beta(nl, l[0]) for l in ths}
+            if all(betas.values()):
+                def at(l, t):
+                    if l[0] not in betas:
+                        return l[4]
+                    return l[4] * math.exp(betas[l[0]][0] * (1 / (t + 273.15) - 1 / 298.15))
+                temps = (-20, -10, 0, 10, 25, 45, 60)
+                row = [par(gnds, lambda l: at(l, t)) / (par(tops, lambda l: at(l, t))
+                                                        + par(gnds, lambda l: at(l, t))) for t in temps]
+                print(f"  NTC ({', '.join(f'{r} {b[1]}={b[0]:g}K' for r, b in betas.items())}), "
+                      f"tap vs cell temperature - compare with the IC's TS thresholds (kdoc):")
+                print("    T (C)  " + ''.join(f"{t:>7}" for t in temps))
+                print("    tap %  " + ''.join(f"{f*100:>7.1f}" for f in row))
+            else:
+                print("  no B value found in Value/Description (e.g. 'B25/50 3380K'), so no "
+                      "temperature table")
+        if vtop:
+            print("  (V_top here is the rail's name-derived or --rail/knet.json voltage - "
+                  "override it if the regulator's actual output differs from the net name)")
     else:
         d = try_3r_divider(nl, net, legs, a.fanout) if others else None
         if d:
@@ -1253,7 +1304,7 @@ def _bh(b, hseen=None):
 
 PREFIX_SYM = {'R': 'r', 'C': 'c', 'L': 'l', 'FB': 'fb', 'FL': 'fb', 'D': 'd',
               'F': 'fuse', 'JP': 'jp', 'SW': 'sw', 'Y': 'xtal', 'X': 'xtal',
-              'TP': 'tp', 'BT': 'bat', 'AE': 'ant', 'E': 'ant'}
+              'TP': 'tp', 'BT': 'bat', 'AE': 'ant', 'E': 'ant', 'TH': 'ntc', 'RT': 'ntc'}
 COL = 5          # x pitch between hops (wire + 2-unit part)
 ROW = 3          # y pitch, matches the IC pin pitch (p=3 on the ic line)
 
@@ -1280,6 +1331,32 @@ def _mkbranch_pins(nl, ref, pin):
 
 def _sym_for(ref):
     return PREFIX_SYM.get(prefix(ref), 'r')
+
+
+def _gnd(nl, net, tgt):
+    """a ground glyph, named when the net is not GND itself (-BATT across a shunt)"""
+    leaf = _leaf(net)
+    return 'gnd %s' % tgt if leaf.upper() in ('GND', '') else 'gnd %s %s' % (tgt, _q(leaf))
+
+
+def _is_global(net):
+    """a global label / power net: named, not hierarchical, not auto-named"""
+    return bool(net) and not net.startswith(('/', 'Net-(', 'unconnected-'))
+
+
+def _real_pins(nl, ref):
+    """{pin: (side, order)} from the symbol as placed on its sheet, so a drawing
+    keeps the real pin sides and order. {} with no sheet geometry."""
+    si = nl.sch()
+    out = {}
+    for i, (base, _path, sx, sy, rot, mir, unit, lid) in enumerate(si.place.get(ref, []) if si.valid else []):
+        lib = si.libsyms.get(base, {}).get(lid)
+        if lib is None:
+            continue
+        pins, _body = sym_geometry(lib, unit, sx, sy, rot, mir)
+        for num, (x, y, side, _nm) in pins.items():
+            out.setdefault(num, (side, (i, y if side in 'LR' else x)))
+    return out
 
 
 class _SpecGen:
@@ -1347,7 +1424,7 @@ class _SpecGen:
         if not fnet or fnet.startswith('unconnected-'):
             self.emit('nc %s' % tgt)
         elif nl.is_gnd(fnet):
-            self.emit('gnd %s' % tgt)
+            self.emit(_gnd(nl, fnet, tgt))
         elif nl.railv.get(fnet):
             self.emit('pwr %s %s' % (_leaf(fnet), tgt))
         else:
@@ -1393,7 +1470,7 @@ class _SpecGen:
             nxt = '%s.%s' % (ref, far)
             ntrunk = trunk + side * COL
             if sb['gnd']:
-                self.emit('gnd %s' % nxt)
+                self.emit(_gnd(nl, sb['net'], nxt))
             elif sb['rail'] and sb['rail'] != 0:
                 self.emit('pwr %s %s' % (_leaf(sb['net']), nxt))
             elif sb['floating']:
@@ -1423,22 +1500,35 @@ class _SpecGen:
         for p in allp:
             net = nl.cpins.get(ref, {}).get(p)
             br[p] = _mkbranch(nl, net, classes, a.fanout, a.depth, {net}, ref)
+        # a global net's other ICs are a glabel, not a stub each; its 2-pin
+        # parts (a pull-up) still draw
+        for p in allp:
+            b = br[p]
+            ics = [l[0] for l in b['loads'] if len(nl.conn_pins(l[0])) > 2]
+            if _is_global(b['net']) and ics:
+                b['loads'] = [l for l in b['loads'] if l[0] not in ics]
+                b['also'] = ics
+        real = _real_pins(nl, ref)
         seen_net = {}
         T, B, Lp, Rp = [], [], [], []
         for p in allp:
             b = br[p]
             n = b['net']
-            if b['gnd']:
-                B.append(p); continue
-            if b['rail'] and b['rail'] != 0:
-                T.append(p); continue
-            if n and n in seen_net:
+            side = real.get(p, ('',))[0]
+            if side in ('U', 'D') or (not side and (b['gnd'] or (b['rail'] and b['rail'] != 0))):
+                (B if side == 'D' or (not side and b['gnd']) else T).append(p); continue
+            if n and n in seen_net and not (b['gnd'] or b['rail'] is not None):
                 b['dup'] = seen_net[n]
             elif n:
                 seen_net[n] = p
+            if side:
+                (Lp if side == 'L' else Rp).append(p); continue
             ty = (declared.get(p) or ('', ''))[1]
             (Rp if ty in ('output', 'power_out', 'tri_state', 'open_collector') else Lp).append(p)
-        if not Rp and len(Lp) > 5:
+        if real:
+            for lst in (Lp, Rp, T, B):
+                lst.sort(key=lambda p: real.get(p, ('', (9, 0)))[1])
+        elif not Rp and len(Lp) > 5:
             half = (len(Lp) + 1) // 2
             Lp, Rp = Lp[:half], Lp[half:]
         rows = {}
@@ -1478,10 +1568,8 @@ class _SpecGen:
              'T': [(p, '') for p in T], 'B': [(p, '') for p in B]},
             None, max(2, ROW * max(hL, hR)), trunc(c['value'], 24), ROW)
         w = bb[2]
-        for p in T:
-            self.emit('pwr %s %s.%s' % (_leaf(br[p]['net']), ref, p))
-        for p in B:
-            self.emit('gnd %s.%s' % (ref, p))
+        for p in T + B:
+            self.term(br[p], '%s.%s' % (ref, p))
         for side, pins in ((-1, Lp), (1, Rp)):
             row = 0
             for p in pins:
@@ -1490,11 +1578,9 @@ class _SpecGen:
                 y = icy + 1 + ROW * row
                 trunk = (icx - 2 - COL) if side < 0 else (icx + w + 2 + COL)
                 nx = icx - 2 if side < 0 else icx + w + 2
-                if b['floating']:
-                    self.emit('nc %s' % src)
-                elif b['rail'] is not None:      # big net: name it, do not expand
-                    self.emit('label %s %s' % (_q('%s (%d nodes)' % (_leaf(b['net']),
-                                                                     b.get('big', 0))), src))
+                if b['floating'] or b['gnd'] or b['rail'] is not None \
+                        or (b.get('also') and not (b['loads'] or b['subs'])):
+                    self.term(b, src)            # no branch: a glyph at the pin
                 elif b.get('dup'):
                     self.emit('label %s %s' % (_q(_leaf(b['net'])), src))
                 elif b['single']:
@@ -1504,10 +1590,24 @@ class _SpecGen:
                 else:
                     self.emit('note %g,%g %s' % (
                         (trunk + .4) if side < 0 else (nx + .4), y - .4,
-                        _q(_leaf(b['net']))))
+                        _q(_leaf(b['net']) + ('  + ' + ' '.join(b['also']) if b.get('also') else ''))))
                     self.chain(b, src, side, trunk, row, icy + 1, nx)
                 row += rows[p]
         return self.lines
+
+    def term(self, b, src):
+        """end a pin that gets no branch with the glyph its net calls for"""
+        n = b['net']
+        if b['floating']:
+            self.emit('nc %s' % src)
+        elif b['gnd']:
+            self.emit(_gnd(self.nl, n, src))
+        elif b['rail']:
+            self.emit('pwr %s %s' % (_q(_leaf(n)), src))
+        elif b['rail'] == 0 or _is_global(n):    # a big or global net: a glabel
+            self.emit('glabel %s %s' % (_q(_leaf(n)), src))
+        else:
+            self.emit('label %s %s' % (_q(_leaf(n)), src))
 
     def net(self, net):
         """one box per part (a part can sit on the same net twice), all hung

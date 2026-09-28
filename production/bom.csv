@@ -1,150 +1,164 @@
-﻿Designator,Footprint,Quantity,Value,LCSC Part #
-"BT1, BT2",BAT-SMD_L82.5.5-W25-BH-21700-B1BJ001,2,21700 Li-ion,C20606791
-"C1, C104, C13, C2, C3, C8",0402,6,2.2uF,C33546001
-"C10, C11, C110, C122, C123, C124, C126, C127, C128, C141, C143, C156, C16, C168, C169, C177, C187, C188, C189, C190, C191, C192",0603,22,10uF,C22392391
-"C100, C102, C103, C106, C107, C111, C130, C99",0402,8,10uF,C6119763
-C101,0402,1,4.7uF,C6119795
-"C105, C132, C134, C21, C22, C23, C47, C96, C97, C98",0402,10,10nF,C696856
-"C108, C109, C161, C162",0402,4,2.2nF,C2987940
-"C112, C159, C160",0402,3,1nF,C54916656
-"C115, C95",0402,2,47pF,C20069324
-"C116, C121, C131, C136, C184, C19, C24, C49, C5, C50, C51, C54, C61, C64, C66, C72, C80, C89, C91",0402,19,100nF,C5272680
-"C117, C118, C52",0402,3,1uF,C7472948
-"C119, C120",1206,2,22uF,C12891
-"C125, C129, C135, C145",0603,4,2.2uF,C7432769
-"C14, C38, C40, C42, C44, C48, C67, C68, C69, C70",0805,10,10uF,C6119892
-"C144, C147, C185",0805,3,22uF,C98190
-"C153, C158",0402,2,5.6pF,C525219
-"C155, C157, C186",0603,3,22uF,C2762594
-"C163, C164, C17, C176, C178, C179, C18, C180, C181, C182, C20, C25, C39, C41, C43, C45, C46, C94",0402,18,1uF,C53426846
-"C26, C27, C28, C29, C30, C32, C34, C35, C57, C59, C60, C63, C65, C71, C73, C74, C82, C84, C85, C86, C87, C88, C90, C92",1206,24,10uF,C33546013
-C31,0805,1,4.7uF,C7472970
-"C33, C36",0402,2,330pF,C190579
-C37,0603,1,1uF,C7432774
-"C53, C55, C56, C58",0402,4,0.47uF,C49333230
-"C6, C7",0402,2,7pF,C2929131
-"C62, C79",0805,2,2.2uF,C17702473
-"C75, C76, C77",0402,3,47nF,C363542
-C78,0603,1,4.7uF,C22367829
-C93,0402,1,22pF,C696857
-"D1, D2, D3",SOT-23-5,3,ESDS314DBVR,C1847859
-"D10, D13",Texas_DPY0002A_0.6x1mm_P0.65mm,2,ESD501,C42409135
-D11,0805,1,LED Red,C51933307
-D12,0805,1,LED Blue,C51933309
-D14,Texas_DPY0002A_0.6x1mm_P0.65mm,1,ESD351DPYR,C1974929
-"D15, D16",D_SOD-523,2,RB531SM-30,C2766159
-"D17, D19",Texas_DPY0002A_0.6x1mm_P0.65mm,2,TPD1E10B06,C48260
-D18,0603,1,PGB1010603,C10677
-D20,D_SOD-123F,1,SMF6.0A,C2758490
-D21,SOT-23,1,BAT54A,C55258619
-D22,SOT-323_SC-70,1,BAT54W,C5186013
-D4,D_SOD-323,1,1N5819WS,C191023
-D5,D_SOD-123,1,SMF10A,C52148349
-D6,SOT-23,1,BAV199,C5184419
-D7,D_SOD-123F,1,SMF24A,C399294
-D8,0805,1,CHARGING,C19171393
-D9,D_SMB,1,SS36B,C46598116
-"F1, F3",0805,2,1A Hold,C135331
-F2,0805,1,"2A Hold, 4A Trip",C6851467
-F4,0805,1,SMD0805B035TF,C269103
-F5,2920,1,10A hold,C50338483
-F6,1812,1,3A hold 5A trip,C2972730
-FB1,0603,1,BLM18HG601SN1D,C85830
-FL1,Filter_1411-5_1.4x1.1mm,1,B39162B8389P810,C5556161
-FL2,FILTER-SMD_0805-8P-L2.0-W1.2-TL,1,0900LP15B0063001E,C17287560
-J1,HDR-SMD_6P-P2.54-H-F-W11.7,1,SPI BUS,C46061770
-J10,JST_PH_S2B-PH-SM4-TB_1x02-1MP_P2.00mm_Horizontal,1,SOLAR,C295747
-"J11, J13",SMA_Samtec_SMA-J-P-H-ST-EM1_EdgeMount,2,Conn_Coaxial,C5250058
-J12,U.FL_Hirose_U.FL-R-SMT-1_Vertical,1,Conn_Coaxial_Small,C88374
-J14,HDR-SMD_16P-P2.54_HXPM2.54-2X8PWT,1,GPIO_Expander,C46635853
-J15,JST_XH_S4B-XH-SM4-TB_1x04-1MP_P2.50mm_Horizontal,1,LED 5V,C161861
-J2,JST_SH_SM04B-SRSS-TB_1x04-1MP_P1.00mm_Horizontal,1,I2C3,C160404
-J3,CONN-SMD_4P-P2.54_HX-PM2.54-1X4PWT,1,I2C1,C46061768
-J5,Molex_PicoBlade_53261-0871_1x08-1MP_P1.25mm_Horizontal,1,e-Ink Display Connector,C3029365
-J6,JST_SH_SM03B-SRSS-TB_1x03-1MP_P1.00mm_Horizontal,1,UART0,C160403
-J7,USB_C_Receptacle_GCT_USB4105-xx-A_16P_TopMnt_Horizontal,1,GCT USB4105-GF-A-120,C3025063
-J9,Molex_PicoBlade_53261-0271_1x02-1MP_P1.25mm_Horizontal,1,BAT_PORT,C2905009
-L1,L_Vishay_IFSC-1515AH_4x4x1.8mm,1,2.2uH,C5291938
-L2,0603,1,47nH,C98077
-L3,0603,1,470nH,C113132
-L4,L_Sunlord_MWSA1003S,1,2.2uH,C48391620
-L5,L_APV_APH1040,1,3.3uH,C439020
-"L6, L7",0402,2,5.1nH,C404625
-"Q1, Q3",Texas_PicoStar_DFN-3_0.69x0.60mm,2,CSD25480F3,C2872850
-"Q10, Q9",SOT-23,2,SI2308,C5337194
-Q11,VSON-8_3.3x3.3mm_P0.65mm_NexFET,1,CSD17581Q3A,C201632
-Q12,SOT-23,1,AO3401A,C347476
-Q13,SOT-23,1,BSS138,C3015220
-"Q14, Q15",SOT-23,2,2N7002,C5331134
-"Q2, Q4",Texas_PicoStar_DFN-3_0.69x0.60mm,2,CSD15380F3,C529568
-"Q5, Q6",PQFN-8_L3.1-W3.1-P0.65-LS3.3-BL,2,AON7534,C115844
-"Q7, Q8",VSONP-8-1EP_5x6_P1.27mm,2,CSD18512Q5B,C2863663
-"R1, R2, R3, R4",0402,4,33,C54530835
-"R10, R11, R16, R17, R98",0402,5,22,C2686485
-R100,0805,1,0,C17477
-"R101, R113, R119, R132, R133, R20, R24, R25, R26, R35, R38, R46, R50, R67, R7, R76, R9, R92, R94, R97",0402,20,10k,C54951138
-"R102, R29, R31",0402,3,1M,C2918201
-"R103, R111, R117, R44, R48, R59, R63",0402,7,100,C55174701
-"R104, R107, R115, R121",0603,4,402k,C29269954
-"R105, R106, R108, R130, R131, R23, R27, R28, R30, R56, R77, R79, R86, R91, R96",0402,15,100k,C2984406
-"R109, R110",0402,2,6.04k,C852895
-"R114, R120, R42",0402,3,10,C54530672
-R116,0402,1,174k,C852565
-"R12, R13, R134, R14, R15, R18, R19, R32, R33, R34, R5, R6, R69, R75, R93, R95",0402,16,0,C844711
-R122,0805,1,101k,C7302896
-"R123, R124, R43, R45, R71, R78, R99",0402,7,1k,C48533754
-R125,0402,1,86.6k,C852935
-R126,0402,1,3.92k,C2692963
-R127,0402,1,27.4k,C852679
-R128,0402,1,750,C100525
-R129,0603,1,280k,C705755
-"R21, R22, R36, R37, R68, R72",0402,6,2.2k,C23901508
-"R39, R40",1206,2,150,C319867
-R41,R_Shunt_0805_2012Metric_Kelvin,1,5m,C42454064
-R47,1210,1,330,C51048356
-"R49, R62",0402,2,2,C881429
-R51,0603,1,5.24k,C861485
-R52,0603,1,30.31k,C2989442
-"R53, R57, R60, R61",0402,4,294,C852689
-R54,0603,1,24.3k,C2681615
-R55,0603,1,68.1k,C5355251
-R58,0402,1,8.2k,C24265089
-R66,0402,1,3k,C29269950
-R70,0402,1,2k,C23539935
-R74,0805,1,62,C560547
-R8,0805,1,10M,C54102219
-"R80, R83",0402,2,150,C319853
-R81,0402,1,37.4,C316909
-R82,0402,1,4.7k,C317921
-R84,0402,1,150k,C319872
-R85,0603,1,215k,C861226
-R87,0402,1,113k,C1509597
-R88,0402,1,6.65k,C49655648
-R89,0603,1,200k,C723682
-R90,0402,1,301k,C2936623
-RN1,R_Array_Concave_4x0402,1,10k,C414600
-SW1,SW_Push_SPST_NO_Alps_SKRK,1,ESP_RESET,C202388
-SW2,SW_Push_SPST_NO_Alps_SKRK,1,BOOT,C202388
-SW4,SW_Push_SPST_NO_Alps_SKRK,1,RESET_GNSS,C202388
-SW5,SW_Push_SPST_NO_Alps_SKRK,1,SAFEBOOT_GNSS,C202388
-"TH1, TH2, TH3, TH4, TH5",0603,5,103AT 10k,C3154661
-TP7,TestPoint_Pad_D1.0mm,1,EN_3V3,
-U1,ESP32-S3-WROOM-1,1,ESP32-S3-WROOM-1-N16R8,C2913202
-U10,SOT-23-5_L2.9-W1.6-P0.95-LS2.8-BR,1,TPS7A2033PDBVR,C2862740
-U11,VQFN-10_L2.0-W2.0-P0.45-TL,1,TPS259474LRPWR,C2864845
-U12,COMM-SMD_22P-P2.54-L38.5-W24.0_E22-400M33S,1,E22P-915M30S,C51912672
-"U13, U14",VQFN-14-HR_L4.0-W3.5-TL_LM61460AASQRJRRQ1,2,LM61460AASQRJRRQ1,C1855832
-U15,VQFN-10_L2.0-W2.0-P0.45-TL,1,TPS259474ARPWR,C3662807
-U16,X2SON-8_1.4x1mm_P0.35mm,1,SN74LVC1G74,C2870716
-U17,TQFN-24_L4.0-W4.0-P0.50-BL-EP2.3,1,TCAL9539RTWR,C22445413
-"U18, U20",LED-SMD_6P-L5.0-W5.0-TL,2,WS2816B,C22371534
-U19,SOT-353_SC-70-5,1,SN74LV1T34DCK,C78541
-U2,X1-WLB0808-4_L0.8-W0.8-P0.40-TL,1,QMC6309,C5439871
-U3,WSON-6-1EP_2x2mm_P0.65mm_EP1x1.6mm,1,TVS2200DRV,C523793
-U4,WQFN-20_L3.0-W3.0-P0.40-TL-EP1.7,1,TPD8S300/A,C571205
-U5,Texas_REF0038A_WQFN-38-2EP_6x4mm_P0.4,1,TI TPS25751DREFR,C30169739
-U6,DFN-8-1EP_2x3mm_P0.5mm_EP0.61x2.2mm,1,CAT24C256,C233771
-U7,QFN-24_L4.0-W4.0-P0.50-BL-EP2.6,1,MAX17320G22+,C2914309
-U8,Texas_RQM0029A_VQFN-29_4x4mm_P0.4mm,1,BQ25798,C2876593
-Y1,Crystal_SMD_3215-2Pin_3.2x1.5mm,1,32.768KHz,C41349295
-Y2,Oscillator_SMD_SiT_PQFN-4Pin_2.0x1.6mm,1,SX1M4.000M10F30TNN,C5830655
+"Reference","Qty","Value","Description","Manufacturer","MPN","LCSC Part","Footprint","DNP","Datasheet"
+"R5,R6,R12,R13,R14,R15,R18,R19,R32,R33,R34,R69,R134","13","0","RES 0Ω jumper 0402","Vishay","CRCW04020000Z0EDHP","C844711","Resistor_SMD:R_0402_1005Metric","","https://datasheet.lcsc.com/datasheet/pdf/26cdfc55b8426b7658fe52a27bb4d16c.pdf?productCode=C844711"
+"R75,R95","2","0","RES 0Ω jumper 0402","Vishay","CRCW04020000Z0EDHP","C844711","Resistor_SMD:R_0402_1005Metric_Pad0.72x0.64mm_HandSolder","","https://datasheet.lcsc.com/datasheet/pdf/26cdfc55b8426b7658fe52a27bb4d16c.pdf?productCode=C844711"
+"R93","1","0","RES 0Ω jumper 0402","Vishay","CRCW04020000Z0EDHP","C844711","Resistor_SMD:R_0402_1005Metric","DNP","https://datasheet.lcsc.com/datasheet/pdf/26cdfc55b8426b7658fe52a27bb4d16c.pdf?productCode=C844711"
+"R100","1","0","RES 0Ω jumper 0805","UNI-ROYAL","0805W8F0000T5E","C17477","Resistor_SMD:R_0805_2012Metric","","https://datasheet.lcsc.com/datasheet/pdf/0a975aaa49b7c97f38a963127be4a823.pdf?productCode=C17477"
+"C153,C158","2","5.6pF","CAP MLCC 5.6pF 50V C0G 0402","PSA (Prosperity Dielectrics)","FN15N5R6D500PNG","C525219","Capacitor_SMD:C_0402_1005Metric_Pad0.74x0.62mm_HandSolder","","https://datasheet.lcsc.com/datasheet/pdf/3d771c0c586676719f80e96a0f8d9dcd.pdf?productCode=C525219"
+"C6,C7","2","7pF","CAP MLCC 7pF 50V C0G 0402","PSA (Prosperity Dielectrics)","FN15N7R0D500PNG","C2929131","Capacitor_SMD:C_0402_1005Metric","","https://datasheet.lcsc.com/datasheet/pdf/2861834283c8f3616836bf6bb4d4e255.pdf?productCode=C2929131"
+"C93","1","22pF","CAP MLCC 22pF ±5% 50V C0G 0402","CCTC","TCC0402COG220J500AT","C696857","Capacitor_SMD:C_0402_1005Metric","","https://datasheet.lcsc.com/datasheet/pdf/960fc76f20dcdbc93ff4d1e2164767dc.pdf?productCode=C696857"
+"C95,C115","2","47pF","CAP MLCC 47pF ±5% 50V C0G 0402","HRE","CGA0402C0G470J500GT","C20069324","Capacitor_SMD:C_0402_1005Metric","","https://datasheet.lcsc.com/datasheet/pdf/dc7c513e4a82d65cc376cc0e5be62e16.pdf?productCode=C20069324"
+"C33,C36","2","330pF","CAP MLCC 330pF ±1% 50V C0G 0402","CCTC","TCC0402COG331F500AT","C53426851","Capacitor_SMD:C_0402_1005Metric","","https://datasheet.lcsc.com/datasheet/pdf/71a9f8eccc4da164324d4a716182c5e3.pdf?productCode=C53426851"
+"C112,C159,C160","3","1nF","CAP MLCC 1nF ±5% 50V C0G 0402","TORCH","CC0402CG50V102JN","C54916656","Capacitor_SMD:C_0402_1005Metric","","https://datasheet.lcsc.com/datasheet/pdf/49b70b003dccd16cc3fa313c34a02bab.pdf?productCode=C54916656"
+"C108,C109,C161,C162","4","2.2nF","CAP MLCC 2.2nF ±2% 50V C0G 0402","Murata","GRM1555C1H222GA01D","C2987940","Capacitor_SMD:C_0402_1005Metric","","https://datasheet.lcsc.com/datasheet/pdf/ae687d21155af07a1c72ad1115e7421f.pdf?productCode=C2987940"
+"L6,L7","2","5.1nH","IND RF 5.1nH, 600mA, 130mΩ, multilayer, 0402","TDK","MLG1005S5N1CTD25","C404625","Inductor_SMD:L_0402_1005Metric","","https://datasheet.lcsc.com/datasheet/pdf/fe4699cfe0567e4501e6fca39e0f92ff.pdf?productCode=C404625"
+"C21,C22,C23,C47,C98,C105,C132,C134","8","10nF","CAP MLCC 10nF ±20% 50V X7R 0402","CCTC","TCC0402X7R103M500AT","C696856","Capacitor_SMD:C_0402_1005Metric","","https://datasheet.lcsc.com/datasheet/pdf/960fc76f20dcdbc93ff4d1e2164767dc.pdf?productCode=C696856"
+"C96,C97","2","10nF","CAP MLCC 10nF ±20% 50V X7R 0402","CCTC","TCC0402X7R103M500AT","C696856","Capacitor_SMD:C_0402_1005Metric_Pad0.74x0.62mm_HandSolder","DNP","https://datasheet.lcsc.com/datasheet/pdf/960fc76f20dcdbc93ff4d1e2164767dc.pdf?productCode=C696856"
+"C75,C76,C77","3","47nF","CAP MLCC 47nF ±10% 50V X7R 0402","CCTC","TCC0402X7R473K500AT","C880605","Capacitor_SMD:C_0402_1005Metric","","https://datasheet.lcsc.com/datasheet/pdf/960fc76f20dcdbc93ff4d1e2164767dc.pdf?productCode=C880605"
+"L2","1","47nH","IND RF 47nH ±2%, 380mA, 290mΩ, wirewound, 0603","Murata","LQW18AN47NG00D","C98076","Inductor_SMD:L_0603_1608Metric","","https://datasheet.lcsc.com/datasheet/pdf/d18d069bcb310402631d9011b9a41597.pdf?productCode=C98076"
+"C5,C19,C24,C49,C50,C51,C54,C61,C64,C66,C72,C80,C89,C91,C116,C121,C131,C136,C184","19","100nF","CAP MLCC 100nF ±5% 50V X7R 0402","FH (Fenghua)","0402B104J500NT","C5272680","Capacitor_SMD:C_0402_1005Metric","","https://datasheet.lcsc.com/datasheet/pdf/09fe2daf22580a99fa7fea93ccb20fb7.pdf?productCode=C5272680"
+"C53,C55,C56","3","0.47uF","CAP MLCC 470nF ±10% 25V X5R 0402","Chinocera","HGC0402R5474K250NTEJ","C49333230","Capacitor_SMD:C_0402_1005Metric","","https://datasheet.lcsc.com/datasheet/pdf/61633b63ed3f06bbdb19946a342cc748.pdf?productCode=C49333230"
+"C58","1","0.47uF","CAP MLCC 470nF ±10% 25V X5R 0402","Chinocera","HGC0402R5474K250NTEJ","C49333230","Capacitor_SMD:C_0402_1005Metric","DNP","https://datasheet.lcsc.com/datasheet/pdf/61633b63ed3f06bbdb19946a342cc748.pdf?productCode=C49333230"
+"L3","1","470nH","IND RF 470nH ±2%, 75mA, 7Ω, wirewound, 0603","Murata","LQW18ANR47G00D","C113132","Inductor_SMD:L_0603_1608Metric","","https://datasheet.lcsc.com/datasheet/pdf/d18d069bcb310402631d9011b9a41597.pdf?productCode=C113132"
+"C17,C18,C20,C25,C39,C41,C43,C45,C46,C94,C163,C164,C176,C178,C179,C180,C182","17","1uF","CAP MLCC 1uF ±10% 25V X7R 0402","CCTC","TCC0402X7R105K250AT","C53426846","Capacitor_SMD:C_0402_1005Metric","","https://datasheet.lcsc.com/datasheet/pdf/71a9f8eccc4da164324d4a716182c5e3.pdf?productCode=C53426846"
+"C37","1","1uF","CAP MLCC 1uF ±10% 50V X7R 0603","Chinocera","HGC0603R7105K500NTHJ","C7432774","Capacitor_SMD:C_0603_1608Metric","","https://datasheet.lcsc.com/datasheet/pdf/3025399970486160f9625970e5fd5973.pdf?productCode=C7432774"
+"C52,C117,C118","3","1uF","CAP MLCC 1uF ±10% 50V X5R 0402","Chinocera","HGC0402R5105K500NTEJ","C7472948","Capacitor_SMD:C_0402_1005Metric","","https://datasheet.lcsc.com/datasheet/pdf/3025399970486160f9625970e5fd5973.pdf?productCode=C7472948"
+"L1","1","2.2uH","IND POWER 2.2uH ±20%, Isat 5.6A, Irms 6.4A, 29mΩ, molded, 5.4x5.2mm","Sunlord","MWSA0503S-2R2MT","C408408","Inductor_SMD:L_Sunlord_MWSA0503S","","https://media.digikey.com/pdf/Data%20Sheets/Shenzhen%20Sunlord/MWSA-S_Series_DS.pdf"
+"L4","1","2.2uH","IND POWER 2.2uH ±20%, Isat 18A, Irms 12A, 5.8mΩ, shielded, 10.8x10mm","Cybermax","CMLO1040H2R2MTT","C439019","Inductor_SMD:L_APV_APH1040","","https://datasheet.lcsc.com/datasheet/pdf/7029bbea28904fe50f59ffe7f6ef38a1.pdf?productCode=C439019"
+"C1,C2,C3,C8,C13,C104,C181","7","2.2uF","CAP MLCC 2.2uF ±10% 35V X5R 0402","Chinocera","HGC0402R5225K350NTEJ","C33546001","Capacitor_SMD:C_0402_1005Metric","","https://datasheet.lcsc.com/datasheet/pdf/f608324e16dc58a8d3bf770f2f4184bc.pdf?productCode=C33546001"
+"C62,C79","2","2.2uF","CAP MLCC 2.2uF ±10% 50V X7R 0805","Samwha","CS2012X7R225K500NRE","C17702473","Capacitor_SMD:C_0805_2012Metric","","https://datasheet.lcsc.com/datasheet/pdf/de3131a7974cb4c72332356e43dd8fb0.pdf?productCode=C17702473"
+"C125,C129,C135,C145","4","2.2uF","CAP MLCC 2.2uF ±10% 50V X5R 0603","Chinocera","HGC0603R5225K500NTHJ","C7432769","Capacitor_SMD:C_0603_1608Metric","","https://datasheet.lcsc.com/datasheet/pdf/3025399970486160f9625970e5fd5973.pdf?productCode=C7432769"
+"L5","1","3.3uH","IND POWER 3.3uH ±20%, Isat 16A, Irms 10A, 10mΩ, shielded, 10.8x10mm","Cybermax","CMLO1040H3R3MTT","C439020","Inductor_SMD:L_APV_APH1040","","https://datasheet.lcsc.com/datasheet/pdf/7029bbea28904fe50f59ffe7f6ef38a1.pdf?productCode=C439020"
+"C31","1","4.7uF","CAP MLCC 4.7uF ±10% 50V X7R 0805","Chinocera","HGC0805R7475K500NSLJ","C7472970","Capacitor_SMD:C_0805_2012Metric","","https://datasheet.lcsc.com/datasheet/pdf/3025399970486160f9625970e5fd5973.pdf?productCode=C7472970"
+"C78","1","4.7uF","CAP MLCC 4.7uF ±10% 35V X5R 0603","Chinocera","HGC0603R5475K350NTHJ","C22367829","Capacitor_SMD:C_0603_1608Metric","","https://datasheet.lcsc.com/datasheet/pdf/c406d44fbf95883b4a8cac9a09b271ce.pdf?productCode=C22367829"
+"C101","1","4.7uF","CAP MLCC 4.7uF ±20% 25V X5R 0402","HRE","CGA0402X5R475M250GT","C6119795","Capacitor_SMD:C_0402_1005Metric","","https://datasheet.lcsc.com/datasheet/pdf/b1266b0c87197fb3f02855f4cd0e28e3.pdf?productCode=C6119795"
+"C10,C11,C12,C16,C110,C122,C123,C124,C126,C127,C128,C137,C141,C143,C156,C168,C169,C177,C187,C188,C189,C190,C191,C192","24","10uF","CAP MLCC 10uF ±20% 35V X5R 0603","CCTC","TCC0603X5R106M350CT","C22392391","Capacitor_SMD:C_0603_1608Metric","","https://datasheet.lcsc.com/datasheet/pdf/71a9f8eccc4da164324d4a716182c5e3.pdf?productCode=C22392391"
+"C14,C38,C40,C42,C44,C48,C67,C68,C69,C70","10","10uF","CAP MLCC 10uF ±20% 50V X5R 0805","HRE","CGA0805X5R106M500MT","C6119892","Capacitor_SMD:C_0805_2012Metric","","https://datasheet.lcsc.com/datasheet/pdf/84e3a6fd29786b629e1e2892084b001d.pdf?productCode=C6119892"
+"C26,C27,C28,C29,C30,C32,C34,C35,C57,C59,C60,C63,C65,C73,C74,C82,C84,C85,C86,C87,C88,C90,C92","23","10uF","CAP MLCC 10uF ±10% 50V X7R 1206","Chinocera","HGC1206R7106K500NSPJ","C33546013","Capacitor_SMD:C_1206_3216Metric","","https://datasheet.lcsc.com/datasheet/pdf/f608324e16dc58a8d3bf770f2f4184bc.pdf?productCode=C33546013"
+"C71","1","10uF","CAP MLCC 10uF ±10% 50V X7R 1206","Chinocera","HGC1206R7106K500NSPJ","C33546013","Capacitor_SMD:C_1206_3216Metric","DNP","https://datasheet.lcsc.com/datasheet/pdf/f608324e16dc58a8d3bf770f2f4184bc.pdf?productCode=C33546013"
+"C99,C100,C102,C103,C106,C107,C111,C130","8","10uF","CAP MLCC 10uF ±20% 10V X5R 0402","HRE","CGA0402X5R106M100GT","C6119763","Capacitor_SMD:C_0402_1005Metric","","https://datasheet.lcsc.com/datasheet/pdf/f38cc67c7d42c83cd043a2a714280f66.pdf?productCode=C6119763"
+"C119,C120","2","22uF","CAP MLCC 22uF ±10% 25V X5R 1206","Samsung Electro-Mechanics","CL31A226KAHNNNE","C12891","Capacitor_SMD:C_1206_3216Metric","","https://datasheet.lcsc.com/datasheet/pdf/02336ea48ea44ca18c72517dd3cb7b47.pdf?productCode=C12891"
+"C144,C147,C185","3","22uF","CAP MLCC 22uF ±20% 25V X5R 0805","Samsung Electro-Mechanics","CL21A226MAYNNNE","C602037","Capacitor_SMD:C_0805_2012Metric","","https://datasheet.lcsc.com/datasheet/pdf/b322e2c5418a720f91470a94c6dd8af9.pdf?productCode=C602037"
+"C155,C157,C165,C166,C167,C170,C171,C186","8","22uF","CAP MLCC 22uF ±20% 16V X5R 0603","Chinocera","HGC0603R5226M160NTHJ","C22367828","Capacitor_SMD:C_0603_1608Metric","","https://datasheet.lcsc.com/datasheet/pdf/5a5c1da7b8866d662b18403c954de811.pdf?productCode=C22367828"
+"R41","1","5m","RES current sense 5mΩ ±1% 500mW 0805 metal alloy","Yohey","YHR0805SE1DR005F5","C42454064","footprints:R_Shunt_0805_2012Metric_Kelvin","","https://datasheet.lcsc.com/datasheet/pdf/0b4e40e8836ae059409dd4c822a860ed.pdf?productCode=C42454064"
+"F1,F3","2","1A hold","FUSE PTC resettable 1A hold, 1.95A trip, 6V, 0805","JDT","ASMD0805-100","C135331","Fuse:Fuse_0805_2012Metric","","https://datasheet.lcsc.com/datasheet/pdf/54e07b777b7db1523783c1e8fbc2ace4.pdf?productCode=C135331"
+"R49,R62","2","2","RES 2Ω ±1% 62.5mW 0402 thick film","FOJAN","FRC0402F2R00TS","C2998051","Resistor_SMD:R_0402_1005Metric","","https://datasheet.lcsc.com/datasheet/pdf/106fb934f95f063b695dad1b31b1eab8.pdf?productCode=C2998051"
+"F2","1","2A hold","FUSE PTC resettable 2A hold, 4A trip, 12V, 0805","TECHFUSE","SL0805200-12V","C6851467","Fuse:Fuse_0805_2012Metric","","https://datasheet.lcsc.com/datasheet/pdf/e6a378b8a37019759bb545a349a60ab8.pdf?productCode=C6851467"
+"F6","1","3A hold","FUSE PTC resettable 3A hold, 5A trip, 6V, 1812","JKSEMI","JSMD1812-300","C2972730","Fuse:Fuse_1812_4532Metric","","https://datasheet.lcsc.com/datasheet/pdf/82552fc8944c2b3427e6cd651b8d9c76.pdf?productCode=C2972730"
+"R42,R120","2","10","RES 10Ω ±1% 62.5mW 0402 thick film","SAE","1RC0402F1009","C54530672","Resistor_SMD:R_0402_1005Metric","","https://datasheet.lcsc.com/datasheet/pdf/dd253c5a1bb01d93e2ee5935d91e0850.pdf?productCode=C54530672"
+"R114","1","10","RES 10Ω ±1% 62.5mW 0402 thick film","SAE","1RC0402F1009","C54530672","Resistor_SMD:R_0402_1005Metric_Pad0.72x0.64mm_HandSolder","","https://datasheet.lcsc.com/datasheet/pdf/dd253c5a1bb01d93e2ee5935d91e0850.pdf?productCode=C54530672"
+"F5","1","10A hold","FUSE PTC resettable 10A hold, 20A trip, 21V, 2920","BHFUSE","BSMD2920L-1000-21V","C50338483","Fuse:Fuse_2920_7451Metric","","https://datasheet.lcsc.com/datasheet/pdf/14d81d7958d374dbae10273735207212.pdf?productCode=C50338483"
+"R10,R11","2","22","RES 22Ω ±0.5% 25ppm 62.5mW 0402 thin film","Viking Tech","ARG02DTC0220","C2686485","Resistor_SMD:R_0402_1005Metric_Pad0.72x0.64mm_HandSolder","","https://datasheet.lcsc.com/datasheet/pdf/ec3e308e963624b453a77b63220f4bbf.pdf?productCode=C2686485"
+"R16,R17,R98","3","22","RES 22Ω ±0.5% 25ppm 62.5mW 0402 thin film","Viking Tech","ARG02DTC0220","C2686485","Resistor_SMD:R_0402_1005Metric","","https://datasheet.lcsc.com/datasheet/pdf/ec3e308e963624b453a77b63220f4bbf.pdf?productCode=C2686485"
+"R1,R2,R3,R4","4","33","RES 33Ω ±1% 62.5mW 0402 thick film","SAE","1RC0402F3309","C54530835","Resistor_SMD:R_0402_1005Metric_Pad0.72x0.64mm_HandSolder","","https://datasheet.lcsc.com/datasheet/pdf/dd253c5a1bb01d93e2ee5935d91e0850.pdf?productCode=C54530835"
+"R81","1","37.4","RES 37.4Ω ±1% 100mW 0402 thick film","KOA Speer","RK73H1ETTP37R4F","C316909","Resistor_SMD:R_0402_1005Metric_Pad0.72x0.64mm_HandSolder","","https://datasheet.lcsc.com/datasheet/pdf/cf3f6680026d0b4e24a67f9c0020b354.pdf?productCode=C316909"
+"R74","1","62","RES 62Ω ±5% 500mW 0805 thick film","UNI-ROYAL","AS05W2J0620T5E","C560547","Resistor_SMD:R_0805_2012Metric","","https://datasheet.lcsc.com/datasheet/pdf/268cae34e8e40050f3b235878c2547d6.pdf?productCode=C560547"
+"R44,R48,R59,R63,R103","5","100","RES 100Ω ±0.5% 62.5mW 0402 thick film","FOJAN","FRH0402D1000TS","C55174701","Resistor_SMD:R_0402_1005Metric","","https://datasheet.lcsc.com/datasheet/pdf/504f856b50af18efa1efde88b61a976e.pdf?productCode=C55174701"
+"R111,R117","2","100","RES 100Ω ±0.5% 62.5mW 0402 thick film","FOJAN","FRH0402D1000TS","C55174701","Resistor_SMD:R_0402_1005Metric_Pad0.72x0.64mm_HandSolder","","https://datasheet.lcsc.com/datasheet/pdf/504f856b50af18efa1efde88b61a976e.pdf?productCode=C55174701"
+"R39,R40","2","150","RES 150Ω ±0.1% 25ppm 250mW 1206 thin film","YAGEO","RT1206BRD07150RL","C870430","Resistor_SMD:R_1206_3216Metric","","https://datasheet.lcsc.com/datasheet/pdf/46d7760c582640714d605308a25a220a.pdf?productCode=C870430"
+"R80,R83","2","150","RES 150Ω ±0.5% 25ppm 62.5mW 0402 thin film","Viking Tech","AR02DTC1500","C319853","Resistor_SMD:R_0402_1005Metric_Pad0.72x0.64mm_HandSolder","","https://datasheet.lcsc.com/datasheet/pdf/1a751e5cacd14ca30f43df4722fba38e.pdf?productCode=C319853"
+"R53,R57,R60,R61","4","294","RES 294Ω ±0.1% 25ppm 62.5mW 0402 thin film","YAGEO","RT0402BRD07294RL","C852689","Resistor_SMD:R_0402_1005Metric","","https://datasheet.lcsc.com/datasheet/pdf/46d7760c582640714d605308a25a220a.pdf?productCode=C852689"
+"R47","1","330","RES 330Ω ±1% 750mW 1210 thick film","FOJAN","FRP1210F3300TS","C51048356","Resistor_SMD:R_1210_3225Metric","","https://datasheet.lcsc.com/datasheet/pdf/489c198fa8a2dcb8e174d477e7ad4924.pdf?productCode=C51048356"
+"F4","1","350mA hold","FUSE PTC resettable 350mA hold, 750mA trip, 6V, 0805","Brightking","SMD0805B035TF","C269103","Fuse:Fuse_0805_2012Metric","","https://datasheet.lcsc.com/datasheet/pdf/1f9f1003a75effea10bcf8c5507d7438.pdf?productCode=C269103"
+"R128","1","549","RES 549Ω ±1% 62.5mW 0402 thick film","Walsin","WR04X5490FTL","C172092","Resistor_SMD:R_0402_1005Metric_Pad0.72x0.64mm_HandSolder","","https://datasheet.lcsc.com/datasheet/pdf/b7fd8449de4a882cd112db0d86c915bb.pdf?productCode=C172092"
+"R43,R45,R71,R78,R99","5","1k","RES 1kΩ ±0.1% 62.5mW 0402 thick film","FOJAN","FRH0402B1001TS","C48533754","Resistor_SMD:R_0402_1005Metric","","https://datasheet.lcsc.com/datasheet/pdf/dcb62c832dd79d37c154ec20e16fb58d.pdf?productCode=C48533754"
+"R123,R124","2","1k","RES 1kΩ ±0.1% 62.5mW 0402 thick film","FOJAN","FRH0402B1001TS","C48533754","Resistor_SMD:R_0402_1005Metric_Pad0.72x0.64mm_HandSolder","","https://datasheet.lcsc.com/datasheet/pdf/dcb62c832dd79d37c154ec20e16fb58d.pdf?productCode=C48533754"
+"R70","1","2k","RES 2kΩ ±0.1% 25ppm 62.5mW 0402 thin film","UNI-ROYAL","TC0225B2001TCC","C23539935","Resistor_SMD:R_0402_1005Metric","","https://datasheet.lcsc.com/datasheet/pdf/d0d02de47642fe4f4639912f1a5cccad.pdf?productCode=C23539935"
+"R21,R22,R68,R72","4","2.2k","RES 2.2kΩ ±0.1% 25ppm 62.5mW 0402 thin film","UNI-ROYAL","TC0225B2201TCC","C23901508","Resistor_SMD:R_0402_1005Metric_Pad0.72x0.64mm_HandSolder","","https://datasheet.lcsc.com/datasheet/pdf/d0d02de47642fe4f4639912f1a5cccad.pdf?productCode=C23901508"
+"R36,R37","2","2.2k","RES 2.2kΩ ±0.1% 25ppm 62.5mW 0402 thin film","UNI-ROYAL","TC0225B2201TCC","C23901508","Resistor_SMD:R_0402_1005Metric","","https://datasheet.lcsc.com/datasheet/pdf/d0d02de47642fe4f4639912f1a5cccad.pdf?productCode=C23901508"
+"R66","1","3k","RES 3kΩ ±0.1% 25ppm 62.5mW 0402 thin film","UNI-ROYAL","TC0225B3001TCC","C29269950","Resistor_SMD:R_0402_1005Metric_Pad0.72x0.64mm_HandSolder","","https://datasheet.lcsc.com/datasheet/pdf/d0d02de47642fe4f4639912f1a5cccad.pdf?productCode=C29269950"
+"R126","1","3.92k","RES 3.92kΩ ±0.1% 25ppm 60mW 0402 thin film","RESI","PTFR0402B3K92P9","C2692963","Resistor_SMD:R_0402_1005Metric","","https://datasheet.lcsc.com/datasheet/pdf/19fb9d121ec124c867093c26b2505da9.pdf?productCode=C2692963"
+"R82","1","4.7k","RES 4.7kΩ ±0.1% 25ppm 62.5mW 0402 thin film","Viking Tech","AR02BTC4701","C317921","Resistor_SMD:R_0402_1005Metric","","https://datasheet.lcsc.com/datasheet/pdf/1a751e5cacd14ca30f43df4722fba38e.pdf?productCode=C317921"
+"R51","1","5.23k","RES 5.23kΩ ±0.1% 25ppm 100mW 0603 thin film","YAGEO","RT0603BRD075K23L","C861485","Resistor_SMD:R_0603_1608Metric_Pad0.98x0.95mm_HandSolder","","https://datasheet.lcsc.com/datasheet/pdf/46d7760c582640714d605308a25a220a.pdf?productCode=C861485"
+"R109,R110","2","6.04k","RES 6.04kΩ ±0.1% 25ppm 62.5mW 0402 thin film","YAGEO","RT0402BRD076K04L","C852895","Resistor_SMD:R_0402_1005Metric_Pad0.72x0.64mm_HandSolder","","https://datasheet.lcsc.com/datasheet/pdf/46d7760c582640714d605308a25a220a.pdf?productCode=C852895"
+"R88","1","6.65k","RES 6.65kΩ ±1% 62.5mW 0402 thick film","GiantOhm","GR0402F6K65TAG00","C49655648","Resistor_SMD:R_0402_1005Metric_Pad0.72x0.64mm_HandSolder","","https://datasheet.lcsc.com/datasheet/pdf/c3fe41080cc311a09e2390c2e42d8ed5.pdf?productCode=C49655648"
+"R58","1","8.2k","RES 8.2kΩ ±0.1% 25ppm 62.5mW 0402 thin film","Viking Tech","ARG02BTC8201","C2984429","Resistor_SMD:R_0402_1005Metric_Pad0.72x0.64mm_HandSolder","","https://datasheet.lcsc.com/datasheet/pdf/f4da32bad2b63678770dda69cfcd538f.pdf?productCode=C2984429"
+"R7,R9,R35,R38,R46,R67,R76,R92,R94,R97,R101,R113,R119,R132,R135","15","10k","RES 10kΩ ±0.5% 62.5mW 0402 thick film","FOJAN","FRH0402D1002TS","C54951138","Resistor_SMD:R_0402_1005Metric","","https://datasheet.lcsc.com/datasheet/pdf/68379ec060dbf46ca58f0ea52f41dfcd.pdf?productCode=C54951138"
+"R20,R24,R25,R26,R133","5","10k","RES 10kΩ ±0.5% 62.5mW 0402 thick film","FOJAN","FRH0402D1002TS","C54951138","Resistor_SMD:R_0402_1005Metric_Pad0.72x0.64mm_HandSolder","","https://datasheet.lcsc.com/datasheet/pdf/68379ec060dbf46ca58f0ea52f41dfcd.pdf?productCode=C54951138"
+"RN1","1","10k","RES ARRAY 4x 10kΩ ±1% 62.5mW, isolated, 0402x4","UNI-ROYAL","4D02WGF1002TCE","C414600","Resistor_SMD:R_Array_Concave_4x0402","","https://datasheet.lcsc.com/datasheet/pdf/a787d81013d5a35f6592045f155fa14b.pdf?productCode=C414600"
+"TH1,TH2,TH3,TH4,TH5","5","10k","THERMISTOR NTC 10kΩ ±0.5%, B25/50 3380K, B25/85 3434K, 0603","Murata","NCU18XH103D60RB","C3154661","Resistor_SMD:R_0603_1608Metric","","https://datasheet.lcsc.com/datasheet/pdf/96521737ad0f9ef1479d185ba532c802.pdf?productCode=C3154661"
+"BT1,BT2","2","21700 Li-ion","BATTERY HOLDER 1x 21700 cylindrical, SMD (cell not included)","MYOUNG","BH-21700-B1BJ001","C20606791","easyeda2kicad:BAT-SMD_L82.5.5-W25-BH-21700-B1BJ001","","https://datasheet.lcsc.com/datasheet/pdf/f19fdde684eed5e7f56342763817f937.pdf?productCode=C20606791"
+"R54","1","24.3k","RES 24.3kΩ ±0.1% 25ppm 100mW 0603 thin film","Viking Tech","ARG03BTC2432","C2681615","Resistor_SMD:R_0603_1608Metric_Pad0.98x0.95mm_HandSolder","","https://datasheet.lcsc.com/datasheet/pdf/ec3e308e963624b453a77b63220f4bbf.pdf?productCode=C2681615"
+"R127","1","27.4k","RES 27.4kΩ ±0.1% 25ppm 62.5mW 0402 thin film","YAGEO","RT0402BRD0727K4L","C852679","Resistor_SMD:R_0402_1005Metric","","https://datasheet.lcsc.com/datasheet/pdf/46d7760c582640714d605308a25a220a.pdf?productCode=C852679"
+"R52","1","30.1k","RES 30.1kΩ ±0.1% 25ppm 100mW 0603 thin film","UNI-ROYAL","TC0325B3012T5F","C2989442","Resistor_SMD:R_0603_1608Metric_Pad0.98x0.95mm_HandSolder","","https://datasheet.lcsc.com/datasheet/pdf/d0d02de47642fe4f4639912f1a5cccad.pdf?productCode=C2989442"
+"Y1","1","32.768kHz","CRYSTAL 32.768kHz ±20ppm, 6pF load, 3.2x1.5mm SMD","HCI","3131M-32.768DT06LL-R50L","C41349295","Crystal:Crystal_SMD_3215-2Pin_3.2x1.5mm","","https://datasheet.lcsc.com/datasheet/pdf/30cea5fb4d3c9bcf5a50b1cd00711031.pdf?productCode=C41349295"
+"R55","1","68.1k","RES 68.1kΩ ±0.1% 50ppm 100mW 0603 thin film","FH (Fenghua)","THD03H6812BT","C5355251","Resistor_SMD:R_0603_1608Metric_Pad0.98x0.95mm_HandSolder","","https://datasheet.lcsc.com/datasheet/pdf/3bb2cb0c0e6d3f87f4eebcefd7c077b9.pdf?productCode=C5355251"
+"R125","1","86.6k","RES 86.6kΩ ±0.1% 25ppm 62.5mW 0402 thin film","YAGEO","RT0402BRD0786K6L","C852935","Resistor_SMD:R_0402_1005Metric","","https://datasheet.lcsc.com/datasheet/pdf/46d7760c582640714d605308a25a220a.pdf?productCode=C852935"
+"R23","1","100k","RES 100kΩ ±0.1% 25ppm 62.5mW 0402 thin film","Viking Tech","ARG02BTC1003","C2984406","Resistor_SMD:R_0402_1005Metric_Pad0.72x0.64mm_HandSolder","","https://datasheet.lcsc.com/datasheet/pdf/f4da32bad2b63678770dda69cfcd538f.pdf?productCode=C2984406"
+"R27,R28,R30,R56,R77,R79,R86,R91,R96,R105,R106,R108,R130,R131","14","100k","RES 100kΩ ±0.1% 25ppm 62.5mW 0402 thin film","Viking Tech","ARG02BTC1003","C2984406","Resistor_SMD:R_0402_1005Metric","","https://datasheet.lcsc.com/datasheet/pdf/f4da32bad2b63678770dda69cfcd538f.pdf?productCode=C2984406"
+"R122","1","101k","RES 101kΩ ±0.1% 25ppm 125mW 0805 thin film","YAGEO","RT0805BRD07101KL","C7302896","Resistor_SMD:R_0805_2012Metric_Pad1.20x1.40mm_HandSolder","","https://datasheet.lcsc.com/datasheet/pdf/46d7760c582640714d605308a25a220a.pdf?productCode=C7302896"
+"R87","1","113k","RES 113kΩ ±0.1% 25ppm 62.5mW 0402 thin film","Viking Tech","ARG02BTC1133","C1509597","Resistor_SMD:R_0402_1005Metric_Pad0.72x0.64mm_HandSolder","","https://datasheet.lcsc.com/datasheet/pdf/ec3e308e963624b453a77b63220f4bbf.pdf?productCode=C1509597"
+"R84","1","150k","RES 150kΩ ±0.1% 25ppm 62.5mW 0402 thin film","Viking Tech","AR02BTC1503","C319872","Resistor_SMD:R_0402_1005Metric","","https://datasheet.lcsc.com/datasheet/pdf/1a751e5cacd14ca30f43df4722fba38e.pdf?productCode=C319872"
+"R116","1","174k","RES 174kΩ ±0.1% 25ppm 62.5mW 0402 thin film","YAGEO","RT0402BRD07174KL","C852565","Resistor_SMD:R_0402_1005Metric_Pad0.72x0.64mm_HandSolder","","https://datasheet.lcsc.com/datasheet/pdf/46d7760c582640714d605308a25a220a.pdf?productCode=C852565"
+"R89","1","200k","RES 200kΩ ±0.1% 25ppm 100mW 0603 thin film","YAGEO","AT0603BRD07200KL","C723682","Resistor_SMD:R_0603_1608Metric_Pad0.98x0.95mm_HandSolder","","https://datasheet.lcsc.com/datasheet/pdf/837b5ba54f8063c3882b949c35751654.pdf?productCode=C723682"
+"R85","1","215k","RES 215kΩ ±0.1% 25ppm 100mW 0603 thin film","YAGEO","RT0603BRD07215KL","C861226","Resistor_SMD:R_0603_1608Metric_Pad0.98x0.95mm_HandSolder","","https://datasheet.lcsc.com/datasheet/pdf/46d7760c582640714d605308a25a220a.pdf?productCode=C861226"
+"R129","1","280k","RES 280kΩ ±0.1% 25ppm 100mW 0603 thin film","YAGEO","RT0603BRD07280KL","C705755","Resistor_SMD:R_0603_1608Metric","","https://datasheet.lcsc.com/datasheet/pdf/46d7760c582640714d605308a25a220a.pdf?productCode=C705755"
+"R90","1","301k","RES 301kΩ ±0.1% 62.5mW 0402 thick film","YAGEO","RE0402BRE07301KL","C2936623","Resistor_SMD:R_0402_1005Metric","","https://datasheet.lcsc.com/datasheet/pdf/d90f79507c4f0181520be84507a3ee5e.pdf?productCode=C2936623"
+"R104,R107,R115,R121","4","402k","RES 402kΩ ±0.1% 50ppm 100mW 0603 thin film","UNI-ROYAL","TC0350B4023T5F","C29269954","Resistor_SMD:R_0603_1608Metric","","https://datasheet.lcsc.com/datasheet/pdf/d0d02de47642fe4f4639912f1a5cccad.pdf?productCode=C29269954"
+"R29,R31,R102","3","1M","RES 1MΩ ±0.1% 100mW 0402","Walsin","WF04H1004BTL","C2918201","Resistor_SMD:R_0402_1005Metric","","https://datasheet.lcsc.com/datasheet/pdf/ab245271d0a5d84ab94e85543b99f406.pdf?productCode=C2918201"
+"R8","1","10M","RES 10MΩ ±1% 125mW 0805 thick film","FH (Fenghua)","RS-05L1005FT","C273584","Resistor_SMD:R_0805_2012Metric","DNP","https://datasheet.lcsc.com/datasheet/pdf/1fdbe8489cfdbe4917930f5e1bb150ed.pdf?productCode=C273584"
+"FL2","1","0900LP15B0063001E","FILTER LPF 863-960MHz, 0.9dB IL max, 2fo/3fo 46/50dB min, 50Ω, 2.0x1.25mm","Johanson Technology","0900LP15B0063001E","C17287560","easyeda2kicad:FILTER-SMD_0805-8P-L2.0-W1.2-TL","","https://www.johansontechnology.com/datasheets/0900LP15B0063/0900LP15B0063.pdf"
+"D4","1","1N5819WS","DIODE Schottky 40V 1A, SOD-323","Hottech","1N5819WS","C191023","Diode_SMD:D_SOD-323","","https://datasheet.lcsc.com/datasheet/pdf/c7a6590686b7be2f86b8eed4480e569c.pdf?productCode=C191023"
+"Q14,Q15","2","2N7002","MOSFET N-ch 60V 300mA, 2.2Ω @10V, SOT-23","MSKSEMI","2N7002","C5331134","Package_TO_SOT_SMD:SOT-23","","https://datasheet.lcsc.com/datasheet/pdf/57179c5c9aa646f2a378eacab3cf7b98.pdf?productCode=C5331134"
+"Q12","1","AO3401A","MOSFET P-ch 30V 4.2A, 50mΩ @10V, SOT-23","UMW","AO3401A","C347476","Package_TO_SOT_SMD:SOT-23","","https://datasheet.lcsc.com/datasheet/pdf/86cb8cf73c64cfcb0a49116b603c9133.pdf?productCode=C347476"
+"Q5,Q6","2","AON7544","MOSFET N-ch 30V 30A, 5mΩ @10V, DFN-8 3x3","Alpha & Omega Semiconductor","AON7544","C315567","easyeda2kicad:PQFN-8_L3.1-W3.1-P0.65-LS3.3-BL","","https://datasheet.lcsc.com/datasheet/pdf/284fe12c8a629d82609bec3e8b59373e.pdf?productCode=C315567"
+"FL1","1","B39162B8389P810","FILTER SAW GNSS L1/L5 dual-band (1575/1176MHz), 50Ω, 1.4x1.1mm","Qualcomm (RF360)","B39162B8389P810","C5556161","Filter:Filter_1411-5_1.4x1.1mm","","https://datasheet.lcsc.com/datasheet/pdf/eab07ffddc7092a73be1e657f827b881.pdf?productCode=C5556161"
+"D22","1","BAT54W","DIODE Schottky 30V 200mA, SOT-323","Slkor","BAT54W","C5186013","Package_TO_SOT_SMD:SOT-323_SC-70","","https://datasheet.lcsc.com/datasheet/pdf/e786df3ccf901f03b0e2fe0250c12d5b.pdf?productCode=C5186013"
+"D21","1","BAT54A","DIODE Schottky dual common-anode 30V 200mA, SOT-23","ALJ","BAT54A","C55258619","Package_TO_SOT_SMD:SOT-23","","https://datasheet.lcsc.com/datasheet/pdf/fb870cce115bf1969f0248e0c049347e.pdf?productCode=C55258619"
+"D23","1","BAT54S","DIODE Schottky dual series 30V 200mA, SOT-23","onsemi","BAT54SLT1G","C19726","Package_TO_SOT_SMD:SOT-23","","https://www.onsemi.com/pdf/datasheet/bat54slt1-d.pdf"
+"J9","1","BAT_PORT","CONN HEADER 2-pos 1.25mm (PicoBlade-compatible), R/A SMD","DEALON","1.25-2PWB","C2905009","Connector_Molex:Molex_PicoBlade_53261-0271_1x02-1MP_P1.25mm_Horizontal","DNP","https://datasheet.lcsc.com/datasheet/pdf/06ca0829dd2139bfdbe6671a038f533c.pdf?productCode=C2905009"
+"FB1","1","BLM18HG601SN1D","FERRITE BEAD 600Ω @100MHz, 200mA, 1Ω DCR, 0603","Murata","BLM18HG601SN1D","C85830","Inductor_SMD:L_0603_1608Metric","","https://datasheet.lcsc.com/datasheet/pdf/2f82b35c4cf051a1d6cd28b95b66d0d6.pdf?productCode=C85830"
+"SW2","1","BOOT","SWITCH TACTILE SPST-NO 1N, 12V 50mA, 3.9x2.9mm SMD","Alps Alpine","SKRKAHE020","C202388","Button_Switch_SMD:SW_Push_SPST_NO_Alps_SKRK","","https://datasheet.lcsc.com/datasheet/pdf/fc71c00d1492142d2947c53c2600ec92.pdf?productCode=C202388"
+"U8","1","BQ25798","IC CHARGER 1-4S Li-ion buck-boost NVDC, 5A, dual input, MPPT, I2C, QFN-29 4x4","Texas Instruments","BQ25798RQMR","C2876593","Package_DFN_QFN:Texas_RQM0029A_VQFN-29_4x4mm_P0.4mm","","https://www.ti.com/lit/ds/symlink/bq25798.pdf"
+"Q13","1","BSS138","MOSFET N-ch 50V 220mA, SOT-23","KUU","BSS138","C3015220","Package_TO_SOT_SMD:SOT-23","","https://datasheet.lcsc.com/datasheet/pdf/e6afae9ee592dc8ff3f4f777ab821073.pdf?productCode=C3015220"
+"D6","1","BZX585-C15","DIODE Zener 15V ±5% 300mW, SOD-523","Nexperia","BZX585-C15,135","C550633","Diode_SMD:D_SOD-523","","https://assets.nexperia.com/documents/data-sheet/BZX585_SER.pdf"
+"D8","1","CHARGING","LED yellow-green 570nm, 0805","YONGYUTAI","YLED0805YG","C19171393","LED_SMD:LED_0805_2012Metric","","https://datasheet.lcsc.com/datasheet/pdf/5be1a0b566c0d2fd12802eb473099d1e.pdf?productCode=C19171393"
+"Q2,Q4","2","CSD15380F3","MOSFET N-ch 20V, 1.17Ω @4.5V, FemtoFET 0.73x0.64mm","Texas Instruments","CSD15380F3","C529568","Package_DFN_QFN:Texas_PicoStar_DFN-3_0.69x0.60mm","","https://www.ti.com/lit/ds/symlink/csd15380f3.pdf"
+"Q1,Q3","2","CSD23280F3","MOSFET P-ch 12V, 97mΩ @4.5V, FemtoFET 0.73x0.64mm","Texas Instruments","CSD23280F3T","C139374","Package_DFN_QFN:Texas_PicoStar_DFN-3_0.69x0.60mm","","https://www.ti.com/lit/ds/symlink/csd23280f3.pdf"
+"Q11","1","CSD17577Q3A","MOSFET N-ch 30V, 4.0mΩ @10V, SON 3.3x3.3mm","Texas Instruments","CSD17577Q3A","C201632","Package_SON:VSON-8_3.3x3.3mm_P0.65mm_NexFET","","https://www.ti.com/lit/ds/symlink/csd17577q3a.pdf"
+"Q7,Q8","2","CSD18512Q5B","MOSFET N-ch 40V, 1.3mΩ @10V, SON 5x6mm","Texas Instruments","CSD18512Q5B","C2863663","Package_SON:VSONP-8-1EP_5x6_P1.27mm","","https://www.ti.com/lit/ds/symlink/csd18512q5b.pdf"
+"J5","1","e-Ink Display Connector","CONN HEADER 8-pos 1.25mm (PicoBlade-compatible), R/A SMD","XUNPU","WAFER-MX1.25-8PWB","C3029365","Connector_Molex:Molex_PicoBlade_53261-0871_1x08-1MP_P1.25mm_Horizontal","","https://datasheet.lcsc.com/datasheet/pdf/f6cb73e789ca6a2f7227478908a083e9.pdf?productCode=C3029365"
+"U12","1","E22P-915M30S","MODULE LoRa 915MHz, SX1262 + PA, 30dBm (1W), SMD 38.5x24mm","Ebyte","E22P-915M30S","C51912672","footprints:COMM-SMD_22P-P2.54-L38.5-W24.0_E22-400M33S","","https://www.cdebyte.com/pdf-down.aspx?id=4333"
+"D14","1","ESD351DPYR","TVS ESD 3.6V Vrwm, 1.8pF, unidirectional, ±30kV, X1SON-2 0.6x1","Texas Instruments","ESD351DPYR","C1974929","Package_SON:Texas_DPY0002A_0.6x1mm_P0.65mm","","https://www.ti.com/lit/ds/symlink/esd351.pdf"
+"D10,D13","2","ESD501","TVS ESD RF low-cap 0.3pF, bidirectional, ±15kV, X1SON-2 0.6x1","Texas Instruments","ESD501DPYR","C42409135","Package_SON:Texas_DPY0002A_0.6x1mm_P0.65mm","","https://www.ti.com/lit/ds/symlink/esd501.pdf"
+"D1,D2,D3","3","ESDS314DBVR","TVS ESD 4-ch 3.6V Vrwm, 6.5V clamp, 25A 8/20us, SOT-23-5","Texas Instruments","ESDS314DBVR","C1847859","Package_TO_SOT_SMD:SOT-23-5","","https://www.ti.com/lit/ds/symlink/esds314.pdf"
+"U1","1","ESP32-S3-WROOM-1-N16R8","MODULE Wi-Fi 802.11b/g/n + Bluetooth 5 LE, ESP32-S3, 16MB flash, 8MB octal PSRAM, PCB antenna","Espressif Systems","ESP32-S3-WROOM-1-N16R8","C2913202","RF_Module:ESP32-S3-WROOM-1","","https://www.espressif.com/sites/default/files/documentation/esp32-s3-wroom-1_wroom-1u_datasheet_en.pdf"
+"SW1","1","ESP_RESET","SWITCH TACTILE SPST-NO 1N, 12V 50mA, 3.9x2.9mm SMD","Alps Alpine","SKRKAHE020","C202388","Button_Switch_SMD:SW_Push_SPST_NO_Alps_SKRK","","https://datasheet.lcsc.com/datasheet/pdf/fc71c00d1492142d2947c53c2600ec92.pdf?productCode=C202388"
+"J14","1","GPIO_Expander","CONN RCPT female 2x8 2.54mm, R/A SMD","HANXIA","HX PM2.54-2x8P WT","C46635853","easyeda2kicad:HDR-SMD_16P-P2.54_HXPM2.54-2X8PWT","","https://datasheet.lcsc.com/datasheet/pdf/e8393ec392585e7236b48b974e07907b.pdf?productCode=C46635853"
+"J3","1","I2C1","CONN RCPT female 1x4 2.54mm, SMD","HANXIA","HX PM2.54-1x4P WT","C46061768","easyeda2kicad:CONN-SMD_4P-P2.54_HX-PM2.54-1X4PWT","","https://datasheet.lcsc.com/datasheet/pdf/99ddc9d8507d86889040b9d15f9062e7.pdf?productCode=C46061768"
+"J2","1","I2C3","CONN HEADER JST SH 4-pos 1.0mm, R/A SMD","JST","SM04B-SRSS-TB(LF)(SN)","C160404","Connector_JST:JST_SH_SM04B-SRSS-TB_1x04-1MP_P1.00mm_Horizontal","","https://www.jst-mfg.com/product/pdf/eng/eSH.pdf"
+"J15","1","LED 5V","CONN HEADER JST XH 4-pos 2.5mm, R/A SMD","JST","S4B-XH-SM4-TB(LF)(SN)","C161861","Connector_JST:JST_XH_S4B-XH-SM4-TB_1x04-1MP_P2.50mm_Horizontal","","https://www.jst-mfg.com/product/pdf/eng/eXH.pdf"
+"D12","1","LED Blue","LED blue 465nm, water clear, 0805","Guiguang","GL0805UB01","C51933309","LED_SMD:LED_0805_2012Metric","","https://datasheet.lcsc.com/datasheet/pdf/ccccb98d57cdf4695ed28b626310d892.pdf?productCode=C51933309"
+"D11","1","LED Red","LED red 622nm, water clear, 0805","Guiguang","GL0805UR01","C51933307","LED_SMD:LED_0805_2012Metric","","https://datasheet.lcsc.com/datasheet/pdf/a1d284d6e484d8894ccf91c9838f4642.pdf?productCode=C51933307"
+"U13,U14","2","LM61460AASQRJRRQ1","IC BUCK sync 3-36V in, 6A, adj. output/fSW, auto PFM, spread spectrum, AEC-Q100, VQFN-HR-14 3.5x4","Texas Instruments","LM61460AASQRJRRQ1","C1855832","easyeda2kicad:VQFN-14-HR_L4.0-W3.5-TL_LM61460AASQRJRRQ1","","https://www.ti.com/lit/ds/symlink/lm61460-q1.pdf"
+"U21","1","M24512-DFMC6TG","IC EEPROM 512Kbit I2C 1MHz, 1.7-5.5V, UFDFPN-8 2x3","STMicroelectronics","M24512-DFMC6TG","C222237","Package_DFN_QFN:DFN-8-1EP_3x2mm_P0.5mm_EP1.36x1.46mm","","https://datasheet.lcsc.com/datasheet/pdf/7b78bae50192fc535030ea4049063e16.pdf?productCode=C222237"
+"U7","1","MAX17320G22+","IC FUEL GAUGE + PROTECTOR 2S-4S Li-ion, ModelGauge m5 EZ, cell balancing, I2C, QFN-24 4x4","Analog Devices (Maxim)","MAX17320G22+","C2914309","easyeda2kicad:QFN-24_L4.0-W4.0-P0.50-BL-EP2.6","","https://datasheet.lcsc.com/datasheet/pdf/24ef1a11d0cecb8c476f3ef3aa71b506.pdf?productCode=C2914309"
+"BT3","1","MS621FE 5.5mAh","BATTERY Li rechargeable coin 3V 5.5mAh, 6.8mm, solder tabs (hand-solder, not reflowable)","Seiko Instruments","MS621FE-FL11E","","Battery:BatteryHolder_Seiko_MS621F","","https://www.sii.co.jp/en/me/datasheets/ms-rechargeable/ms621fe/"
+"U9","1","NEO-F10N","MODULE GNSS u-blox F10, L1/L5 dual-band, LCC-24 12.2x16mm","u-blox","NEO-F10N-00B","C21709333","RF_GPS:ublox_NEO","","https://content.u-blox.com/sites/default/files/documents/NEO-F10N_DataSheet_UBX-23002117.pdf"
+"D18","1","PGB1010603","TVS ESD polymer 24V, low capacitance, bidirectional, 0603","Littelfuse","PGB1010603NR","C10677","Diode_SMD:D_0603_1608Metric_Pad1.05x0.95mm_HandSolder","","https://datasheet.lcsc.com/datasheet/pdf/bd2ede3a009945aca6237d3479e9b8ca.pdf?productCode=C10677"
+"U2","1","QMC6309","IC MAGNETOMETER 3-axis ±32G, 16-bit, I2C, WLCSP-4 0.8x0.8","QST","QMC6309","C5439871","easyeda2kicad:X1-WLB0808-4_L0.8-W0.8-P0.40-TL","","https://datasheet.lcsc.com/datasheet/pdf/205911d993bf6331650635faa1d02faa.pdf?productCode=C5439871"
+"D15,D16","2","RB531SM-30","DIODE Schottky 30V 200mA, Vf 350mV @10mA, SOD-523","ROHM","RB531SM-30T2R","C2766159","Diode_SMD:D_SOD-523","","https://fscdn.rohm.com/en/products/databook/datasheet/discrete/diode/schottky_barrier/rb531sm-30t2r-e.pdf"
+"SW4","1","RESET_GNSS","SWITCH TACTILE SPST-NO 1N, 12V 50mA, 3.9x2.9mm SMD","Alps Alpine","SKRKAHE020","C202388","Button_Switch_SMD:SW_Push_SPST_NO_Alps_SKRK","","https://datasheet.lcsc.com/datasheet/pdf/fc71c00d1492142d2947c53c2600ec92.pdf?productCode=C202388"
+"SW5","1","SAFEBOOT_GNSS","SWITCH TACTILE SPST-NO 1N, 12V 50mA, 3.9x2.9mm SMD","Alps Alpine","SKRKAHE020","C202388","Button_Switch_SMD:SW_Push_SPST_NO_Alps_SKRK","","https://datasheet.lcsc.com/datasheet/pdf/fc71c00d1492142d2947c53c2600ec92.pdf?productCode=C202388"
+"Q9,Q10","2","SI2308","MOSFET N-ch 60V 2.5A, 85mΩ @10V, SOT-23","HXY MOSFET","SI2308","C5337194","Package_TO_SOT_SMD:SOT-23","","https://datasheet.lcsc.com/datasheet/pdf/2cc3affb8fe8db16c53ba117249df2e3.pdf?productCode=C5337194"
+"D5","1","SMF10A","TVS 10V Vrwm, 17V clamp, 200W 10/1000us, unidirectional, SOD-123","AnBon","SMF10A","C435474","Diode_SMD:D_SOD-123","","https://datasheet.lcsc.com/datasheet/pdf/d549773c39b3657663783a03a169768c.pdf?productCode=C435474"
+"D20","1","SMF6.0A","TVS 6V Vrwm, 10.3V clamp, 200W 10/1000us, unidirectional, SOD-123FL","UMW","SMF6.0A","C2758490","Diode_SMD:D_SOD-123F","","https://datasheet.lcsc.com/datasheet/pdf/becbeb3b8e08b3ed39608c67b9101395.pdf?productCode=C2758490"
+"J11,J13","2","SMA-KE-347-H13.5-1.6","CONN SMA jack 50Ω, edge mount for 1.6mm PCB","XUNPU","SMA-KE-347-H13.5-1.6","C5723200","Connector_Coaxial:SMA_Samtec_SMA-J-P-H-ST-EM1_EdgeMount","","https://datasheet.lcsc.com/datasheet/pdf/e3e9b75c1c094a8b2b2fd16eda6a22a3.pdf?productCode=C5723200"
+"U19","1","SN74LV1T34DCK","IC BUFFER single, level-shifting input, 1.6-5.5V, SC-70-5","Texas Instruments","SN74LV1T34DCKR","C78541","Package_TO_SOT_SMD:SOT-353_SC-70-5","","https://www.ti.com/lit/ds/symlink/sn74lv1t34.pdf"
+"U16","1","SN74LVC1G74","IC FLIP-FLOP D-type single, preset/clear, 1.65-5.5V, X2SON-8 1x1.4","Texas Instruments","SN74LVC1G74DQER","C2870716","Package_SON:X2SON-8_1.4x1mm_P0.35mm","","https://www.ti.com/lit/ds/symlink/sn74lvc1g74.pdf"
+"J10","1","SOLAR","CONN HEADER JST PH 2-pos 2.0mm, R/A SMD","JST","S2B-PH-SM4-TB(LF)(SN)","C295747","Connector_JST:JST_PH_S2B-PH-SM4-TB_1x02-1MP_P2.00mm_Horizontal","","https://www.jst-mfg.com/product/pdf/eng/ePH.pdf"
+"J1","1","SPI BUS","CONN RCPT female 1x6 2.54mm, SMD","HANXIA","HX PM2.54-1x6P WT","C46061770","easyeda2kicad:HDR-SMD_6P-P2.54-H-F-W11.7","","https://datasheet.lcsc.com/datasheet/pdf/36e50f33715c9e0afff257c29c686749.pdf?productCode=C46061770"
+"D9","1","SS36B","DIODE Schottky 60V 3A, SMB","Baocheng","SS36B","C46598116","Diode_SMD:D_SMB","","https://datasheet.lcsc.com/datasheet/pdf/fc2eace0ac40e0a4d4d3686b770a7270.pdf?productCode=C46598116"
+"Y2","1","SX1M4.000M10F30TNN","OSC XO 4MHz CMOS, ±10ppm tol, ±30ppm stability, 1.62-3.63V, 2.0x1.6mm","SCTF","SX1M4.000M10F30TNN","C5830655","Oscillator:Oscillator_SMD_SiT_PQFN-4Pin_2.0x1.6mm","","https://datasheet.lcsc.com/datasheet/pdf/b2ab9bc57b3cb3682e9a86a5a5fb3e86.pdf?productCode=C5830655"
+"U17","1","TCAL9539RTWRQ1","IC I/O EXPANDER 16-bit I2C/SMBus, interrupt, reset, 1.08-3.6V, AEC-Q100, WQFN-24 4x4","Texas Instruments","TCAL9539RTWRQ1","C5377958","easyeda2kicad:TQFN-24_L4.0-W4.0-P0.50-BL-EP2.3","","https://www.ti.com/lit/ds/symlink/tcal9539-q1.pdf"
+"D17,D19","2","TPD1E10B06","TVS ESD 5.5V Vrwm, bidirectional, X1SON-2 0.6x1","Texas Instruments","TPD1E10B06DPYR","C48260","Package_SON:Texas_DPY0002A_0.6x1mm_P0.65mm","","https://www.ti.com/lit/ds/symlink/tpd1e10b06.pdf"
+"U4","1","TPD8S300A","IC USB-C PORT PROTECTOR, 20V short-to-VBUS OVP (CC/SBU), IEC ESD, dead-battery Rd, WQFN-20 3x3","Texas Instruments","TPD8S300ARUKR","C2649824","easyeda2kicad:WQFN-20_L3.0-W3.0-P0.40-TL-EP1.7","","https://www.ti.com/lit/ds/symlink/tpd8s300a.pdf"
+"Q16","1","TPN2R203NC","MOSFET N-ch 30V 45A, 2.2mΩ @10V, TSON-Advance 3.1x3.1","Toshiba","TPN2R203NC,L1Q(M","C471286","easyeda2kicad:TSON-8_L3.1-W3.1-P0.65-LS3.3-BL-EP","","https://datasheet.lcsc.com/datasheet/pdf/c504eca6fa6e6679e9133e3d84b63218.pdf?productCode=C471286"
+"U5","1","TPS25751DREFR","IC USB-C PD 3.1 CONTROLLER, 20V 5A bidirectional + 5V 3A source switches, liquid detect, WQFN-38 6x4","Texas Instruments","TPS25751DREFR","C30169739","Package_DFN_QFN:Texas_REF0038A_WQFN-38-2EP_6x4mm_P0.4","","https://www.ti.com/lit/ds/symlink/tps25751.pdf"
+"U15","1","TPS259474ARPWR","IC EFUSE 2.7-23V 5.5A 28mΩ, adj. OVLO/ILIM, reverse blocking, auto-retry, VQFN-HR-10 2x2","Texas Instruments","TPS259474ARPWR","C3662807","easyeda2kicad:VQFN-10_L2.0-W2.0-P0.45-TL","","https://www.ti.com/lit/ds/symlink/tps25947.pdf"
+"U11","1","TPS259474LRPWR","IC EFUSE 2.7-23V 5.5A 28mΩ, adj. OVLO/ILIM, reverse blocking, latch-off, VQFN-HR-10 2x2","Texas Instruments","TPS259474LRPWR","C2864845","easyeda2kicad:VQFN-10_L2.0-W2.0-P0.45-TL","","https://www.ti.com/lit/ds/symlink/tps25947.pdf"
+"U10","1","TPS7A2033PDBVR","IC LDO 3.3V 300mA, 7uVrms, 1.6-6V in, active discharge, SOT-23-5","Texas Instruments","TPS7A2033PDBVR","C2862740","easyeda2kicad:SOT-23-5_L2.9-W1.6-P0.95-LS2.8-BR","","https://www.ti.com/lit/ds/symlink/tps7a20.pdf"
+"D7,U3","2","TVS2200DRV","TVS flat-clamp surge 22V Vrwm, 27.7V clamp @40A 8/20us, unidirectional, WSON-6 2x2,TVS flat-clamp surge 22V Vrwm, 28V clamp @40A 8/20us, unidirectional, WSON-6 2x2","Texas Instruments","TVS2200DRVR","C523793","Package_SON:WSON-6-1EP_2x2mm_P0.65mm_EP1x1.6mm","","https://www.ti.com/lit/ds/symlink/tvs2200.pdf"
+"J12","1","U.FL","CONN U.FL receptacle 50Ω, 6GHz, SMD","Hirose","U.FL-R-SMT-1(80)","C88374","Connector_Coaxial:U.FL_Hirose_U.FL-R-SMT-1_Vertical","","https://datasheet.lcsc.com/datasheet/pdf/ade8681cf25347ad817fa65440db6a2c.pdf?productCode=C88374"
+"J6","1","UART0","CONN HEADER JST SH 3-pos 1.0mm, R/A SMD","JST","SM03B-SRSS-TB(LF)(SN)","C160403","Connector_JST:JST_SH_SM03B-SRSS-TB_1x03-1MP_P1.00mm_Horizontal","","https://www.jst-mfg.com/product/pdf/eng/eSH.pdf"
+"J7","1","USB4105-GF-A-060","CONN USB-C receptacle, USB 2.0, top mount SMD","GCT","USB4105-GF-A-060","C3025063","Connector_USB:USB_C_Receptacle_GCT_USB4105-xx-A_16P_TopMnt_Horizontal","","https://gct.co/files/drawings/usb4105.pdf"
+"U18,U20","2","WS2816B","LED RGB addressable, 16-bit PWM per channel, 5050-6P","Worldsemi","WS2816B","C22371534","easyeda2kicad:LED-SMD_6P-L5.0-W5.0-TL","","https://datasheet.lcsc.com/datasheet/pdf/33bcf57fa38933354736aabd35a09e83.pdf?productCode=C22371534"

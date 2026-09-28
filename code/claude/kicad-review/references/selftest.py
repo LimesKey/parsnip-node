@@ -67,6 +67,9 @@ CASES = [
      2, ["TRACE-THIN", "near J1"]),  # real backbone bottleneck, TH2 tap branch excluded
     ("kpcb amp-alltap", ['kpcb.py', PCB2, 'ampacity', 'ALLTAP', '--amps', '1.0'],
      0, ["MIXED-NET"]),  # only bridge is a thermistor tap -> advisory, not TRACE-THIN
+    # nodal solve J1 -> J2: the TH2 tap leg carries nothing; R = 13.10 + 6.88 mohm by hand
+    ("kpcb amp-path", ['kpcb.py', PCB2, 'ampacity', '--from', 'J1.1', '--to', 'J2.1', '--amps', '1.2'], 2,
+     ["R 19.98 mohm", "0.30 x  8.00 mm  1.20 A (100%)", "1 element(s) over"]),
     ("kpcb zones-under", ['kpcb.py', PCB2, 'zones', 'U2', 'U3'], 2,
      ["100% of samples covered  (continuous)", "27% of samples covered  (MOSTLY MISSING)"]),
     # a +3V3 via dropped on U1 pad 1's centre -> one same-net via-in-pad, no mismatch
@@ -75,7 +78,8 @@ CASES = [
     ("kpcb viapad --signal", ['kpcb.py', PCB, 'viapad', '--signal'], 0, ["1 PWR / 0 SIG", "showing 0"]),
     ("kpcb where pad", ['kpcb.py', PCB, 'where', 'U1.1', 'U1.2'], 0,
      ["8.500, 8.500  (absolute)", "U1.1 -> U1.2: 4.24 mm"]),
-    ("kpcb net",     ['kpcb.py', PCB, 'net', '+3V3'],            0, ["2 pad(s)", "U1.1", "1 via(s)"]),
+    ("kpcb net",     ['kpcb.py', PCB, 'net', '+3V3'],            0, ["2 pad(s)", "U1.1", "1 via(s)",
+                                                                  "copper  2 PIECES", "C1.1  (@9.5,20.0)"]),
 ]
 
 def mini_project(d):
@@ -191,14 +195,60 @@ def mini_project(d):
         ' (sheet_instances (path "/" (page "1"))))')
     t = os.path.getmtime(os.path.join(d, 't.net')) + 3600
     os.utime(sch, (t, t))
+    lint_project(os.path.join(d, 'lint'))
+    sq = lambda x0, y0, x1, y1: f'(pts (xy {x0} {y0}) (xy {x1} {y0}) (xy {x1} {y1}) (xy {x0} {y1}))'
+    fill = lambda ly, *boxes: (f'(zone (net "GND") (layer "{ly}") (polygon {sq(0, 0, 20, 20)})'
+                               + ''.join(f' (filled_polygon (layer "{ly}") {sq(*bx)})' for bx in boxes) + ')')
+    # B.Cu GND leaves x 9.5..14.5 bare (a removed island); F.Cu is solid GND with a
+    # SIG track down x=12, so the rescue via must sit clear of x=12 (>= 0.3+0.15+0.1)
+    open(os.path.join(d, 'voids.kicad_pcb'), 'w').write(
+        '(kicad_pcb (version 20240108) (generator "pcbnew")'
+        ' (layers (0 "F.Cu" signal) (2 "B.Cu" signal) (25 "Edge.Cuts" user))'
+        ' (gr_rect (start 0 0) (end 20 20) (layer "Edge.Cuts"))'
+        ' (segment (start 12 1) (end 12 19) (width 0.2) (layer "F.Cu") (net "SIG"))'
+        + fill('F.Cu', (0.5, 0.5, 19.5, 19.5)) + fill('B.Cu', (0.5, 0.5, 9.5, 19.5), (14.5, 0.5, 19.5, 19.5)) + ')')
     return os.path.join(d, 't.net')
+
+def lint_project(d):
+    """ksheet fixture, one hit per lint rule: a wire across R1's body (WIREBODY),
+    /NA and /NB end-to-end 2.54 mm apart (GAPLINE), U1.1 jogging 1.27 mm at the
+    pin (PINJOG), and R3.2 1.27 mm from U1.2's end (CROWD)."""
+    os.makedirs(d)
+    pin = lambda n, x, y, a, ln: (f'(pin passive line (at {x} {y} {a}) (length {ln}) '
+                                   f'(name "{chr(64 + int(n))}") (number "{n}"))')
+    sym = lambda lib, ref, x, y, r=0: (f'(symbol (lib_id "{lib}") (at {x} {y} {r}) (unit 1) '
+                                        f'(property "Reference" "{ref}") (property "Value" "v"))')
+    open(os.path.join(d, 'lint.kicad_sch'), 'w').write(
+        '(kicad_sch (lib_symbols'
+        ' (symbol "x:R" (symbol "R_0_1" (rectangle (start -1.016 2.54) (end 1.016 -2.54)))'
+        '  (symbol "R_1_1" ' + pin(1, 0, 3.81, 270, 1.27) + pin(2, 0, -3.81, 90, 1.27) + '))'
+        ' (symbol "x:U" (symbol "U_0_1" (rectangle (start -2.54 6.35) (end 2.54 -8.89)))'
+        '  (symbol "U_1_1" ' + ''.join(pin(i + 1, -5.08, 5.08 - 2.54 * i, 0, 2.54) for i in range(6)) + ')))'
+        + sym('x:R', 'R1', 50, 50) + sym('x:U', 'U1', 100, 100) + sym('x:R', 'R3', 89.84, 97.46, 90)
+        + ' (wire (pts (xy 45 50) (xy 55 50)))'
+        ' (wire (pts (xy 60 40) (xy 70 40))) (wire (pts (xy 72.54 40) (xy 80 40)))'
+        ' (label "NA" (at 60 40 0)) (label "NB" (at 80 40 0))'
+        ' (wire (pts (xy 94.92 94.92) (xy 94.92 93.65))) (wire (pts (xy 94.92 93.65) (xy 90 93.65)))'
+        ' (sheet_instances (path "/" (page "1"))))')
+    open(os.path.join(d, 'lint.net'), 'w').write(
+        '(export (version "E") (design (source "lint.kicad_sch") (sheet (number "1") (name "/")))'
+        ' (components' + ''.join(f' (comp (ref "{r}") (value "v") (libsource (lib "x") (part "{p}")))'
+                                 for r, p in (('R1', 'R'), ('R3', 'R'), ('U1', 'U'))) + ')'
+        ' (nets (net (code "1") (name "/J") (node (ref "U1") (pin "1")))'
+        ' (net (code "2") (name "/K") (node (ref "U1") (pin "2")))'
+        ' (net (code "3") (name "/L") (node (ref "R3") (pin "2")))))')
 
 GOLDEN = [['kpcb.py', '{pcb}', c] for c in ('summary', 'check', 'span', 'zones', 'rf', 'viapad', 'ic',
                                             'height', 'unplaced', 'sheet', 'map', 'review')] \
     + [['kpcb.py', '{pcb}', 'sync', '{net}'], ['kpcb.py', '{pcb}', 'ic', 'U13'],
        ['kpcb.py', '{pcb}', 'ampacity', 'VSYS'], ['kpcb.py', '{pcb}', 'where', 'U12'],
        ['kpcb.py', '{pcb}', 'net', 'VSYS'], ['kpcb.py', '{pcb}', 'check', '--json']] \
-    + [['knet.py', '{net}', c] for c in ('summary', 'check', 'rails', 'revpol', 'unconnected', 'bom')]
+    + [['knet.py', '{net}', c] for c in ('summary', 'check', 'rails', 'revpol', 'unconnected', 'bom')] \
+    + [['kpcb.py', '{pcb}', 'zones', '--voids'], ['kpcb.py', '{pcb}', 'zones', 'U12'],
+       ['kpcb.py', '{pcb}', 'ic', 'U8'], ['kpcb.py', '{pcb}', 'net', 'GND'],
+       ['kpcb.py', '{pcb}', 'ampacity', '--from', 'Q16.1', '--to', 'R41.1', '--amps', '6'],
+       ['knet.py', '{net}', 'divider', 'U8.TS'], ['knet.py', '{net}', 'draw', 'U7', '--spec'],
+       ['ksheet.py', '{net}', 'lint'], ['ksheet.py', '{net}', 'sch', 'U7']]
 
 def golden(d, pcb, net):
     """Record GOLDEN outputs into d, or diff against what d already holds."""
@@ -225,9 +275,11 @@ def golden(d, pcb, net):
     print(f"\nrecorded {len(GOLDEN)} outputs in {d}" if rec else f"\n{len(GOLDEN) - bad}/{len(GOLDEN)} unchanged")
     return 1 if bad else 0
 
-def run(argv):
+def run(argv, env=None):
+    # fixture sheets are fake and golden inputs are frozen: never auto-regenerate
+    e = {**os.environ, 'KREVIEW_NO_REGEN': '1', **(env or {})}
     p = subprocess.run([sys.executable, os.path.join(S, argv[0])] + argv[1:],
-                       capture_output=True, text=True)
+                       capture_output=True, text=True, env={k: v for k, v in e.items() if v})
     return p.returncode, p.stdout + p.stderr
 
 def main():
@@ -247,9 +299,18 @@ def main():
     CASES.append(("knet revpol fet", ['knet.py', fet, 'revpol'], 0,
                   ["FET channel(s) on, gate driven from the cells: Q1", "FET channels vs normal: Q1 off",
                    "isolated from the cells: U1", "bidirectional TVS/ESD, breakdown not in the part number: D1"]))
+    lnet = os.path.join(tmp.name, 'lint', 'lint.net')
+    CASES.append(("ksheet lint", ['ksheet.py', lnet, 'lint'], 2,
+                  ["R1's body", "/NA ends at 70,40 and /NB starts 2.54 mm", "U1.1 (A) at 94.92,94.92: /J runs 1.27 mm",
+                   "U1: 1 object(s) within 2.54 mm of its pin ends: R3.2 (1.27 mm from pin 2)"]))
+    CASES.append(("ksheet sch", ['ksheet.py', lnet, 'sch', 'U1', '-r', '2'], 0,
+                  ["1     A            L     94.92,94.92       /J", "body 97.46,93.65 - 102.54,108.89",
+                   "R3         at 89.84,97.46  1 unconnected, 2 /L"]))
     CASES.append(("knet nc-stub+stale", ['knet.py', mini, 'around', 'U1'], 0,
                   ["NC (flagged)", "floating  <-- no NC flag", "1.0 h older than t.kicad_sch",
                    "lacks top-level sheet(s) Other"]))
+    CASES.append(("kpcb zones --voids", ['kpcb.py', os.path.join(tmp.name, 'voids.kicad_pcb'), 'zones', '--voids'], 0,
+                  ["B.Cu    void core", "rescue via at", "GND on F.Cu there, nothing foreign"]))
     for label, argv, want_exit, needles in CASES:
         code, out = run(argv)
         prob = []
@@ -260,6 +321,10 @@ def main():
             prob.append("ERROR line in render output")
         if label == "kpcb amp-tap" and "near TH2" in out:
             prob.append("thermistor tap TH2 leaked into the bottleneck (tap exclusion broke)")
+        if label == "kpcb zones --voids" and 'rescue via at' in out:
+            vx = float(out.split('rescue via at ')[1].split(',')[0])
+            if abs(vx - 12) < 0.55 or not 9.5 < vx < 14.5:
+                prob.append(f"rescue via x={vx} is on the SIG track or outside the void")
         if label == "knet fppad+parpin" and "pad MP" in out:
             prob.append("MP mounting pad reported (it is meant to have no net)")
         if prob:
@@ -267,6 +332,27 @@ def main():
             print(f"FAIL  {label}: {'; '.join(prob)}")
         else:
             print(f"ok    {label}")
+    # a sheet saved after the .net triggers kmerge; one that fails keeps the old
+    # netlist and says so, next to the stale warning
+    code, out = run(['knet.py', mini, 'summary'], {'KREVIEW_NO_REGEN': '', 'KICAD_CLI': 'false'})
+    ok5 = 'auto-regenerate of t.net failed' in out and '1.0 h older than t.kicad_sch' in out
+    fails += not ok5
+    print(f"{'ok  ' if ok5 else 'FAIL'}  stale netlist auto-regenerate (failure path)")
+    # end-sunk rod bound: 3 A in 0.3 x 0.035 x 1.5 mm = I^2*rho*L^2/(8*k*A^2) ~ 1.0 C
+    sys.path.insert(0, S)
+    import kpcb_amp
+    r = kpcb_amp.dt_rod(3.0, 0.3, 0.035, 1.5)
+    ok6 = 0.95 < r < 1.1 and kpcb_amp.dt_ipc(kpcb_amp.ipc_current(0.3, 0.035, True, 10), 0.3, 0.035, True) - 10 < 1e-6
+    fails += not ok6
+    print(f"{'ok  ' if ok6 else 'FAIL'}  ampacity rise model: rod {r:.2f} C, IPC inverse round-trip")
+    # SLOT: the voids board's SIG track crosses a 10 x 10 box on the F.Cu GND plane
+    import kpcb_zones, kpcb_board
+    vb = kpcb_board.Board(os.path.join(tmp.name, 'voids.kicad_pcb'))
+    sl = kpcb_zones._slots(vb, 'F.Cu', 'GND', (5, 5, 15, 15))
+    ok7 = len(sl) == 1 and sl[0][0] == 'SIG' and abs(sl[0][1][0] - 10) < 1e-6 and sl[0][1][2] == 'x=12.0' \
+        and not kpcb_zones._slots(vb, 'F.Cu', 'GND', (0, 0, 20, 20), min_len=19)
+    fails += not ok7
+    print(f"{'ok  ' if ok7 else 'FAIL'}  zones SLOT measure {sl}")
     # rf's microstrip Zo: 0.36 mm on 0.203 mm / er 4.4 / 35 um is ~49.7 ohm (hand-computed)
     sys.path.insert(0, S)
     import kzo, kpcb_height
@@ -298,7 +384,7 @@ def main():
                and kdoc._fkey('docs/datasheets/max17320.pdf') == kdoc._fkey('max17320'))
     fails += not ok3
     print(f"{'ok  ' if ok3 else 'FAIL'}  kdoc pattern folding + -d path")
-    print(f"\n{len(CASES) + 4 - fails}/{len(CASES) + 4} passed")
+    print(f"\n{len(CASES) + 7 - fails}/{len(CASES) + 7} passed")
     return 1 if fails else 0
 
 if __name__ == '__main__':

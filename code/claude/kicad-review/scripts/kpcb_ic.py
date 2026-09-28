@@ -13,7 +13,7 @@ from kpcb_board import bbox, box_dist, ctr, grow, hit, overlap_area, SUP_PIN
 ROLE_PAT = (
     ('SW',   r'SW|LX|PH|VSW|SWITCH|VLX'),        # before VIN: VSW is not an input
     ('BOOT', r'C?BOOT|BST|BTST|VBOOT|RBOOT'),
-    ('VIN',  r'VIN|PVIN|VBUS|VCCIN|IN|AVIN|VDDIN'),
+    ('VIN',  r'PMID|VIN|PVIN|VBUS|VCCIN|IN|AVIN|VDDIN'),
     ('OUT',  r'VOUT|OUT|SYS|VSYS'),
     ('FB',   r'FB|VFB|FBK|VSENSE|ADJ'),
     ('GND',  r'PGND|GND|AGND|DGND|VSS|EP|EPAD|PAD|THERMAL'),
@@ -171,6 +171,13 @@ def ic_context(b, f, a):
         # placer for any part, which is the same loop rule at a smaller scale.
         R['VIN'] = [p for p in f.pads if p['net'] and SUP_PIN.match(p['fn'] or '')
                     and not GND_RE.match(p['net'].split('/')[-1])]
+    pmid = [p for p in R.get('VIN', []) if re.match(r'^PMID\d*$', p['fn'] or '', re.I)]
+    if pmid:
+        # a charger's input FET sits between VBUS and PMID: the hot loop is
+        # PMID/GND (TI BQ2579x layout guide), VBUS only wants its own small cap
+        R['VIN'] = pmid
+        ic['warn'].append("PMID is the power stage's input (after the input blocking FET): "
+                          "CIN is placed across PMID/GND, not VBUS")
     ic['vin_nets'] = sorted(set(nets_of('VIN')))
     ic['out_nets'] = sorted(set(nets_of('OUT')))
 
@@ -344,7 +351,9 @@ def ic_plan(b, ic, a):
         if len(cs) < 2 and p1 and p1 not in ic['sw_nets']:
             tgt = (tgt + 180) % 360
         out.append(_slot(L.ref, 'L', pos, want_rot(L, tgt), why, n))
-        Ldir, Lout = n, (pos[0] + n[0] * ax[1] / 2, pos[1] + n[1] * ax[1] / 2)
+        if len(cs) < 2:            # a 4-switch buck-boost has no "after the inductor":
+            Ldir, Lout = n, (pos[0] + n[0] * ax[1] / 2, pos[1] + n[1] * ax[1] / 2)
+                                   # its output loop is SW2 FETs -> OUT/GND pins
 
     # -- output caps: immediately after the inductor, in the current path ---
     if Lout:
@@ -373,8 +382,8 @@ def ic_plan(b, ic, a):
                              "inductor's output pad, largest first", Ldir))
 
     if not Lout and ic['COUT']:
-        # linear regulator or load switch: no inductor, so the output cap sits
-        # across OUT/GND exactly the way the input cap sits across IN/GND
+        # linear regulator, load switch or 4-switch buck-boost: the output cap
+        # sits across OUT/GND exactly the way the input cap sits across IN/GND
         straddle(R.get('OUT', []), ic['COUT'], 'COUT', 'OUT')
 
     # -- boot / bias caps: at their own pins, they are small loops too ------

@@ -2,7 +2,25 @@
 import json, math
 from collections import defaultdict
 from kcommon import natkey, prefix, parse_value
-from kpcb_board import _f, ipc_current, ipc_width, POUR_MIN, RHO_CU, thick_of, via_current
+from kpcb_board import (_f, _find_pad, ipc_current, ipc_width, MIL, POUR_MIN, RHO_CU, thick_of,
+                        via_current)
+from kpcb_copper import Copper, _q
+
+K_CU = 0.39           # copper thermal conductivity, W/(mm K)
+
+def dt_ipc(amps, w, t, ext):
+    """IPC-2221 inverted: the rise (C) a long trace of w x t mm sees at `amps`"""
+    if amps <= 0 or w <= 0 or t <= 0:
+        return 0.0
+    return (amps / ((0.048 if ext else 0.024) * ((w / MIL) * (t / MIL)) ** 0.725)) ** (1 / 0.44)
+
+def dt_rod(amps, w, t, L):
+    """Centre rise of a piece of track L mm long whose ends are held at ambient
+    by big copper (a pad, a pour): uniform I^2R heating, conduction out both ends,
+    dT = P*L/(8*k*A). IPC-2221 is a long-trace fit and overstates a short piece;
+    the true rise is below both, so the smaller one bounds it."""
+    A = w * t
+    return amps * amps * RHO_CU * L * L / (8 * K_CU * A * A) if A > 0 else float('inf')
 
 def _net_pads(b, net):
     """(ref, pin, x, y) for every pad on a net - the named landmarks you can
@@ -256,6 +274,13 @@ def _amp_row(b, net, need, a, graph=False):
     # pad copper (and, for a fine-pitch part, the part's own die/thermal pad)
     # sinks heat that a real long trace of this width could not.
     pad_neck = bool(bott) and bool(near) and 0 < bf['seg'] < 2 * bf['w'] and near[2] <= 1.0
+    # both ends in big copper (pad, pour, >= 3x wider track): conduction to the
+    # ends bounds the rise of a short piece far below IPC-2221's long-trace fit
+    rod = None
+    if graph and bott and need:
+        cu = Copper(b, net)
+        if all(cu.sunk(('pt', bott['layer'], *_q(e)), bott['w'], bott) for e in (bott['a'], bott['b'])):
+            rod = dt_rod(need, bott['w'], thick_of(b, bott['layer']), bott['len'])
     return {'net': net, 'need': need, 'layers': rows, 'total': total,
             'bott_i': bf['i'], 'bott_ly': bf['ly'], 'bott_mid': bf['mid'], 'bott_seg': bf['seg'],
             'bott_w': bf['w'], 'bott_is_tap': bott_is_tap, 'pad_neck': pad_neck,
@@ -270,7 +295,7 @@ def _amp_row(b, net, need, a, graph=False):
                             if b.copper and not bf['ext'] else 0.0,
             'vias': len(vd), 'via_bound': sum(per_via),
             'via_min': min(per_via) if per_via else 0.0, 'r': r, 'poured': poured,
-            'pour': pour}
+            'pour': pour, 'rod': rod}
 
 def _amp_verdicts(row, a):
     need = row['need']
@@ -283,7 +308,8 @@ def _amp_verdicts(row, a):
                           for ly, (ar, n, mx) in sorted(row['pour'].items()))
         return [('POURED', f"a pour carries it ({shape}). UNVERIFIED, not a pass: the "
                           f"pour's narrowest neck is not measured - check the path between "
-                          f"the end pads in KiCad, and `zones` for fill state")]
+                          f"the end pads in KiCad, and `zones` for fill state. `--from PAD --to PAD` "
+                          f"solves the source-to-load path with the pour as a conductor")]
     out = []
     if row['meshed']:                    # a full mesh: no single segment is mandatory
         if row['naive_i'] < need:
@@ -306,7 +332,14 @@ def _amp_verdicts(row, a):
                                      f"test-point/pull-R taps is itself one, narrowest "
                                      f"{row['bott_i']:.2f} A near {near} - this net mixes a power "
                                      f"path with sense taps; the {need:.2f} A budget likely runs "
-                                     f"through different copper than this tap. Verify visually."))
+                                     f"through different copper than this tap. `--from PAD --to PAD` "
+                                     f"solves the real source-to-load path."))
+        elif row['rod'] is not None and row['rod'] <= a.dt:
+            out.append(('SHORT-NECK', f"IPC-2221 reads {row['bott_i']:.2f} A < {need:.2f} A for the "
+                                      f"{row['bott_w']:.2f} mm x {row['bott_seg']:.1f} mm piece near {near}, "
+                                      f"but both its ends sit in big copper: conduction to them bounds "
+                                      f"the rise at ~{row['rod']:.1f} C (budget {a.dt:g} C). A long-trace "
+                                      f"fit overstates a short piece - not a neck."))
         else:
             msg = (f"bottleneck {row['bott_i']:.2f} A < {need:.2f} A on "
                    f"{row['bott_ly']}; widen to >= {row['need_w']:.2f} mm. "
@@ -316,6 +349,8 @@ def _amp_verdicts(row, a):
                 msg += (f". {row['need_w']:.2f} mm on an inner layer is impractical - "
                         f"move this bridge to F.Cu/B.Cu instead (needs only "
                         f">= {row['need_w_outer']:.2f} mm there)")
+            if row['rod'] is not None:
+                msg += f" (end-sunk bound {row['rod']:.0f} C, still over)"
             out.append(('TRACE-THIN', msg))
     # a thinner segment exists but is paralleled (not on the mandatory path)
     if row['naive_i'] < need and row['naive_i'] < row['bott_i'] - 1e-6:
@@ -411,6 +446,69 @@ def _amp_footer():
           "SERIES UPPER BOUND, so a small bound is definitely fine and a large one just\n"
           "means trace the real source-to-load path by hand.")
 
+def _amp_path(b, a):
+    """--from PAD --to PAD: nodal solve of the copper between two pads"""
+    ends = [_find_pad(b, x) for x in (a.src, a.dst)]
+    if not all(ends):
+        print(f"need --from REF.PIN and --to REF.PIN on the board (got {a.src!r}, {a.dst!r})"); return 1
+    (fs, ps), (ft, pt) = ends
+    if ps['net'] != pt['net']:
+        print(f"{a.src} is on {ps['net']} but {a.dst} is on {pt['net']}: a path needs one net"); return 1
+    net = ps['net']
+    need = a.amps if a.amps is not None else (getattr(a, 'current', None) or {}).get(net)
+    if need is None:
+        print(f"give --amps (the current from {a.src} to {a.dst})"); return 1
+    cu = Copper(b, net)
+    h = sum(x[2] for x in b.stack) or 1.6
+    res = cu.flow(cu.pad_node(a.src), cu.pad_node(a.dst), need, lambda ly: thick_of(b, ly), h,
+                  a.plating / 1000.0)
+    if res is None:
+        print(f"{net}: {a.src} and {a.dst} are NOT joined by copper (`net {net}` lists the pieces)")
+        return 2
+    ohm, el, fills = res
+    pads = _net_pads(b, net)
+    rows, vias = [], {}
+    for kind, obj, L, amps, u, w in el:
+        if amps < need * 1e-3:
+            continue
+        if kind == 'via':                          # one row per via: its busier barrel half
+            if amps > vias.get(id(obj), (0, None))[0]:
+                vias[id(obj)] = (amps, obj)
+            continue
+        t, ext = thick_of(b, obj['layer']), obj['layer'] in b.outer
+        di = dt_ipc(amps, obj['w'], t, ext)
+        sunk = cu.sunk(u, obj['w'], obj) and cu.sunk(w, obj['w'], obj)
+        dr = dt_rod(amps, obj['w'], t, L) if sunk else None
+        rows.append((min(di, dr) if sunk else di, amps, ipc_current(obj['w'], t, ext, a.dt),
+                     f"{obj['layer']:<7} {obj['w']:.2f} x {L:5.2f} mm", obj['mid'],
+                     f"  (short piece between big copper: end-sunk bound {dr:.1f} C vs IPC {di:.0f} C)"
+                     if sunk and dr < di else ''))
+    for amps, v in vias.values():
+        rows.append((dt_ipc(amps, math.pi * v['drill'], a.plating / 1000.0, False), amps,
+                     via_current(v['drill'], a.plating / 1000.0, a.dt),
+                     f"via     {v['drill']:.2f} drill      ", (v['x'], v['y']), ''))
+    rows.sort(key=lambda r: -r[0])
+    over = [r for r in rows if r[0] > a.dt]
+    print(f"{net}: {a.src} -> {a.dst}   {need:.2f} A   R {ohm * 1000:.2f} mohm   "
+          f"Vdrop {need * ohm * 1000:.1f} mV   P {need * need * ohm * 1000:.0f} mW")
+    print(f"    {len([e for e in el if e[0] == 'trk'])} track piece(s), {len(cu.vias)} via(s) in the "
+          f"piece; pours: {', '.join(f'{ly} {ar} mm2' for ly, ar in fills) or 'none'}"
+          + (" (ideal: their resistance and necks are NOT in this)" if fills else ''))
+    print(f"    hottest elements, rise at their share of the current (dT budget {a.dt:g} C):")
+    for dt, amps, cap, what, (x, y), note in rows[:a.max]:
+        near = _nearest_pad(pads, (x, y))
+        print(f"      {what} {amps:5.2f} A ({100 * amps / need:3.0f}%)  cap {cap:5.2f} A  "
+              f"dT {'>100' if dt > 100 else f'~{dt:.1f}':>6} C  @{x:.1f},{y:.1f} {near}{'  OVER' if dt > a.dt else ''}{note}")
+    if over:
+        print(f"    !! {len(over)} element(s) over the {a.dt:g} C budget at {need:.2f} A")
+    else:
+        print(f"    OK: every track and via stays under {a.dt:g} C at {need:.2f} A")
+    print("\nCurrent splits by conductance (nodal solve). Pads and pours are ideal, so a pour\n"
+          "neck is not seen: check it in KiCad. Rise per element is IPC-2221 (a long-trace\n"
+          "fit, conservative inside the board); a track piece between two pads/pours also gets\n"
+          "the end-sunk conduction bound, whichever is lower. Vias: IPC-2221 barrel strip.")
+    return 2 if over else 0
+
 def c_ampacity(b, a):
     """Current-carrying check on the ROUTED copper (not the schematic).
 
@@ -423,6 +521,8 @@ def c_ampacity(b, a):
     if not b.tracks:
         print(f"{b.path}: no routed tracks yet (nothing routed, or a pre-route board)")
         return 0
+    if getattr(a, 'src', '') or getattr(a, 'dst', ''):
+        return _amp_path(b, a)
     jbud = {}
     for k, vv in (getattr(a, 'current', None) or {}).items():
         jbud[k] = _f(vv)
