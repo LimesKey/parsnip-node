@@ -18606,7 +18606,7 @@
 		(in_bom yes)
 		(on_board yes)
 		(in_pos_files yes)
-		(dnp no)
+		(dnp yes)
 		(uuid "cb047a7f-9d38-406a-8ff8-1137d8b4e6ba")
 		(property "Reference" "BT3"
 			(at 142.748 25.4 90)

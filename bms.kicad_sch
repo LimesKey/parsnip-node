@@ -4634,7 +4634,7 @@
 		(uuid "0ae7d5aa-a1fe-4957-8234-80dc601ddcae")
 	)
 	(junction
-		(at 67.31 53.34)
+		(at 57.15 53.34)
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "0e9680e3-ad16-4b4d-a959-511342f9f99b")
@@ -4860,6 +4860,12 @@
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "932e079c-6351-4660-8036-32717f19dfc1")
+	)
+	(junction
+		(at 87.63 67.31)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "93822636-6866-426f-b3bd-a1d3a5ba7b51")
 	)
 	(junction
 		(at 224.79 55.88)
@@ -5151,7 +5157,7 @@
 	)
 	(wire
 		(pts
-			(xy 67.31 57.15) (xy 67.31 53.34)
+			(xy 57.15 57.15) (xy 57.15 53.34)
 		)
 		(stroke
 			(width 0)
@@ -5551,7 +5557,7 @@
 	)
 	(wire
 		(pts
-			(xy 57.15 53.34) (xy 87.63 53.34)
+			(xy 46.99 53.34) (xy 87.63 53.34)
 		)
 		(stroke
 			(width 0)
@@ -5901,7 +5907,7 @@
 	)
 	(wire
 		(pts
-			(xy 57.15 63.5) (xy 57.15 66.04)
+			(xy 46.99 63.5) (xy 46.99 66.04)
 		)
 		(stroke
 			(width 0)
@@ -6221,6 +6227,16 @@
 	)
 	(wire
 		(pts
+			(xy 87.63 67.31) (xy 69.85 67.31)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "a45186fd-dbe5-4101-ae5b-cd6e81269774")
+	)
+	(wire
+		(pts
 			(xy 176.53 149.86) (xy 180.34 149.86)
 		)
 		(stroke
@@ -6238,6 +6254,16 @@
 			(type default)
 		)
 		(uuid "a9002844-9d4c-4c37-9f69-feb1c201445a")
+	)
+	(wire
+		(pts
+			(xy 69.85 67.31) (xy 69.85 82.55)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "a96d3b04-f480-422b-b53f-c6ee8568b11c")
 	)
 	(wire
 		(pts
@@ -6361,7 +6387,7 @@
 	)
 	(wire
 		(pts
-			(xy 67.31 62.23) (xy 67.31 66.04)
+			(xy 57.15 62.23) (xy 57.15 66.04)
 		)
 		(stroke
 			(width 0)
@@ -6511,7 +6537,7 @@
 	)
 	(wire
 		(pts
-			(xy 57.15 55.88) (xy 57.15 53.34)
+			(xy 46.99 55.88) (xy 46.99 53.34)
 		)
 		(stroke
 			(width 0)
@@ -7482,7 +7508,7 @@
 	)
 	(symbol
 		(lib_id "power:-BATT")
-		(at 67.31 66.04 180)
+		(at 57.15 66.04 180)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -7492,7 +7518,7 @@
 		(dnp no)
 		(uuid "1642fcfa-cfee-458a-a1b9-ee011f90dddd")
 		(property "Reference" "#PWR0193"
-			(at 67.31 62.23 0)
+			(at 57.15 62.23 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -7503,7 +7529,7 @@
 			)
 		)
 		(property "Value" "-BATT"
-			(at 67.31 69.596 0)
+			(at 57.15 69.596 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -7513,7 +7539,7 @@
 			)
 		)
 		(property "Footprint" ""
-			(at 67.31 66.04 0)
+			(at 57.15 66.04 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -7524,7 +7550,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 67.31 66.04 0)
+			(at 57.15 66.04 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -7535,7 +7561,7 @@
 			)
 		)
 		(property "Description" "Power symbol creates a global label with name \"-BATT\""
-			(at 67.31 66.04 0)
+			(at 57.15 66.04 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -8732,7 +8758,7 @@
 	)
 	(symbol
 		(lib_id "Diode:SMF10A")
-		(at 57.15 59.69 270)
+		(at 46.99 59.69 270)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -8742,7 +8768,7 @@
 		(dnp no)
 		(uuid "4b355587-0e68-42ab-b4ff-3d5bec3cfd3d")
 		(property "Reference" "D5"
-			(at 53.086 57.15 90)
+			(at 42.926 57.15 90)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -8753,7 +8779,7 @@
 			)
 		)
 		(property "Value" "SMF10A"
-			(at 49.022 62.738 90)
+			(at 38.862 62.738 90)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -8764,7 +8790,7 @@
 			)
 		)
 		(property "Footprint" "Diode_SMD:D_SOD-123"
-			(at 52.07 59.69 0)
+			(at 41.91 59.69 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -8775,7 +8801,7 @@
 			)
 		)
 		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/d549773c39b3657663783a03a169768c.pdf?productCode=C435474"
-			(at 57.15 58.42 0)
+			(at 46.99 58.42 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -8786,7 +8812,7 @@
 			)
 		)
 		(property "Description" "TVS 10V Vrwm, 17V clamp, 200W 10/1000us, unidirectional, SOD-123"
-			(at 57.15 59.69 0)
+			(at 46.99 59.69 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -8797,7 +8823,7 @@
 			)
 		)
 		(property "MPN" "SMF10A"
-			(at 52.07 59.69 0)
+			(at 41.91 59.69 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -8808,7 +8834,7 @@
 			)
 		)
 		(property "Manufacturer" "AnBon"
-			(at 52.07 59.69 0)
+			(at 41.91 59.69 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -8819,7 +8845,7 @@
 			)
 		)
 		(property "LCSC Part" "C435474"
-			(at 57.15 59.69 0)
+			(at 46.99 59.69 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -12695,7 +12721,7 @@
 	)
 	(symbol
 		(lib_id "Device:C_Small")
-		(at 67.31 59.69 0)
+		(at 57.15 59.69 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -12705,7 +12731,7 @@
 		(dnp no)
 		(uuid "b26ef7e5-138e-4d3f-b1c0-4e7336610b6d")
 		(property "Reference" "C48"
-			(at 69.088 57.658 0)
+			(at 58.928 57.658 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -12716,7 +12742,7 @@
 			)
 		)
 		(property "Value" "10uF"
-			(at 68.834 61.722 0)
+			(at 58.674 61.722 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -12727,7 +12753,7 @@
 			)
 		)
 		(property "Footprint" "Capacitor_SMD:C_0805_2012Metric"
-			(at 67.31 59.69 0)
+			(at 57.15 59.69 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -12738,7 +12764,7 @@
 			)
 		)
 		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/84e3a6fd29786b629e1e2892084b001d.pdf?productCode=C6119892"
-			(at 67.31 59.69 0)
+			(at 57.15 59.69 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -12749,7 +12775,7 @@
 			)
 		)
 		(property "Description" "CAP MLCC 10uF ±20% 50V X5R 0805"
-			(at 67.31 59.69 0)
+			(at 57.15 59.69 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -12760,7 +12786,7 @@
 			)
 		)
 		(property "MPN" "CGA0805X5R106M500MT"
-			(at 67.31 59.69 0)
+			(at 57.15 59.69 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -12771,7 +12797,7 @@
 			)
 		)
 		(property "Manufacturer" "HRE"
-			(at 67.31 59.69 0)
+			(at 57.15 59.69 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -12782,7 +12808,7 @@
 			)
 		)
 		(property "LCSC Part" "C6119892"
-			(at 67.31 59.69 0)
+			(at 57.15 59.69 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -12793,7 +12819,7 @@
 			)
 		)
 		(property "Voltage Rating" "50V"
-			(at 67.31 59.69 0)
+			(at 57.15 59.69 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -12804,7 +12830,7 @@
 			)
 		)
 		(property "Dielectric" "X5R"
-			(at 67.31 59.69 0)
+			(at 57.15 59.69 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -12815,7 +12841,7 @@
 			)
 		)
 		(property "Tolerance" "20%"
-			(at 67.31 59.69 0)
+			(at 57.15 59.69 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -12842,7 +12868,7 @@
 	)
 	(symbol
 		(lib_id "power:-BATT")
-		(at 57.15 66.04 180)
+		(at 46.99 66.04 180)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -12852,7 +12878,7 @@
 		(dnp no)
 		(uuid "b56c021b-5afe-47f8-a075-fc858966075a")
 		(property "Reference" "#PWR0194"
-			(at 57.15 62.23 0)
+			(at 46.99 62.23 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -12863,7 +12889,7 @@
 			)
 		)
 		(property "Value" "-BATT"
-			(at 57.15 69.596 0)
+			(at 46.99 69.596 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -12873,7 +12899,7 @@
 			)
 		)
 		(property "Footprint" ""
-			(at 57.15 66.04 0)
+			(at 46.99 66.04 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -12884,7 +12910,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 57.15 66.04 0)
+			(at 46.99 66.04 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -12895,7 +12921,7 @@
 			)
 		)
 		(property "Description" "Power symbol creates a global label with name \"-BATT\""
-			(at 57.15 66.04 0)
+			(at 46.99 66.04 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
