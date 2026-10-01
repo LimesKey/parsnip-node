@@ -89,9 +89,11 @@ class Sheet:
     """One .kicad_sch file: symbols (power ones too), wires, labels, junctions,
     no-connects, and a net name per connected cluster from the netlist."""
 
-    def __init__(self, nl, base):
+    def __init__(self, nl, base, path=None):
         si = nl.sch()
-        self.nl, self.base, self.path = nl, base, si.sheetpath.get(base, f'/{base}/')
+        il = si.inst_list(base)                    # a sheet used twice: one Sheet per use
+        self.path, suuid = next(((p, u) for p, u in il if p == path), il[0])
+        self.nl, self.base = nl, base
         tree = load_sexp(os.path.join(os.path.dirname(os.path.abspath(nl.path)), base))
         lib = si.libsyms.get(base, {})
         self.syms = {}                                        # ref -> merged over units
@@ -100,7 +102,7 @@ class Sheet:
             at = kid(inst, 'at')
             if not lid or lid not in lib or not at:
                 continue
-            ref, value = si._prop(inst, 'Reference'), si._prop(inst, 'Value')
+            ref, value = si.inst_ref(inst, suuid), si._prop(inst, 'Value')
             m = kid(inst, 'mirror')
             rot, mir = F(at[3]) if len(at) > 3 else 0.0, m[1] if m and len(m) > 1 else ''
             unit = int(val(inst, 'unit') or 1)
@@ -187,12 +189,13 @@ def sheet_of(nl, spec):
     if not si.files:
         sys.exit(f"no .kicad_sch beside {nl.path}")
     if spec in si.place:
-        return Sheet(nl, si.place[spec][0][0]), spec
+        return Sheet(nl, *si.place[spec][0][:2]), spec
     want = spec.strip('/').split('/')[-1].lower()
-    for base, path in si.sheetpath.items():
-        if spec == base or want in (base.lower(), base.lower().rsplit('.', 1)[0],
-                                     path.strip('/').split('/')[-1].lower()):
-            return Sheet(nl, base), None
+    for base in si.sheetpath:
+        for path, _u in si.inst_list(base):
+            if spec in (base, path) or want in (base.lower(), base.lower().rsplit('.', 1)[0],
+                                                path.strip('/').split('/')[-1].lower()):
+                return Sheet(nl, base, path), None
     sys.exit(f"no symbol or sheet named {spec!r} (sheets: {', '.join(sorted(si.sheetpath))})")
 
 

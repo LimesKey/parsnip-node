@@ -13,6 +13,10 @@ regexing a `.kicad_sch` by hand, and instead of eyeballing a plot.
 
 SHEET is a file (`bms.kicad_sch`) or a sheet name (`BMS`, `/Root/GNSS/`).
 Coordinates are sheet mm, +y down, as KiCad's status bar shows them.
+A file used by two sheet symbols is read once per use: each instance has its own
+path (`/A/`, `/B/`), its refs come from the symbols' `(instances)` block, and its
+local labels take that path, so `sch R2` on the second copy shows the second
+copy's nets.
 
 Connectivity follows KiCad: a wire end, pin, label or junction lying on a wire
 joins it; two wires crossing with no junction do not. A cluster's net is the

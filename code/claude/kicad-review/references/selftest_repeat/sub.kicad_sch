@@ -1,0 +1,15 @@
+(kicad_sch (version 20250114) (generator "eeschema") (uuid "22222222-0000-4000-8000-000000000000")
+ (lib_symbols
+  (symbol "Device:R"
+   (symbol "R_0_1" (rectangle (start -1.016 -2.54) (end 1.016 2.54)))
+   (symbol "R_1_1" (pin passive line (at 0 3.81 270) (length 1.27) (name "~") (number "1"))
+                   (pin passive line (at 0 -3.81 90) (length 1.27) (name "~") (number "2")))))
+ (symbol (lib_id "Device:R") (at 100 100 0) (unit 1)
+  (property "Reference" "R1" (at 102 100 0)) (property "Value" "10k" (at 102 102 0))
+  (instances (project "repeat"
+   (path "/11111111-0000-4000-8000-000000000000/aaaaaaaa-0000-4000-8000-000000000000" (reference "R1") (unit 1))
+   (path "/11111111-0000-4000-8000-000000000000/bbbbbbbb-0000-4000-8000-000000000000" (reference "R2") (unit 1)))))
+ (wire (pts (xy 100 96.19) (xy 100 90)))
+ (label "SIG" (at 100 90 0))
+ (wire (pts (xy 100 103.81) (xy 100 110)))
+ (label "RET" (at 100 110 0)))
