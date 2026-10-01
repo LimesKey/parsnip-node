@@ -120,6 +120,8 @@ def c_summary(b, a):
     else:
         print("outline: NONE on Edge.Cuts - every placement check is disabled")
     print(f"copper : {len(b.copper)} layers  {' '.join(b.copper)}")
+    print("origins: " + '  '.join(f"{k} {x:g},{y:g}" for k, (x, y) in b.origins.items() if k != 'page')
+          + "   (`where --origin grid|aux` quotes what KiCad's Properties dialog shows)")
     for n, l in b.zones:
         print(f"zone   : {n:<10} {' '.join(l)}")
     if b.teardrops:
@@ -207,10 +209,15 @@ def c_where(b, a):
     if not a.args:
         print("where needs a ref or an x,y coordinate", file=sys.stderr); return 1
     miss, pts = False, []
+    ox, oy = b.origins.get(a.origin, (0.0, 0.0))
+    if a.origin != 'page':
+        print(f"coordinates relative to the {a.origin} origin {ox:g},{oy:g} (KiCad: Display origin "
+              f"= {'Grid' if a.origin == 'grid' else 'Drill/place file'}, Y down), in and out")
+    O = lambda x, y, n=3: f"{x - ox:.{n}f}, {y - oy:.{n}f}"         # noqa: E731
     for spec in a.args:
         m = re.match(r'^(-?[\d.]+)\s*,\s*(-?[\d.]+)$', spec)
         if m:
-            p = (float(m.group(1)), float(m.group(2)))
+            p = (float(m.group(1)) + ox, float(m.group(2)) + oy)
             pts.append((spec, p))
             box = (p[0], p[1], p[0], p[1])
             if b.edge_segs:
@@ -218,7 +225,7 @@ def c_where(b, a):
                 d = f"   edge {min(pt_seg_dist(p, u, v) for u, v in b.edge_segs):.2f} mm"
             else:
                 where, d = 'no Edge.Cuts, so inside/outside is', ''
-            print(f"\n=== {p[0]:.2f},{p[1]:.2f}   {where} the outline{d}")
+            print(f"\n=== {O(*p, 2).replace(' ', '')}   {where} the outline{d}")
             _neigh(b, box, None, a)
             continue
         pad = _find_pad(b, spec)
@@ -227,7 +234,8 @@ def c_where(b, a):
             pts.append((spec, (p['x'], p['y'])))
             ly = ' '.join(l for l in p['layers'] if l.endswith('.Cu')) or ' '.join(p['layers'])
             print(f"\n=== {spec}  {p['fn'] or ''}  on {unesc_disp(p['net']) or '(no net)'}")
-            print(f"  at        : {p['x']:.3f}, {p['y']:.3f}  (absolute)  pad rot {p['prot']:g}")
+            print(f"  at        : {O(p['x'], p['y'])}  ({'absolute' if a.origin == 'page' else a.origin + ' origin'})"
+                  f"  pad rot {p['prot']:g}")
             print(f"  pad       : {p['kind']} {p['shape']} {p['sx']:.2f} x {p['sy']:.2f} mm"
                   + (f"  drill {p['drill']:.2f}" if p['drill'] else '') + f"  {ly}")
             if b.edge_segs:
@@ -249,9 +257,15 @@ def c_where(b, a):
               f"{'' if f.placed else '   [UNPLACED - parked off the outline]'}")
         print(f"  footprint : {f.fp}")
         print(f"  sheet     : {f.sheet}")
-        print(f"  at        : {f.x:.3f}, {f.y:.3f}  rot {f.rot:g}  layer {f.layer}")
-        print(f"  courtyard : {c[0]:.2f},{c[1]:.2f} .. {c[2]:.2f},{c[3]:.2f}  "
+        print(f"  at        : {O(f.x, f.y)}  rot {f.rot:g}  layer {f.layer}"
+              + (f"  scale {f.scale[0]:g} x {f.scale[1]:g}" if f.scale != (1.0, 1.0) else '')
+              + (f"  (padless, art on {'B' if f.back else 'F'})" if not f.pads and f.art else ''))
+        print(f"  courtyard : {O(c[0], c[1], 2).replace(' ', '')} .. {O(c[2], c[3], 2).replace(' ', '')}  "
               f"({c[2]-c[0]:.2f} x {c[3]-c[1]:.2f} mm){'' if f.crtyd_real else '  [NO CrtYd - pads+fab bbox]'}")
+        if f.fab:
+            fb = f.fab
+            print(f"  fab body  : {O(fb[0], fb[1], 2).replace(' ', '')} .. {O(fb[2], fb[3], 2).replace(' ', '')}  "
+                  f"({fb[2]-fb[0]:.2f} x {fb[3]-fb[1]:.2f} mm)  [Fab layer only: the housing]")
         if f.edge is not None:
             print(f"  edge dist : {f.edge:.2f} mm" + ("   <-- ON/ACROSS THE EDGE" if f.edge <= 0.001 else ""))
         tags = [t for t, ok in (('RF', b.is_rf(f)), ('hot', b.is_hot(f)),
@@ -653,6 +667,9 @@ def main():
                     help='max lines per rule / per neighbour list before a +N tail (12)')
     ap.add_argument('--cols', type=int, default=48, help='for `map`: grid width (48)')
     ap.add_argument('--side', default='f', help='for `map`: f (front, default) or b (back)')
+    ap.add_argument('--origin', choices=('page', 'grid', 'aux'), default='page',
+                    help="for `where`: read and print x,y relative to the board's grid or aux "
+                         "(drill/place) origin, as KiCad's Properties dialog does (page)")
     for name, dflt, hlp in (('edge', 0.5, 'courtyard-to-board-edge minimum, mm'),
                             ('hole', 1.5, 'keepout beyond a mounting hole pad radius, mm'),
                             ('conn', 10.0, 'max connector distance from an edge, mm'),

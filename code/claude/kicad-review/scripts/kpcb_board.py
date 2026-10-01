@@ -1,5 +1,5 @@
 """Board model for kpcb.py: part classification, geometry helpers, IPC-2221 math, FP and Board."""
-import sys, os, re, json, math, glob
+import os, re, json, math, glob
 from collections import defaultdict
 from kcommon import (load_sexp, kids, kid, val, has, prefix, parse_value, unesc_disp,
                      rail_voltage)
@@ -278,7 +278,8 @@ def ipc_width(need_a, thick_mm, external, dt):
 
 class FP:
     __slots__ = ('ref', 'value', 'fp', 'layer', 'x', 'y', 'rot', 'sheet', 'attr',
-                 'dnp', 'pads', 'crtyd', 'crtyd_real', 'cpoly', 'body', 'placed', '_edge', 'models', 'art')
+                 'dnp', 'pads', 'crtyd', 'crtyd_real', 'cpoly', 'body', 'placed', '_edge', 'models', 'art',
+                 'fab', 'scale')
 
     @property
     def outline(self):
@@ -355,6 +356,10 @@ class Board:
             if val(ly, 'type') == 'copper' and len(ly) > 1 and isinstance(ly[1], str):
                 self.thick[ly[1]] = _f(val(ly, 'thickness'))
         self.outer = {self.copper[0], self.copper[-1]} if self.copper else set()
+        # what KiCad's Properties dialog quotes coordinates from, per Display origin
+        st = kid(root, 'setup') or []
+        self.origins = {'page': (0.0, 0.0), 'grid': self._xy(st, 'grid_origin'),
+                        'aux': self._xy(st, 'aux_axis_origin')}
 
         # routed tracks (segments + arcs) and vias, carrying their own net names
         self.tracks, self.vias = [], []
@@ -396,9 +401,10 @@ class Board:
         """Edge.Cuts polylines from a container, in board coordinates. Footprint
         graphics count too - a milled slot often lives inside a footprint."""
         ox, oy, rot = (f.x, f.y, f.rot) if f else (0.0, 0.0, 0.0)
+        kx, ky = f.scale if f else (1.0, 1.0)
         out = []
         def T(p):
-            return xf(p[0], p[1], ox, oy, rot)
+            return xf(p[0] * kx, p[1] * ky, ox, oy, rot)
         for tag in ('line', 'arc', 'rect', 'poly', 'circle'):
             for g in kids(node, pfx + tag):
                 if val(g, 'layer') != 'Edge.Cuts':
@@ -471,9 +477,8 @@ class Board:
         if tr:
             t, r, sc = kid(tr, 'translate') or [], kid(tr, 'rotate') or [], kid(tr, 'scale')
             at = ['at', *(t[1:3] or ['0', '0']), *(r[1:2] or ['0'])]
-            if sc and [_f(x, 1) for x in sc[1:3]] != [1.0, 1.0]:
-                print(f"kpcb: footprint scale {sc[1:3]} is not modelled, geometry of "
-                      f"this part is wrong", file=sys.stderr)
+        # (scale sx sy) multiplies the footprint-local geometry (scaled logos)
+        f.scale = kx, ky = tuple(_f(x, 1) for x in sc[1:3]) if tr and sc and len(sc) > 2 else (1.0, 1.0)
         f.x, f.y = (float(at[1]), float(at[2])) if at else (0.0, 0.0)
         f.rot = float(at[3]) if at and len(at) > 3 else 0.0
         f.layer = val(node, 'layer', 'F.Cu')
@@ -498,15 +503,15 @@ class Board:
         f.art = max('FB', key=lambda c: sides.count(c + '.')) if sides else None
 
         f.pads = []
-        pad_pts, all_pts, crt_pts, crt_segs = [], [], [], []
+        pad_pts, all_pts, crt_pts, crt_segs, fab_pts = [], [], [], [], []
         for p in kids(node, 'pad'):
             num = p[1] if len(p) > 1 else '?'
             pat = kid(p, 'at')
             lx, ly = (float(pat[1]), float(pat[2])) if pat else (0.0, 0.0)
             prot = float(pat[3]) if pat and len(pat) > 3 else 0.0
             sz = kid(p, 'size')
-            sx, sy = (float(sz[1]), float(sz[2])) if sz and len(sz) > 2 else (0.0, 0.0)
-            bx, by = xf(lx, ly, f.x, f.y, f.rot)
+            sx, sy = (float(sz[1]) * abs(kx), float(sz[2]) * abs(ky)) if sz and len(sz) > 2 else (0.0, 0.0)
+            bx, by = xf(lx * kx, ly * ky, f.x, f.y, f.rot)
             prims = self._pad_prims(p)          # custom pad copper, pad-local frame
             # pad AABB straight in board coords: a .kicad_pcb stores `prot` as the
             # ABSOLUTE board angle (f.rot already baked in), so envelope around the
@@ -519,7 +524,7 @@ class Board:
             for c in ((bx - hx, by - hy), (bx + hx, by - hy),
                       (bx + hx, by + hy), (bx - hx, by + hy)):
                 pad_pts.append(c)
-            pad_pts += [xf(u, v, bx, by, prot) for poly in prims for u, v in poly]
+            pad_pts += [xf(u * kx, v * ky, bx, by, prot) for poly in prims for u, v in poly]
             fn = re.sub(r'_\d+$', '', val(p, 'pinfunction'))
             net = val(p, 'net')
             lays = kid(p, 'layers') or []
@@ -552,20 +557,23 @@ class Board:
                         c, e = self._xy(g, 'center'), self._xy(g, 'end')
                         r = math.hypot(e[0] - c[0], e[1] - c[1])
                         pts = [(c[0] - r, c[1] - r), (c[0] + r, c[1] + r)]
-                pts = [xf(p[0], p[1], f.x, f.y, f.rot) for p in pts]
+                pts = [xf(p[0] * kx, p[1] * ky, f.x, f.y, f.rot) for p in pts]
                 all_pts += pts
+                if lay.endswith('.Fab'):
+                    fab_pts += pts
                 if lay.endswith('.CrtYd'):
                     crt_pts += pts
                     crt_segs.append(self._crt_seg(g, tag, f))
         f.body = bbox(pad_pts + all_pts) if (pad_pts or all_pts) else (f.x, f.y, f.x, f.y)
         f.crtyd = bbox(crt_pts) if crt_pts else f.body
         f.crtyd_real = bool(crt_pts)
+        f.fab = bbox(fab_pts) if fab_pts else None       # the housing outline alone
         f.cpoly = rings([s for s in crt_segs if s]) or None
         return f
 
     def _crt_seg(self, g, tag, f):
         """one courtyard primitive as a board-frame polyline, for rings()"""
-        T = lambda p: xf(p[0], p[1], f.x, f.y, f.rot)      # noqa: E731
+        T = lambda p: xf(p[0] * f.scale[0], p[1] * f.scale[1], f.x, f.y, f.rot)      # noqa: E731
         if tag == 'fp_line':
             return [T(self._xy(g, 'start')), T(self._xy(g, 'end'))]
         if tag == 'fp_rect':

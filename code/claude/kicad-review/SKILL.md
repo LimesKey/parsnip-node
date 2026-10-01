@@ -69,7 +69,7 @@ scrambled. The plot only tells you which sheet a symbol lives on.
 | fresh session on a board | `kpcb.py FILE review` - sync + summary + check + span, then names the next calls to make |
 | is the board the circuit I drew | `kpcb.py FILE sync` - **run before quoting any placement finding**; two lines when clean |
 | where does X connect / is X right | `knet.py FILE around X` - pins, types, nets, position, every part one hop away |
-| where is X, is there room | `kpcb.py FILE where REF` or `where 130,60 -r 10` |
+| where is X, is there room | `kpcb.py FILE where REF` or `where 130,60 -r 10` (`--origin grid` = the numbers KiCad's Properties dialog shows) |
 | where do these caps/inductor go | `kpcb.py FILE ic U13` - positions, rotations, the rule behind each, and a picture |
 | does the board pass real DRC + ERC | `kdrc.py FILE.kicad_pcb` - KiCad's own checks, every root, folded like `check`; flags a STALE saved zone fill (what gerbers export) |
 | which PWR_FLAGs are needed / redundant | `kdrc.py FILE.kicad_pcb flags` - each flag's net, and whether ERC fails without it |

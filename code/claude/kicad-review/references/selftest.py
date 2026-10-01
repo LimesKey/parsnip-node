@@ -247,6 +247,22 @@ def tee_board(d):
         ' (via (at 2 0.9) (size 0.6) (drill 0.3) (layers "F.Cu" "B.Cu") (net "N")))')
     return p
 
+def scale_board(d):
+    """One 10.99-form footprint scaled 0.5 (CrtYd 8 x 4, Fab 6 x 2 in its own frame)
+    at 10,10 on a board whose grid origin is 5,5."""
+    p = os.path.join(d, 'scale.kicad_pcb')
+    open(p, 'w').write(
+        '(kicad_pcb (version 20250901) (generator "pcbnew") (generator_version "10.99")'
+        ' (layers (0 "F.Cu" signal) (2 "B.Cu" signal) (25 "Edge.Cuts" user))'
+        ' (setup (grid_origin 5 5) (aux_axis_origin 2 3))'
+        ' (gr_rect (start 0 0) (end 20 20) (layer "Edge.Cuts"))'
+        ' (footprint "Logo" (layer "F.Cu") (transform (translate 10 10) (rotate 0) (scale 0.5 0.5))'
+        ' (property "Reference" "S1") (property "Value" "ART")'
+        ' (fp_rect (start -4 -2) (end 4 2) (layer "F.CrtYd"))'
+        ' (fp_rect (start -3 -1) (end 3 1) (layer "F.Fab"))'
+        ' (fp_poly (pts (xy -2 -1) (xy 2 -1) (xy 2 1)) (layer "F.SilkS"))))')
+    return p
+
 def lint_project(d):
     """ksheet fixture, one hit per lint rule: a wire across R1's body (WIREBODY),
     /NA and /NB end-to-end 2.54 mm apart (GAPLINE), U1.1 jogging 1.27 mm at the
@@ -340,6 +356,13 @@ def main():
     dp = dup_board(tmp.name)
     CASES.append(("kpcb sync art", ['kpcb.py', dp, 'sync', os.path.join(tmp.name, 'dup.net')], 0,
                   ["IN SYNC", "[INFO] SYNCART", "(3): REF** REF**~dup2 REF**~dup3"]))
+    sp = scale_board(tmp.name)
+    CASES.append(("kpcb where scale+origin", ['kpcb.py', sp, 'where', 'S1', '--origin', 'grid'], 0,
+                  ["relative to the grid origin 5,5", "at        : 5.000, 5.000  rot 0  layer F.Cu  scale 0.5 x 0.5",
+                   "courtyard : 3.00,4.00 .. 7.00,6.00  (4.00 x 2.00 mm)", "fab body  : 3.50,4.50 .. 6.50,5.50"]))
+    CASES.append(("kpcb where xy origin", ['kpcb.py', sp, 'where', '8,7', '--origin', 'aux', '-r', '0'], 0,
+                  ["=== 8.00,7.00   inside the outline", "within 0 mm (1)"]))
+    CASES.append(("kpcb summary origins", ['kpcb.py', sp, 'summary'], 0, ["origins: grid 5,5  aux 2,3"]))
     lnet = os.path.join(tmp.name, 'lint', 'lint.net')
     CASES.append(("ksheet lint", ['ksheet.py', lnet, 'lint'], 2,
                   ["R1's body", "/NA ends at 70,40 and /NB starts 2.54 mm", "U1.1 (A) at 94.92,94.92: /J runs 1.27 mm",

@@ -24,7 +24,7 @@ carry F.SilkS art), so `summary`, `map` and `where` count it on the art's side.
 | --- | --- |
 | `summary` | outline size, stackup, zones, how much of each sheet is placed, biggest parts. Run first. |
 | `check` | 10 rule-based findings, grouped ERROR/WARN/INFO. Exit 2 if any ERROR. |
-| `where REF...` | **highest value per call.** Position, rotation, courtyard, edge distance, class, nets, and every neighbour within `-r`. Use instead of eyeballing coordinates. |
+| `where REF...` | **highest value per call.** Position, rotation, courtyard, Fab-only body (the housing a connector setback is measured from), edge distance, class, nets, and every neighbour within `-r`. Footprint `(scale)` is applied. `--origin grid\|aux` quotes KiCad's dialog coordinates. Use instead of eyeballing coordinates. |
 | `where X,Y -r N` | same, around a bare coordinate - "is there room here". |
 | `map [--side f\|b] [--cols N]` | ASCII occupancy map, one letter per schematic sheet. Shows the floorplan and the free space in ~50 lines. |
 | `sheet [PATH]` | per-sheet placed/left counts, bounding box, spread, and parts that drifted from their block. |
@@ -59,6 +59,10 @@ um), `--vdrop 0.25` (V-drop flag threshold), `--from REF.PIN --to REF.PIN` (path
 solve). For `zones`: `--voids`, `--area 2` (smallest void core, mm2), `--net=NAME`
 (the plane net, default the biggest pour). For `viapad`: `--signal`, `--min N`.
 For `rf`: `--freq MHz`, `--fence 1.5` (mm from the trace edge that counts as fence).
+For `where`: `--origin page|grid|aux` reads x,y arguments and prints coordinates
+relative to the board's grid origin or aux (drill/place) origin, which is what KiCad's
+Properties dialog shows when Display origin is set that way (Y still grows down;
+an inverted-Y display is not modelled). `summary` prints both origins.
 
 ## Project config
 
