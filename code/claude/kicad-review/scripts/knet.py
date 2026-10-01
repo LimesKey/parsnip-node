@@ -1588,9 +1588,10 @@ class _SpecGen:
                 elif not (b['loads'] or b['subs']):
                     self.emit('label %s %s' % (_q(_leaf(b['net'])), src))
                 else:
-                    self.emit('note %g,%g %s' % (
-                        (trunk + .4) if side < 0 else (nx + .4), y - .4,
-                        _q(_leaf(b['net']) + ('  + ' + ' '.join(b['also']) if b.get('also') else ''))))
+                    nx4 = (trunk + .4) if side < 0 else (nx + .4)
+                    self.emit('note %g,%g %s' % (nx4, y - .4, _q(_leaf(b['net']))))
+                    if b.get('also'):            # its own line: inline it ran into the next note
+                        self.emit('note %g,%g %s' % (nx4, y - .95, _q('+ ' + ' '.join(b['also']))))
                     self.chain(b, src, side, trunk, row, icy + 1, nx)
                 row += rows[p]
         return self.lines

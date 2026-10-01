@@ -263,6 +263,27 @@ def scale_board(d):
         ' (fp_poly (pts (xy -2 -1) (xy 2 -1) (xy 2 1)) (layer "F.SilkS"))))')
     return p
 
+def also_net(d):
+    """U1.1 on the global net IRQ with two other ICs and a pull-up: `draw U1` puts
+    the other ICs on a note line of their own."""
+    os.makedirs(os.path.join(d, 'also'))                # no sidecar .kicad_sch beside it
+    p = os.path.join(d, 'also', 'also.net')
+    ic = lambda r: f' (comp (ref "{r}") (value "IC") (libsource (lib "x") (part "ic3")))'
+    nd = lambda *rp: ''.join(f' (node (ref "{r}") (pin "{q}"))' for r, q in rp)
+    open(p, 'w').write(
+        '(export (version "E") (design (source "also.kicad_sch"))'
+        ' (components' + ic('U1') + ic('U2') + ic('U3')
+        + ' (comp (ref "R1") (value "10k") (libsource (lib "Device") (part "R"))))'
+        ' (libparts (libpart (lib "x") (part "ic3") (pins (pin (num "1") (name "IRQ") (type "output"))'
+        ' (pin (num "2") (name "A") (type "input")) (pin (num "3") (name "B") (type "input"))))'
+        ' (libpart (lib "Device") (part "R") (pins (pin (num "1") (name "~") (type "passive"))'
+        ' (pin (num "2") (name "~") (type "passive")))))'
+        ' (nets (net (code "1") (name "IRQ")' + nd(('U1', '1'), ('U2', '1'), ('U3', '1'), ('R1', '1')) + ')'
+        ' (net (code "2") (name "VP")' + nd(('R1', '2')) + ')'
+        ' (net (code "3") (name "/A")' + nd(('U1', '2'), ('U2', '2'), ('U3', '2')) + ')'
+        ' (net (code "4") (name "/B")' + nd(('U1', '3'), ('U2', '3'), ('U3', '3')) + ')))')
+    return p
+
 def lint_project(d):
     """ksheet fixture, one hit per lint rule: a wire across R1's body (WIREBODY),
     /NA and /NB end-to-end 2.54 mm apart (GAPLINE), U1.1 jogging 1.27 mm at the
@@ -363,6 +384,8 @@ def main():
     CASES.append(("kpcb where xy origin", ['kpcb.py', sp, 'where', '8,7', '--origin', 'aux', '-r', '0'], 0,
                   ["=== 8.00,7.00   inside the outline", "within 0 mm (1)"]))
     CASES.append(("kpcb summary origins", ['kpcb.py', sp, 'summary'], 0, ["origins: grid 5,5  aux 2,3"]))
+    CASES.append(("knet draw also-line", ['knet.py', also_net(tmp.name), 'draw', 'U1', '--spec'], 0,
+                  ['note 6.4,0.6 IRQ\nnote 6.4,0.05 "+ U2 U3"']))
     lnet = os.path.join(tmp.name, 'lint', 'lint.net')
     CASES.append(("ksheet lint", ['ksheet.py', lnet, 'lint'], 2,
                   ["R1's body", "/NA ends at 70,40 and /NB starts 2.54 mm", "U1.1 (A) at 94.92,94.92: /J runs 1.27 mm",
@@ -465,6 +488,17 @@ def main():
     ok9 = len(nm) == 1 and nm[0].endswith(': R1')
     fails += not ok9
     print(f"{'ok  ' if ok9 else 'FAIL'}  height skips padless art: {nm}")
+    # a horizontal C's value and the ref of an NTC one 3-unit row below must not
+    # touch (glyphs: 0.35 above the baseline, 0.075 below), and ksch says so
+    import ksch
+    kd = ksch.Doc({})
+    kd.parse('c C1 0,0 h 10nF\nntc T1 0,3 hr 10k\nnote 0,6 "a long note running right"\nnote 4,6 x')
+    cv = [f[2] for f in kd.syms['C1'].fields() if f[-1] == 'val'][0]
+    tr = [f[2] for f in kd.syms['T1'].fields() if f[-1] == 'ref'][0]
+    ow = [m for _sv, m in ksch.check_doc(kd) if 'overlaps' in m]
+    ok11 = tr - .35 > cv + .075 and len(ow) == 1 and "'x'" in ow[0]
+    fails += not ok11
+    print(f"{'ok  ' if ok11 else 'FAIL'}  ksch row-pitch text: C1 value {cv:.2f}, T1 ref {tr:.2f}; {ow}")
     # the copper graph must not depend on the hash seed (set order)
     tp = tee_board(tmp.name)
     rs = {run(['kpcb.py', tp, 'ampacity', '--from', 'J1.1', '--to', 'J2.1', '--amps', '1'],
@@ -472,7 +506,7 @@ def main():
     ok10 = rs == {'8.27'}
     fails += not ok10
     print(f"{'ok  ' if ok10 else 'FAIL'}  copper graph independent of hash seed: R {sorted(rs)} mohm")
-    print(f"\n{len(CASES) + 10 - fails}/{len(CASES) + 10} passed")
+    print(f"\n{len(CASES) + 11 - fails}/{len(CASES) + 11} passed")
     return 1 if fails else 0
 
 if __name__ == '__main__':

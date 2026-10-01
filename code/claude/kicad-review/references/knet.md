@@ -8,7 +8,7 @@
 | `around REF...` | **highest value per call.** Pins, types, nets, position, every part one hop away. Use instead of `comp` + several `pin` calls. |
 | `check` | 17 rule-based findings, grouped ERROR/WARN/INFO. Exit 2 if any ERROR. Three or more findings sharing a message fold into one line, `tail [N]: refs` - `[49]` means 49 separate findings, not one. |
 | `check --since old.net` | only findings NEW vs an older export, plus a fixed/unchanged tally. |
-| `draw REF\|NET [-d N] [-o x.svg] [--spec]` | KiCad-style schematic from the netlist; `--spec` gives the editable ksch source. The focal part keeps its real pin sides and order (from the sheet's lib symbol), GND/rail pins get their glyph where they sit (`gnd PIN -BATT` for a non-GND return), a big or global net ends in a `glabel`, and a global net's other ICs are named on the note, not drawn as stubs. |
+| `draw REF\|NET [-d N] [-o x.svg] [--spec]` | KiCad-style schematic from the netlist; `--spec` gives the editable ksch source. The focal part keeps its real pin sides and order (from the sheet's lib symbol), GND/rail pins get their glyph where they sit (`gnd PIN -BATT` for a non-GND return), a big or global net ends in a `glabel`, and a global net's other ICs are named on a note line of their own above the net name (`+ U1 U5`), not drawn as stubs. |
 | `notes` | schematic text notes by sheet - designer intent that exists nowhere in the netlist. |
 | `rails` | each power rail: what feeds it, total decoupling, loads. |
 | `divider REF.PIN\|NET` | resistor-divider trip voltage from netlist resistor values, worst case from tolerance if stated. See below. |

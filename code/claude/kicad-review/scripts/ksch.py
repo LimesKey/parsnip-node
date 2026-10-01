@@ -517,10 +517,16 @@ class Sym:
             return out
         horiz = self.deg in (90, 270)
         if horiz:
+            # measured from the pin line, not the box: a tall or lopsided body (C, the
+            # NTC's arrow) keeps its text where an R's sits, so a 3-unit row pitch fits
+            pv = self.pins().values()
+            cy = sum(p[1] for p in pv) / len(pv) if pv else (y0 + y1) / 2
             if self.ref:
-                out.append(('t', (x0 + x1) / 2, y0 - .6, self.ref, TXT, 'middle', 0, 'ref'))
+                out.append(('t', (x0 + x1) / 2, y0 - min(.6, max(.25, .95 - (cy - y0))),
+                            self.ref, TXT, 'middle', 0, 'ref'))
             if self.value:
-                out.append(('t', (x0 + x1) / 2, y1 + .85, self.value, TXT, 'middle', 0, 'val'))
+                out.append(('t', (x0 + x1) / 2, y1 + min(.85, max(.5, 1.2 - (y1 - cy))),
+                            self.value, TXT, 'middle', 0, 'val'))
         else:
             # side leads (a dual diode's COM, a shunt's sense pins) push text across
             left = any(d == 'R' for _x, _y, d in self.pins().values())
@@ -1293,7 +1299,31 @@ def check_doc(d):
     if unwired:
         out.append(('INFO', "drawn but not wired: " + ' '.join(unwired)
                     + "   (use `nc REF.PIN` where that is deliberate)"))
+    hits = _text_overlaps(d)
+    for (ta, tb) in hits[:8]:
+        out.append(('WARN', f"text {ta[0]!r} overlaps {tb[0]!r} at {ta[1]:g},{ta[2]:g} - move one"))
+    if len(hits) > 8:
+        out.append(('WARN', f"+{len(hits) - 8} more overlapping text pair(s)"))
     return out
+
+
+def _text_overlaps(d):
+    """pairs of drawn texts whose boxes overlap (width from twid, height from
+    the cap height above the baseline and a descender below)"""
+    T = []
+    for op in d.build():
+        if op[0] != 't' or not str(op[3]).strip():
+            continue
+        _k_, x, y, s, size, anc, rot = op[:7]
+        # DejaVu-like advance widths: twid's flat 0.56 em under-reads capitals
+        w = size * sum(.7 if c.isupper() else .64 if c.isdigit() or c in '+=' else
+                       .32 if c in ' .,:;il|!()-' else .58 for c in plain(s))
+        x0 = x - (w if anc == 'end' else w / 2 if anc == 'middle' else 0)
+        bb = (x0, y - .7 * size, x0 + w, y + .15 * size)
+        if rot:                                   # vertical text: turn the box about (x, y)
+            bb = (x - .7 * size, y - (bb[2] - x), x + .15 * size, y - (bb[0] - x))
+        T.append((plain(s), x, y, bb))
+    return [(a, b) for i, a in enumerate(T) for b in T[i + 1:] if _ovl(a[3], b[3])]
 
 
 def drawn_nets(d):
