@@ -197,7 +197,8 @@ Warnings (each fires only with a known current; exit 2 on TRACE-THIN or VIA-FEW)
   trusting the (near-zero) tap current as the net's real bottleneck.
 
 What it still can't see: two traces that only **cross mid-span** with no shared
-end/via/pad are separate copper here (KiCad would merge them); a parallel group
+end/via/pad are separate copper in this default endpoint graph (KiCad would merge
+them; `net` and `--from/--to` do); a parallel group
 that individually passes but **sums short** is left to you (PARALLEL-CHECK). And
 IPC-2221 internal ampacity is conservative for a planed board (see the footer).
 `--from/--to` answers both of the last two, below.
@@ -208,8 +209,9 @@ IPC-2221 internal ampacity is conservative for a planed board (see the footer).
 one net as a resistor network (Jacobi-preconditioned CG, ~0.02 s): tracks and via
 barrels are resistors (`rho*L/A`, barrel = two halves of the board thickness),
 pads and zone fills are ideal nodes. The copper graph (`kpcb_copper.py`) joins
-what KiCad joins: track ends on pads/vias, a track teeing into another's body, a
-via or pad sitting on a track mid-span, overlapping pads (fused leads), fills to
+what KiCad joins: track ends on pads/vias, a track teeing into another's body, two
+tracks crossing mid-span, a via or pad sitting on a track mid-span, overlapping
+pads (fused leads), fills to
 the pads/vias/tracks they touch and to other fills of the net on the same layer.
 On parsnip it finds 0 split nets and 0 islands, matching KiCad's 0 unconnected / 0
 isolated_copper. Output: R, Vdrop, P between the pads, the pours crossed, and the

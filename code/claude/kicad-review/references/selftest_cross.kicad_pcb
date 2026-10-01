@@ -1,0 +1,7 @@
+(kicad_pcb (version 20240108) (generator "pcbnew")
+ (layers (0 "F.Cu" signal) (2 "B.Cu" signal) (25 "Edge.Cuts" user))
+ (gr_rect (start -2 -2) (end 12 12) (layer "Edge.Cuts"))
+ (footprint "P" (layer "F.Cu") (at 0 0) (property "Reference" "J1") (pad "1" smd rect (at 0 0) (size 1 1) (layers "F.Cu") (net "N")))
+ (footprint "P" (layer "F.Cu") (at 10 0) (property "Reference" "J2") (pad "1" smd rect (at 0 0) (size 1 1) (layers "F.Cu") (net "N")))
+ (segment (start 0 0) (end 10 10) (width 0.3) (layer "F.Cu") (net "N"))
+ (segment (start 10 0) (end 0 10) (width 0.3) (layer "F.Cu") (net "N")))

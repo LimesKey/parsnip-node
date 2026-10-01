@@ -33,6 +33,7 @@ NET  = os.path.join(HERE, 'selftest.net')
 PCB  = os.path.join(HERE, 'selftest.kicad_pcb')
 PCB2 = os.path.join(HERE, 'selftest_amp2.kicad_pcb')
 PCB3 = os.path.join(HERE, 'selftest_nightly.kicad_pcb')   # PCB in 10.99 (transform) form
+CROSS = os.path.join(HERE, 'selftest_cross.kicad_pcb')     # two N tracks crossing mid-span
 KSCH = os.path.join(HERE, 'selftest.ksch')
 TMP  = tempfile.gettempdir()
 svg1 = os.path.join(TMP, 'selftest_draw.svg')
@@ -80,6 +81,10 @@ CASES = [
      ["8.500, 8.500  (absolute)", "U1.1 -> U1.2: 4.24 mm"]),
     ("kpcb net",     ['kpcb.py', PCB, 'net', '+3V3'],            0, ["2 pad(s)", "U1.1", "1 via(s)",
                                                                   "copper  2 PIECES", "C1.1  (@9.5,20.0)"]),
+    # J1 -> J2 only through the crossing at 5,5: 2 x 7.071 mm of 0.3 x 0.035 = 23.17 mohm by hand
+    ("kpcb net crossing", ['kpcb.py', CROSS, 'net', 'N'],        0, ["copper  one piece joins all 2 pad(s)"]),
+    ("kpcb amp crossing", ['kpcb.py', CROSS, 'ampacity', '--from', 'J1.1', '--to', 'J2.1', '--amps', '0.5'], 0,
+     ["R 23.17 mohm", "4 track piece(s)"]),
 ]
 
 def mini_project(d):
