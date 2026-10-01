@@ -278,7 +278,7 @@ def ipc_width(need_a, thick_mm, external, dt):
 
 class FP:
     __slots__ = ('ref', 'value', 'fp', 'layer', 'x', 'y', 'rot', 'sheet', 'attr',
-                 'dnp', 'pads', 'crtyd', 'crtyd_real', 'cpoly', 'body', 'placed', '_edge', 'models')
+                 'dnp', 'pads', 'crtyd', 'crtyd_real', 'cpoly', 'body', 'placed', '_edge', 'models', 'art')
 
     @property
     def outline(self):
@@ -299,6 +299,10 @@ class FP:
 
     @property
     def back(self):
+        # a padless graphic's (layer) is meaningless (a B.Cu logo can carry F.SilkS
+        # art): its side is where the art is
+        if not self.pads and self.art:
+            return self.art == 'B'
         return self.layer.startswith('B.')
 
     @property
@@ -377,8 +381,6 @@ class Board:
         edge += self._graphics(root, None, 'gr_')
         for node in kids(root, 'footprint'):
             f = self._footprint(node)
-            if f.ref in self.fps:                 # KiCad allows it; make it visible
-                f.ref = f"{f.ref}~dup"
             self.fps[f.ref] = f
             edge += self._graphics(node, f, 'fp_')
 
@@ -486,6 +488,14 @@ class Board:
                 f.ref = p[2]
             elif len(p) > 2 and p[1] == 'Value':
                 f.value = p[2]
+        if f.ref in self.fps:                     # KiCad allows it; keep every one visible
+            n = 2
+            while f"{f.ref}~dup{n}" in self.fps:
+                n += 1
+            f.ref = f"{f.ref}~dup{n}"
+        sides = [val(g, 'layer')[:2] for g in node[1:] if isinstance(g, list) and g
+                 and str(g[0]).startswith('fp_') and val(g, 'layer')[:2] in ('F.', 'B.')]
+        f.art = max('FB', key=lambda c: sides.count(c + '.')) if sides else None
 
         f.pads = []
         pad_pts, all_pts, crt_pts, crt_segs = [], [], [], []

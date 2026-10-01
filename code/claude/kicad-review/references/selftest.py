@@ -406,7 +406,14 @@ def main():
                and kdoc._fkey('docs/datasheets/max17320.pdf') == kdoc._fkey('max17320'))
     fails += not ok3
     print(f"{'ok  ' if ok3 else 'FAIL'}  kdoc pattern folding + -d path")
-    db = kpcb_board.Board(dup_board(tmp.name))
+    # duplicate refs: every footprint block becomes one Board entry, and a padless
+    # logo's side is its art layer, not its (layer)
+    dp = dup_board(tmp.name)
+    db = kpcb_board.Board(dp)
+    ok8 = len(db.fps) == open(dp).read().count('(footprint ') == 4 \
+        and {'REF**', 'REF**~dup2', 'REF**~dup3'} <= set(db.fps) and not db.fps['REF**~dup3'].back
+    fails += not ok8
+    print(f"{'ok  ' if ok8 else 'FAIL'}  Board keeps duplicate refs {sorted(db.fps)}")
     # `height` with no models loaded: R1 is UNKNOWN, the padless logos are not parts
     import io, contextlib, argparse
     kpcb_height.heights = lambda b: ({}, [])
@@ -417,7 +424,7 @@ def main():
     ok9 = len(nm) == 1 and nm[0].endswith(': R1')
     fails += not ok9
     print(f"{'ok  ' if ok9 else 'FAIL'}  height skips padless art: {nm}")
-    print(f"\n{len(CASES) + 8 - fails}/{len(CASES) + 8} passed")
+    print(f"\n{len(CASES) + 9 - fails}/{len(CASES) + 9} passed")
     return 1 if fails else 0
 
 if __name__ == '__main__':

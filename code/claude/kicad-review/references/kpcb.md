@@ -15,6 +15,11 @@ classification regexes and geometry are `kpcb_board.py`; `check` rules are
 a graph (pads, tracks split at tees, via barrels, fill fragments as conductors):
 `net` counts its pieces and `ampacity --from/--to` solves current through it.
 
+Every `(footprint` block is one Board entry. KiCad allows a repeated ref (logos are
+all `REF**`): the second and later copies read `REF**~dup2`, `REF**~dup3`, ... A
+padless footprint's side is where its art is, not its `(layer)` (a B.Cu logo can
+carry F.SilkS art), so `summary`, `map` and `where` count it on the art's side.
+
 | command | use |
 | --- | --- |
 | `summary` | outline size, stackup, zones, how much of each sheet is placed, biggest parts. Run first. |
