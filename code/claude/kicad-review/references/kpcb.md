@@ -455,6 +455,8 @@ What it will not do is guess:
   where one file is missing is flagged PARTIAL;
 - jumpers, net ties and test pads/holes with no model are "assumed flat copper",
   listed, with the note that a header pin in a TH test point adds height;
+- a padless footprint with no model (a logo, pasted silk art) is not a part and is
+  left out entirely, never UNKNOWN;
 - a battery holder's model is flagged: it may omit the cell (the parsnip BT1/BT2
   model reads 15.8 mm; a 21700 is 21.7 mm across). Put the measured figure in
   kpcb.json `"height": {"BT1": 23.1}` - an override wins over the model and prints

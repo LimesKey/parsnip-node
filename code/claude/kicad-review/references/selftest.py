@@ -209,6 +209,28 @@ def mini_project(d):
         + fill('F.Cu', (0.5, 0.5, 19.5, 19.5)) + fill('B.Cu', (0.5, 0.5, 9.5, 19.5), (14.5, 0.5, 19.5, 19.5)) + ')')
     return os.path.join(d, 't.net')
 
+def dup_board(d):
+    """Three padless `REF**` logos (KiCad allows duplicate refs; the third is a B.Cu
+    footprint whose art is on F.SilkS) beside one real part, R1."""
+    logo = lambda x, side, art: (f' (footprint "Logo" (layer "{side}") (at {x} 5)'
+                                 ' (property "Reference" "REF**") (property "Value" "LOGO")'
+                                 f' (fp_poly (pts (xy -1 -1) (xy 1 -1) (xy 1 1)) (layer "{art}")))')
+    p = os.path.join(d, 'dup.kicad_pcb')
+    open(p, 'w').write(
+        '(kicad_pcb (version 20240108) (generator "pcbnew")'
+        ' (layers (0 "F.Cu" signal) (2 "B.Cu" signal) (25 "Edge.Cuts" user))'
+        ' (gr_rect (start 0 0) (end 20 20) (layer "Edge.Cuts"))'
+        + logo(5, 'F.Cu', 'F.SilkS') + logo(10, 'F.Cu', 'F.SilkS') + logo(15, 'B.Cu', 'F.SilkS')
+        + ' (footprint "R_0402" (layer "F.Cu") (at 10 12) (property "Reference" "R1") (property "Value" "10k")'
+        ' (pad "1" smd rect (at -0.5 0) (size 0.5 0.5) (layers "F.Cu") (net "A"))'
+        ' (pad "2" smd rect (at 0.5 0) (size 0.5 0.5) (layers "F.Cu") (net "B"))))')
+    open(os.path.join(d, 'dup.net'), 'w').write(
+        '(export (version "E") (design (source "dup.kicad_sch"))'
+        ' (components (comp (ref "R1") (value "10k") (footprint "R_0402") (libsource (lib "Device") (part "R"))))'
+        ' (libparts) (nets (net (code "1") (name "A") (node (ref "R1") (pin "1")))'
+        ' (net (code "2") (name "B") (node (ref "R1") (pin "2")))))')
+    return p
+
 def lint_project(d):
     """ksheet fixture, one hit per lint rule: a wire across R1's body (WIREBODY),
     /NA and /NB end-to-end 2.54 mm apart (GAPLINE), U1.1 jogging 1.27 mm at the
@@ -384,7 +406,18 @@ def main():
                and kdoc._fkey('docs/datasheets/max17320.pdf') == kdoc._fkey('max17320'))
     fails += not ok3
     print(f"{'ok  ' if ok3 else 'FAIL'}  kdoc pattern folding + -d path")
-    print(f"\n{len(CASES) + 7 - fails}/{len(CASES) + 7} passed")
+    db = kpcb_board.Board(dup_board(tmp.name))
+    # `height` with no models loaded: R1 is UNKNOWN, the padless logos are not parts
+    import io, contextlib, argparse
+    kpcb_height.heights = lambda b: ({}, [])
+    buf = io.StringIO()
+    with contextlib.redirect_stdout(buf):
+        kpcb_height.c_height(db, argparse.Namespace(args=[], height_cfg={}, max=8))
+    nm = [x for x in buf.getvalue().splitlines() if 'NO 3D MODEL' in x]
+    ok9 = len(nm) == 1 and nm[0].endswith(': R1')
+    fails += not ok9
+    print(f"{'ok  ' if ok9 else 'FAIL'}  height skips padless art: {nm}")
+    print(f"\n{len(CASES) + 8 - fails}/{len(CASES) + 8} passed")
     return 1 if fails else 0
 
 if __name__ == '__main__':
