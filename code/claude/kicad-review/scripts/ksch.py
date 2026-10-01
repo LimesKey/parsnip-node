@@ -385,12 +385,28 @@ LEAD = 2.0         # pin lead length in grid units
 PITCH = 2.0        # pin pitch
 
 
+def ic_margins(sides, pitch=PITCH, h=2):
+    """(y of the first L/R row, extra height below the last) for a body whose L/R
+    rows span h. T/B pin names sit inside the body, so with L/R pins too the rows
+    start below the longest T name and the body grows by the longest B name;
+    with none, it grows until the T and B names both fit."""
+    lr = sides.get('L') or sides.get('R')
+    tw = max((_adv(n, TXT) for _, n in sides.get('T', []) if n), default=0)
+    bw = max((_adv(n, TXT) for _, n in sides.get('B', []) if n), default=0)
+    if not lr:
+        return 1.0, max(0.0, (tw + .35 if tw else 0) + (bw + .35 if bw else 0) + .3 - h)
+    return max(1.0, tw + .75), (max(0.0, bw + .6 - (pitch - 1)) if bw else 0.0)
+
+
 def s_ic(sides, w=None, h=None, name='', pitch=PITCH):
-    """sides: {'L':[(num,name),...], 'R':.., 'T':.., 'B':..}"""
+    """sides: {'L':[(num,name),...], 'R':.., 'T':.., 'B':..}; h is the L/R row
+    span, the T/B name margins (ic_margins) are added to it"""
     nL, nR = len(sides.get('L', [])), len(sides.get('R', []))
     nT, nB = len(sides.get('T', [])), len(sides.get('B', []))
     if h is None:
         h = max(2, int(pitch * max(nL, nR, 1)))
+    top, bot = ic_margins(sides, pitch, h)
+    h += top - 1 + bot
     if w is None:
         wl = max([len(plain(n)) for _, n in sides.get('L', [])] or [0])
         wr = max([len(plain(n)) for _, n in sides.get('R', [])] or [0])
@@ -404,13 +420,13 @@ def s_ic(sides, w=None, h=None, name='', pitch=PITCH):
             if not nm and num.startswith('\x00'):
                 continue
             if side == 'L':
-                py = pitch * i + 1
+                py = pitch * i + top
                 pr.append(L(-LEAD, py, 0, py))
                 pins[num] = (-LEAD, py, 'L')
                 pr.append(('t', 0.35, py + .17, nm, TXT, 'start', 0))
                 pr.append(('t', -0.3, py - .28, num, TXT * .8, 'end', 0))
             elif side == 'R':
-                py = pitch * i + 1
+                py = pitch * i + top
                 pr.append(L(w, py, w + LEAD, py))
                 pins[num] = (w + LEAD, py, 'R')
                 pr.append(('t', w - 0.35, py + .17, nm, TXT, 'end', 0))
@@ -419,14 +435,14 @@ def s_ic(sides, w=None, h=None, name='', pitch=PITCH):
                 px = pitch * i + 1
                 pr.append(L(px, -LEAD, px, 0))
                 pins[num] = (px, -LEAD, 'U')
-                pr.append(('t', px + .17, 0.35, nm, TXT, 'start', -90))
-                pr.append(('t', px - .28, -0.3, num, TXT * .8, 'end', -90))
+                pr.append(('t', px + .17, 0.35, nm, TXT, 'end', -90))      # inside, reads up
+                pr.append(('t', px - .28, -0.3, num, TXT * .8, 'start', -90))  # beside the lead
             else:
                 px = pitch * i + 1
                 pr.append(L(px, h, px, h + LEAD))
                 pins[num] = (px, h + LEAD, 'D')
-                pr.append(('t', px + .17, h - 0.35, nm, TXT, 'end', -90))
-                pr.append(('t', px - .28, h + 0.3, num, TXT * .8, 'start', -90))
+                pr.append(('t', px + .17, h - 0.35, nm, TXT, 'start', -90))
+                pr.append(('t', px - .28, h + 0.3, num, TXT * .8, 'end', -90))
     return pr, pins, (0, 0, w, h)
 
 
@@ -508,8 +524,9 @@ class Sym:
             if self.flat:
                 v = ('%s  %s' % (self.ref, self.value or self.name)).strip()
                 return [('t', x0, y0 - .55, v, TXT, 'start', 0, 'ref')]
-            if self.ref:
-                out.append(('t', (x0 + x1) / 2, y0 - .85, self.ref, TXT * 1.1, 'middle', 0, 'ref'))
+            if self.ref:      # above the top pins' numbers, which stand beside their leads
+                nw = max((_adv(k, TXT * .8) for k, v in self.lpins.items() if v[2] == 'U'), default=0)
+                out.append(('t', (x0 + x1) / 2, y0 - max(.85, nw + .45), self.ref, TXT * 1.1, 'middle', 0, 'ref'))
             v = self.value or self.name
             if v:
                 dy = 2.9 if any(p[2] == 'D' for p in self.lpins.values()) else 1.25
@@ -741,6 +758,12 @@ def _norm(s):
 
 def twid(s, size):
     return 0.56 * size * len(plain(s))
+
+
+def _adv(s, size):
+    """DejaVu-like advance width: twid's flat 0.56 em under-reads capitals"""
+    return size * sum(.7 if c.isupper() else .64 if c.isdigit() or c in '+=' else
+                      .32 if c in ' .,:;il|!()-' else .58 for c in plain(s))
 
 
 class Doc:
@@ -1315,9 +1338,7 @@ def _text_overlaps(d):
         if op[0] != 't' or not str(op[3]).strip():
             continue
         _k_, x, y, s, size, anc, rot = op[:7]
-        # DejaVu-like advance widths: twid's flat 0.56 em under-reads capitals
-        w = size * sum(.7 if c.isupper() else .64 if c.isdigit() or c in '+=' else
-                       .32 if c in ' .,:;il|!()-' else .58 for c in plain(s))
+        w = _adv(s, size)
         x0 = x - (w if anc == 'end' else w / 2 if anc == 'middle' else 0)
         bb = (x0, y - .7 * size, x0 + w, y + .15 * size)
         if rot:                                   # vertical text: turn the box about (x, y)

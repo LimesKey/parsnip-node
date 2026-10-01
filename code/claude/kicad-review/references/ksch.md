@@ -35,6 +35,9 @@ nc    U1.7         note x,y <text>              group x,y w,h <text>
 - `ic` anchor is the **top-left of the body**; pins run down each side at 2-unit
   pitch in the order listed, and `L:1=EN,,3=RST` leaves a blank slot to keep
   alignment. Height and width are automatic unless you set `h=`/`w=`.
+  T/B pin names sit inside the body (numbers beside the lead, outside), so with
+  T pins the first L/R pin moves down below the longest T name, and `h=` (the L/R
+  row span) grows by that and by the longest B name; `ic_margins()` gives the offset.
 - ORIENT: `v` (default, pin 1 top) `h` (pin 1 left) `vr` (pin 1 bottom) `hr` (pin 1
   right). Transistors: gate/base left by default, `l` mirrors, anchor is the gate or
   base pin, drain/collector down-side of the channel; p-channel and PNP are drawn

@@ -499,6 +499,18 @@ def main():
     ok11 = tr - .35 > cv + .075 and len(ow) == 1 and "'x'" in ow[0]
     fails += not ok11
     print(f"{'ok  ' if ok11 else 'FAIL'}  ksch row-pitch text: C1 value {cv:.2f}, T1 ref {tr:.2f}; {ow}")
+    # an ic's top pin name sits inside its body, clear of the first left pin's name
+    pr, _pn, bb = ksch.s_ic({'L': [('2', 'ENABLE')], 'T': [('1', 'VCC_RF')], 'B': [('3', 'GND')]})
+    tt = [q for q in pr if q[0] == 't']
+    tn = next(q for q in tt if q[3] == 'VCC_RF')
+    w = ksch.twid('VCC_RF', tn[4])
+    t0, t1 = (tn[2], tn[2] + w) if tn[5] == 'end' else (tn[2] - w, tn[2])
+    ln = next(q for q in tt if q[3] == 'ENABLE')
+    bn = next(q for q in tt if q[3] == 'GND')
+    ok12 = 0 < t0 and t1 < ln[2] - .35 and bn[2] < bb[3] and bn[2] - ksch.twid('GND', bn[4]) > ln[2]
+    fails += not ok12
+    print(f"{'ok  ' if ok12 else 'FAIL'}  ksch ic top/bottom pin names inside the body: VCC_RF y {t0:.2f}..{t1:.2f}, "
+          f"ENABLE baseline {ln[2]:.2f}, body h {bb[3]:.2f}")
     # the copper graph must not depend on the hash seed (set order)
     tp = tee_board(tmp.name)
     rs = {run(['kpcb.py', tp, 'ampacity', '--from', 'J1.1', '--to', 'J2.1', '--amps', '1'],
@@ -506,7 +518,7 @@ def main():
     ok10 = rs == {'8.27'}
     fails += not ok10
     print(f"{'ok  ' if ok10 else 'FAIL'}  copper graph independent of hash seed: R {sorted(rs)} mohm")
-    print(f"\n{len(CASES) + 11 - fails}/{len(CASES) + 11} passed")
+    print(f"\n{len(CASES) + 12 - fails}/{len(CASES) + 12} passed")
     return 1 if fails else 0
 
 if __name__ == '__main__':

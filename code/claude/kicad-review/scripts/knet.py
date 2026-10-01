@@ -1562,12 +1562,12 @@ class _SpecGen:
         self.emit('ic %s %g,%g %s p=%d h=%g %s%s' % (
             ref, icx, icy, _q(trunc(unesc_disp(c['value']), 24)), ROW,
             max(2, ROW * max(hL, hR)), ' '.join(parts), ' dnp' if c['dnp'] else ''))
-        _pr, _pins, bb = self.ks.s_ic(
-            {'L': [(p, unesc_disp((declared.get(p) or ('', ''))[0] or p)) for p in Lp],
-             'R': [(p, unesc_disp((declared.get(p) or ('', ''))[0] or p)) for p in Rp],
-             'T': [(p, '') for p in T], 'B': [(p, '') for p in B]},
-            None, max(2, ROW * max(hL, hR)), trunc(c['value'], 24), ROW)
+        nm = lambda p: unesc_disp((declared.get(p) or ('', ''))[0] or p)     # noqa: E731
+        sides = {'L': [(p, nm(p)) for p in Lp], 'R': [(p, nm(p)) for p in Rp],
+                 'T': [(p, nm(p)) for p in T], 'B': [(p, nm(p)) for p in B]}
+        _pr, _pins, bb = self.ks.s_ic(sides, None, max(2, ROW * max(hL, hR)), trunc(c['value'], 24), ROW)
         w = bb[2]
+        top = self.ks.ic_margins(sides, ROW)[0]      # L/R rows start below the T pin names
         for p in T + B:
             self.term(br[p], '%s.%s' % (ref, p))
         for side, pins in ((-1, Lp), (1, Rp)):
@@ -1575,7 +1575,7 @@ class _SpecGen:
             for p in pins:
                 b = br[p]
                 src = '%s.%s' % (ref, p)
-                y = icy + 1 + ROW * row
+                y = icy + top + ROW * row
                 trunk = (icx - 2 - COL) if side < 0 else (icx + w + 2 + COL)
                 nx = icx - 2 if side < 0 else icx + w + 2
                 if b['floating'] or b['gnd'] or b['rail'] is not None \
@@ -1592,7 +1592,7 @@ class _SpecGen:
                     self.emit('note %g,%g %s' % (nx4, y - .4, _q(_leaf(b['net']))))
                     if b.get('also'):            # its own line: inline it ran into the next note
                         self.emit('note %g,%g %s' % (nx4, y - .95, _q('+ ' + ' '.join(b['also']))))
-                    self.chain(b, src, side, trunk, row, icy + 1, nx)
+                    self.chain(b, src, side, trunk, row, icy + top, nx)
                 row += rows[p]
         return self.lines
 
