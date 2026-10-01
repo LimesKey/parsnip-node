@@ -231,6 +231,22 @@ def dup_board(d):
         ' (net (code "2") (name "B") (node (ref "R1") (pin "2")))))')
     return p
 
+def tee_board(d):
+    """A via whose barrel reaches two tracks' bodies, where track B ends on track A:
+    the joins must not depend on set order. J1 -> J2 by hand: 2 mm of 1.5 mm
+    (0.655 mohm) + 3.1 mm of 0.2 mm from the via on (7.617) = 8.27 mohm."""
+    p = os.path.join(d, 'tee.kicad_pcb')
+    pad = lambda r, x, y: (f' (footprint "P" (layer "F.Cu") (at {x} {y}) (property "Reference" "{r}")'
+                           ' (pad "1" smd rect (at 0 0) (size 1 1) (layers "F.Cu") (net "N")))')
+    open(p, 'w').write(
+        '(kicad_pcb (version 20240108) (generator "pcbnew")'
+        ' (layers (0 "F.Cu" signal) (2 "B.Cu" signal) (25 "Edge.Cuts" user))'
+        ' (gr_rect (start -2 -2) (end 6 6) (layer "Edge.Cuts"))' + pad('J1', 0, 0) + pad('J2', 2, 4)
+        + ' (segment (start 0 0) (end 4 0) (width 1.5) (layer "F.Cu") (net "N"))'
+        ' (segment (start 2 0) (end 2 4) (width 0.2) (layer "F.Cu") (net "N"))'
+        ' (via (at 2 0.9) (size 0.6) (drill 0.3) (layers "F.Cu" "B.Cu") (net "N")))')
+    return p
+
 def lint_project(d):
     """ksheet fixture, one hit per lint rule: a wire across R1's body (WIREBODY),
     /NA and /NB end-to-end 2.54 mm apart (GAPLINE), U1.1 jogging 1.27 mm at the
@@ -424,7 +440,14 @@ def main():
     ok9 = len(nm) == 1 and nm[0].endswith(': R1')
     fails += not ok9
     print(f"{'ok  ' if ok9 else 'FAIL'}  height skips padless art: {nm}")
-    print(f"\n{len(CASES) + 9 - fails}/{len(CASES) + 9} passed")
+    # the copper graph must not depend on the hash seed (set order)
+    tp = tee_board(tmp.name)
+    rs = {run(['kpcb.py', tp, 'ampacity', '--from', 'J1.1', '--to', 'J2.1', '--amps', '1'],
+              {'PYTHONHASHSEED': str(sd)})[1].split('   R ')[1].split(' mohm')[0] for sd in range(8)}
+    ok10 = rs == {'8.27'}
+    fails += not ok10
+    print(f"{'ok  ' if ok10 else 'FAIL'}  copper graph independent of hash seed: R {sorted(rs)} mohm")
+    print(f"\n{len(CASES) + 10 - fails}/{len(CASES) + 10} passed")
     return 1 if fails else 0
 
 if __name__ == '__main__':
