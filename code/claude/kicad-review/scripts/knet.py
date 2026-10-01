@@ -1285,9 +1285,58 @@ def _mkbranch(nl, net, classes, fanout, depth, seen, skip):
         c = nl.comps.get(nd['ref'], {})
         b['loads'].append((nd['ref'], nd['pin'], nd['fn'] or nl.pinname(nd['ref'], nd['pin']),
                            c.get('value', ''), c.get('dnp', False)))
+    b['wide'] = {ld[0]: _multi_rows(nl, ld[0], ld[1]) - 1 for ld in b['loads'] if _multi(nl, ld[0])}
     return b
 
-def _bh(b, hseen=None):
+def _multi(nl, ref):
+    return MULTI.get(nl.comps.get(ref, {}).get('part', ''))
+
+def _fit(ks, nl, typ, ref, near, side):
+    """(orient, near's xy at the origin orient, {pin: (dx, dy, dir)} from near): near
+    faces the focal part (side -1 = left of it), the rest away from it, below the row
+    and not facing up where it can. Pins as ksch numbers them: by NAME under --net
+    (Device:D is 1=K and ksch draws the anode first, so pin '1' is not the start)."""
+    best = None
+    for o in ORIENTS:
+        sy = ks.Sym(typ, ref, 0, 0, o)
+        lp = (ks.by_name(sy.lpins, nl.sympins(ref)) or (sy.lpins,))[0]
+        if near not in lp:
+            continue
+        P = {k: (*sy._t(*v[:2]), ks.rot_dir(v[2], sy.deg, sy.mir)) for k, v in lp.items() if k[:1].isdigit()}
+        nx, ny, _d = P[near]
+        P = {k: (x - nx, y - ny, d) for k, (x, y, d) in P.items()}
+        pen = sum(10 * (x * side < -1e-6) + 5 * (y < -1e-6) + 3 * (d == 'U')
+                  for k, (x, y, d) in P.items() if k != near)
+        if best is None or pen < best[0]:
+            best = (pen, o, (nx, ny), P)
+    return best[1:] if best else None
+
+def _rise(nl, ref, P):
+    """how far to drop a part below its row so no pin, nor the glyph on an up-facing
+    one, climbs into the row above"""
+    return max([0.0] + [-y + (1.5 if d == 'U' and nl.cpins.get(ref, {}).get(p) else 0)
+                        for p, (x, y, d) in P.items()])
+
+def _multi_rows(nl, ref, near):
+    """rows a 3/4-pin part takes, from the same fit the drawing uses: its lowest pin
+    plus what hangs off it (a glyph, or a label reading downward)"""
+    ks, n = _ksch(), 2
+    for side in (1, -1):
+        f = _fit(ks, nl, _multi(nl, ref), ref, near, side)
+        if not f:
+            continue
+        P = f[2]
+        up, low = _rise(nl, ref, P), 0.0
+        for p, (x, y, d) in P.items():
+            net = nl.cpins.get(ref, {}).get(p)
+            tail = 1.5 if d == 'D' else 0.5
+            if d == 'D' and net and not (nl.is_gnd(net) or nl.railv.get(net) or net.startswith('unconnected-')):
+                tail = ks._adv(_leaf(net), ks.TXT) + 1.0
+            low = max(low, up + y + tail)
+        n = max(n, math.ceil((low + 1.4) / ROW))
+    return n
+
+def _bh(b, hseen=None, wseen=None):
     # mirrors _rbranch collapse logic so allocated rows == rendered rows
     if b['rail'] is not None or b['gnd'] or b['floating']:
         return 1
@@ -1296,7 +1345,9 @@ def _bh(b, hseen=None):
             return 1
         if b['net']:
             hseen.add(b['net'])
-    return max(1, len(b['loads']) + sum(_bh(s[3], hseen) for s in b['subs']))
+    wseen = set() if wseen is None else wseen       # a 3/4-pin part's extra rows: first
+    wide = sum(n for r, n in b.get('wide', {}).items() if r not in wseen and not wseen.add(r))  # drawing only
+    return max(1, len(b['loads']) + wide + sum(_bh(s[3], hseen, wseen) for s in b['subs']))
 
 # ---------------- draw (KiCad-style schematic via ksch.py) ----------------
 # knet works out WHAT connects to what; ksch.py draws it. One renderer, one
@@ -1305,6 +1356,10 @@ def _bh(b, hseen=None):
 PREFIX_SYM = {'R': 'r', 'C': 'c', 'L': 'l', 'FB': 'fb', 'FL': 'fb', 'D': 'd',
               'F': 'fuse', 'JP': 'jp', 'SW': 'sw', 'Y': 'xtal', 'X': 'xtal',
               'TP': 'tp', 'BT': 'bat', 'AE': 'ant', 'E': 'ant', 'TH': 'ntc', 'RT': 'ntc'}
+# 3/4-pin parts drawn as their real symbol (not a box), by lib symbol name
+MULTI = {'BAT54S': 'd2s', 'BAV99': 'd2s', 'BAT54A': 'd2a', 'BAW56': 'd2a',
+         'BAT54C': 'd2c', 'BAV70': 'd2c', 'R_Shunt': 'rsense'}
+ORIENTS = ('h', 'hr', 'hm', 'hrm', 'v', 'vr', 'l', 'vrm')
 COL = 5          # x pitch between hops (wire + 2-unit part)
 ROW = 3          # y pitch, matches the IC pin pitch (p=3 on the ic line)
 
@@ -1409,18 +1464,36 @@ class _SpecGen:
     def two_pin(self, typ, ref, near, far, val, dnp, src, side, trunk, yy):
         """draw a real R/C/L symbol and terminate its far pin the way the
         netlist does - a decoupling cap should look like a cap, not a box."""
-        nl = self.nl
-        if side < 0:
-            orient, x = ('hr', trunk) if near == '1' else ('h', trunk - 2)
-        else:
-            orient, x = ('h', trunk) if near == '1' else ('hr', trunk + 2)
-        self.emit('%s %s %g,%g %s %s%s' % (typ, ref, x, yy, orient,
+        orient, x, y = self._place(typ, ref, near, side, trunk, yy)
+        self.emit('%s %s %g,%g %s %s%s' % (typ, ref, x, y, orient,
                                            _q(trunc(unesc_disp(val), 14)),
                                            ' dnp' if dnp else ''))
         self.placed[ref] = True
         self.emit('wire %s %s.%s' % (src, ref, near))
-        fnet = nl.cpins.get(ref, {}).get(far)
-        tgt = '%s.%s' % (ref, far)
+        if far is not None:
+            self._end(ref, far)
+
+    def multi_pin(self, typ, ref, near, val, dnp, src, side, trunk, yy):
+        """a 3/4-pin part (dual diode, Kelvin shunt) as its real symbol along its two
+        rows, every other pin ended the way its net calls for"""
+        self.two_pin(typ, ref, near, None, val, dnp, src, side, trunk, yy)
+        for p in sorted(set(self.nl.sympins(ref)) | set(self.nl.cpins.get(ref, {})), key=natkey):
+            if p != near:
+                self._end(ref, p)
+
+    def _place(self, typ, ref, near, side, trunk, yy):
+        """(orient, x, y) putting pin `near` at x=trunk on row yy (lower when a pin
+        would climb into the row above), the rest as `_fit` lays it out"""
+        f = _fit(self.ks, self.nl, typ, ref, near, side)
+        if not f:
+            return 'h', trunk, yy
+        o, (nx, ny), P = f
+        return o, trunk - nx, yy + _rise(self.nl, ref, P) - ny
+
+    def _end(self, ref, pin):
+        """end a part's pin that does not lead on with the glyph its net calls for"""
+        nl, tgt = self.nl, '%s.%s' % (ref, pin)
+        fnet = nl.cpins.get(ref, {}).get(pin)
         if not fnet or fnet.startswith('unconnected-'):
             self.emit('nc %s' % tgt)
         elif nl.is_gnd(fnet):
@@ -1441,7 +1514,11 @@ class _SpecGen:
             yy = ytop + ROW * (row + used)
             typ = PREFIX_SYM.get(prefix(ref))
             other = nl.other_pin(ref, pin)
-            if typ and other and ref not in self.placed and len(nl.conn_pins(ref)) == 2 \
+            mt = _multi(nl, ref)
+            if mt and ref not in self.placed and self._has_pins(mt, pin):
+                self.multi_pin(mt, ref, pin, val, dnp, src, side, trunk, yy)
+                used += _multi_rows(nl, ref, pin) - 1
+            elif typ and other and ref not in self.placed and len(nl.conn_pins(ref)) == 2 \
                     and self._has_pins(typ, pin, other):
                 self.two_pin(typ, ref, pin, other, val, dnp, src, side, trunk, yy)
             else:
@@ -1458,11 +1535,8 @@ class _SpecGen:
                 continue
             typ = _sym_for(ref)
             # orient so the pin that really connects faces the focal part
-            if side < 0:
-                orient, x = ('hr', trunk) if near == '1' else ('h', trunk - 2)
-            else:
-                orient, x = ('h', trunk) if near == '1' else ('hr', trunk + 2)
-            self.emit('%s %s %g,%g %s %s%s' % (typ, ref, x, yy, orient,
+            orient, x, y = self._place(typ, ref, near, side, trunk, yy)
+            self.emit('%s %s %g,%g %s %s%s' % (typ, ref, x, y, orient,
                                                _q(trunc(unesc_disp(val), 14)),
                                                ' dnp' if dnp else ''))
             self.placed[ref] = True
@@ -1496,7 +1570,7 @@ class _SpecGen:
         classes = {x.strip().upper() for x in a.through.split(',') if x.strip()}
         declared = nl.sympins(ref)
         allp = sorted(set(declared) | set(nl.cpins.get(ref, {})), key=natkey)
-        br, hs = {}, set()
+        br, hs, ws = {}, set(), set()
         for p in allp:
             net = nl.cpins.get(ref, {}).get(p)
             br[p] = _mkbranch(nl, net, classes, a.fanout, a.depth, {net}, ref)
@@ -1538,7 +1612,7 @@ class _SpecGen:
                     b['rail'] is not None:
                 rows[p] = 1
             else:
-                h = _bh(b, hs)
+                h = _bh(b, hs, ws)
                 rows[p] = h + (1 if h > 1 else 0)
         hL, hR = sum(rows[p] for p in Lp), sum(rows[p] for p in Rp)
         # pin slots: one entry per row, blanks keep every branch on its own line

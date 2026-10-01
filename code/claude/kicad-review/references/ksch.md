@@ -39,7 +39,8 @@ nc    U1.7         note x,y <text>              group x,y w,h <text>
   T pins the first L/R pin moves down below the longest T name, and `h=` (the L/R
   row span) grows by that and by the longest B name; `ic_margins()` gives the offset.
 - ORIENT: `v` (default, pin 1 top) `h` (pin 1 left) `vr` (pin 1 bottom) `hr` (pin 1
-  right). Transistors: gate/base left by default, `l` mirrors, anchor is the gate or
+  right); a trailing `m` (`hm`, `hrm`, `vrm`) mirrors before rotating, so a dual
+  diode's COM can point down in either direction. Transistors: gate/base left by default, `l` mirrors, anchor is the gate or
   base pin, drain/collector down-side of the channel; p-channel and PNP are drawn
   source/emitter up, the way they are actually used.
 - Address pins by number or name: `U8.6`, `U8.OUT`, `Q1.g`, `D1.k`, `R1.2`.

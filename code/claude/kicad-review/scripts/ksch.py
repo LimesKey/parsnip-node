@@ -457,6 +457,8 @@ class Sym:
         self.mir = o in ('l', 'mir', 'flip')
         if o in ('l', 'r', 'mir', 'flip'):
             o = 'v'
+        elif o[-1:] == 'm' and o[:-1] in ORIENT:     # hm, hrm, vrm: mirrored, then rotated
+            self.mir, o = True, o[:-1]
         self.deg = ORIENT.get(o, 0)
         opts = opts or {}
         if typ in ('ic', 'conn'):
@@ -756,6 +758,16 @@ def _norm(s):
     return re.sub(r'[^a-z0-9]', '', plain(s).lower())
 
 
+def by_name(lpins, sympins):
+    """(lpins renumbered to the real part's pin numbers by pin NAME, {num: name}),
+    or None unless every real pin names a letter the symbol draws"""
+    letters = {k: v for k, v in lpins.items() if not k.isdigit()}
+    want = {num: _norm(nm) for num, (nm, _t) in sympins.items()}
+    if not want or not letters or not all(n in letters for n in want.values()):
+        return None
+    return {num: letters[n] for num, n in want.items()}, want
+
+
 def twid(s, size):
     return 0.56 * size * len(plain(s))
 
@@ -964,7 +976,8 @@ class Doc:
         x, y = self.xy(a[1])
         rest = a[2:]
         orient = 'v'
-        if rest and rest[0].lower() in set(list(ORIENT) + ['l', 'r', 'mir', 'flip']):
+        if rest and (rest[0].lower() in set(list(ORIENT) + ['l', 'r', 'mir', 'flip'])
+                     or rest[0][-1:].lower() == 'm' and rest[0][:-1].lower() in ORIENT):
             if not (kw in ('r',) and len(rest) == 1 and rest[0].lower() == 'r'):
                 orient = rest[0].lower(); rest = rest[1:]
         dnp = any(t.lower() == 'dnp' for t in rest)
@@ -986,12 +999,10 @@ class Doc:
         KiCad's Device:D is 1=K 2=A, so the drawing's anode must answer to 2, and
         `D1.a` must verify as the netlist's pin 2. Only when every real pin
         matches a letter the symbol draws (A/K, G/D/S, B/C/E, COM...)."""
-        sp = self.nl.sympins(ref) if self.nl else {}
-        letters = {k: v for k, v in sym.lpins.items() if not k.isdigit()}
-        want = {num: _norm(nm) for num, (nm, _t) in sp.items()}
-        if not sp or not letters or not all(n in letters for n in want.values()):
+        r = by_name(sym.lpins, self.nl.sympins(ref) if self.nl else {})
+        if not r:
             return
-        sym.lpins = {num: letters[n] for num, n in want.items()}
+        sym.lpins, want = r
         self.alias[ref] = {}
         for num, n in sorted(want.items(), key=lambda z: (len(z[0]), z[0])):
             self.alias[ref].setdefault(n, num)

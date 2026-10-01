@@ -284,6 +284,33 @@ def also_net(d):
         ' (net (code "4") (name "/B")' + nd(('U1', '3'), ('U2', '3'), ('U3', '3')) + ')))')
     return p
 
+def multi_net(d):
+    """U1 with a BAT54S (D1), a Kelvin R_Shunt (R1) and a Device:D (D2, pin 1 = K)
+    on its pins: real symbols, every pin ended, and D2's cathode toward U1."""
+    os.makedirs(os.path.join(d, 'multi'))
+    p = os.path.join(d, 'multi', 'multi.net')
+    pins = lambda *pn: ' (pins' + ''.join(f' (pin (num "{n}") (name "{m}") (type "passive"))'
+                                          for n, m in pn) + ')'
+    comp = lambda r, v, lib, part: f' (comp (ref "{r}") (value "{v}") (libsource (lib "{lib}") (part "{part}")))'
+    nd = lambda *rp: ''.join(f' (node (ref "{r}") (pin "{q}"))' for r, q in rp)
+    open(p, 'w').write(
+        '(export (version "E") (design (source "multi.kicad_sch"))'
+        ' (components' + comp('U1', 'IC', 'x', 'ic3') + comp('D1', 'BAT54S', 'Diode', 'BAT54S')
+        + comp('R1', '5m', 'Device', 'R_Shunt') + comp('D2', 'BZX', 'Device', 'D')
+        + comp('R2', '1k', 'Device', 'R') + ')'
+        ' (libparts (libpart (lib "x") (part "ic3")' + pins(('1', 'IN'), ('2', 'CS'), ('3', 'G')) + ')'
+        ' (libpart (lib "Diode") (part "BAT54S")' + pins(('1', 'A'), ('2', 'K'), ('3', 'COM')) + ')'
+        ' (libpart (lib "Device") (part "R_Shunt")' + pins(('1', ''), ('2', ''), ('3', ''), ('4', '')) + ')'
+        ' (libpart (lib "Device") (part "D")' + pins(('1', 'K'), ('2', 'A')) + ')'
+        ' (libpart (lib "Device") (part "R")' + pins(('1', '~'), ('2', '~')) + '))'
+        ' (nets (net (code "1") (name "GND")' + nd(('D1', '1'), ('R1', '1'), ('R1', '4'), ('D2', '2'), ('R2', '2')) + ')'
+        ' (net (code "2") (name "/NIN")' + nd(('U1', '1'), ('D1', '2')) + ')'
+        ' (net (code "3") (name "/MID")' + nd(('D1', '3'), ('R2', '1')) + ')'
+        ' (net (code "4") (name "/NCS")' + nd(('U1', '2'), ('R1', '2')) + ')'
+        ' (net (code "5") (name "/NCSN")' + nd(('R1', '3')) + ')'
+        ' (net (code "6") (name "/NG")' + nd(('U1', '3'), ('D2', '1')) + ')))')
+    return p
+
 def lint_project(d):
     """ksheet fixture, one hit per lint rule: a wire across R1's body (WIREBODY),
     /NA and /NB end-to-end 2.54 mm apart (GAPLINE), U1.1 jogging 1.27 mm at the
@@ -386,6 +413,11 @@ def main():
     CASES.append(("kpcb summary origins", ['kpcb.py', sp, 'summary'], 0, ["origins: grid 5,5  aux 2,3"]))
     CASES.append(("knet draw also-line", ['knet.py', also_net(tmp.name), 'draw', 'U1', '--spec'], 0,
                   ['note 6.4,0.6 IRQ\nnote 6.4,0.05 "+ U2 U3"']))
+    mn = multi_net(tmp.name)
+    CASES.append(("knet draw multi-pin spec", ['knet.py', mn, 'draw', 'U1', '--spec'], 0,
+                  ["d2s D1 ", "rsense R1 ", "label MID D1.3", "gnd R1.4", "wire U1.3 D2.1"]))
+    CASES.append(("knet draw multi-pin verify", ['knet.py', mn, 'draw', 'U1', '-o', os.path.join(TMP, 'selftest_multi.svg')],
+                  0, ["wrote"]))
     lnet = os.path.join(tmp.name, 'lint', 'lint.net')
     CASES.append(("ksheet lint", ['ksheet.py', lnet, 'lint'], 2,
                   ["R1's body", "/NA ends at 70,40 and /NB starts 2.54 mm", "U1.1 (A) at 94.92,94.92: /J runs 1.27 mm",
@@ -404,7 +436,7 @@ def main():
         if code != want_exit:
             prob.append(f"exit {code} != {want_exit}")
         prob += [f"missing {n!r}" for n in needles if n not in out]
-        if label == "ksch render" and "ERROR" in out:
+        if label in ("ksch render", "knet draw multi-pin verify") and ("ERROR" in out or "overlaps" in out):
             prob.append("ERROR line in render output")
         if label == "kpcb amp-tap" and "near TH2" in out:
             prob.append("thermistor tap TH2 leaked into the bottleneck (tap exclusion broke)")
