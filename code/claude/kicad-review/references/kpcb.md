@@ -87,12 +87,16 @@ review.
 **Nothing else here means anything if this fails.** A board that was never
 re-synced after a schematic change carries pad net names that look perfectly valid,
 so neither the board file nor any check on it can tell you it is stale - only the
-netlist can. Rules: `SYNCPART SYNCFP SYNCVAL SYNCDNP SYNCNET`.
+netlist can. Rules: `SYNCPART SYNCFP SYNCVAL SYNCDNP SYNCNET SYNCART`.
 
 Clean output is two lines (`IN SYNC`), so it is cheap to run every time. A `SYNCNET`
 error means re-run KiCad's *Update PCB from Schematic* before reading any other
 finding. `SYNCVAL`/`SYNCDNP` alone are annotation drift: worth fixing, but the
 connectivity is still right and placement findings still hold.
+
+A footprint on the board only that has no pads and no sheet path (a logo, pasted
+silk art, `REF**`) is `INFO SYNCART`, not a missing part: it never came from the
+schematic, so it cannot make the board stale and the output stays `IN SYNC`.
 
 `unconnected-*` pseudo-nets get a `_1` suffix on the board and not in the netlist;
 that is normalised away rather than reported as 439 differences.

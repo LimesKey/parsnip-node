@@ -337,6 +337,9 @@ def main():
     CASES.append(("knet revpol fet", ['knet.py', fet, 'revpol'], 0,
                   ["FET channel(s) on, gate driven from the cells: Q1", "FET channels vs normal: Q1 off",
                    "isolated from the cells: U1", "bidirectional TVS/ESD, breakdown not in the part number: D1"]))
+    dp = dup_board(tmp.name)
+    CASES.append(("kpcb sync art", ['kpcb.py', dp, 'sync', os.path.join(tmp.name, 'dup.net')], 0,
+                  ["IN SYNC", "[INFO] SYNCART", "(3): REF** REF**~dup2 REF**~dup3"]))
     lnet = os.path.join(tmp.name, 'lint', 'lint.net')
     CASES.append(("ksheet lint", ['ksheet.py', lnet, 'lint'], 2,
                   ["R1's body", "/NA ends at 70,40 and /NB starts 2.54 mm", "U1.1 (A) at 94.92,94.92: /J runs 1.27 mm",
@@ -424,7 +427,6 @@ def main():
     print(f"{'ok  ' if ok3 else 'FAIL'}  kdoc pattern folding + -d path")
     # duplicate refs: every footprint block becomes one Board entry, and a padless
     # logo's side is its art layer, not its (layer)
-    dp = dup_board(tmp.name)
     db = kpcb_board.Board(dp)
     ok8 = len(db.fps) == open(dp).read().count('(footprint ') == 4 \
         and {'REF**', 'REF**~dup2', 'REF**~dup3'} <= set(db.fps) and not db.fps['REF**~dup3'].back

@@ -423,9 +423,14 @@ def sync_findings(b, netpath, a):
         F.append({'severity': sev, 'rule': rule, 'msg': msg, 'refs': list(refs)})
 
     bf, nf = set(b.fps), set(n.comps)
-    if bf - nf:
+    # padless and never synced (no sheet): a logo or pasted art, not a component
+    art = {r for r in bf - nf if not b.fps[r].pads and not b.fps[r].sheet}
+    if art:
+        add('INFO', 'SYNCART', f"padless graphic footprints, not components ({len(art)}): "
+            f"{trunc(' '.join(sorted((r or '(blank)' for r in art), key=natkey)), 90)}")
+    if bf - nf - art:
         add('ERROR', 'SYNCPART', f"on the board but not in the netlist "
-            f"({len(bf-nf)}): {trunc(refrange(sorted(bf-nf, key=natkey)), 90)}")
+            f"({len(bf-nf-art)}): {trunc(refrange(sorted(bf-nf-art, key=natkey)), 90)}")
     if nf - bf:
         add('ERROR', 'SYNCPART', f"in the netlist but not on the board "
             f"({len(nf-bf)}): {trunc(refrange(sorted(nf-bf, key=natkey)), 90)}")
@@ -472,14 +477,18 @@ def c_sync(b, a):
         print(json.dumps(F, indent=1))
         return 2 if any(x['severity'] == 'ERROR' for x in F) else 0
     ne = sum(1 for x in F if x['severity'] == 'ERROR')
+    ni = sum(1 for x in F if x['severity'] == 'INFO')
     print(f"board   : {b.path}   {len(b.fps)} footprints")
     print(f"netlist : {netpath}   {len(n.comps)} components   exported {n.date}"
           + (f"   [{cands} .net files here; name one to be sure]" if cands > 1 else ""))
-    if not F:
+    if len(F) == ni:
         print("\nIN SYNC - same parts, same footprints, same values, same net on every "
               "pad.\nPlacement findings can be trusted to be about the current circuit.")
+        if F:
+            print_findings(F, '', rules=SYNC_RULES, cap=a.max)
         return 0
-    print_findings(F, f"\n{ne} error, {len(F)-ne} warn\n", rules=SYNC_RULES, cap=a.max)
+    print_findings(F, f"\n{ne} error, {len(F)-ne-ni} warn" + (f", {ni} info" if ni else '') + "\n",
+                   rules=SYNC_RULES, cap=a.max)
     if ne:
         print("\nThe board has not been re-synced from the schematic. Run KiCad's "
               "'Update PCB from\nSchematic' first - until then every other finding "
@@ -496,6 +505,7 @@ SYNC_RULES = {
     'SYNCVAL':  'value differs between board and netlist',
     'SYNCDNP':  'DNP flag differs between board and netlist',
     'SYNCNET':  'a pad sits on a different net than the netlist says',
+    'SYNCART':  'on the board only, but padless and unsynced: art, not a missing part',
 }
 
 # ---------------- one-call review ----------------
@@ -511,6 +521,7 @@ def c_review(b, a):
         try:
             F, n = sync_findings(b, netpath, a)
             ne = sum(1 for x in F if x['severity'] == 'ERROR')
+            F = [x for x in F if x['severity'] != 'INFO']
             if ne:
                 print(f"### STOP: board vs {os.path.basename(netpath)} - {ne} error(s)\n")
                 print_findings(F, '', rules=SYNC_RULES, cap=5)
