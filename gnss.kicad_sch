@@ -8204,7 +8204,7 @@
 	)
 	(wire
 		(pts
-			(xy 49.53 59.69) (xy 46.99 59.69)
+			(xy 49.53 59.69) (xy 40.64 59.69)
 		)
 		(stroke
 			(width 0)
@@ -8374,7 +8374,7 @@
 	)
 	(wire
 		(pts
-			(xy 26.67 59.69) (xy 41.91 59.69)
+			(xy 26.67 59.69) (xy 35.56 59.69)
 		)
 		(stroke
 			(width 0)
@@ -18900,7 +18900,7 @@
 	)
 	(symbol
 		(lib_id "Device:R_Small")
-		(at 44.45 59.69 90)
+		(at 38.1 59.69 90)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -18910,7 +18910,7 @@
 		(dnp no)
 		(uuid "d01f5f97-e72b-4887-94c0-5d012fe0b665")
 		(property "Reference" "R71"
-			(at 44.958 55.626 90)
+			(at 38.608 55.626 90)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -18921,7 +18921,7 @@
 			)
 		)
 		(property "Value" "1k"
-			(at 45.72 57.658 90)
+			(at 39.37 57.658 90)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -18932,7 +18932,7 @@
 			)
 		)
 		(property "Footprint" "Resistor_SMD:R_0402_1005Metric"
-			(at 44.45 59.69 0)
+			(at 38.1 59.69 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -18943,7 +18943,7 @@
 			)
 		)
 		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/dcb62c832dd79d37c154ec20e16fb58d.pdf?productCode=C48533754"
-			(at 44.45 59.69 0)
+			(at 38.1 59.69 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -18954,7 +18954,7 @@
 			)
 		)
 		(property "Description" "RES 1kΩ ±0.1% 62.5mW 0402 thick film"
-			(at 44.45 59.69 0)
+			(at 38.1 59.69 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -18965,7 +18965,7 @@
 			)
 		)
 		(property "MPN" "FRH0402B1001TS"
-			(at 44.45 59.69 0)
+			(at 38.1 59.69 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -18976,7 +18976,7 @@
 			)
 		)
 		(property "Manufacturer" "FOJAN"
-			(at 44.45 59.69 0)
+			(at 38.1 59.69 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -18987,7 +18987,7 @@
 			)
 		)
 		(property "LCSC Part" "C48533754"
-			(at 44.45 59.69 0)
+			(at 38.1 59.69 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -18998,7 +18998,7 @@
 			)
 		)
 		(property "Tolerance" "0.1%"
-			(at 44.45 59.69 0)
+			(at 38.1 59.69 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -19009,7 +19009,7 @@
 			)
 		)
 		(property "Power Rating" "62.5mW"
-			(at 44.45 59.69 0)
+			(at 38.1 59.69 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)

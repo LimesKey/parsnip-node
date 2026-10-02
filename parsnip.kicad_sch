@@ -4891,7 +4891,7 @@
 		(uuid "225b2f86-c840-4962-90a8-9c8c61073023")
 	)
 	(junction
-		(at 271.78 153.67)
+		(at 271.78 149.86)
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "29ab4522-caba-4635-b461-19c9b4dab5e1")
@@ -4939,12 +4939,6 @@
 		(uuid "672fc016-1a09-429b-a126-53c45794cb27")
 	)
 	(junction
-		(at 271.78 135.89)
-		(diameter 0)
-		(color 0 0 0 0)
-		(uuid "6bd279e0-5df6-4c32-b187-a4b17f7b26b8")
-	)
-	(junction
 		(at 49.53 97.79)
 		(diameter 0)
 		(color 0 0 0 0)
@@ -4957,7 +4951,7 @@
 		(uuid "7a7b169f-f674-486c-9c60-b753b4842019")
 	)
 	(junction
-		(at 271.78 146.05)
+		(at 271.78 142.24)
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "7ca00574-411c-4206-a75b-d2e6e639a84d")
@@ -5017,7 +5011,7 @@
 		(uuid "a5748e34-e920-47ce-85f1-e36892a10583")
 	)
 	(junction
-		(at 271.78 140.97)
+		(at 271.78 137.16)
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "b0f5c29b-1114-45c6-a578-85246cb023b9")
@@ -5190,6 +5184,26 @@
 	)
 	(wire
 		(pts
+			(xy 234.95 34.29) (xy 238.76 34.29)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "079831ce-f209-4f78-8e76-bbf4443ed81c")
+	)
+	(wire
+		(pts
+			(xy 271.78 148.59) (xy 271.78 156.21)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "08ad4223-acab-4db9-bedd-ea31d7b7ffe8")
+	)
+	(wire
+		(pts
 			(xy 62.23 168.91) (xy 62.23 171.45)
 		)
 		(stroke
@@ -5210,7 +5224,7 @@
 	)
 	(wire
 		(pts
-			(xy 241.3 153.67) (xy 255.27 153.67)
+			(xy 241.3 149.86) (xy 255.27 149.86)
 		)
 		(stroke
 			(width 0)
@@ -5270,16 +5284,6 @@
 	)
 	(wire
 		(pts
-			(xy 271.78 152.4) (xy 271.78 157.48)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "12fdce2f-b2f2-4313-9cad-65d96ff52d0d")
-	)
-	(wire
-		(pts
 			(xy 157.48 165.1) (xy 149.86 165.1)
 		)
 		(stroke
@@ -5310,7 +5314,7 @@
 	)
 	(wire
 		(pts
-			(xy 271.78 130.81) (xy 271.78 135.89)
+			(xy 271.78 130.81) (xy 271.78 137.16)
 		)
 		(stroke
 			(width 0)
@@ -5327,6 +5331,16 @@
 			(type default)
 		)
 		(uuid "1b5b2a2f-0008-4d49-9ae7-903b3f097aaf")
+	)
+	(wire
+		(pts
+			(xy 243.84 34.29) (xy 248.92 34.29)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "1ce7e2dc-de04-4795-b964-93a6e5acefd3")
 	)
 	(wire
 		(pts
@@ -5540,7 +5554,7 @@
 	)
 	(wire
 		(pts
-			(xy 260.35 153.67) (xy 271.78 153.67)
+			(xy 260.35 149.86) (xy 271.78 149.86)
 		)
 		(stroke
 			(width 0)
@@ -5590,13 +5604,13 @@
 	)
 	(wire
 		(pts
-			(xy 243.84 135.89) (xy 255.27 135.89)
+			(xy 243.84 22.86) (xy 248.92 22.86)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
-		(uuid "480aa9c8-d03b-406d-8855-733b26126ea9")
+		(uuid "47130a7c-146e-46a6-a8a1-753af6fa5909")
 	)
 	(wire
 		(pts
@@ -5750,7 +5764,17 @@
 	)
 	(wire
 		(pts
-			(xy 260.35 140.97) (xy 271.78 140.97)
+			(xy 232.41 22.86) (xy 238.76 22.86)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "60f92524-675e-4c5b-949c-c0c37f4b0028")
+	)
+	(wire
+		(pts
+			(xy 260.35 137.16) (xy 271.78 137.16)
 		)
 		(stroke
 			(width 0)
@@ -5940,16 +5964,6 @@
 	)
 	(wire
 		(pts
-			(xy 260.35 135.89) (xy 271.78 135.89)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "83eb3d08-7174-4181-b7b0-ccaf9bce3275")
-	)
-	(wire
-		(pts
 			(xy 254 130.81) (xy 259.08 130.81)
 		)
 		(stroke
@@ -6040,7 +6054,7 @@
 	)
 	(wire
 		(pts
-			(xy 255.27 146.05) (xy 241.3 146.05)
+			(xy 255.27 142.24) (xy 241.3 142.24)
 		)
 		(stroke
 			(width 0)
@@ -6190,16 +6204,6 @@
 	)
 	(wire
 		(pts
-			(xy 271.78 140.97) (xy 271.78 135.89)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "a784af37-c8dd-4447-9c4a-8c8797d62103")
-	)
-	(wire
-		(pts
 			(xy 99.06 168.91) (xy 99.06 171.45)
 		)
 		(stroke
@@ -6290,16 +6294,6 @@
 	)
 	(wire
 		(pts
-			(xy 246.38 22.86) (xy 248.92 22.86)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "b6fc9695-0a04-42a2-9218-61af9b945015")
-	)
-	(wire
-		(pts
 			(xy 62.23 175.26) (xy 64.77 175.26)
 		)
 		(stroke
@@ -6330,7 +6324,7 @@
 	)
 	(wire
 		(pts
-			(xy 243.84 140.97) (xy 255.27 140.97)
+			(xy 243.84 137.16) (xy 255.27 137.16)
 		)
 		(stroke
 			(width 0)
@@ -6370,7 +6364,7 @@
 	)
 	(wire
 		(pts
-			(xy 260.35 146.05) (xy 271.78 146.05)
+			(xy 260.35 142.24) (xy 271.78 142.24)
 		)
 		(stroke
 			(width 0)
@@ -6440,7 +6434,7 @@
 	)
 	(wire
 		(pts
-			(xy 271.78 146.05) (xy 271.78 140.97)
+			(xy 271.78 142.24) (xy 271.78 137.16)
 		)
 		(stroke
 			(width 0)
@@ -6510,23 +6504,13 @@
 	)
 	(wire
 		(pts
-			(xy 271.78 147.32) (xy 271.78 146.05)
+			(xy 271.78 143.51) (xy 271.78 142.24)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
 		(uuid "d78eb95f-9490-4eef-92ac-a10d55745640")
-	)
-	(wire
-		(pts
-			(xy 247.65 34.29) (xy 248.92 34.29)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "d79f0ecf-2590-403a-a5e3-5fb0f6e5fa97")
 	)
 	(wire
 		(pts
@@ -6809,7 +6793,7 @@
 		(uuid "14202378-59ce-4b6d-b83b-c08363ed3416")
 	)
 	(label "GPIO_48"
-		(at 246.38 22.86 180)
+		(at 232.41 22.86 180)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -6859,7 +6843,7 @@
 		(uuid "2d31f1e3-527c-4f7a-86fe-b4c334f4eac8")
 	)
 	(label "CS_BUS"
-		(at 241.3 146.05 180)
+		(at 241.3 142.24 180)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -6887,16 +6871,6 @@
 			(justify right bottom)
 		)
 		(uuid "35df4ea0-a1fa-40fb-9c0f-fb6e50989097")
-	)
-	(label "GPIO_10"
-		(at 243.84 135.89 180)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right bottom)
-		)
-		(uuid "4c92e2eb-1655-4792-b3a6-c86b038e45ed")
 	)
 	(label "BOOT"
 		(at 71.12 53.34 180)
@@ -7109,7 +7083,7 @@
 		(uuid "afff0772-2fa8-448e-ac55-d0c4a334d1e7")
 	)
 	(label "RESET_DISPLAY"
-		(at 241.3 153.67 180)
+		(at 241.3 149.86 180)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -7159,7 +7133,7 @@
 		(uuid "c351fddf-5ffd-4462-bd9e-35b3c81e924a")
 	)
 	(label "CS_DISPLAY"
-		(at 243.84 140.97 180)
+		(at 243.84 137.16 180)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -8144,7 +8118,7 @@
 	)
 	(global_label "UART1_TX"
 		(shape input)
-		(at 247.65 34.29 180)
+		(at 234.95 34.29 180)
 		(fields_autoplaced yes)
 		(effects
 			(font
@@ -8154,7 +8128,7 @@
 		)
 		(uuid "be97a4b0-3cfd-4cd2-88a4-31e3c8ea72c3")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 235.6539 34.29 0)
+			(at 222.9539 34.29 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -8625,6 +8599,140 @@
 		)
 	)
 	(symbol
+		(lib_id "Device:R_Small")
+		(at 241.3 22.86 90)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "0cd31f7b-4f26-41ad-80b0-b74acf1bbf94")
+		(property "Reference" "R53"
+			(at 237.49 21.59 90)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.016 1.016)
+				)
+			)
+		)
+		(property "Value" "1k"
+			(at 245.11 21.59 90)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Resistor_SMD:R_0402_1005Metric"
+			(at 241.3 22.86 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/dcb62c832dd79d37c154ec20e16fb58d.pdf?productCode=C48533754"
+			(at 241.3 22.86 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "RES 1kΩ ±0.1% 62.5mW 0402 thick film"
+			(at 241.3 22.86 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "FRH0402B1001TS"
+			(at 241.3 22.86 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "FOJAN"
+			(at 241.3 22.86 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC Part" "C48533754"
+			(at 241.3 22.86 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Tolerance" "0.1%"
+			(at 241.3 22.86 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Power Rating" "62.5mW"
+			(at 241.3 22.86 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "567e3962-d5e3-4c8b-94b5-f40f506068f6")
+		)
+		(pin "2"
+			(uuid "42f7e42e-3428-4e09-b2d7-02a654f974c2")
+		)
+		(instances
+			(project "parsnip"
+				(path "/fe9d4a31-2311-442f-997c-52ad8ca5cfe9"
+					(reference "R53")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
 		(lib_id "easyeda2kicad:ESDS314DBVR-TP")
 		(at 118.11 156.21 0)
 		(unit 1)
@@ -9020,7 +9128,7 @@
 	)
 	(symbol
 		(lib_id "Device:R_Small")
-		(at 257.81 153.67 90)
+		(at 257.81 149.86 90)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -9030,7 +9138,7 @@
 		(dnp no)
 		(uuid "15fa8aa5-de90-4e48-aabe-cde8a2594e49")
 		(property "Reference" "R26"
-			(at 257.81 151.638 90)
+			(at 257.81 147.828 90)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -9040,7 +9148,7 @@
 			)
 		)
 		(property "Value" "10k"
-			(at 262.636 152.654 90)
+			(at 262.636 148.844 90)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -9050,7 +9158,7 @@
 			)
 		)
 		(property "Footprint" "Resistor_SMD:R_0402_1005Metric_Pad0.72x0.64mm_HandSolder"
-			(at 257.81 153.67 0)
+			(at 257.81 149.86 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -9061,7 +9169,7 @@
 			)
 		)
 		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/68379ec060dbf46ca58f0ea52f41dfcd.pdf?productCode=C54951138"
-			(at 257.81 153.67 0)
+			(at 257.81 149.86 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -9072,7 +9180,7 @@
 			)
 		)
 		(property "Description" "RES 10kΩ ±0.5% 62.5mW 0402 thick film"
-			(at 257.81 153.67 0)
+			(at 257.81 149.86 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -9083,7 +9191,7 @@
 			)
 		)
 		(property "MPN" "FRH0402D1002TS"
-			(at 257.81 153.67 0)
+			(at 257.81 149.86 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -9094,7 +9202,7 @@
 			)
 		)
 		(property "Manufacturer" "FOJAN"
-			(at 257.81 153.67 0)
+			(at 257.81 149.86 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -9105,7 +9213,7 @@
 			)
 		)
 		(property "LCSC Part" "C54951138"
-			(at 257.81 153.67 0)
+			(at 257.81 149.86 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -9116,7 +9224,7 @@
 			)
 		)
 		(property "Tolerance" "0.5%"
-			(at 257.81 153.67 0)
+			(at 257.81 149.86 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -9127,7 +9235,7 @@
 			)
 		)
 		(property "Power Rating" "62.5mW"
-			(at 257.81 153.67 0)
+			(at 257.81 149.86 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -11065,7 +11173,7 @@
 	)
 	(symbol
 		(lib_id "Device:R_Small")
-		(at 257.81 146.05 90)
+		(at 257.81 142.24 90)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -11075,7 +11183,7 @@
 		(dnp no)
 		(uuid "43442d24-4738-415d-806a-e553ad144659")
 		(property "Reference" "R25"
-			(at 257.81 144.018 90)
+			(at 257.81 140.208 90)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -11085,7 +11193,7 @@
 			)
 		)
 		(property "Value" "10k"
-			(at 262.636 145.034 90)
+			(at 262.636 141.224 90)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -11095,7 +11203,7 @@
 			)
 		)
 		(property "Footprint" "Resistor_SMD:R_0402_1005Metric_Pad0.72x0.64mm_HandSolder"
-			(at 257.81 146.05 0)
+			(at 257.81 142.24 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -11106,7 +11214,7 @@
 			)
 		)
 		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/68379ec060dbf46ca58f0ea52f41dfcd.pdf?productCode=C54951138"
-			(at 257.81 146.05 0)
+			(at 257.81 142.24 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -11117,7 +11225,7 @@
 			)
 		)
 		(property "Description" "RES 10kΩ ±0.5% 62.5mW 0402 thick film"
-			(at 257.81 146.05 0)
+			(at 257.81 142.24 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -11128,7 +11236,7 @@
 			)
 		)
 		(property "MPN" "FRH0402D1002TS"
-			(at 257.81 146.05 0)
+			(at 257.81 142.24 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -11139,7 +11247,7 @@
 			)
 		)
 		(property "Manufacturer" "FOJAN"
-			(at 257.81 146.05 0)
+			(at 257.81 142.24 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -11150,7 +11258,7 @@
 			)
 		)
 		(property "LCSC Part" "C54951138"
-			(at 257.81 146.05 0)
+			(at 257.81 142.24 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -11161,7 +11269,7 @@
 			)
 		)
 		(property "Tolerance" "0.5%"
-			(at 257.81 146.05 0)
+			(at 257.81 142.24 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -11172,7 +11280,7 @@
 			)
 		)
 		(property "Power Rating" "62.5mW"
-			(at 257.81 146.05 0)
+			(at 257.81 142.24 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -12830,7 +12938,7 @@
 	)
 	(symbol
 		(lib_id "power:GND")
-		(at 271.78 157.48 0)
+		(at 271.78 156.21 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -12840,7 +12948,7 @@
 		(dnp no)
 		(uuid "6c5cf6f9-a619-4390-92dd-0c05941758f7")
 		(property "Reference" "#PWR027"
-			(at 271.78 163.83 0)
+			(at 271.78 162.56 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -12851,7 +12959,7 @@
 			)
 		)
 		(property "Value" "GND"
-			(at 271.78 161.798 0)
+			(at 271.78 160.528 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -12861,7 +12969,7 @@
 			)
 		)
 		(property "Footprint" ""
-			(at 271.78 157.48 0)
+			(at 271.78 156.21 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -12872,7 +12980,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 271.78 157.48 0)
+			(at 271.78 156.21 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -12883,7 +12991,7 @@
 			)
 		)
 		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
-			(at 271.78 157.48 0)
+			(at 271.78 156.21 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -13595,7 +13703,7 @@
 	)
 	(symbol
 		(lib_id "Device:R_Small")
-		(at 257.81 140.97 90)
+		(at 257.81 137.16 90)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -13605,7 +13713,7 @@
 		(dnp no)
 		(uuid "73b978c3-d590-4510-bf08-666dcaad06c4")
 		(property "Reference" "R24"
-			(at 257.81 138.938 90)
+			(at 257.81 135.128 90)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -13615,7 +13723,7 @@
 			)
 		)
 		(property "Value" "10k"
-			(at 262.636 139.954 90)
+			(at 262.636 136.144 90)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -13625,7 +13733,7 @@
 			)
 		)
 		(property "Footprint" "Resistor_SMD:R_0402_1005Metric_Pad0.72x0.64mm_HandSolder"
-			(at 257.81 140.97 0)
+			(at 257.81 137.16 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -13636,7 +13744,7 @@
 			)
 		)
 		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/68379ec060dbf46ca58f0ea52f41dfcd.pdf?productCode=C54951138"
-			(at 257.81 140.97 0)
+			(at 257.81 137.16 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -13647,7 +13755,7 @@
 			)
 		)
 		(property "Description" "RES 10kΩ ±0.5% 62.5mW 0402 thick film"
-			(at 257.81 140.97 0)
+			(at 257.81 137.16 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -13658,7 +13766,7 @@
 			)
 		)
 		(property "MPN" "FRH0402D1002TS"
-			(at 257.81 140.97 0)
+			(at 257.81 137.16 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -13669,7 +13777,7 @@
 			)
 		)
 		(property "Manufacturer" "FOJAN"
-			(at 257.81 140.97 0)
+			(at 257.81 137.16 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -13680,7 +13788,7 @@
 			)
 		)
 		(property "LCSC Part" "C54951138"
-			(at 257.81 140.97 0)
+			(at 257.81 137.16 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -13691,7 +13799,7 @@
 			)
 		)
 		(property "Tolerance" "0.5%"
-			(at 257.81 140.97 0)
+			(at 257.81 137.16 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -13702,7 +13810,7 @@
 			)
 		)
 		(property "Power Rating" "62.5mW"
-			(at 257.81 140.97 0)
+			(at 257.81 137.16 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -15641,7 +15749,7 @@
 	)
 	(symbol
 		(lib_id "Device:C_Small")
-		(at 271.78 149.86 0)
+		(at 271.78 146.05 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -15651,7 +15759,7 @@
 		(dnp no)
 		(uuid "ac285503-542a-4fd3-80d9-851c3d7e8e96")
 		(property "Reference" "C17"
-			(at 272.796 148.082 0)
+			(at 272.796 144.272 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -15662,7 +15770,7 @@
 			)
 		)
 		(property "Value" "1uF"
-			(at 273.304 152.146 0)
+			(at 273.304 148.336 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -15673,7 +15781,7 @@
 			)
 		)
 		(property "Footprint" "Capacitor_SMD:C_0402_1005Metric"
-			(at 271.78 149.86 0)
+			(at 271.78 146.05 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -15684,7 +15792,7 @@
 			)
 		)
 		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/71a9f8eccc4da164324d4a716182c5e3.pdf?productCode=C53426846"
-			(at 271.78 149.86 0)
+			(at 271.78 146.05 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -15695,7 +15803,7 @@
 			)
 		)
 		(property "Description" "CAP MLCC 1uF ±10% 25V X7R 0402"
-			(at 271.78 149.86 0)
+			(at 271.78 146.05 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -15706,7 +15814,7 @@
 			)
 		)
 		(property "MPN" "TCC0402X7R105K250AT"
-			(at 271.78 149.86 0)
+			(at 271.78 146.05 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -15717,7 +15825,7 @@
 			)
 		)
 		(property "Manufacturer" "CCTC"
-			(at 271.78 149.86 0)
+			(at 271.78 146.05 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -15728,7 +15836,7 @@
 			)
 		)
 		(property "LCSC Part" "C53426846"
-			(at 271.78 149.86 0)
+			(at 271.78 146.05 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -15739,7 +15847,7 @@
 			)
 		)
 		(property "Voltage Rating" "25V"
-			(at 268.986 149.352 0)
+			(at 268.986 145.542 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -15750,7 +15858,7 @@
 			)
 		)
 		(property "Dielectric" "X7R"
-			(at 271.78 149.86 0)
+			(at 271.78 146.05 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -15761,7 +15869,7 @@
 			)
 		)
 		(property "Tolerance" "10%"
-			(at 271.78 149.86 0)
+			(at 271.78 146.05 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -15977,140 +16085,6 @@
 			(project "parsnip"
 				(path "/fe9d4a31-2311-442f-997c-52ad8ca5cfe9"
 					(reference "JP4")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "Device:R_Small")
-		(at 257.81 135.89 90)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "bbf84396-a8d2-461c-b697-b98aa873833e")
-		(property "Reference" "R23"
-			(at 257.81 134.366 90)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.016 1.016)
-				)
-			)
-		)
-		(property "Value" "100k"
-			(at 262.89 134.874 90)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" "Resistor_SMD:R_0402_1005Metric_Pad0.72x0.64mm_HandSolder"
-			(at 257.81 135.89 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/f4da32bad2b63678770dda69cfcd538f.pdf?productCode=C2984406"
-			(at 257.81 135.89 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "RES 100kΩ ±0.1% 25ppm 62.5mW 0402 thin film"
-			(at 257.81 135.89 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "MPN" "ARG02BTC1003"
-			(at 257.81 135.89 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Manufacturer" "Viking Tech"
-			(at 257.81 135.89 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "LCSC Part" "C2984406"
-			(at 257.81 135.89 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Tolerance" "0.1%"
-			(at 257.81 135.89 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Power Rating" "62.5mW"
-			(at 257.81 135.89 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "2"
-			(uuid "9607a6c6-e643-44cf-83be-42e55eec2ac6")
-		)
-		(pin "1"
-			(uuid "04f913a9-479a-4ec9-bf48-4916bca6ffbf")
-		)
-		(instances
-			(project "parsnip"
-				(path "/fe9d4a31-2311-442f-997c-52ad8ca5cfe9"
-					(reference "R23")
 					(unit 1)
 				)
 			)
@@ -16335,6 +16309,140 @@
 			(project "parsnip"
 				(path "/fe9d4a31-2311-442f-997c-52ad8ca5cfe9"
 					(reference "#PWR05")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Device:R_Small")
+		(at 241.3 34.29 90)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "c363c250-0ac3-488d-b30b-157cdfda9dd7")
+		(property "Reference" "R50"
+			(at 237.49 33.02 90)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.016 1.016)
+				)
+			)
+		)
+		(property "Value" "1k"
+			(at 245.11 33.02 90)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Resistor_SMD:R_0402_1005Metric"
+			(at 241.3 34.29 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/dcb62c832dd79d37c154ec20e16fb58d.pdf?productCode=C48533754"
+			(at 241.3 34.29 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "RES 1kΩ ±0.1% 62.5mW 0402 thick film"
+			(at 241.3 34.29 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "FRH0402B1001TS"
+			(at 241.3 34.29 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "FOJAN"
+			(at 241.3 34.29 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC Part" "C48533754"
+			(at 241.3 34.29 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Tolerance" "0.1%"
+			(at 241.3 34.29 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Power Rating" "62.5mW"
+			(at 241.3 34.29 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "0f755e84-05ca-43ea-b65b-092e100b8d0b")
+		)
+		(pin "2"
+			(uuid "77328882-0b25-47d7-98c3-1d904ff22535")
+		)
+		(instances
+			(project "parsnip"
+				(path "/fe9d4a31-2311-442f-997c-52ad8ca5cfe9"
+					(reference "R50")
 					(unit 1)
 				)
 			)

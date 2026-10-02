@@ -3098,7 +3098,7 @@
 		)
 		(uuid "2d0a6f60-23ac-44ca-84ae-33fd89bb9b53")
 	)
-	(text "DC-shorted antenna only unless JP8 is cut\nPassive antenna only"
+	(text "DC-shorted antenna only unless JP15 is cut\nPassive antenna only"
 		(exclude_from_sim no)
 		(at 80.518 138.938 0)
 		(effects
