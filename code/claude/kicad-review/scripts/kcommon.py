@@ -9,7 +9,7 @@ tools -> kcommon, never back. Edit a parser or a check-formatter here once and
 every tool sees it; guard the change with references/selftest.py.
 """
 import sys, os, re, glob, json, math, shutil, hashlib, marshal, subprocess, time
-from collections import defaultdict
+from collections import Counter, defaultdict
 
 __all__ = [
     'GND_RE', 'KNOWN_RAILS', 'Netlist', 'SchInfo', 'eng', 'fp_lib_dirs', 'fp_pads',
@@ -170,10 +170,11 @@ def fp_lib_dirs(projdir):
     _FPDIRS[projdir] = out
     return out
 
-def fp_pads(fpid, projdir):
+def fp_pads(fpid, projdir, count=False):
     """{pad number: pad type} of footprint 'Lib:Name' read from its .kicad_mod, or
     None when the library or file cannot be found. Numberless pads (paste
-    apertures, mechanical copper) and np_thru_hole drills are left out."""
+    apertures, mechanical copper) and np_thru_hole drills are left out. count=True
+    gives {pad number: copper pieces} instead (a merged pad group counts each)."""
     lib, _, name = (fpid or '').partition(':')
     d = fp_lib_dirs(projdir).get(lib)
     if not (name and d):
@@ -182,8 +183,8 @@ def fp_pads(fpid, projdir):
         root = load_sexp(os.path.join(d, name + '.kicad_mod'))
     except OSError:
         return None
-    return {p[1]: p[2] for p in kids(root, 'pad')
-            if len(p) > 2 and p[1] and p[2] != 'np_thru_hole'}
+    pads = [p for p in kids(root, 'pad') if len(p) > 2 and p[1] and p[2] != 'np_thru_hole']
+    return Counter(p[1] for p in pads) if count else {p[1]: p[2] for p in pads}
 
 # ---------------- S-expression parser ----------------
 

@@ -430,6 +430,27 @@ def multi_net(d):
         ' (net (code "6") (name "/NG")' + nd(('U1', '3'), ('D2', '1')) + ')))')
     return p
 
+def fet_pinout_project(d):
+    """Q1 (Q_NMOS_DGS) on a footprint that numbers its pads by function like KiCad's
+    VSONP-8: pad 1 three pins (S), pad 2 the gate, pad 3 four pins + EP (D)"""
+    os.makedirs(os.path.join(d, 't.pretty'))
+    open(os.path.join(d, 'fp-lib-table'), 'w').write(
+        '(fp_lib_table (lib (name "t") (type "KiCad") (uri "${KIPRJMOD}/t.pretty")))')
+    open(os.path.join(d, 't.pretty', 'SON.kicad_mod'), 'w').write(
+        '(footprint "SON" ' + ' '.join(f'(pad "{n}" smd rect (at 0 0) (size 1 1) (layers "F.Cu"))'
+                                       for n in '111233333') + ')')
+    p = os.path.join(d, 'q.net')
+    open(p, 'w').write(
+        '(export (version "E") (design (source "q.kicad_sch"))'
+        ' (components (comp (ref "Q1") (value "CSD18512Q5B") (footprint "t:SON")'
+        ' (libsource (lib "Transistor_FET") (part "Q_NMOS_DGS"))))'
+        ' (libparts (libpart (lib "Transistor_FET") (part "Q_NMOS_DGS") (pins (pin (num "1") (name "D") (type "passive"))'
+        ' (pin (num "2") (name "G") (type "input")) (pin (num "3") (name "S") (type "passive")))))'
+        ' (nets (net (code "1") (name "/D") (node (ref "Q1") (pin "1")))'
+        ' (net (code "2") (name "/G") (node (ref "Q1") (pin "2")))'
+        ' (net (code "3") (name "/S") (node (ref "Q1") (pin "3")))))')
+    return p
+
 def lint_project(d):
     """ksheet fixture, one hit per lint rule: a wire across R1's body (WIREBODY),
     /NA and /NB end-to-end 2.54 mm apart (GAPLINE), U1.1 jogging 1.27 mm at the
@@ -564,6 +585,11 @@ def main():
                   ["d2s D1 ", "rsense R1 ", "label MID D1.3", "gnd R1.4", "wire U1.3 D2.1"]))
     CASES.append(("knet draw multi-pin verify", ['knet.py', mn, 'draw', 'U1', '-o', os.path.join(TMP, 'selftest_multi.svg')],
                   0, ["wrote"]))
+    CASES.append(("knet pinout power-FET", ['knet.py', fet_pinout_project(os.path.join(tmp.name, 'qfet')),
+                                            'check', '--only', 'PINOUT'], 2,
+                  ["Q1 CSD18512Q5B on Transistor_FET:Q_NMOS_DGS: SON numbers its pads by function",
+                   "pins 1-3 must be SGD; as drawn they are DGS and the FET mounts with D and S swapped",
+                   "use Transistor_FET:Q_NMOS_SGD"]))
     lnet = os.path.join(tmp.name, 'lint', 'lint.net')
     CASES.append(("ksheet lint", ['ksheet.py', lnet, 'lint'], 2,
                   ["R1's body", "/NA ends at 70,40 and /NB starts 2.54 mm", "U1.1 (A) at 94.92,94.92: /J runs 1.27 mm",

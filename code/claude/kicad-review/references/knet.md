@@ -143,7 +143,12 @@ carries an explicit NC flag.
   from G/S/D pin names. Stock DIODE pin names are never used: `Diode:BAV99`'s hidden
   names K/A/K contradict its graphics and `Diode:BAT54A` has none. Found D6 (BAV199
   on `D_Dual_Series_ACK`, should be `_AKC`). Extend the table for a new part; do not
-  loosen the match.
+  loosen the match. Power FETs: a generic `Q_[NP]MOS_xyz` symbol on a footprint that
+  numbers its pads by function (KiCad's VSONP/TDSON/VSON NexFET family: pad 1 = 3
+  copper pieces, pins 1-3, S; pad 2 = the gate; pad 3 = >= 4 pieces with the EP, D,
+  read from the `.kicad_mod`) must read `SGD`; anything else is an ERROR naming the
+  right symbol. FPPAD cannot see it because the pad numbers match. Found Q7/Q8
+  (CSD18512Q5B on `Q_NMOS_DGS`, D and S swapped).
 - **`GNDISLAND`** catches a different shape of bug than FLOATPWR: pins named like
   ground (GND, AGND, VSS, ...) that ARE wired to each other but never reach the
   board's real GND net - a merge that silently didn't happen. `is_gnd()` recognises

@@ -761,7 +761,7 @@ RULES = {
     'GNDISLAND': 'GND-named pins wired together but isolated from the main GND net',
     'CLAMPRATING': 'TVS standoff voltage below the rail it clamps',
     'PARPIN':    'a paralleled pin left dangling while a same-named pin is on a real net',
-    'PINOUT':    "symbol's pin order (name suffix / pin names) contradicts the part's SOT-23 pinout",
+    'PINOUT':    "symbol's pin order contradicts the part's SOT-23 pinout or its power-FET footprint's pads",
     'FPPAD':     'footprint pad with no symbol pin (imports with no net), or a wired pin with no pad',
 }
 
@@ -865,6 +865,27 @@ def gen_findings(nl, a):
         if fp not in padcache:
             padcache[fp] = fp_pads(fp, projdir) if fp else None
         return padcache[fp]
+    # PINOUT, power-FET packages: a footprint that numbers its pads by function (KiCad's
+    # VSONP/TDSON/VSON NexFET: pad 1 = pins 1-3, 2 = pin 4, 3 = pins 5-8 + EP) fixes
+    # S, G and D by pad, which FPPAD cannot see (the numbers match); a generic
+    # Q_[NP]MOS_xyz symbol on it must name S, G, D in that pad order
+    for ref, c in nl.comps.items():
+        m = re.match(r'^Q_[NP]MOS_([DGS]{3})$', c['part'] or '')
+        cnt = fp_pads(c['footprint'], projdir, count=True) if m and c['footprint'] else None
+        if not cnt or set(cnt) != {'1', '2', '3'} or cnt['2'] != 1:
+            continue
+        s_, d_ = sorted(('1', '3'), key=lambda n: cnt[n])
+        if cnt[s_] != 3 or cnt[d_] < 4:
+            continue
+        want = ''.join({'2': 'G', s_: 'S', d_: 'D'}[n] for n in '123')
+        if m.group(1) != want:
+            add('ERROR', 'PINOUT', f"{ref} {c['value']} on {c['lib']}:{c['part']}: "
+                f"{c['footprint'].split(':')[-1]} numbers its pads by function (pad {s_} = 3 pins: S, "
+                f"pad 2 = G, pad {d_} = {cnt[d_]} pieces with the EP: D), so pins 1-3 must be {want}; "
+                f"as drawn they are {m.group(1)} and the FET mounts with "
+                f"{'D and S swapped' if m.group(1).translate(str.maketrans('DS', 'SD')) == want else 'pins swapped'}"
+                f" - use {c['lib']}:{c['part'][:-3]}{want}", [ref])
+
     def real(ref, pin):
         n = nl.cpins.get(ref, {}).get(pin)
         return n if n and not n.startswith('unconnected-') else None
