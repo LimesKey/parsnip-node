@@ -83,6 +83,7 @@ scrambled. The plot only tells you which sheet a symbol lives on.
 | is the schematic drawing misleading (wire through a body, bypass-looking gaps) | `ksheet.py FILE.net lint [--around REF]` |
 | picture of a schematic region | `ksheet.py FILE.net view REF` -> PNG path |
 | can I nudge X here / where along this line is clear / can this via move | `kpcb.py FILE movecheck REF X Y [ROT]`, `REF --scan x=X y=A..B`, `via X,Y NX,NY` - new hits only, read-only |
+| where does a W x H logo/label fit on the silk | `kpcb.py FILE freebox f 8 4` - best centre per free region |
 | are the logos visible / what hides them / do they run over pads | `kpcb.py FILE silk` |
 | picture of a board region (chosen layers) | `kpcb.py FILE view REF [-r 5] [--layers B.Cu,B.SilkS]` -> PNG path |
 | where is this PAD / how far apart are two pads | `kpcb.py FILE where F5.1 BT1.1` |

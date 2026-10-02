@@ -221,6 +221,22 @@ def mini_project(d):
         + fill('F.Cu', (0.5, 0.5, 19.5, 19.5)) + fill('B.Cu', (0.5, 0.5, 9.5, 19.5), (14.5, 0.5, 19.5, 19.5)) + ')')
     return os.path.join(d, 't.net')
 
+def freebox_board(d):
+    """30 x 20 board: U1's courtyard over x 1..13, a logo over x 14..19, and board text
+    "AB" anchored left-bottom at 25,2 - so a 6 x 4 box only fits right of x 19, below y 2"""
+    p = os.path.join(d, 'freebox.kicad_pcb')
+    open(p, 'w').write(
+        '(kicad_pcb (version 20240108) (generator "pcbnew")'
+        ' (layers (0 "F.Cu" signal) (2 "B.Cu" signal) (25 "Edge.Cuts" user))'
+        ' (gr_rect (start 0 0) (end 30 20) (layer "Edge.Cuts"))'
+        ' (gr_text "AB" (at 25 2 0) (layer "F.SilkS") (effects (font (size 1 1)) (justify left bottom)))'
+        ' (footprint "M" (layer "F.Cu") (at 7 10) (property "Reference" "U1")'
+        ' (fp_rect (start -6 -9) (end 6 9) (layer "F.CrtYd"))'
+        ' (pad "1" smd rect (at 0 0) (size 1 1) (layers "F.Cu") (net "A")))'
+        ' (footprint "Logo" (layer "F.Cu") (at 16.5 10) (property "Reference" "REF**")'
+        ' (fp_poly (pts (xy -2.5 -9) (xy 2.5 -9) (xy 2.5 9) (xy -2.5 9)) (layer "F.SilkS"))))')
+    return p
+
 def move_board(d):
     """R1 (pads A/B at 9.5/10.5,10) with its own A track running to 9.5,5; a foreign C
     track down x=12 (0.2 mm); a bare D via at 8,14. Default clearance 0.2, edge 0.3."""
@@ -481,6 +497,8 @@ def main():
     CASES.append(("knet revpol fet", ['knet.py', fet, 'revpol'], 0,
                   ["FET channel(s) on, gate driven from the cells: Q1", "FET channels vs normal: Q1 off",
                    "isolated from the cells: U1", "bidirectional TVS/ESD, breakdown not in the part number: D1"]))
+    CASES.append(("kpcb freebox", ['kpcb.py', freebox_board(tmp.name), 'freebox', 'f', '6', '4'], 0,
+                  ["1 region(s)", "centre   24.12,10.38    margin 1.75 mm  (region   52.0 mm2"]))
     mv = move_board(tmp.name)
     CASES.append(("kpcb movecheck hit", ['kpcb.py', mv, 'movecheck', 'R1', '11', '10'], 2,
                   ["NEW   R1.2 0.15 mm from a C track on F.Cu @12.00,10.00, needs 0.20", "1 own track(s) drag"]))

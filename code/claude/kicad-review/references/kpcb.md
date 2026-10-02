@@ -44,6 +44,7 @@ carry F.SilkS art), so `summary`, `map` and `where` count it on the art's side.
 | `rf [NET...]` | 50-ohm trace review. No net = every net whose netclass names RF/50. See below. |
 | `height [REF...]` | 3D-model height of each part and the board's Z stack. Shells out to KiCad's GLB export (~3 s). See below. |
 | `movecheck REF X Y [ROT]` | what moving REF there would **newly** break: foreign pads/tracks/vias inside the clearance, copper to the edge, a same-side courtyard overlap. `REF --scan x=X y=A..B [--step 0.05]` slides it and prints the clear stretches; `via X,Y NX,NY` moves one via and says whether tracks are tied to it. Read-only. See below. |
+| `freebox SIDE W H` | where a W x H mm silk box (a logo, a label) fits on side `f`/`b`: clear of that side's courtyards, every through-hole pad and that side's silk (logos, board art, refdes and other footprint text), >= 1 mm inside the edge. Best centre per free region, by margin. See below. |
 | `silk` | every padless graphic footprint (logo, pasted art): the layers its art is really on (per item, not the footprint's `(layer)`), scaled extent, rotation, the same-side part body hiding it (HIDDEN >= 50% of its box), and the pads its art crosses. See below. |
 | `view REF... [-r 5] [--layers L,L] [-o x.png]` | PNG of the board around parts (their courtyards + `-r`), an `X,Y`, or `--box X0,Y0,X1,Y1`, on the part's side layers (Cu, SilkS, Fab, CrtYd + Edge.Cuts) unless `--layers`. Use it to check by eye what a number says (a void, a logo under a module, a setback). See below. |
 
@@ -485,6 +486,20 @@ range, `--step` mm) and prints contiguous clear and blocked stretches with what
 blocks each, so a centring move can pick its spot. `via X,Y NX,NY` takes the via
 nearest X,Y (within 0.15 mm): `tied: nothing` means a bare stitching via that is free
 to move (the pour reconnects it on refill); otherwise the tracks ending on it drag.
+
+## `freebox` - room for a silk box
+
+A 0.25 mm raster of the side: blocked where outside the outline or within 1 mm of
+it, under a placed same-side courtyard, under any through-hole pad (pad box, both
+sides), or under that side's silk: padless art items, board-level `gr_*` silk, and
+each footprint's visible silk text. Text boxes are estimated (0.9 x font width per
+character, line height from the font, placed by `(justify)`, footprint text `(at)`
+local with an absolute angle). Every centre whose W x H box is empty is a candidate;
+4-connected candidates form a region, and each region reports the centre with the
+largest margin (how far the box could grow on every side and stay clear; ties go to
+the region's middle). Blocked cells are any cell an obstacle touches, so margins
+err low by up to one cell. Tracks and pours are not obstacles: silk over masked
+copper is fine. ~0.5 s.
 
 ## `silk` - where the logos really are
 

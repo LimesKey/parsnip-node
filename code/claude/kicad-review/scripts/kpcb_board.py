@@ -140,6 +140,19 @@ def pad_box(p):
     pts += [xf(u, v, p['x'], p['y'], p['prot']) for poly in p['prims'] for u, v in poly]
     return bbox(pts)
 
+def text_box(x, y, ang, txt, node, k=1.0):
+    """estimated board box of a KiCad text at x,y (its anchor), absolute angle: 0.9 x
+    font width per character, 1.6 x height per line, placed by its (justify)"""
+    eff = kid(node, 'effects') or []
+    sz = kid(kid(eff, 'font') or [], 'size') or ['size', '1', '1']
+    js = set((kid(eff, 'justify') or [])[1:])
+    lines = txt.split('\\n')
+    w, h = .9 * k * float(sz[2]) * max(len(ln) for ln in lines), k * float(sz[1]) * (1.6 * len(lines) - .4)
+    left, right = ('right', 'left') if 'mirror' in js else ('left', 'right')
+    x0 = 0.0 if left in js else -w if right in js else -w / 2
+    y0 = 0.0 if 'top' in js else -h if 'bottom' in js else -h / 2
+    return bbox([xf(u, v, x, y, ang) for u in (x0, x0 + w) for v in (y0, y0 + h)])
+
 def _ccw(a, b, c):
     return (c[1] - a[1]) * (b[0] - a[0]) > (b[1] - a[1]) * (c[0] - a[0])
 
@@ -309,7 +322,7 @@ def ipc_width(need_a, thick_mm, external, dt):
 class FP:
     __slots__ = ('ref', 'value', 'fp', 'layer', 'x', 'y', 'rot', 'sheet', 'attr',
                  'dnp', 'pads', 'crtyd', 'crtyd_real', 'cpoly', 'body', 'placed', '_edge', 'models', 'art',
-                 'fab', 'scale', 'edgeref', 'arts')
+                 'fab', 'scale', 'edgeref', 'arts', 'texts')
 
     @property
     def outline(self):
@@ -420,14 +433,9 @@ class Board:
             if not (isinstance(g, list) and g and str(g[0]).startswith('gr_') and val(g, 'layer').endswith('.SilkS')):
                 continue
             if g[0] == 'gr_text':
-                (x, y), fnt = self._xy(g, 'at'), kid(kid(g, 'effects') or [], 'font') or []
-                sz = kid(fnt, 'size') or ['size', '1', '1']
-                lines = str(g[1]).split('\\n')
-                w, h = .9 * float(sz[2]) * max(len(ln) for ln in lines), 1.6 * float(sz[1]) * len(lines)
-                at = kid(g, 'at')
-                if at and len(at) > 3 and round(float(at[3])) % 180 == 90:
-                    w, h = h, w
-                self.silk.append((val(g, 'layer'), (x - w / 2, y - h / 2, x + w / 2, y + h / 2)))
+                at = kid(g, 'at') or ['at', '0', '0']
+                self.silk.append((val(g, 'layer'), text_box(float(at[1]), float(at[2]), _f(at[3]) if len(at) > 3
+                                                            else 0.0, str(g[1]), g)))
             elif self._gpts(g, g[0]):
                 self.silk.append((val(g, 'layer'), bbox(self._gpts(g, g[0]))))
         for node in kids(root, 'footprint'):
@@ -539,6 +547,18 @@ class Board:
                 f.ref = p[2]
             elif len(p) > 2 and p[1] == 'Value':
                 f.value = p[2]
+        # visible silk text (refdes, values, fp_text): (at) is footprint-local, its angle absolute
+        f.texts = []
+        for t in kids(node, 'property') + kids(node, 'fp_text'):
+            lay = val(t, 'layer')
+            hid = 'hide' in t or (kid(t, 'hide') or ['', 'no'])[1:2] == ['yes'] or \
+                'hide' in (kid(t, 'effects') or [])
+            if not lay.endswith('.SilkS') or hid or len(t) < 3:
+                continue
+            txt = str(t[2]).replace('${REFERENCE}', f.ref).replace('${VALUE}', f.value)
+            at = kid(t, 'at') or ['at', '0', '0']
+            tx, ty = xf(float(at[1]) * kx, float(at[2]) * ky, f.x, f.y, f.rot)
+            f.texts.append((lay, text_box(tx, ty, _f(at[3]) if len(at) > 3 else 0.0, txt, t, (kx + ky) / 2)))
         if f.ref in self.fps:                     # KiCad allows it; keep every one visible
             n = 2
             while f"{f.ref}~dup{n}" in self.fps:
