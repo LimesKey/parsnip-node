@@ -43,6 +43,7 @@ carry F.SilkS art), so `summary`, `map` and `where` count it on the art's side.
 | `net NET` | every pad on a net with absolute xy, copper per layer (segments, length, width range), vias, zones, extent, and whether the copper is **one piece** (else the pads in each cut-off piece) plus padless islands. Accepts the short name (`LORA_ANT`). |
 | `rf [NET...]` | 50-ohm trace review. No net = every net whose netclass names RF/50. See below. |
 | `height [REF...]` | 3D-model height of each part and the board's Z stack. Shells out to KiCad's GLB export (~3 s). See below. |
+| `view REF... [-r 5] [--layers L,L] [-o x.png]` | PNG of the board around parts (their courtyards + `-r`), an `X,Y`, or `--box X0,Y0,X1,Y1`, on the part's side layers (Cu, SilkS, Fab, CrtYd + Edge.Cuts) unless `--layers`. Use it to check by eye what a number says (a void, a logo under a module, a setback). See below. |
 
 ## Flags
 
@@ -462,6 +463,16 @@ bare microstrip width (ignores the side ground); kzo does not, and reads 2.6% lo
 It models rectangular copper and the board file's stackup - the fab's trapezoid and
 its own stackup numbers (check h and er in the `Zo ... microstrip` line against the
 fab's) are the arbiter. ~0.1 s per solve, memoised; gaps round to 0.01 mm.
+
+## `view` - a picture of the board
+
+`kicad-cli pcb export svg --layers .. --mode-single --exclude-drawing-sheet` (the right
+CLI per file), cached under `~/.cache/kicad-review/pcbsvg/` per board save and layer
+list. That SVG's viewBox is the page in mm with the board at its own coordinates, so
+the crop is a viewBox rewrite (the ksheet `view` recipe), rasterised by `rsvg-convert`
+at `--px 20` per mm on white; `-o x.svg` keeps the cropped SVG. Always seen from the
+top: a B.* layer is not mirrored, so coordinates stay the board's. Zones show their
+saved fill.
 
 ## `height [REF...]` - the Z budget
 

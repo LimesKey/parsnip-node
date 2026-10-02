@@ -82,6 +82,7 @@ scrambled. The plot only tells you which sheet a symbol lives on.
 | where is U7 on its sheet, what is near it, with nets | `ksheet.py FILE.net sch U7` |
 | is the schematic drawing misleading (wire through a body, bypass-looking gaps) | `ksheet.py FILE.net lint [--around REF]` |
 | picture of a schematic region | `ksheet.py FILE.net view REF` -> PNG path |
+| picture of a board region (chosen layers) | `kpcb.py FILE view REF [-r 5] [--layers B.Cu,B.SilkS]` -> PNG path |
 | where is this PAD / how far apart are two pads | `kpcb.py FILE where F5.1 BT1.1` |
 | everything on one net, with coordinates | `kpcb.py FILE net NET` - pads (absolute xy), copper per layer, vias, zones |
 | is this 50-ohm trace right | `kpcb.py FILE rf [NET]` - width necks, microstrip Zo, GND gap + field-solved CPWG Zo, reference plane, via fence |

@@ -34,6 +34,8 @@ Commands:
   kpcb.py FILE height [REF...]        3D model height per part + the Z stack (cell +
                                       board + tallest part over it), via KiCad's GLB
                                       export of the STEP models; no model = UNKNOWN
+  kpcb.py FILE view REF.. [-r 5]      cropped PNG of the board layers around parts (or
+                                      X,Y / --box X0,Y0,X1,Y1), from kicad-cli's plot
   kpcb.py FILE rf [NET...]            50-ohm trace review: width necks, microstrip Zo
                                       from the stackup, same-layer GND gap, reference
                                       plane under it, GND via fence vs lambda/20
@@ -96,6 +98,7 @@ from kpcb_viapad import c_viapad
 from kpcb_rf import c_rf
 from kpcb_height import c_height
 from kpcb_ic import c_ic, role_pads
+from kpcb_view import c_view
 
 
 def c_summary(b, a):
@@ -654,7 +657,7 @@ def c_net(b, a):
 CMDS = {'summary': c_summary, 'check': c_check, 'where': c_where, 'map': c_map,
         'sheet': c_sheet, 'unplaced': c_unplaced, 'ic': c_ic, 'span': c_span,
         'zones': c_zones, 'sync': c_sync, 'review': c_review, 'ampacity': c_ampacity,
-        'viapad': c_viapad, 'net': c_net, 'rf': c_rf, 'height': c_height}
+        'viapad': c_viapad, 'net': c_net, 'rf': c_rf, 'height': c_height, 'view': c_view}
 
 def main():
     ap = argparse.ArgumentParser(add_help=False)
@@ -720,6 +723,11 @@ def main():
                     help='for `viapad`: hide GND/power pads (routine drops), keep signal pads')
     ap.add_argument('--min', dest='min_vias', type=int, default=1,
                     help='for `viapad`: only pads holding >= N vias, e.g. 4 for thermal pads (1)')
+    ap.add_argument('--layers', default='',
+                    help="for `view`: comma list of layers (default: the part's side Cu/SilkS/Fab/CrtYd + Edge.Cuts)")
+    ap.add_argument('--box', default='', help='for `view`: X0,Y0,X1,Y1 board mm instead of refs')
+    ap.add_argument('--px', type=float, default=20, help='for `view`: pixels per mm (20)')
+    ap.add_argument('-o', '--out', default='', help='for `view`: output .png (or .svg)')
     ap.add_argument('--only', default='')
     ap.add_argument('--skip', default='')
     ap.add_argument('--json', action='store_true')

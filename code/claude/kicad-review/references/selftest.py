@@ -594,6 +594,18 @@ def main():
     fails += not ok12
     print(f"{'ok  ' if ok12 else 'FAIL'}  ksch ic top/bottom pin names inside the body: VCC_RF y {t0:.2f}..{t1:.2f}, "
           f"ENABLE baseline {ln[2]:.2f}, body h {bb[3]:.2f}")
+    # `view`: the crop is a viewBox rewrite in board mm; the real plot needs kicad-cli
+    import kpcb_view, shutil
+    vbox = kpcb_view.crop('<svg width="297mm" height="210mm" viewBox="0 0 297 210">', (10, 20, 30, 50))
+    vpng = os.path.join(TMP, 'selftest_view.png')
+    if shutil.which('kicad-cli') or shutil.which('kicad-cli-nightly'):
+        vc, vo = run(['kpcb.py', PCB, 'view', 'U1', '-r', '1', '-o', vpng])
+        vreal = vc == 0 and '6.8,6.8 - 13.2,13.2 mm' in vo and os.path.getsize(vpng) > 1000
+    else:
+        vreal, vo = True, 'kicad-cli not installed, plot skipped'
+    ok13 = vbox == '<svg width="20mm" height="30mm" viewBox="10 20 20 30">' and vreal
+    fails += not ok13
+    print(f"{'ok  ' if ok13 else 'FAIL'}  kpcb view crop + plot: {vo.strip()[-70:]}")
     # the copper graph must not depend on the hash seed (set order)
     tp = tee_board(tmp.name)
     rs = {run(['kpcb.py', tp, 'ampacity', '--from', 'J1.1', '--to', 'J2.1', '--amps', '1'],
@@ -601,7 +613,7 @@ def main():
     ok10 = rs == {'8.27'}
     fails += not ok10
     print(f"{'ok  ' if ok10 else 'FAIL'}  copper graph independent of hash seed: R {sorted(rs)} mohm")
-    print(f"\n{len(CASES) + 12 - fails}/{len(CASES) + 12} passed")
+    print(f"\n{len(CASES) + 13 - fails}/{len(CASES) + 13} passed")
     return 1 if fails else 0
 
 if __name__ == '__main__':
