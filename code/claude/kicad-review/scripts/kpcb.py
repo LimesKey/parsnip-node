@@ -38,6 +38,9 @@ Commands:
                                       X,Y / --box X0,Y0,X1,Y1), from kicad-cli's plot
   kpcb.py FILE silk                   padless graphic footprints (logos): art layer, scaled
                                       extent, the part body hiding it, pads it crosses
+  kpcb.py FILE movecheck REF X Y [ROT] what a move would newly break: foreign copper inside
+                                      the clearance, copper to edge, courtyard overlap;
+                                      `REF --scan x=X y=A..B`, `via X,Y NX,NY`. Read-only.
   kpcb.py FILE rf [NET...]            50-ohm trace review: width necks, microstrip Zo
                                       from the stackup, same-layer GND gap, reference
                                       plane under it, GND via fence vs lambda/20
@@ -102,6 +105,7 @@ from kpcb_height import c_height
 from kpcb_ic import c_ic, role_pads
 from kpcb_view import c_view
 from kpcb_silk import c_silk
+from kpcb_move import c_movecheck
 
 
 def c_summary(b, a):
@@ -661,7 +665,7 @@ CMDS = {'summary': c_summary, 'check': c_check, 'where': c_where, 'map': c_map,
         'sheet': c_sheet, 'unplaced': c_unplaced, 'ic': c_ic, 'span': c_span,
         'zones': c_zones, 'sync': c_sync, 'review': c_review, 'ampacity': c_ampacity,
         'viapad': c_viapad, 'net': c_net, 'rf': c_rf, 'height': c_height, 'view': c_view,
-        'silk': c_silk}
+        'silk': c_silk, 'movecheck': c_movecheck}
 
 def main():
     ap = argparse.ArgumentParser(add_help=False)
@@ -732,6 +736,9 @@ def main():
     ap.add_argument('--box', default='', help='for `view`: X0,Y0,X1,Y1 board mm instead of refs')
     ap.add_argument('--px', type=float, default=20, help='for `view`: pixels per mm (20)')
     ap.add_argument('-o', '--out', default='', help='for `view`: output .png (or .svg)')
+    ap.add_argument('--scan', nargs='+', default=None, metavar='AXIS=V',
+                    help='for `movecheck`: slide REF along x=X y=Y0..Y1 (or y=Y x=X0..X1), print clear stretches')
+    ap.add_argument('--step', type=float, default=0.05, help='for `movecheck --scan`: step, mm (0.05)')
     ap.add_argument('--only', default='')
     ap.add_argument('--skip', default='')
     ap.add_argument('--json', action='store_true')

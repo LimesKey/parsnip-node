@@ -221,6 +221,23 @@ def mini_project(d):
         + fill('F.Cu', (0.5, 0.5, 19.5, 19.5)) + fill('B.Cu', (0.5, 0.5, 9.5, 19.5), (14.5, 0.5, 19.5, 19.5)) + ')')
     return os.path.join(d, 't.net')
 
+def move_board(d):
+    """R1 (pads A/B at 9.5/10.5,10) with its own A track running to 9.5,5; a foreign C
+    track down x=12 (0.2 mm); a bare D via at 8,14. Default clearance 0.2, edge 0.3."""
+    p = os.path.join(d, 'move.kicad_pcb')
+    open(p, 'w').write(
+        '(kicad_pcb (version 20240108) (generator "pcbnew")'
+        ' (layers (0 "F.Cu" signal) (2 "B.Cu" signal) (25 "Edge.Cuts" user))'
+        ' (gr_rect (start 0 0) (end 20 20) (layer "Edge.Cuts"))'
+        ' (footprint "R" (layer "F.Cu") (at 10 10) (property "Reference" "R1")'
+        ' (fp_rect (start -1 -0.5) (end 1 0.5) (layer "F.CrtYd"))'
+        ' (pad "1" smd rect (at -0.5 0) (size 0.5 0.5) (layers "F.Cu") (net "A"))'
+        ' (pad "2" smd rect (at 0.5 0) (size 0.5 0.5) (layers "F.Cu") (net "B")))'
+        ' (segment (start 9.5 10) (end 9.5 5) (width 0.2) (layer "F.Cu") (net "A"))'
+        ' (segment (start 12 2) (end 12 18) (width 0.2) (layer "F.Cu") (net "C"))'
+        ' (via (at 8 14) (size 0.6) (drill 0.3) (layers "F.Cu" "B.Cu") (net "D")))')
+    return p
+
 def silk_board(d):
     """L1: a logo under U1's 10 x 10 Fab body. L2: a B.Cu footprint whose art is on
     F.SilkS, running over R2's pad 1."""
@@ -464,6 +481,14 @@ def main():
     CASES.append(("knet revpol fet", ['knet.py', fet, 'revpol'], 0,
                   ["FET channel(s) on, gate driven from the cells: Q1", "FET channels vs normal: Q1 off",
                    "isolated from the cells: U1", "bidirectional TVS/ESD, breakdown not in the part number: D1"]))
+    mv = move_board(tmp.name)
+    CASES.append(("kpcb movecheck hit", ['kpcb.py', mv, 'movecheck', 'R1', '11', '10'], 2,
+                  ["NEW   R1.2 0.15 mm from a C track on F.Cu @12.00,10.00, needs 0.20", "1 own track(s) drag"]))
+    CASES.append(("kpcb movecheck clear", ['kpcb.py', mv, 'movecheck', 'R1', '10.5', '10'], 0, ["CLEAR: nothing new"]))
+    CASES.append(("kpcb movecheck scan", ['kpcb.py', mv, 'movecheck', 'R1', '--scan', 'y=10', 'x=9..12', '--step', '0.25'], 0,
+                  ["x    9.000 ..   10.750  clear", "x   11.000 ..   12.000  blocked by a C track"]))
+    CASES.append(("kpcb movecheck via", ['kpcb.py', mv, 'movecheck', 'via', '8,14', '8,15'], 0,
+                  ["a bare stitching via, free to move", "CLEAR: nothing new"]))
     CASES.append(("kpcb silk", ['kpcb.py', silk_board(tmp.name), 'silk'], 0,
                   ["HIDDEN under U1", "[footprint layer B.Cu, art on F]", "art crosses 1 F-side pad(s): R2.1",
                    "1 of 2 hidden under a same-side part body"]))

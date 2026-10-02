@@ -43,6 +43,7 @@ carry F.SilkS art), so `summary`, `map` and `where` count it on the art's side.
 | `net NET` | every pad on a net with absolute xy, copper per layer (segments, length, width range), vias, zones, extent, and whether the copper is **one piece** (else the pads in each cut-off piece) plus padless islands. Accepts the short name (`LORA_ANT`). |
 | `rf [NET...]` | 50-ohm trace review. No net = every net whose netclass names RF/50. See below. |
 | `height [REF...]` | 3D-model height of each part and the board's Z stack. Shells out to KiCad's GLB export (~3 s). See below. |
+| `movecheck REF X Y [ROT]` | what moving REF there would **newly** break: foreign pads/tracks/vias inside the clearance, copper to the edge, a same-side courtyard overlap. `REF --scan x=X y=A..B [--step 0.05]` slides it and prints the clear stretches; `via X,Y NX,NY` moves one via and says whether tracks are tied to it. Read-only. See below. |
 | `silk` | every padless graphic footprint (logo, pasted art): the layers its art is really on (per item, not the footprint's `(layer)`), scaled extent, rotation, the same-side part body hiding it (HIDDEN >= 50% of its box), and the pads its art crosses. See below. |
 | `view REF... [-r 5] [--layers L,L] [-o x.png]` | PNG of the board around parts (their courtyards + `-r`), an `X,Y`, or `--box X0,Y0,X1,Y1`, on the part's side layers (Cu, SilkS, Fab, CrtYd + Edge.Cuts) unless `--layers`. Use it to check by eye what a number says (a void, a logo under a module, a setback). See below. |
 
@@ -464,6 +465,26 @@ bare microstrip width (ignores the side ground); kzo does not, and reads 2.6% lo
 It models rectangular copper and the board file's stackup - the fab's trapezoid and
 its own stackup numbers (check h and er in the `Zo ... microstrip` line against the
 fab's) are the arbiter. ~0.1 s per solve, memoised; gaps round to 0.01 mm.
+
+## `movecheck` - try a nudge before making it
+
+Read-only: it prints what a move would do and never writes the board. REF's pads
+are re-placed at X,Y (and ROT, when given, turning them about the footprint origin)
+as boxes, then measured against every foreign pad, track and via that shares a copper
+layer (a through pad is on all of them), at the net-pair clearance `zones --voids`
+uses (netclasses + `.kicad_dru` `NetName` pairs; same-net copper is never a hit),
+plus copper to the edge (`Board.edge_clearance`) and a same-side courtyard overlap.
+The same test runs at the current spot and only hits the new one adds print as
+`NEW`, so a pre-existing violation is not blamed on the nudge. REF's own tracks
+(ending on its pads) are left out: KiCad's Drag (D) brings them along, so re-check
+those after the move. Zones are left out too: a refill flows around the part. Pads
+are boxes, conservative for round pads on a diagonal. Exit 2 when something new hits.
+
+`--scan x=113.3 y=81..87` slides REF's centre along a line (one axis fixed, one a
+range, `--step` mm) and prints contiguous clear and blocked stretches with what
+blocks each, so a centring move can pick its spot. `via X,Y NX,NY` takes the via
+nearest X,Y (within 0.15 mm): `tied: nothing` means a bare stitching via that is free
+to move (the pour reconnects it on refill); otherwise the tracks ending on it drag.
 
 ## `silk` - where the logos really are
 
