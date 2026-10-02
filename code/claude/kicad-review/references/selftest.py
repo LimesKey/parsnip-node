@@ -221,6 +221,25 @@ def mini_project(d):
         + fill('F.Cu', (0.5, 0.5, 19.5, 19.5)) + fill('B.Cu', (0.5, 0.5, 9.5, 19.5), (14.5, 0.5, 19.5, 19.5)) + ')')
     return os.path.join(d, 't.net')
 
+def silk_board(d):
+    """L1: a logo under U1's 10 x 10 Fab body. L2: a B.Cu footprint whose art is on
+    F.SilkS, running over R2's pad 1."""
+    p = os.path.join(d, 'silk.kicad_pcb')
+    logo = lambda r, x, side: (f' (footprint "Logo" (layer "{side}") (at {x} 10) (property "Reference" "{r}")'
+                               ' (fp_poly (pts (xy -2 -1) (xy 2 -1) (xy 2 1) (xy -2 1)) (layer "F.SilkS")))')
+    open(p, 'w').write(
+        '(kicad_pcb (version 20240108) (generator "pcbnew")'
+        ' (layers (0 "F.Cu" signal) (2 "B.Cu" signal) (25 "Edge.Cuts" user))'
+        ' (gr_rect (start 0 0) (end 40 20) (layer "Edge.Cuts"))'
+        ' (footprint "Module" (layer "F.Cu") (at 10 10) (property "Reference" "U1")'
+        ' (fp_rect (start -5 -5) (end 5 5) (layer "F.Fab"))'
+        ' (pad "1" smd rect (at -4.5 4.5) (size 0.5 0.5) (layers "F.Cu") (net "A")))'
+        ' (footprint "R" (layer "F.Cu") (at 26 10) (property "Reference" "R2")'
+        ' (pad "1" smd rect (at -0.5 0) (size 0.5 0.5) (layers "F.Cu") (net "A"))'
+        ' (pad "2" smd rect (at 0.5 0) (size 0.5 0.5) (layers "F.Cu") (net "B")))'
+        + logo('L1', 10, 'F.Cu') + logo('L2', 24, 'B.Cu') + ')')
+    return p
+
 def edge_board(d):
     """J1: an edge-launch part whose PCB Edge mark sits 0.5 mm inside the top edge.
     J2: a side-entry connector (Horizontal, MP pads toward the bottom edge) whose MP
@@ -445,6 +464,9 @@ def main():
     CASES.append(("knet revpol fet", ['knet.py', fet, 'revpol'], 0,
                   ["FET channel(s) on, gate driven from the cells: Q1", "FET channels vs normal: Q1 off",
                    "isolated from the cells: U1", "bidirectional TVS/ESD, breakdown not in the part number: D1"]))
+    CASES.append(("kpcb silk", ['kpcb.py', silk_board(tmp.name), 'silk'], 0,
+                  ["HIDDEN under U1", "[footprint layer B.Cu, art on F]", "art crosses 1 F-side pad(s): R2.1",
+                   "1 of 2 hidden under a same-side part body"]))
     CASES.append(("kpcb check EDGEREF", ['kpcb.py', edge_board(tmp.name), 'check', '--only', 'EDGEREF'], 0,
                   ["J1's PCB Edge mark (Dwgs.User) is 0.50 mm inside the outline",
                    "move it +0.00,-0.50 mm (nearest pad then 0.50 mm from the edge, edge_clearance 0.3)",

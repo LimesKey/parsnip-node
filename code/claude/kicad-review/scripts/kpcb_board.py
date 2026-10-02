@@ -309,7 +309,7 @@ def ipc_width(need_a, thick_mm, external, dt):
 class FP:
     __slots__ = ('ref', 'value', 'fp', 'layer', 'x', 'y', 'rot', 'sheet', 'attr',
                  'dnp', 'pads', 'crtyd', 'crtyd_real', 'cpoly', 'body', 'placed', '_edge', 'models', 'art',
-                 'fab', 'scale', 'edgeref')
+                 'fab', 'scale', 'edgeref', 'arts')
 
     @property
     def outline(self):
@@ -414,6 +414,22 @@ class Board:
                               'layers': [l for l in lys[1:] if isinstance(l, str)]})
 
         edge += self._graphics(root, None, 'gr_')
+        # board-level silk (pasted art, text): [(layer, bbox)]; text boxes are estimated
+        self.silk = []
+        for g in root[1:]:
+            if not (isinstance(g, list) and g and str(g[0]).startswith('gr_') and val(g, 'layer').endswith('.SilkS')):
+                continue
+            if g[0] == 'gr_text':
+                (x, y), fnt = self._xy(g, 'at'), kid(kid(g, 'effects') or [], 'font') or []
+                sz = kid(fnt, 'size') or ['size', '1', '1']
+                lines = str(g[1]).split('\\n')
+                w, h = .9 * float(sz[2]) * max(len(ln) for ln in lines), 1.6 * float(sz[1]) * len(lines)
+                at = kid(g, 'at')
+                if at and len(at) > 3 and round(float(at[3])) % 180 == 90:
+                    w, h = h, w
+                self.silk.append((val(g, 'layer'), (x - w / 2, y - h / 2, x + w / 2, y + h / 2)))
+            elif self._gpts(g, g[0]):
+                self.silk.append((val(g, 'layer'), bbox(self._gpts(g, g[0]))))
         for node in kids(root, 'footprint'):
             f = self._footprint(node)
             self.fps[f.ref] = f
@@ -572,25 +588,22 @@ class Board:
             if net:
                 self.nets[net].append((f.ref, num))
         # courtyard: the only outline KiCad guarantees is a keepout envelope
+        f.arts = []                             # a padless graphic's art: [(layer, item bbox)]
         for tag in ('fp_line', 'fp_rect', 'fp_arc', 'fp_poly', 'fp_circle'):
             for g in kids(node, tag):
                 lay = val(g, 'layer')
-                pts = []
                 if tag == 'fp_line' and lay == 'Dwgs.User':
                     dwg.append(tuple(xf(q[0] * kx, q[1] * ky, f.x, f.y, f.rot)
                                      for q in (self._xy(g, 'start'), self._xy(g, 'end'))))
-                if lay.endswith('.CrtYd') or lay.endswith('.Fab'):
-                    if tag in ('fp_line', 'fp_rect'):
-                        pts = [self._xy(g, 'start'), self._xy(g, 'end')]
-                    elif tag == 'fp_arc':
-                        pts = [self._xy(g, 'start'), self._xy(g, 'mid'), self._xy(g, 'end')]
-                    elif tag == 'fp_poly':
-                        pts = self._pts(g)
-                    elif tag == 'fp_circle':
-                        c, e = self._xy(g, 'center'), self._xy(g, 'end')
-                        r = math.hypot(e[0] - c[0], e[1] - c[1])
-                        pts = [(c[0] - r, c[1] - r), (c[0] + r, c[1] + r)]
-                pts = [xf(p[0] * kx, p[1] * ky, f.x, f.y, f.rot) for p in pts]
+                cf = lay.endswith('.CrtYd') or lay.endswith('.Fab')
+                art = not f.pads and not cf and lay[:2] in ('F.', 'B.')
+                if not (cf or art):
+                    continue
+                pts = [xf(p[0] * kx, p[1] * ky, f.x, f.y, f.rot) for p in self._gpts(g, tag)]
+                if art:
+                    if pts:
+                        f.arts.append((lay, bbox(pts)))
+                    continue
                 all_pts += pts
                 if lay.endswith('.Fab'):
                     fab_pts += pts
@@ -607,6 +620,22 @@ class Board:
         f.edgeref = dwg if mark and dwg else None
         f.cpoly = rings([s for s in crt_segs if s]) or None
         return f
+
+    @classmethod
+    def _gpts(cls, g, tag):
+        """a graphic's defining points in its own frame (a circle: its bbox corners)"""
+        t = tag[3:]
+        if t in ('line', 'rect'):
+            return [cls._xy(g, 'start'), cls._xy(g, 'end')]
+        if t == 'arc':
+            return [cls._xy(g, 'start'), cls._xy(g, 'mid'), cls._xy(g, 'end')]
+        if t == 'poly':
+            return cls._pts(g)
+        if t == 'circle':
+            c, e = cls._xy(g, 'center'), cls._xy(g, 'end')
+            r = math.hypot(e[0] - c[0], e[1] - c[1])
+            return [(c[0] - r, c[1] - r), (c[0] + r, c[1] + r)]
+        return []
 
     def _crt_seg(self, g, tag, f):
         """one courtyard primitive as a board-frame polyline, for rings()"""

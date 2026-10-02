@@ -43,6 +43,7 @@ carry F.SilkS art), so `summary`, `map` and `where` count it on the art's side.
 | `net NET` | every pad on a net with absolute xy, copper per layer (segments, length, width range), vias, zones, extent, and whether the copper is **one piece** (else the pads in each cut-off piece) plus padless islands. Accepts the short name (`LORA_ANT`). |
 | `rf [NET...]` | 50-ohm trace review. No net = every net whose netclass names RF/50. See below. |
 | `height [REF...]` | 3D-model height of each part and the board's Z stack. Shells out to KiCad's GLB export (~3 s). See below. |
+| `silk` | every padless graphic footprint (logo, pasted art): the layers its art is really on (per item, not the footprint's `(layer)`), scaled extent, rotation, the same-side part body hiding it (HIDDEN >= 50% of its box), and the pads its art crosses. See below. |
 | `view REF... [-r 5] [--layers L,L] [-o x.png]` | PNG of the board around parts (their courtyards + `-r`), an `X,Y`, or `--box X0,Y0,X1,Y1`, on the part's side layers (Cu, SilkS, Fab, CrtYd + Edge.Cuts) unless `--layers`. Use it to check by eye what a number says (a void, a logo under a module, a setback). See below. |
 
 ## Flags
@@ -463,6 +464,17 @@ bare microstrip width (ignores the side ground); kzo does not, and reads 2.6% lo
 It models rectangular copper and the board file's stackup - the fab's trapezoid and
 its own stackup numbers (check h and er in the `Zo ... microstrip` line against the
 fab's) are the arbiter. ~0.1 s per solve, memoised; gaps round to 0.01 mm.
+
+## `silk` - where the logos really are
+
+A footprint with no pads is art. Its side is where its items are (a B.Cu logo can
+carry F.SilkS art), its extent is the union of its items' boxes with the footprint
+`(scale)` applied (strokes not added), and it is HIDDEN when a placed same-side part's
+body (Fab outline, else courtyard) covers >= 50% of that box: a module (U1, U12) or a
+cell holder sits on it after assembly. `pads` counts same-side pads (and through
+pads) whose copper box an art item's box touches; silk there is clipped at the mask
+opening. Board-level silk (`gr_poly`/`gr_text` on *.SilkS) is not listed here; `freebox`
+treats it as an obstacle.
 
 ## `view` - a picture of the board
 

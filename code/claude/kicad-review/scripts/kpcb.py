@@ -36,6 +36,8 @@ Commands:
                                       export of the STEP models; no model = UNKNOWN
   kpcb.py FILE view REF.. [-r 5]      cropped PNG of the board layers around parts (or
                                       X,Y / --box X0,Y0,X1,Y1), from kicad-cli's plot
+  kpcb.py FILE silk                   padless graphic footprints (logos): art layer, scaled
+                                      extent, the part body hiding it, pads it crosses
   kpcb.py FILE rf [NET...]            50-ohm trace review: width necks, microstrip Zo
                                       from the stackup, same-layer GND gap, reference
                                       plane under it, GND via fence vs lambda/20
@@ -99,6 +101,7 @@ from kpcb_rf import c_rf
 from kpcb_height import c_height
 from kpcb_ic import c_ic, role_pads
 from kpcb_view import c_view
+from kpcb_silk import c_silk
 
 
 def c_summary(b, a):
@@ -657,7 +660,8 @@ def c_net(b, a):
 CMDS = {'summary': c_summary, 'check': c_check, 'where': c_where, 'map': c_map,
         'sheet': c_sheet, 'unplaced': c_unplaced, 'ic': c_ic, 'span': c_span,
         'zones': c_zones, 'sync': c_sync, 'review': c_review, 'ampacity': c_ampacity,
-        'viapad': c_viapad, 'net': c_net, 'rf': c_rf, 'height': c_height, 'view': c_view}
+        'viapad': c_viapad, 'net': c_net, 'rf': c_rf, 'height': c_height, 'view': c_view,
+        'silk': c_silk}
 
 def main():
     ap = argparse.ArgumentParser(add_help=False)
