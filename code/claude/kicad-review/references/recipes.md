@@ -12,6 +12,23 @@ named. `sheet` tells you which blocks are still scattered. Say plainly that thes
 are geometric heuristics.
 
 **"Is there room for X here?"** `kpcb.py FILE where 130,60 -r 10`. One call.
+For a silk box or logo of a given size: `kpcb.py FILE freebox f W H`.
+
+**"Tidy the placement" (the pre-order polish pass).** In this order, all read-only:
+1. `kpcb.py FILE sync` - a stale board makes every later step about the wrong circuit.
+2. `check` - HOLECLR and EDGECLR already catch hole hardware and edge problems
+   (the 2026-09-29 pass skipped this and re-found D7 at H4 by hand).
+3. `tidy` - near-miss rows/columns, uneven pitch, hole insets, odd rotations,
+   centring under a big part, each already run through movecheck.
+4. `check --only EDGEREF` - edge-launch parts on their PCB Edge mark, side-entry
+   housing setbacks.
+5. `silk` - logos hidden under a module or holder, art over pads; `freebox` for a
+   new spot.
+6. `movecheck REF X Y` on each nudge you settle on (`--scan` to centre along a line,
+   `via X,Y NX,NY` for a stitching via in the way).
+Then hand the list to the user: they Drag (D) each part in KiCad (its tracks follow)
+or type the position in Properties, refill zones (B), save, and re-run `check`. The
+skill never writes the board.
 
 **"Where do I put the caps around U13 / how do I lay out this buck?"**
 `kpcb.py FILE ic U13`. One call gives positions, rotations, the reason for each and
@@ -69,7 +86,7 @@ and MPN-named footprints clear automatically; divergent nomenclature -> REVIEW.
 # Self-test after editing a tool
 
 ```bash
-python3 references/selftest.py     # 35 checks, asserts, exit 0 = all pass (~5 s)
+python3 references/selftest.py     # 68 checks, asserts, exit 0 = all pass (~15 s)
 ```
 
 Before a refactor, record the real board's outputs, then check after - a pure
@@ -90,7 +107,13 @@ stub, a .kicad_sch newer than the .net, a missing top-level sheet, a BAV199 on t
 wrong dual-diode symbol, a one-cell stack with an unfused TVS for `revpol`, a tiny
 `t.pretty` footprint library for FPPAD and fused-pad PARPIN, `rf.net` for RFSTUB's
 shunt/choke exclusions, `fet.net` for revpol's gate-driven FET), plus formula checks
-(microstrip Zo, the CPWG field solver vs exact cases, glTF transform). `kdrc`, `kmerge` and `height` need
+(microstrip Zo, the CPWG field solver vs exact cases, glTF transform). Small boards
+generated in the temp dir carry one case each: duplicate refs and a B.Cu logo with
+F.SilkS art (`dup_board`), footprint scale + origins (`scale_board`), the hash-seed
+tee (`tee_board`), PAD-NECK (`neck_board`), EDGEREF (`edge_board`), `movecheck`,
+`silk`, `freebox` and `tidy` boards, and netlists for knet draw's note line and
+multi-pin symbols. Static fixtures beside this file: `selftest_cross.kicad_pcb`
+(tracks crossing mid-span) and `selftest_repeat/` (one sheet file used twice). `kdrc`, `kmerge` and `height` need
 kicad-cli, so they are verified against the real board, not in selftest. `sync` on a real board+net that *match* prints IN SYNC in two lines;
 the two fixtures here are deliberately different circuits, so `sync` is the
 negative test - all five SYNC rules fire at once (23 error, 7 warn).
