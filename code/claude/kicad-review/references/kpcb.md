@@ -34,7 +34,7 @@ carry F.SilkS art), so `summary`, `map` and `where` count it on the art's side.
 | `sync [board.net]` | **run this first.** Board vs netlist: same parts, footprints, values, DNP flags and net on every pad. Finds a `.net` beside the board automatically. |
 | `review [board.net]` | one call for a fresh session: sync, summary, check, longest nets, then the specific next calls worth making. |
 | `ampacity [NET...]` | current a routed net can carry (IPC-2221): narrowest segment per layer, via bound, length -> R/Vdrop. With `--amps X` or a kpcb.json budget it warns TRACE-THIN / VIA-FEW / LONG-DROP. See below. |
-| `ampacity --from U8.1 --to C5.2 --amps X` | **the real power path**: a nodal solve between two pads (tracks + via barrels resistive, pours ideal), so current splits by conductance; lists the hottest tracks/vias at their share. Use it on a POURED or MIXED-NET verdict. |
+| `ampacity --from U8.1 --to C5.2 --amps X` | **the real power path**: a nodal solve between two pads (tracks + via barrels resistive, pours ideal), so current splits by conductance; lists the hottest tracks/vias at their share. Use it on a plane net, or when the budget runs between known pads. |
 | `zones` | pour coverage per layer from the last saved fill: area%, island count, edge margins. |
 | `zones REF...` | does a net's fill actually cover THIS footprint's courtyard - point-sampled, not just the fill's bounding box - and which foreign tracks SLOT that plane under it. Closes "is GND continuous under U9" without a KiCad render. See below. |
 | `zones --voids [--area 2]` | copper-free regions in the plane pour (removed islands) and, for each, a via spot that clears everything and lands in the plane on another layer. See below. |
@@ -141,22 +141,23 @@ also prints the **required width**; when that is impractically large (7-8 mm) th
 bottleneck is a thin inner layer (0.0152 mm / ~0.43 oz here) and the real fix is to
 route the net on an outer layer or a plane, not to draw an 8 mm inner trace.
 
-**POURED is not a pass.** When a net has > 50 mm2 of fill on a layer the verdict is
-POURED and the header reads `POURED - thinnest TRACK x A ... is not the net's
-capacity`: the track bottleneck, the per-layer table and the R/Vdrop line then
-describe only the thin tracks, never the plane that carries the current (they have
-been misquoted as the net's limit before). The verdict lists each pour's area,
-fragment count and largest-fragment share and says UNVERIFIED: the pour's
-narrowest neck is not measured, so check the path between the end pads in KiCad.
-`--json` carries the same `pour` block.
+**Pours are conductors, not a verdict.** A net with fill reads like any other: the
+pours are ideal nodes in the copper graph, so a track a pour parallels is never a
+bridge, and a `pours:` line lists each layer's fill area and fragment count with a
+reminder that a pour's own neck is not measured. On a plane net (GND) every pad's
+stub into the plane is a pendant bridge, so the bottleneck names the thinnest pad
+stub, which only matters if that pad carries the budget: `--from PAD --to PAD`
+answers the real source-to-load path. The R/Vdrop line still sums tracks only.
+`--json` carries the `pour` block.
 
 ### How it reads the copper (the important part)
 
-It does **not** just take the smallest `(width)` on the net. It builds a
-**connectivity graph** of the routed copper: every `(segment)`/`(arc)` endpoint is
-a node, endpoints within 0.05 mm merge, a `(via)` stitches its layers, and a shared
-pad joins the tracks landing on it. The **bottleneck** is then the narrowest
-**bridge** - a segment whose removal would split the net, so all the current must
+It does **not** just take the smallest `(width)` on the net. It builds the net's
+**copper graph** with `kpcb_copper.Copper`, the same one `net` and `--from/--to`
+use: a node is one piece of metal (a pad, a pour fragment, track ends joined at a
+tee, a crossing, a via on a track's body), an edge is a track piece between those
+joins or a via barrel half. The **bottleneck** is then the narrowest **bridge**
+track piece - one whose removal would split the net, so all the current must
 cross it. A segment sitting in a parallel loop is *not* a bridge, so a trace that
 splits and reconverges is no longer mis-read as one thin strand. Each segment is
 rated with IPC-2221 `I = k*dT^0.44*A^0.725` (k=0.048 outer copper, 0.024 inner).
@@ -164,7 +165,13 @@ Inner layers here are 0.0152 mm (~0.43 oz), so a 1 mm inner trace rates below a
 0.2 mm outer one. Vias are a plated barrel (`width = pi*drill`, `--plating` thick),
 summed as a parallel bound. Length feeds resistance and voltage drop. The output
 prints the graph state (`N pad(s)`, island count) and, when they differ, both the
-mandatory-bridge ampacity and the `narrowest single seg` value.
+mandatory-bridge ampacity and the `narrowest single seg` value. `N pieces, not one
+conductor` is a real split (the same pieces `net` lists), not a graph artefact.
+
+A bridge whose only far-side pads are sense taps (a thermistor `TH*`, a test point
+`TP*`, or a resistor >= 1k ohm - never a real power path) is never the bottleneck nor
+the narrowest single seg; the graph line names them (`sense-tap legs skipped: TH1`).
+When taps are the only bridges the net reads `meshed, no series bottleneck`.
 
 Warnings (each fires only with a known current; exit 2 on TRACE-THIN or VIA-FEW):
 
@@ -188,20 +195,11 @@ Warnings (each fires only with a known current; exit 2 on TRACE-THIN or VIA-FEW)
   with its ends held at ambient rises `dT = P*L/(8*k*A)`; when that is under
   `--dt` the long-trace fit is the wrong model. A TRACE-THIN on a sunk piece also
   prints this bound. (5V_RAW's 1.5 x 0.3 mm stub into U15.5 at 3 A: ~1.1 C.)
-- **MIXED-NET** (advisory) - a bridge is excluded from bottleneck-picking when its
-  only far-side pads are sense taps (a thermistor `TH*`, a test point `TP*`, or a
-  resistor >= 1k ohm - never a real power path). If *every* bridge on the net turns
-  out to be a tap this way, there is no real series bottleneck left to name, and
-  MIXED-NET fires instead of TRACE-THIN: the budgeted current almost certainly runs
-  through copper this net mixes with a sense path, so verify visually rather than
-  trusting the (near-zero) tap current as the net's real bottleneck.
 
-What it still can't see: two traces that only **cross mid-span** with no shared
-end/via/pad are separate copper in this default endpoint graph (KiCad would merge
-them; `net` and `--from/--to` do); a parallel group
-that individually passes but **sums short** is left to you (PARALLEL-CHECK). And
-IPC-2221 internal ampacity is conservative for a planed board (see the footer).
-`--from/--to` answers both of the last two, below.
+What it still can't see: a parallel group that individually passes but **sums
+short** is left to you (PARALLEL-CHECK), a pour neck is ideal, and IPC-2221 internal
+ampacity is conservative for a planed board (see the footer). `--from/--to`
+answers the first and the last, below.
 
 ### `--from PAD --to PAD` - current along the real path
 

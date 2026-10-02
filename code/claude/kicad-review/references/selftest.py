@@ -63,12 +63,14 @@ CASES = [
     ("kpcb ampacity",['kpcb.py', PCB, 'ampacity', 'PWR', '--amps', '5'], 2, ["TRACE-THIN", "VIA-FEW"]),
     ("kpcb amp-par", ['kpcb.py', PCB, 'ampacity', 'PAR', '--amps', '5'], 0, ["MESH-CHECK"]),  # parallel edges: no bridge, not flagged thin
     # selftest_amp2.kicad_pcb: false-positive classes from SKILL-BACKLOG.md.
+    # NECK's 0.5 mm track end overlaps U1's pad (its cap reaches x 5.05, the pad edge is
+    # 5.15), so the 0.2 mm stub is inside one piece of metal: no neck at all
     ("kpcb amp-neck", ['kpcb.py', PCB2, 'ampacity', 'NECK', '--amps', '1.0'],
-     0, ["PAD-NECK"]),  # short wide stub AT a pad reads as PAD-NECK, not TRACE-THIN
+     0, ["bottleneck 1.45 A on F.Cu (narrowest bridge)", "OK"]),
     ("kpcb amp-tap",  ['kpcb.py', PCB2, 'ampacity', 'TAP', '--amps', '1.2'],
      2, ["TRACE-THIN", "near J1"]),  # real backbone bottleneck, TH2 tap branch excluded
     ("kpcb amp-alltap", ['kpcb.py', PCB2, 'ampacity', 'ALLTAP', '--amps', '1.0'],
-     0, ["MIXED-NET"]),  # only bridge is a thermistor tap -> advisory, not TRACE-THIN
+     0, ["meshed, no series bottleneck (sense-tap legs skipped: TH1)   OK"]),  # the only bridge is a tap
     # nodal solve J1 -> J2: the TH2 tap leg carries nothing; R = 13.10 + 6.88 mohm by hand
     ("kpcb amp-path", ['kpcb.py', PCB2, 'ampacity', '--from', 'J1.1', '--to', 'J2.1', '--amps', '1.2'], 2,
      ["R 19.98 mohm", "0.30 x  8.00 mm  1.20 A (100%)", "1 element(s) over"]),
@@ -218,6 +220,20 @@ def mini_project(d):
         ' (segment (start 12 1) (end 12 19) (width 0.2) (layer "F.Cu") (net "SIG"))'
         + fill('F.Cu', (0.5, 0.5, 19.5, 19.5)) + fill('B.Cu', (0.5, 0.5, 9.5, 19.5), (14.5, 0.5, 19.5, 19.5)) + ')')
     return os.path.join(d, 't.net')
+
+def neck_board(d):
+    """U1's pad -> a 0.2 x 0.35 mm stub -> a 0.3 mm track to C1: the track's end stops
+    short of the pad (0.35 - 0.15 > 0.15), so the stub is the only way in: PAD-NECK."""
+    p = os.path.join(d, 'neck.kicad_pcb')
+    pad = lambda r, x: (f' (footprint "P" (layer "F.Cu") (at {x} 5) (property "Reference" "{r}")'
+                        ' (pad "1" smd rect (at 0 0) (size 0.3 0.3) (layers "F.Cu") (net "N")))')
+    open(p, 'w').write(
+        '(kicad_pcb (version 20240108) (generator "pcbnew")'
+        ' (layers (0 "F.Cu" signal) (2 "B.Cu" signal) (25 "Edge.Cuts" user))'
+        ' (gr_rect (start 0 0) (end 20 10) (layer "Edge.Cuts"))' + pad('U1', 5) + pad('C1', 15)
+        + ' (segment (start 5 5) (end 5.35 5) (width 0.2) (layer "F.Cu") (net "N"))'
+        ' (segment (start 5.35 5) (end 15 5) (width 0.3) (layer "F.Cu") (net "N")))')
+    return p
 
 def dup_board(d):
     """Three padless `REF**` logos (KiCad allows duplicate refs; the third is a B.Cu
@@ -411,6 +427,8 @@ def main():
     CASES.append(("knet revpol fet", ['knet.py', fet, 'revpol'], 0,
                   ["FET channel(s) on, gate driven from the cells: Q1", "FET channels vs normal: Q1 off",
                    "isolated from the cells: U1", "bidirectional TVS/ESD, breakdown not in the part number: D1"]))
+    CASES.append(("kpcb amp-pad-neck", ['kpcb.py', neck_board(tmp.name), 'ampacity', 'N', '--amps', '1.0'], 0,
+                  ["PAD-NECK", "stub landing right on U1.1"]))
     dp = dup_board(tmp.name)
     CASES.append(("kpcb sync art", ['kpcb.py', dp, 'sync', os.path.join(tmp.name, 'dup.net')], 0,
                   ["IN SYNC", "[INFO] SYNCART", "(3): REF** REF**~dup2 REF**~dup3"]))
