@@ -277,7 +277,7 @@ the two GND stitching vias placed by hand landed at 113.45,155.16 and 109.05,150
 
 ## check rules
 
-`OVERLAP EDGECLR HOLECLR CONNACC RFNOISE THERMAL BYPASS NETSPAN NOCRTYD UNPLACED`.
+`OVERLAP EDGECLR EDGEREF HOLECLR CONNACC RFNOISE THERMAL BYPASS NETSPAN NOCRTYD UNPLACED`.
 `--rules` for the legend.
 
 - **`OVERLAP`** screens on courtyard bounding boxes, then confirms against the real
@@ -291,6 +291,15 @@ the two GND stitching vias placed by hand landed at 113.45,155.16 and 109.05,150
 - **`EDGECLR`** is an ERROR when the courtyard crosses the outline, a WARN when it
   is merely inside `--edge`. An edge-mount part (SMA, U.FL, USB-C, `EdgeMount` in
   the footprint name) crossing the edge downgrades to INFO - that is what it is for.
+- **`EDGEREF`** reads the footprint's own idea of the edge. An edge-launch part (SMA,
+  USB-C) whose footprint carries a Dwgs.User line plus a "PCB Edge" text: the line
+  more than 0.05 mm off the outline is a WARN, with the move that puts it on the edge
+  and where the nearest pad then lands vs the copper-to-edge clearance (the larger
+  of `.kicad_pro` `min_copper_edge_clearance` and any `.kicad_dru` `edge_clearance`).
+  A side-entry connector (`Horizontal` in the footprint name, MP pads, which sit on
+  the mating side) within `--conn` of an edge is an INFO giving its Fab housing
+  front's setback and how far it can come forward before a pad is inside that
+  clearance; a WARN when a pad already is.
 - **`HOLECLR`** keepout radius is the hole's own pad/drill radius plus `--hole`. It
   also catches a mounting hole placed outside the board entirely.
 - **`CONNACC`** has two halves: a connector further than `--conn` from any edge, and

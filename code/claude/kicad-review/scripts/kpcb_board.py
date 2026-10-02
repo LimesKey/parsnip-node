@@ -110,6 +110,36 @@ def pt_seg_dist(p, a, b):
     t = max(0.0, min(1.0, ((p[0] - a[0]) * vx + (p[1] - a[1]) * vy) / L))
     return math.hypot(p[0] - a[0] - t * vx, p[1] - a[1] - t * vy)
 
+def seg_closest(p, a, b):
+    """the point of segment a-b nearest p"""
+    dx, dy = b[0] - a[0], b[1] - a[1]
+    L2 = dx * dx + dy * dy
+    t = max(0.0, min(1.0, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / L2)) if L2 else 0.0
+    return (a[0] + t * dx, a[1] + t * dy)
+
+def ray_hit(p, d, segs):
+    """distance along unit direction d from p to the first segment it crosses, or None"""
+    best = None
+    for a, b in segs:
+        ex, ey = b[0] - a[0], b[1] - a[1]
+        den = d[0] * ey - d[1] * ex
+        if abs(den) < 1e-12:
+            continue
+        t = ((a[0] - p[0]) * ey - (a[1] - p[1]) * ex) / den
+        u = ((a[0] - p[0]) * d[1] - (a[1] - p[1]) * d[0]) / den
+        if t > -1e-9 and -1e-9 <= u <= 1 + 1e-9 and (best is None or t < best):
+            best = t
+    return best
+
+def pad_box(p):
+    """a pad's copper as an axis-aligned box in board mm (anchor + custom primitives)"""
+    t = math.radians(p['prot'])
+    hx = abs(p['sx'] / 2 * math.cos(t)) + abs(p['sy'] / 2 * math.sin(t))
+    hy = abs(p['sx'] / 2 * math.sin(t)) + abs(p['sy'] / 2 * math.cos(t))
+    pts = [(p['x'] - hx, p['y'] - hy), (p['x'] + hx, p['y'] + hy)]
+    pts += [xf(u, v, p['x'], p['y'], p['prot']) for poly in p['prims'] for u, v in poly]
+    return bbox(pts)
+
 def _ccw(a, b, c):
     return (c[1] - a[1]) * (b[0] - a[0]) > (b[1] - a[1]) * (c[0] - a[0])
 
@@ -279,7 +309,7 @@ def ipc_width(need_a, thick_mm, external, dt):
 class FP:
     __slots__ = ('ref', 'value', 'fp', 'layer', 'x', 'y', 'rot', 'sheet', 'attr',
                  'dnp', 'pads', 'crtyd', 'crtyd_real', 'cpoly', 'body', 'placed', '_edge', 'models', 'art',
-                 'fab', 'scale')
+                 'fab', 'scale', 'edgeref')
 
     @property
     def outline(self):
@@ -503,7 +533,7 @@ class Board:
         f.art = max('FB', key=lambda c: sides.count(c + '.')) if sides else None
 
         f.pads = []
-        pad_pts, all_pts, crt_pts, crt_segs, fab_pts = [], [], [], [], []
+        pad_pts, all_pts, crt_pts, crt_segs, fab_pts, dwg = [], [], [], [], [], []
         for p in kids(node, 'pad'):
             num = p[1] if len(p) > 1 else '?'
             pat = kid(p, 'at')
@@ -546,6 +576,9 @@ class Board:
             for g in kids(node, tag):
                 lay = val(g, 'layer')
                 pts = []
+                if tag == 'fp_line' and lay == 'Dwgs.User':
+                    dwg.append(tuple(xf(q[0] * kx, q[1] * ky, f.x, f.y, f.rot)
+                                     for q in (self._xy(g, 'start'), self._xy(g, 'end'))))
                 if lay.endswith('.CrtYd') or lay.endswith('.Fab'):
                     if tag in ('fp_line', 'fp_rect'):
                         pts = [self._xy(g, 'start'), self._xy(g, 'end')]
@@ -568,6 +601,10 @@ class Board:
         f.crtyd = bbox(crt_pts) if crt_pts else f.body
         f.crtyd_real = bool(crt_pts)
         f.fab = bbox(fab_pts) if fab_pts else None       # the housing outline alone
+        # an edge-launch part's own "PCB Edge" line (Dwgs.User): where its flange expects the edge
+        mark = any(len(t) > 2 and re.search(r'PCB\s*Edge', str(t[2]), re.I) and val(t, 'layer') == 'Dwgs.User'
+                   for t in kids(node, 'fp_text'))
+        f.edgeref = dwg if mark and dwg else None
         f.cpoly = rings([s for s in crt_segs if s]) or None
         return f
 
@@ -607,6 +644,23 @@ class Board:
 
     def placed(self):
         return [f for f in self.fps.values() if f.placed]
+
+    def edge_clearance(self):
+        """copper-to-edge minimum: the larger of the .kicad_pro floor and any .kicad_dru
+        edge_clearance rule beside the board (0.3 mm when neither says)"""
+        if not hasattr(self, '_ec'):
+            d, v = os.path.dirname(os.path.abspath(self.path)), []
+            for pro in glob.glob(os.path.join(d, '*.kicad_pro')):
+                try:
+                    v.append(float(json.load(open(pro))['board']['design_settings']['rules']
+                                   ['min_copper_edge_clearance']))
+                except (OSError, ValueError, KeyError, TypeError):
+                    pass
+            for dru in glob.glob(os.path.join(d, '*.kicad_dru')):
+                v += [float(x) for x in re.findall(r'\(constraint edge_clearance \(min ([\d.]+)mm\)\)',
+                                                   open(dru, encoding='utf-8', errors='replace').read())]
+            self._ec = max(v) if v else 0.3
+        return self._ec
 
     def netclass(self, net):
         """Netclass of a net from the .kicad_pro beside the board (explicit

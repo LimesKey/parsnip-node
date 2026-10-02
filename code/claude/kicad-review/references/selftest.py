@@ -221,6 +221,24 @@ def mini_project(d):
         + fill('F.Cu', (0.5, 0.5, 19.5, 19.5)) + fill('B.Cu', (0.5, 0.5, 9.5, 19.5), (14.5, 0.5, 19.5, 19.5)) + ')')
     return os.path.join(d, 't.net')
 
+def edge_board(d):
+    """J1: an edge-launch part whose PCB Edge mark sits 0.5 mm inside the top edge.
+    J2: a side-entry connector (Horizontal, MP pads toward the bottom edge) whose MP
+    pad ends 0.2 mm from the edge, inside the 0.3 mm default edge clearance."""
+    p = os.path.join(d, 'edge.kicad_pcb')
+    pad = lambda n, x, y, w, h: f' (pad "{n}" smd rect (at {x} {y}) (size {w} {h}) (layers "F.Cu") (net "N{n}"))'
+    open(p, 'w').write(
+        '(kicad_pcb (version 20240108) (generator "pcbnew")'
+        ' (layers (0 "F.Cu" signal) (2 "B.Cu" signal) (25 "Edge.Cuts" user))'
+        ' (gr_rect (start 0 0) (end 20 20) (layer "Edge.Cuts"))'
+        ' (footprint "SMA_EdgeMount" (layer "F.Cu") (at 10 1.5) (property "Reference" "J1")'
+        ' (fp_line (start -4 -1) (end 4 -1) (layer "Dwgs.User")) (fp_text user "PCB Edge" (at 0 -1.5) (layer "Dwgs.User"))'
+        + pad('1', 0, 0, 1, 1) + ')'
+        ' (footprint "JST_SH_Horizontal" (layer "F.Cu") (at 10 18) (property "Reference" "J2")'
+        ' (fp_rect (start -4 -3) (end 4 1.5) (layer "F.Fab"))'
+        + pad('1', 0, -2, .6, 1.5) + pad('MP', -3, .8, 1, 2) + pad('MP', 3, .8, 1, 2) + '))')
+    return p
+
 def neck_board(d):
     """U1's pad -> a 0.2 x 0.35 mm stub -> a 0.3 mm track to C1: the track's end stops
     short of the pad (0.35 - 0.15 > 0.15), so the stub is the only way in: PAD-NECK."""
@@ -427,6 +445,11 @@ def main():
     CASES.append(("knet revpol fet", ['knet.py', fet, 'revpol'], 0,
                   ["FET channel(s) on, gate driven from the cells: Q1", "FET channels vs normal: Q1 off",
                    "isolated from the cells: U1", "bidirectional TVS/ESD, breakdown not in the part number: D1"]))
+    CASES.append(("kpcb check EDGEREF", ['kpcb.py', edge_board(tmp.name), 'check', '--only', 'EDGEREF'], 0,
+                  ["J1's PCB Edge mark (Dwgs.User) is 0.50 mm inside the outline",
+                   "move it +0.00,-0.50 mm (nearest pad then 0.50 mm from the edge, edge_clearance 0.3)",
+                   "J2 side-entry, mates +y: Fab housing front 0.50 mm inside the edge; a pad is already "
+                   "0.10 mm inside the 0.3 mm edge_clearance"]))
     CASES.append(("kpcb amp-pad-neck", ['kpcb.py', neck_board(tmp.name), 'ampacity', 'N', '--amps', '1.0'], 0,
                   ["PAD-NECK", "stub landing right on U1.1"]))
     dp = dup_board(tmp.name)

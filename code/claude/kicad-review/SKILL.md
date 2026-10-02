@@ -73,6 +73,7 @@ scrambled. The plot only tells you which sheet a symbol lives on.
 | where do these caps/inductor go | `kpcb.py FILE ic U13` - positions, rotations, the rule behind each, and a picture |
 | does the board pass real DRC + ERC | `kdrc.py FILE.kicad_pcb` - KiCad's own checks, every root, folded like `check`; flags a STALE saved zone fill (what gerbers export) |
 | which PWR_FLAGs are needed / redundant | `kdrc.py FILE.kicad_pcb flags` - each flag's net, and whether ERC fails without it |
+| does the SMA/USB-C sit on the edge its footprint expects / how far is a side-entry housing set back | `kpcb.py FILE check --only EDGEREF` |
 | is the ground pour filled / covering | `kpcb.py FILE zones` - fill coverage per copper layer |
 | can a net carry its current / is the trace too thin | `kpcb.py FILE ampacity NET --amps X` - IPC-2221 vs the routed copper + vias |
 | does the power path between two pads carry X A | `kpcb.py FILE ampacity --from Q16.1 --to R41.1 --amps 6` - current split by conductance, pours as conductors, hottest tracks/vias |
