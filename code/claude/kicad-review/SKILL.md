@@ -69,10 +69,11 @@ scrambled. The plot only tells you which sheet a symbol lives on.
 | fresh session on a board | `kpcb.py FILE review` - sync + summary + check + span, then names the next calls to make |
 | is the board the circuit I drew | `kpcb.py FILE sync` - **run before quoting any placement finding**; two lines when clean |
 | where does X connect / is X right | `knet.py FILE around X` - pins, types, nets, position, every part one hop away |
-| where is X, is there room | `kpcb.py FILE where REF` or `where 130,60 -r 10` |
+| where is X, is there room | `kpcb.py FILE where REF` or `where 130,60 -r 10` (`--origin grid` = the numbers KiCad's Properties dialog shows) |
 | where do these caps/inductor go | `kpcb.py FILE ic U13` - positions, rotations, the rule behind each, and a picture |
 | does the board pass real DRC + ERC | `kdrc.py FILE.kicad_pcb` - KiCad's own checks, every root, folded like `check`; flags a STALE saved zone fill (what gerbers export) |
 | which PWR_FLAGs are needed / redundant | `kdrc.py FILE.kicad_pcb flags` - each flag's net, and whether ERC fails without it |
+| does the SMA/USB-C sit on the edge its footprint expects / how far is a side-entry housing set back | `kpcb.py FILE check --only EDGEREF` |
 | is the ground pour filled / covering | `kpcb.py FILE zones` - fill coverage per copper layer |
 | can a net carry its current / is the trace too thin | `kpcb.py FILE ampacity NET --amps X` - IPC-2221 vs the routed copper + vias |
 | does the power path between two pads carry X A | `kpcb.py FILE ampacity --from Q16.1 --to R41.1 --amps 6` - current split by conductance, pours as conductors, hottest tracks/vias |
@@ -81,6 +82,11 @@ scrambled. The plot only tells you which sheet a symbol lives on.
 | where is U7 on its sheet, what is near it, with nets | `ksheet.py FILE.net sch U7` |
 | is the schematic drawing misleading (wire through a body, bypass-looking gaps) | `ksheet.py FILE.net lint [--around REF]` |
 | picture of a schematic region | `ksheet.py FILE.net view REF` -> PNG path |
+| can I nudge X here / where along this line is clear / can this via move | `kpcb.py FILE movecheck REF X Y [ROT]`, `REF --scan x=X y=A..B`, `via X,Y NX,NY` - new hits only, read-only |
+| what is almost-but-not-quite aligned (tidy placement pass) | `kpcb.py FILE tidy` - REF now -> new, each pre-checked with movecheck; the whole pass is a recipe in [recipes](references/recipes.md) |
+| where does a W x H logo/label fit on the silk | `kpcb.py FILE freebox f 8 4` - best centre per free region |
+| are the logos visible / what hides them / do they run over pads | `kpcb.py FILE silk` |
+| picture of a board region (chosen layers) | `kpcb.py FILE view REF [-r 5] [--layers B.Cu,B.SilkS]` -> PNG path |
 | where is this PAD / how far apart are two pads | `kpcb.py FILE where F5.1 BT1.1` |
 | everything on one net, with coordinates | `kpcb.py FILE net NET` - pads (absolute xy), copper per layer, vias, zones |
 | is this 50-ohm trace right | `kpcb.py FILE rf [NET]` - width necks, microstrip Zo, GND gap + field-solved CPWG Zo, reference plane, via fence |

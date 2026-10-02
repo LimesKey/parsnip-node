@@ -15,11 +15,16 @@ classification regexes and geometry are `kpcb_board.py`; `check` rules are
 a graph (pads, tracks split at tees, via barrels, fill fragments as conductors):
 `net` counts its pieces and `ampacity --from/--to` solves current through it.
 
+Every `(footprint` block is one Board entry. KiCad allows a repeated ref (logos are
+all `REF**`): the second and later copies read `REF**~dup2`, `REF**~dup3`, ... A
+padless footprint's side is where its art is, not its `(layer)` (a B.Cu logo can
+carry F.SilkS art), so `summary`, `map` and `where` count it on the art's side.
+
 | command | use |
 | --- | --- |
 | `summary` | outline size, stackup, zones, how much of each sheet is placed, biggest parts. Run first. |
 | `check` | 10 rule-based findings, grouped ERROR/WARN/INFO. Exit 2 if any ERROR. |
-| `where REF...` | **highest value per call.** Position, rotation, courtyard, edge distance, class, nets, and every neighbour within `-r`. Use instead of eyeballing coordinates. |
+| `where REF...` | **highest value per call.** Position, rotation, courtyard, Fab-only body (the housing a connector setback is measured from), edge distance, class, nets, and every neighbour within `-r`. Footprint `(scale)` is applied. `--origin grid\|aux` quotes KiCad's dialog coordinates. Use instead of eyeballing coordinates. |
 | `where X,Y -r N` | same, around a bare coordinate - "is there room here". |
 | `map [--side f\|b] [--cols N]` | ASCII occupancy map, one letter per schematic sheet. Shows the floorplan and the free space in ~50 lines. |
 | `sheet [PATH]` | per-sheet placed/left counts, bounding box, spread, and parts that drifted from their block. |
@@ -29,7 +34,7 @@ a graph (pads, tracks split at tees, via barrels, fill fragments as conductors):
 | `sync [board.net]` | **run this first.** Board vs netlist: same parts, footprints, values, DNP flags and net on every pad. Finds a `.net` beside the board automatically. |
 | `review [board.net]` | one call for a fresh session: sync, summary, check, longest nets, then the specific next calls worth making. |
 | `ampacity [NET...]` | current a routed net can carry (IPC-2221): narrowest segment per layer, via bound, length -> R/Vdrop. With `--amps X` or a kpcb.json budget it warns TRACE-THIN / VIA-FEW / LONG-DROP. See below. |
-| `ampacity --from U8.1 --to C5.2 --amps X` | **the real power path**: a nodal solve between two pads (tracks + via barrels resistive, pours ideal), so current splits by conductance; lists the hottest tracks/vias at their share. Use it on a POURED or MIXED-NET verdict. |
+| `ampacity --from U8.1 --to C5.2 --amps X` | **the real power path**: a nodal solve between two pads (tracks + via barrels resistive, pours ideal), so current splits by conductance; lists the hottest tracks/vias at their share. Use it on a plane net, or when the budget runs between known pads. |
 | `zones` | pour coverage per layer from the last saved fill: area%, island count, edge margins. |
 | `zones REF...` | does a net's fill actually cover THIS footprint's courtyard - point-sampled, not just the fill's bounding box - and which foreign tracks SLOT that plane under it. Closes "is GND continuous under U9" without a KiCad render. See below. |
 | `zones --voids [--area 2]` | copper-free regions in the plane pour (removed islands) and, for each, a via spot that clears everything and lands in the plane on another layer. See below. |
@@ -38,6 +43,11 @@ a graph (pads, tracks split at tees, via barrels, fill fragments as conductors):
 | `net NET` | every pad on a net with absolute xy, copper per layer (segments, length, width range), vias, zones, extent, and whether the copper is **one piece** (else the pads in each cut-off piece) plus padless islands. Accepts the short name (`LORA_ANT`). |
 | `rf [NET...]` | 50-ohm trace review. No net = every net whose netclass names RF/50. See below. |
 | `height [REF...]` | 3D-model height of each part and the board's Z stack. Shells out to KiCad's GLB export (~3 s). See below. |
+| `movecheck REF X Y [ROT]` | what moving REF there would **newly** break: foreign pads/tracks/vias inside the clearance, copper to the edge, a same-side courtyard overlap. `REF --scan x=X y=A..B [--step 0.05]` slides it and prints the clear stretches; `via X,Y NX,NY` moves one via and says whether tracks are tied to it. Read-only. See below. |
+| `tidy` | near-miss alignment, each fix pre-checked with `movecheck`: a row/column with one part 0.005-0.15 mm off, a row of >= 3 with an uneven pitch, mounting-hole insets that nearly agree, rotations off a multiple of 90, a small part a little off a big same-side part's long centre line (a thermistor under a cell holder). Prints `REF now -> new`; writes nothing. See below. |
+| `freebox SIDE W H` | where a W x H mm silk box (a logo, a label) fits on side `f`/`b`: clear of that side's courtyards, every through-hole pad and that side's silk (logos, board art, refdes and other footprint text), >= 1 mm inside the edge. Best centre per free region, by margin. See below. |
+| `silk` | every padless graphic footprint (logo, pasted art): the layers its art is really on (per item, not the footprint's `(layer)`), scaled extent, rotation, the same-side part body hiding it (HIDDEN >= 50% of its box), and the pads its art crosses. See below. |
+| `view REF... [-r 5] [--layers L,L] [-o x.png]` | PNG of the board around parts (their courtyards + `-r`), an `X,Y`, or `--box X0,Y0,X1,Y1`, on the part's side layers (Cu, SilkS, Fab, CrtYd + Edge.Cuts) unless `--layers`. Use it to check by eye what a number says (a void, a logo under a module, a setback). See below. |
 
 ## Flags
 
@@ -54,6 +64,10 @@ um), `--vdrop 0.25` (V-drop flag threshold), `--from REF.PIN --to REF.PIN` (path
 solve). For `zones`: `--voids`, `--area 2` (smallest void core, mm2), `--net=NAME`
 (the plane net, default the biggest pour). For `viapad`: `--signal`, `--min N`.
 For `rf`: `--freq MHz`, `--fence 1.5` (mm from the trace edge that counts as fence).
+For `where`: `--origin page|grid|aux` reads x,y arguments and prints coordinates
+relative to the board's grid origin or aux (drill/place) origin, which is what KiCad's
+Properties dialog shows when Display origin is set that way (Y still grows down;
+an inverted-Y display is not modelled). `summary` prints both origins.
 
 ## Project config
 
@@ -82,12 +96,16 @@ review.
 **Nothing else here means anything if this fails.** A board that was never
 re-synced after a schematic change carries pad net names that look perfectly valid,
 so neither the board file nor any check on it can tell you it is stale - only the
-netlist can. Rules: `SYNCPART SYNCFP SYNCVAL SYNCDNP SYNCNET`.
+netlist can. Rules: `SYNCPART SYNCFP SYNCVAL SYNCDNP SYNCNET SYNCART`.
 
 Clean output is two lines (`IN SYNC`), so it is cheap to run every time. A `SYNCNET`
 error means re-run KiCad's *Update PCB from Schematic* before reading any other
 finding. `SYNCVAL`/`SYNCDNP` alone are annotation drift: worth fixing, but the
 connectivity is still right and placement findings still hold.
+
+A footprint on the board only that has no pads and no sheet path (a logo, pasted
+silk art, `REF**`) is `INFO SYNCART`, not a missing part: it never came from the
+schematic, so it cannot make the board stale and the output stays `IN SYNC`.
 
 `unconnected-*` pseudo-nets get a `_1` suffix on the board and not in the netlist;
 that is normalised away rather than reported as 439 differences.
@@ -128,22 +146,23 @@ also prints the **required width**; when that is impractically large (7-8 mm) th
 bottleneck is a thin inner layer (0.0152 mm / ~0.43 oz here) and the real fix is to
 route the net on an outer layer or a plane, not to draw an 8 mm inner trace.
 
-**POURED is not a pass.** When a net has > 50 mm2 of fill on a layer the verdict is
-POURED and the header reads `POURED - thinnest TRACK x A ... is not the net's
-capacity`: the track bottleneck, the per-layer table and the R/Vdrop line then
-describe only the thin tracks, never the plane that carries the current (they have
-been misquoted as the net's limit before). The verdict lists each pour's area,
-fragment count and largest-fragment share and says UNVERIFIED: the pour's
-narrowest neck is not measured, so check the path between the end pads in KiCad.
-`--json` carries the same `pour` block.
+**Pours are conductors, not a verdict.** A net with fill reads like any other: the
+pours are ideal nodes in the copper graph, so a track a pour parallels is never a
+bridge, and a `pours:` line lists each layer's fill area and fragment count with a
+reminder that a pour's own neck is not measured. On a plane net (GND) every pad's
+stub into the plane is a pendant bridge, so the bottleneck names the thinnest pad
+stub, which only matters if that pad carries the budget: `--from PAD --to PAD`
+answers the real source-to-load path. The R/Vdrop line still sums tracks only.
+`--json` carries the `pour` block.
 
 ### How it reads the copper (the important part)
 
-It does **not** just take the smallest `(width)` on the net. It builds a
-**connectivity graph** of the routed copper: every `(segment)`/`(arc)` endpoint is
-a node, endpoints within 0.05 mm merge, a `(via)` stitches its layers, and a shared
-pad joins the tracks landing on it. The **bottleneck** is then the narrowest
-**bridge** - a segment whose removal would split the net, so all the current must
+It does **not** just take the smallest `(width)` on the net. It builds the net's
+**copper graph** with `kpcb_copper.Copper`, the same one `net` and `--from/--to`
+use: a node is one piece of metal (a pad, a pour fragment, track ends joined at a
+tee, a crossing, a via on a track's body), an edge is a track piece between those
+joins or a via barrel half. The **bottleneck** is then the narrowest **bridge**
+track piece - one whose removal would split the net, so all the current must
 cross it. A segment sitting in a parallel loop is *not* a bridge, so a trace that
 splits and reconverges is no longer mis-read as one thin strand. Each segment is
 rated with IPC-2221 `I = k*dT^0.44*A^0.725` (k=0.048 outer copper, 0.024 inner).
@@ -151,7 +170,13 @@ Inner layers here are 0.0152 mm (~0.43 oz), so a 1 mm inner trace rates below a
 0.2 mm outer one. Vias are a plated barrel (`width = pi*drill`, `--plating` thick),
 summed as a parallel bound. Length feeds resistance and voltage drop. The output
 prints the graph state (`N pad(s)`, island count) and, when they differ, both the
-mandatory-bridge ampacity and the `narrowest single seg` value.
+mandatory-bridge ampacity and the `narrowest single seg` value. `N pieces, not one
+conductor` is a real split (the same pieces `net` lists), not a graph artefact.
+
+A bridge whose only far-side pads are sense taps (a thermistor `TH*`, a test point
+`TP*`, or a resistor >= 1k ohm - never a real power path) is never the bottleneck nor
+the narrowest single seg; the graph line names them (`sense-tap legs skipped: TH1`).
+When taps are the only bridges the net reads `meshed, no series bottleneck`.
 
 Warnings (each fires only with a known current; exit 2 on TRACE-THIN or VIA-FEW):
 
@@ -175,19 +200,11 @@ Warnings (each fires only with a known current; exit 2 on TRACE-THIN or VIA-FEW)
   with its ends held at ambient rises `dT = P*L/(8*k*A)`; when that is under
   `--dt` the long-trace fit is the wrong model. A TRACE-THIN on a sunk piece also
   prints this bound. (5V_RAW's 1.5 x 0.3 mm stub into U15.5 at 3 A: ~1.1 C.)
-- **MIXED-NET** (advisory) - a bridge is excluded from bottleneck-picking when its
-  only far-side pads are sense taps (a thermistor `TH*`, a test point `TP*`, or a
-  resistor >= 1k ohm - never a real power path). If *every* bridge on the net turns
-  out to be a tap this way, there is no real series bottleneck left to name, and
-  MIXED-NET fires instead of TRACE-THIN: the budgeted current almost certainly runs
-  through copper this net mixes with a sense path, so verify visually rather than
-  trusting the (near-zero) tap current as the net's real bottleneck.
 
-What it still can't see: two traces that only **cross mid-span** with no shared
-end/via/pad are separate copper here (KiCad would merge them); a parallel group
-that individually passes but **sums short** is left to you (PARALLEL-CHECK). And
-IPC-2221 internal ampacity is conservative for a planed board (see the footer).
-`--from/--to` answers both of the last two, below.
+What it still can't see: a parallel group that individually passes but **sums
+short** is left to you (PARALLEL-CHECK), a pour neck is ideal, and IPC-2221 internal
+ampacity is conservative for a planed board (see the footer). `--from/--to`
+answers the first and the last, below.
 
 ### `--from PAD --to PAD` - current along the real path
 
@@ -195,8 +212,9 @@ IPC-2221 internal ampacity is conservative for a planed board (see the footer).
 one net as a resistor network (Jacobi-preconditioned CG, ~0.02 s): tracks and via
 barrels are resistors (`rho*L/A`, barrel = two halves of the board thickness),
 pads and zone fills are ideal nodes. The copper graph (`kpcb_copper.py`) joins
-what KiCad joins: track ends on pads/vias, a track teeing into another's body, a
-via or pad sitting on a track mid-span, overlapping pads (fused leads), fills to
+what KiCad joins: track ends on pads/vias, a track teeing into another's body, two
+tracks crossing mid-span, a via or pad sitting on a track mid-span, overlapping
+pads (fused leads), fills to
 the pads/vias/tracks they touch and to other fills of the net on the same layer.
 On parsnip it finds 0 split nets and 0 islands, matching KiCad's 0 unconnected / 0
 isolated_copper. Output: R, Vdrop, P between the pads, the pours crossed, and the
@@ -264,7 +282,7 @@ the two GND stitching vias placed by hand landed at 113.45,155.16 and 109.05,150
 
 ## check rules
 
-`OVERLAP EDGECLR HOLECLR CONNACC RFNOISE THERMAL BYPASS NETSPAN NOCRTYD UNPLACED`.
+`OVERLAP EDGECLR EDGEREF HOLECLR CONNACC RFNOISE THERMAL BYPASS NETSPAN NOCRTYD UNPLACED`.
 `--rules` for the legend.
 
 - **`OVERLAP`** screens on courtyard bounding boxes, then confirms against the real
@@ -278,6 +296,15 @@ the two GND stitching vias placed by hand landed at 113.45,155.16 and 109.05,150
 - **`EDGECLR`** is an ERROR when the courtyard crosses the outline, a WARN when it
   is merely inside `--edge`. An edge-mount part (SMA, U.FL, USB-C, `EdgeMount` in
   the footprint name) crossing the edge downgrades to INFO - that is what it is for.
+- **`EDGEREF`** reads the footprint's own idea of the edge. An edge-launch part (SMA,
+  USB-C) whose footprint carries a Dwgs.User line plus a "PCB Edge" text: the line
+  more than 0.05 mm off the outline is a WARN, with the move that puts it on the edge
+  and where the nearest pad then lands vs the copper-to-edge clearance (the larger
+  of `.kicad_pro` `min_copper_edge_clearance` and any `.kicad_dru` `edge_clearance`).
+  A side-entry connector (`Horizontal` in the footprint name, MP pads, which sit on
+  the mating side) within `--conn` of an edge is an INFO giving its Fab housing
+  front's setback and how far it can come forward before a pad is inside that
+  clearance; a WARN when a pad already is.
 - **`HOLECLR`** keepout radius is the hole's own pad/drill radius plus `--hole`. It
   also catches a mounting hole placed outside the board entirely.
 - **`CONNACC`** has two halves: a connector further than `--conn` from any edge, and
@@ -441,6 +468,82 @@ It models rectangular copper and the board file's stackup - the fab's trapezoid 
 its own stackup numbers (check h and er in the `Zo ... microstrip` line against the
 fab's) are the arbiter. ~0.1 s per solve, memoised; gaps round to 0.01 mm.
 
+## `movecheck` - try a nudge before making it
+
+Read-only: it prints what a move would do and never writes the board. REF's pads
+are re-placed at X,Y (and ROT, when given, turning them about the footprint origin)
+as boxes, then measured against every foreign pad, track and via that shares a copper
+layer (a through pad is on all of them), at the net-pair clearance `zones --voids`
+uses (netclasses + `.kicad_dru` `NetName` pairs; same-net copper is never a hit),
+plus copper to the edge (`Board.edge_clearance`) and a same-side courtyard overlap.
+The same test runs at the current spot and only hits the new one adds print as
+`NEW`, so a pre-existing violation is not blamed on the nudge. REF's own tracks
+(ending on its pads) are left out: KiCad's Drag (D) brings them along, so re-check
+those after the move. Zones are left out too: a refill flows around the part. Pads
+are boxes, conservative for round pads on a diagonal. Exit 2 when something new hits.
+
+`--scan x=113.3 y=81..87` slides REF's centre along a line (one axis fixed, one a
+range, `--step` mm) and prints contiguous clear and blocked stretches with what
+blocks each, so a centring move can pick its spot. `via X,Y NX,NY` takes the via
+nearest X,Y (within 0.15 mm): `tied: nothing` means a bare stitching via that is free
+to move (the pour reconnects it on refill); otherwise the tracks ending on it drag.
+
+## `tidy` - near misses, with the fix already checked
+
+Five passes over the placed parts (mounting holes only in the third):
+- **near-miss**: same-side parts of one footprint within 6 mm (or siblings of a
+  small family anywhere - <= 4 parts of that prefix and footprint, so SW1/SW2,
+  J4/J8, BT1/BT2, never every 0402 cap) whose x or y agree within 0.15 mm; a part
+  0.005-0.15 mm off the value most of the group shares (a tie: the lowest ref's)
+  is moved onto it.
+- **pitch**: a line of >= 3 same-footprint parts (one y, or one x) chained <= 6 mm
+  apart whose pitches differ by 0.02 mm to 25% of the mean: the middle parts move
+  to an even pitch between the two ends.
+- **hole inset**: each mounting hole's x and y inset from the outline bbox; a hole
+  0.005-0.5 mm off the common inset moves to it.
+- **rotation**: a part whose rotation is not a multiple of 90 goes to the nearest.
+- **centring**: a part whose centre sits inside a same-side part with >= 20x its
+  courtyard area, 0.005-2 mm off that part's long centre line (Fab body, else
+  courtyard), moves onto the line; the offset along the line is printed too.
+
+Every suggestion runs through `movecheck` at its new spot (`clear`, or the first new
+hit), so a fix that would break clearance says so before anyone drags the part.
+
+## `freebox` - room for a silk box
+
+A 0.25 mm raster of the side: blocked where outside the outline or within 1 mm of
+it, under a placed same-side courtyard, under any through-hole pad (pad box, both
+sides), or under that side's silk: padless art items, board-level `gr_*` silk, and
+each footprint's visible silk text. Text boxes are estimated (0.9 x font width per
+character, line height from the font, placed by `(justify)`, footprint text `(at)`
+local with an absolute angle). Every centre whose W x H box is empty is a candidate;
+4-connected candidates form a region, and each region reports the centre with the
+largest margin (how far the box could grow on every side and stay clear; ties go to
+the region's middle). Blocked cells are any cell an obstacle touches, so margins
+err low by up to one cell. Tracks and pours are not obstacles: silk over masked
+copper is fine. ~0.5 s.
+
+## `silk` - where the logos really are
+
+A footprint with no pads is art. Its side is where its items are (a B.Cu logo can
+carry F.SilkS art), its extent is the union of its items' boxes with the footprint
+`(scale)` applied (strokes not added), and it is HIDDEN when a placed same-side part's
+body (Fab outline, else courtyard) covers >= 50% of that box: a module (U1, U12) or a
+cell holder sits on it after assembly. `pads` counts same-side pads (and through
+pads) whose copper box an art item's box touches; silk there is clipped at the mask
+opening. Board-level silk (`gr_poly`/`gr_text` on *.SilkS) is not listed here; `freebox`
+treats it as an obstacle.
+
+## `view` - a picture of the board
+
+`kicad-cli pcb export svg --layers .. --mode-single --exclude-drawing-sheet` (the right
+CLI per file), cached under `~/.cache/kicad-review/pcbsvg/` per board save and layer
+list. That SVG's viewBox is the page in mm with the board at its own coordinates, so
+the crop is a viewBox rewrite (the ksheet `view` recipe), rasterised by `rsvg-convert`
+at `--px 20` per mm on white; `-o x.svg` keeps the cropped SVG. Always seen from the
+top: a B.* layer is not mirrored, so coordinates stay the board's. Zones show their
+saved fill.
+
 ## `height [REF...]` - the Z budget
 
 Runs `kicad-cli pcb export glb --no-board-body --no-dnp` (the right CLI per file),
@@ -455,6 +558,8 @@ What it will not do is guess:
   where one file is missing is flagged PARTIAL;
 - jumpers, net ties and test pads/holes with no model are "assumed flat copper",
   listed, with the note that a header pin in a TH test point adds height;
+- a padless footprint with no model (a logo, pasted silk art) is not a part and is
+  left out entirely, never UNKNOWN;
 - a battery holder's model is flagged: it may omit the cell (the parsnip BT1/BT2
   model reads 15.8 mm; a 21700 is 21.7 mm across). Put the measured figure in
   kpcb.json `"height": {"BT1": 23.1}` - an override wins over the model and prints

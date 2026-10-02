@@ -79,7 +79,9 @@ def c_height(b, a):
         H, missing = heights(b)
     except Exception as e:
         print(f"GLB export failed: {e}", file=sys.stderr); return 3
-    real = [f for f in b.fps.values() if f.placed and not f.dnp and not b.is_hole(f)]
+    # padless with no model = silk/logo art, not a part: never an UNKNOWN height
+    real = [f for f in b.fps.values() if f.placed and not f.dnp and not b.is_hole(f)
+            and (f.pads or f.models)]
     cfgd = {k: _f(v) for k, v in (a.height_cfg or {}).items() if k in b.fps}
     H.update(cfgd)                                  # kpcb.json "height": measured > model
     # model-less footprints that are only copper (jumpers, net ties, test pads/holes)

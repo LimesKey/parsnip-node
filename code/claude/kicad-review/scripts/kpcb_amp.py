@@ -1,6 +1,6 @@
 """kpcb.py `ampacity`: IPC-2221 current capacity of a routed net (copper graph + bottleneck)."""
 import json, math
-from collections import defaultdict
+from collections import Counter, defaultdict
 from kcommon import natkey, prefix, parse_value
 from kpcb_board import (_f, _find_pad, ipc_current, ipc_width, MIL, POUR_MIN, RHO_CU, thick_of,
                         via_current)
@@ -40,105 +40,53 @@ def _nearest_pad(pads, pt):
     t = _nearest_pad_dist(pads, pt)
     return f"{t[0]}.{t[1]} ({t[2]:.1f} mm away)" if t else ''
 
-def _net_graph(b, net, tol=0.05):
-    """Connectivity graph of one net's routed copper, so width is read in context
-    instead of segment-by-segment. Nodes = track endpoints merged within `tol` mm,
-    stitched across layers where a via sits and bridged where tracks land on a
-    shared pad. Edges = the segments. A BRIDGE edge is one whose removal splits the
-    graph: all current between the two sides must cross it, so the narrowest bridge
-    is the real series bottleneck. A segment inside a parallel loop is not a bridge,
-    so two traces that split and reconverge no longer read as one thin strand.
-    Endpoint-based: two traces that only cross mid-span with no shared end/via/pad
-    are still separate (KiCad would merge that copper; this does not)."""
-    segs = [t for t in b.tracks if t['net'] == net and t['w'] > 0]
-    if not segs:
+def _net_graph(b, net):
+    """Connectivity graph of one net's copper, built on kpcb_copper.Copper so width is
+    read in context: nodes are what is one piece of metal (pads, pours, track ends
+    joined at tees, crossings, vias on a track's body), edges are the track pieces
+    between those joins and the via barrel halves. A BRIDGE edge is one whose removal
+    splits the graph: all current between the two sides must cross it, so the
+    narrowest bridging track piece is the real series bottleneck. A piece inside a
+    parallel loop is not a bridge, and neither is a track a pour parallels (the pour
+    is an ideal conductor here: its own necks are not measured)."""
+    cu = Copper(b, net)
+    if not cu.tracks:
         return None
-
-    def q(p):
-        return (round(p[0] / tol), round(p[1] / tol))
-    parent = {}
-
-    def find(k):
-        parent.setdefault(k, k)
-        root = k
-        while parent[root] != root:
-            root = parent[root]
-        while parent[k] != root:
-            parent[k], k = root, parent[k]
-        return root
-
-    def union(x, y):
-        rx, ry = find(x), find(y)
-        if rx != ry:
-            parent[rx] = ry
-
-    ekeys = []
-    for t in segs:
-        ka, kb = (t['layer'],) + q(t['a']), (t['layer'],) + q(t['b'])
-        find(ka); find(kb)
-        ekeys.append((ka, kb))
-    bygrid = defaultdict(list)
-    for k in list(parent):
-        bygrid[k[1:]].append(k)
-
-    def near(gx, gy, r=1):
-        return [k for dx in range(-r, r + 1) for dy in range(-r, r + 1)
-                for k in bygrid.get((gx + dx, gy + dy), [])]
-    for v in b.vias:                                  # a via stitches its layers
-        if v['net'] == net:
-            ks = near(*q((v['x'], v['y'])))
-            for k in ks[1:]:
-                union(ks[0], k)
-    pad_key = {}                                       # ref -> a grid key at one of its pads
-    for f in b.fps.values():                          # a pad bridges tracks on it
-        for p in f.pads:
-            if p['net'] != net:
-                continue
-            th = p['drill'] > 0 or any('*.Cu' in l for l in p['layers'])
-            ks = near(*q((p['x'], p['y'])), r=max(1, int(p['w'] / 2 / tol)))
-            if not th:
-                ks = [k for k in ks if k[0] in p['layers']]
-            if ks:
-                pad_key[f.ref] = ks[0]
-            for k in ks[1:]:
-                union(ks[0], k)
-
-    node = {}
+    R, P = cu.ideal.find, cu.piece.find
+    held = Counter(P(('pad', i)) for i in range(len(cu.pads)))
+    main = held.most_common(1)[0][0] if held else P(cu.edges[0][0])
+    node, cid = {}, {}
 
     def nid(k):
-        return node.setdefault(find(k), len(node))
-    adj, enode = defaultdict(list), []
-    for i, (ka, kb) in enumerate(ekeys):
-        u, w = nid(ka), nid(kb)
+        n = node.setdefault(R(k), len(node))
+        cid[n] = 0 if P(k) == main else 1
+        return n
+    xy = lambda k: (k[2] * .01, k[3] * .01)          # noqa: E731  ('pt', layer, qx, qy)
+    adj, enode, segs = defaultdict(list), [], []
+    for k0, k1, t, L in cu.edges:
+        u, w = nid(k0), nid(k1)
+        if u == w:
+            continue
+        (ax, ay), (bx, by) = xy(k0), xy(k1)
+        segs.append({'w': t['w'], 'layer': t['layer'], 'len': L, 'a': (ax, ay), 'b': (bx, by),
+                     'mid': ((ax + bx) / 2, (ay + by) / 2), 'net': net, 'track': t})
         enode.append((u, w))
+    for k0, k1, k in cu.vedges:                      # barrels join layers; never the bottleneck
+        u, w = nid(k0), nid(k1)
+        if u != w:
+            segs.append(None)
+            enode.append((u, w))
+    for i, (u, w) in enumerate(enode):
         adj[u].append((w, i)); adj[w].append((u, i))
     n = len(node)
-    cid, comp = {}, 0                                 # label components over the edge graph
-    for s in range(n):
-        if s in cid:
-            continue
-        cid[s] = comp; stack = [s]
-        while stack:
-            u = stack.pop()
-            for w, _ in adj[u]:
-                if w not in cid:
-                    cid[w] = comp; stack.append(w)
-        comp += 1
-    # the main current-carrying copper is the component with the most track length;
-    # a stray fragment or a one-pad spur is its own (tiny) component and its lone
-    # edge would otherwise count as a false bridge.
-    clen = defaultdict(float)
-    for i, (u, _w) in enumerate(enode):
-        clen[cid[u]] += segs[i]['len']
-    main = max(clen, key=clen.get) if clen else 0
     # bridges: iterative DFS low-link, skipping only the edge we entered on (so a
     # second parallel edge between the same nodes correctly prevents a bridge).
     bridges, disc, low, timer = set(), {}, {}, [0]
-    for s in range(n):
-        if s in disc:
+    for s0 in range(n):
+        if s0 in disc:
             continue
-        disc[s] = low[s] = timer[0]; timer[0] += 1
-        stack = [(s, -1, iter(adj[s]))]
+        disc[s0] = low[s0] = timer[0]; timer[0] += 1
+        stack = [(s0, -1, iter(adj[s0]))]
         while stack:
             u, pe, it = stack[-1]
             for (w, ei) in it:
@@ -156,10 +104,11 @@ def _net_graph(b, net, tol=0.05):
                     low[pu] = min(low[pu], low[u])
                     if low[u] > disc[pu]:
                         bridges.add(pe)
-    main_bridges = {i for i in bridges if cid[enode[i][0]] == main}
-    pad_node = {ref: nid(find(k)) for ref, k in pad_key.items()}
-    return {'segs': segs, 'nodes': n, 'comp': comp, 'bridges': main_bridges,
-            'adj': adj, 'enode': enode, 'cid': cid, 'pad_node': pad_node}
+    # the main piece holds the most pads; a stray fragment's lone edge is no bridge
+    main_bridges = {i for i in bridges if segs[i] is not None and cid[enode[i][0]] == 0}
+    pad_node = [(f.ref, node[R(('pad', i))]) for i, (f, _p) in enumerate(cu.pads) if R(('pad', i)) in node]
+    return {'segs': segs, 'nodes': n, 'comp': sum(1 for q in cu.pieces() if q['pads']), 'bridges': main_bridges,
+            'adj': adj, 'enode': enode, 'cid': cid, 'pad_node': pad_node, 'cu': cu}
 
 def _net_geo(b, net):
     """One net's routed copper in a single pass: {layer: [minw, len]}, total
@@ -195,8 +144,8 @@ def _is_tap_ref(b, ref):
     return False
 
 def _bridge_is_tap(b, g, i):
-    """True if bridge edge `i` isolates a pendant sub-branch, on EITHER side,
-    whose sole pads belong to sense-tap parts (see `_is_tap_ref`). Such a
+    """The tap refs if bridge edge `i` isolates a pendant sub-branch, on EITHER side,
+    whose sole pads belong to sense-tap parts (see `_is_tap_ref`), else None. Such a
     bridge is a false series bottleneck: the net's full budgeted current has
     no reason to detour down a thermistor or pull-up leg, so it should not be
     picked as the mandatory bridge for a TRACE-THIN verdict. Checking both
@@ -215,10 +164,10 @@ def _bridge_is_tap(b, g, i):
     comp_nodes = {n for n, c in g['cid'].items() if c == g['cid'][u]}
     other = comp_nodes - seen
     for side in (seen, other):
-        refs = {ref for ref, nd in g['pad_node'].items() if nd in side}
+        refs = {ref for ref, nd in g['pad_node'] if nd in side}
         if refs and all(_is_tap_ref(b, ref) for ref in refs):
-            return True
-    return False
+            return refs
+    return None
 
 def _bott_fields(b, t, dt):
     """Bottleneck fields from a single track dict (the constraining segment)."""
@@ -240,23 +189,25 @@ def _amp_row(b, net, need, a, graph=False):
     # narrowest MANDATORY segment: a bridge in the connectivity graph, i.e. one all
     # the current must cross. A segment in a parallel loop is skipped, so split-and-
     # reconverge no longer reads as one thin strand. Falls back to naive if no graph.
-    meshed, comp, bott, bott_is_tap = False, None, naive, False
+    meshed, comp, bott, g, taps = False, None, naive, None, []
     if graph and segs:
         g = _net_graph(b, net)
-        comp = g['comp'] if g else None
-        bridge_idx = list(g['bridges']) if g else []
+    if g:
+        comp = g['comp']
         # a bridge that only isolates a thermistor/test-point/pull-R leg is a
         # sense tap, not a series power path - the net's budgeted current has
-        # no reason to run down it, so it's excluded before picking the
-        # narrowest MANDATORY bottleneck (see _bridge_is_tap).
-        real_idx = [i for i in bridge_idx if not _bridge_is_tap(b, g, i)]
+        # no reason to run down it, so it is never the bottleneck nor the
+        # "narrowest single seg" (see _bridge_is_tap). Taps alone leave no
+        # series bottleneck: that reads as meshed, and names the taps.
+        tapof = {i: _bridge_is_tap(b, g, i) for i in sorted(g['bridges'])}
+        taps = sorted({r for v in tapof.values() if v for r in v}, key=natkey)
+        real_idx = [i for i, v in tapof.items() if not v]
+        rest = [x for i, x in enumerate(g['segs']) if x is not None and not tapof.get(i)]
+        naive = min(rest, key=lambda t: _seg_amp(b, t, a.dt)) if rest else None
         if real_idx:
             bott = min((g['segs'][i] for i in real_idx), key=lambda t: _seg_amp(b, t, a.dt))
-        elif bridge_idx:
-            bott = min((g['segs'][i] for i in bridge_idx), key=lambda t: _seg_amp(b, t, a.dt))
-            bott_is_tap = True                  # every bridge left is a sense tap
-        elif g:
-            meshed = True                        # a full mesh: no single mandatory seg
+        else:
+            meshed, bott = True, naive           # no single mandatory piece
     per_via = [via_current(d, a.plating / 1000.0, a.dt) for d in vd]
     farea = defaultdict(list)                   # real filled copper per layer (mm2)
     for fl in b.fills:
@@ -266,7 +217,7 @@ def _amp_row(b, net, need, a, graph=False):
     pour = {ly: (sum(farea[ly]), len(farea[ly]), max(farea[ly])) for ly in poured}
     bf = _bott_fields(b, bott, a.dt) if bott else {'i': 0.0, 'ly': '-', 'w': 0.0,
                                                    'mid': (0.0, 0.0), 'seg': 0.0, 'ext': False}
-    nf = _bott_fields(b, naive, a.dt) if naive else bf
+    nf = _bott_fields(b, naive, a.dt) if naive else dict(bf, i=math.inf)   # only taps: none
     pads = _net_pads(b, net)
     near = _nearest_pad_dist(pads, bf['mid'])
     # a short, wide stub landing right on a pad is a pad neck: IPC-2221's
@@ -277,15 +228,16 @@ def _amp_row(b, net, need, a, graph=False):
     # both ends in big copper (pad, pour, >= 3x wider track): conduction to the
     # ends bounds the rise of a short piece far below IPC-2221's long-trace fit
     rod = None
-    if graph and bott and need:
-        cu = Copper(b, net)
-        if all(cu.sunk(('pt', bott['layer'], *_q(e)), bott['w'], bott) for e in (bott['a'], bott['b'])):
+    if g and bott and need:
+        cu = g['cu']
+        if all(cu.sunk(('pt', bott['layer'], *_q(e)), bott['w'], bott.get('track', bott))
+               for e in (bott['a'], bott['b'])):
             rod = dt_rod(need, bott['w'], thick_of(b, bott['layer']), bott['len'])
     return {'net': net, 'need': need, 'layers': rows, 'total': total,
             'bott_i': bf['i'], 'bott_ly': bf['ly'], 'bott_mid': bf['mid'], 'bott_seg': bf['seg'],
-            'bott_w': bf['w'], 'bott_is_tap': bott_is_tap, 'pad_neck': pad_neck,
+            'bott_w': bf['w'], 'pad_neck': pad_neck,
             'naive_i': nf['i'], 'naive_ly': nf['ly'], 'naive_w': nf['w'], 'naive_mid': nf['mid'],
-            'meshed': meshed, 'comp': comp, 'graphed': graph and bool(segs),
+            'meshed': meshed, 'comp': comp, 'graphed': graph and bool(segs), 'taps': taps,
             'ends': sorted({r for r, _n, _x, _y in pads},
                            key=lambda r: (prefix(r) in ('C', 'R', 'TP', 'TH', 'FB'), natkey(r))),
             'bott_near': _nearest_pad(pads, bf['mid']),
@@ -301,15 +253,6 @@ def _amp_verdicts(row, a):
     need = row['need']
     if need is None:
         return []
-    if row['poured']:                    # a plane net: the pour carries it, not these stubs
-        # area > POUR_MIN says a pour EXISTS, not that it is wide enough: a
-        # fragmented fill or one thin neck can still be the real limiter
-        shape = '; '.join(f"{ly} {ar:.0f} mm2 in {n} fragment(s), largest {100*mx/ar:.0f}%"
-                          for ly, (ar, n, mx) in sorted(row['pour'].items()))
-        return [('POURED', f"a pour carries it ({shape}). UNVERIFIED, not a pass: the "
-                          f"pour's narrowest neck is not measured - check the path between "
-                          f"the end pads in KiCad, and `zones` for fill state. `--from PAD --to PAD` "
-                          f"solves the source-to-load path with the pour as a conductor")]
     out = []
     if row['meshed']:                    # a full mesh: no single segment is mandatory
         if row['naive_i'] < need:
@@ -327,13 +270,6 @@ def _amp_verdicts(row, a):
                                     f"overstates the risk here since the pad sinks heat locally. "
                                     f"Not a real TRACE-THIN unless the copper stays this narrow "
                                     f"past the pad."))
-        elif row['bott_is_tap']:
-            out.append(('MIXED-NET', f"every series bottleneck left after excluding thermistor/"
-                                     f"test-point/pull-R taps is itself one, narrowest "
-                                     f"{row['bott_i']:.2f} A near {near} - this net mixes a power "
-                                     f"path with sense taps; the {need:.2f} A budget likely runs "
-                                     f"through different copper than this tap. `--from PAD --to PAD` "
-                                     f"solves the real source-to-load path."))
         elif row['rod'] is not None and row['rod'] <= a.dt:
             out.append(('SHORT-NECK', f"IPC-2221 reads {row['bott_i']:.2f} A < {need:.2f} A for the "
                                       f"{row['bott_w']:.2f} mm x {row['bott_seg']:.1f} mm piece near {near}, "
@@ -373,10 +309,8 @@ def _print_amp(row, a):
     if need is not None:
         head += f"need {need:.2f} A   "
     if row['meshed']:
-        kind = 'meshed, no series bottleneck'
-    elif row['poured']:
-        kind = (f"POURED - thinnest TRACK {row['bott_i']:.2f} A on {row['bott_ly']} is not "
-                f"the net's capacity")
+        kind = 'meshed, no series bottleneck' + (f" (sense-tap legs skipped: {' '.join(row['taps'])})"
+                                                  if row['taps'] else '')
     else:
         tag = ' (narrowest bridge)' if row['graphed'] else ''
         near = f" near {row['bott_near']}" if row['bott_near'] else ''
@@ -386,16 +320,22 @@ def _print_amp(row, a):
         head += "   OK"
     print(head)
     if row['graphed'] and row['comp'] is not None:
-        note = f" - copper is in {row['comp']} island(s); only the pour/pads join them" \
+        note = f" - copper is in {row['comp']} pieces, not one conductor (`net {row['net']}` lists them)" \
             if row['comp'] > 1 else ''
         naive_note = f"; narrowest single seg {row['naive_i']:.2f} A (paralleled)" \
             if row['naive_i'] < row['bott_i'] - 1e-6 else ''
+        naive_note += f"; sense-tap legs skipped: {' '.join(row['taps'])}" if row['taps'] and not row['meshed'] else ''
         print(f"    graph: {len(row['ends'])} pad(s){note}{naive_note}")
+    if row['graphed'] and row['pour']:
+        print("    pours: " + '; '.join(f"{ly} {ar:.0f} mm2 in {n} fragment(s)"
+                                    for ly, (ar, n, _mx) in sorted(row['pour'].items()))
+              + " - ideal conductors in the graph; a pour neck is not measured (`--from/--to` "
+                "solves the real path)")
     if row['ends']:
         landmarks = ' '.join(row['ends'][:10]) + (' ...' if len(row['ends']) > 10 else '')
         print(f"    find it: click any of these in KiCad to highlight the net -> {landmarks}")
     for ly, minw, ln, i, ext, mid, seg in row['layers']:
-        mark = ('' if row['poured'] else '  <- bottleneck layer') if ly == row['bott_ly'] else ''
+        mark = '  <- bottleneck layer' if ly == row['bott_ly'] else ''
         print(f"    {ly:<8} len {ln:6.1f}  minw {minw:.3f}  ->  {i:5.2f} A  "
               f"({'external' if ext else 'internal'}){mark}")
     if row['vias']:
@@ -418,8 +358,9 @@ def _amp_json(row):
             'bottleneck_at': [round(v, 2) for v in row['bott_mid']],
             'bottleneck_near': row['bott_near'], 'on_refs': row['ends'],
             'bottleneck_is_bridge': row['graphed'] and not row['meshed'],
-            'bottleneck_is_pad_neck': row['pad_neck'], 'bottleneck_is_tap': row['bott_is_tap'],
-            'narrowest_single_A': round(row['naive_i'], 3), 'meshed': row['meshed'],
+            'bottleneck_is_pad_neck': row['pad_neck'],
+            'narrowest_single_A': round(row['naive_i'], 3) if row['naive_i'] < math.inf else None,
+            'meshed': row['meshed'], 'sense_taps': row['taps'],
             'components': row['comp'],
             'layers': [{'layer': l, 'minw_mm': w, 'len_mm': round(ln, 2), 'amp_A': round(i, 3),
                         'external': e} for l, w, ln, i, e, _m, _s in row['layers']],
@@ -436,15 +377,14 @@ def _amp_footer():
           "real inner ampacity (IPC-2152) runs ~2-3x higher, so an internal TRACE-THIN\n"
           "overstates how thin it is. Thickness is read from the stackup, so fix the foil\n"
           "weight there if it is wrong.\n"
-          "Bottleneck is the narrowest BRIDGE in the copper graph (endpoints merged, vias\n"
-          "and shared pads stitched): a segment all the current must cross. A segment inside\n"
-          "a parallel loop is skipped, so a split-and-reconverge no longer reads as one thin\n"
-          "strand. Remaining blind spots: two traces that only cross mid-span with no shared\n"
-          "end/via/pad are still separate copper here (KiCad would merge them); a parallel\n"
-          "group whose widths individually pass but SUM short is flagged PARALLEL-CHECK for\n"
-          "you to add up. Via bound is optimistic (all vias parallel). R/Vdrop/P are a\n"
-          "SERIES UPPER BOUND, so a small bound is definitely fine and a large one just\n"
-          "means trace the real source-to-load path by hand.")
+          "Bottleneck is the narrowest BRIDGE in the copper graph (pads, tees, crossings,\n"
+          "vias on a track and pours joined as KiCad joins them): a piece all the current\n"
+          "must cross. A piece inside a parallel loop, or paralleled by a pour, is skipped.\n"
+          "Pours are ideal conductors, so a pour neck is not seen. A parallel group whose\n"
+          "widths individually pass but SUM short is flagged PARALLEL-CHECK for you to add\n"
+          "up. Via bound is optimistic (all vias parallel). R/Vdrop/P are a SERIES UPPER\n"
+          "BOUND, so a small bound is definitely fine; `--from PAD --to PAD` solves the real\n"
+          "source-to-load path.")
 
 def _amp_path(b, a):
     """--from PAD --to PAD: nodal solve of the copper between two pads"""

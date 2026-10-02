@@ -1,0 +1,13 @@
+(export (version "E")
+ (design (source "root.kicad_sch")
+  (sheet (number "1") (name "/")) (sheet (number "2") (name "/A/")) (sheet (number "3") (name "/B/")))
+ (components
+  (comp (ref "R1") (value "10k") (libsource (lib "Device") (part "R")) (sheetpath (names "/A/")))
+  (comp (ref "R2") (value "10k") (libsource (lib "Device") (part "R")) (sheetpath (names "/B/"))))
+ (libparts (libpart (lib "Device") (part "R")
+  (pins (pin (num "1") (name "~") (type "passive")) (pin (num "2") (name "~") (type "passive")))))
+ (nets
+  (net (code "1") (name "/A/SIG") (node (ref "R1") (pin "1")))
+  (net (code "2") (name "/A/RET") (node (ref "R1") (pin "2")))
+  (net (code "3") (name "/B/SIG") (node (ref "R2") (pin "1")))
+  (net (code "4") (name "/B/RET") (node (ref "R2") (pin "2")))))

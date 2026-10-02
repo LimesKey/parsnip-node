@@ -3,8 +3,9 @@ import json, math
 from collections import defaultdict
 from kcommon import (refrange, natkey, trunc, prefix, unesc_disp, GND_RE, rail_voltage,
                      print_findings, suppressed)
-from kpcb_board import (bbox, box_dist, EDGEMNT, grow, hit, overlap_area, poly_dist, pt_box_dist,
-                        RF_FP, RF_VAL, sheet_of, SUP_PIN, THERM_PFX)
+from kpcb_board import (bbox, box_dist, EDGEMNT, grow, hit, inside, overlap_area, pad_box, poly_dist,
+                        pt_box_dist, ray_hit, RF_FP, RF_VAL, seg_box_dist, seg_closest, sheet_of,
+                        SUP_PIN, THERM_PFX)
 
 # ---------------- net span ----------------
 
@@ -45,6 +46,7 @@ def net_spans(b, a):
 RULES = {
     'OVERLAP':  'courtyards of two placed parts intersect',
     'EDGECLR':  'courtyard crosses the board edge or sits closer than --edge',
+    'EDGEREF':  "an edge-launch part's PCB Edge mark off the outline; a side-entry housing's setback",
     'HOLECLR':  'part inside a mounting hole keepout, or a hole off the board',
     'CONNACC':  'connector buried away from an edge, or its cable exit blocked',
     'RFNOISE':  'RF part / antenna net within --rf of a switching node',
@@ -140,6 +142,10 @@ def gen_findings(b, a):
         elif f.edge < a.edge:
             add('WARN', 'EDGECLR', f"{f.ref} courtyard is {f.edge:.2f} mm from the edge "
                                    f"(want >= {a.edge:g})", [f.ref])
+
+    # --- EDGEREF -------------------------------------------------------
+    for f, msg, sev in edge_refs(b, a, P):
+        add(sev, 'EDGEREF', msg, [f.ref])
 
     # --- HOLECLR -------------------------------------------------------
     for h in holes:
@@ -260,6 +266,72 @@ def gen_findings(b, a):
     n = len(F)
     F = [f for f in F if not suppressed(f, a.suppress)]
     return F, n - len(F)
+
+def edge_refs(b, a, P):
+    """[(fp, message, severity)]: a footprint's Dwgs.User "PCB Edge" line (edge-launch
+    SMA, USB-C) against the real outline, and a side-entry connector's Fab housing
+    front (Horizontal + MP pads, which sit on the mating side) with the room its pads
+    leave before the copper-to-edge clearance"""
+    if not b.edge_segs:
+        return []
+    ec, out = b.edge_clearance(), []
+    pad_edge = lambda f: min(seg_box_dist(u, v, pad_box(p)) for p in f.pads for u, v in b.edge_segs)  # noqa: E731
+    for f in P:
+        if f.edgeref:
+            for p0, p1 in f.edgeref:
+                m = ((p0[0] + p1[0]) / 2, (p0[1] + p1[1]) / 2)
+                q = min((seg_closest(m, u, v) for u, v in b.edge_segs), key=lambda c: math.dist(c, m))
+                off = math.dist(m, q)
+                if off <= .05:
+                    continue
+                dx, dy = q[0] - m[0], q[1] - m[1]
+                inn = inside(m, b.rings)
+                left = pad_edge(f) - (off if inn else -off) if f.pads else None
+                out.append((f, f"{f.ref}'s PCB Edge mark (Dwgs.User) is {off:.2f} mm "
+                               f"{'inside' if inn else 'outside'} the outline, so the "
+                               f"{'flange/shell' if inn else 'body'} cannot sit where the pads assume: "
+                               f"move it {dx:+.2f},{dy:+.2f} mm"
+                               + (f" (nearest pad then {left:.2f} mm from the edge, edge_clearance "
+                                  f"{ec:g})" if left is not None else ''), 'WARN'))
+            continue
+        mp = [p for p in f.pads if p['num'].upper().startswith('MP')]
+        sig = [p for p in f.pads if p['num'] and p not in mp]
+        if 'horizontal' not in f.fp.lower() or not f.fab or not mp or not sig:
+            continue
+        cx = lambda ps, i: sum(p['xy'[i]] for p in ps) / len(ps)                # noqa: E731
+        vx, vy = cx(mp, 0) - cx(sig, 0), cx(mp, 1) - cx(sig, 1)
+        if abs(vx) < 1e-6 and abs(vy) < 1e-6:
+            continue
+        ax = 0 if abs(vx) > abs(vy) else 1                  # mating side, snapped to an axis
+        sg = 1 if (vx, vy)[ax] > 0 else -1
+        d = (sg, 0) if ax == 0 else (0, sg)
+        fb = f.fab
+        face = ((fb[2] if sg > 0 else fb[0]), (fb[1] + fb[3]) / 2) if ax == 0 else \
+               ((fb[0] + fb[2]) / 2, (fb[3] if sg > 0 else fb[1]))
+        if inside(face, b.rings):
+            t = ray_hit(face, d, b.edge_segs)
+        else:                                               # the housing already overhangs
+            t = ray_hit(face, (-d[0], -d[1]), b.edge_segs)
+            t = -t if t is not None else None
+        if t is None or t > a.conn:
+            continue
+        room = []
+        for p in f.pads:
+            pb = pad_box(p)
+            tip = ((pb[2] if sg > 0 else pb[0]), p['y']) if ax == 0 else (p['x'], (pb[3] if sg > 0 else pb[1]))
+            r = ray_hit(tip, d, b.edge_segs)
+            if r is not None:
+                room.append(r - ec)
+        rm = min(room) if room else None
+        side = ('+x' if sg > 0 else '-x') if ax == 0 else ('+y' if sg > 0 else '-y')
+        out.append((f, f"{f.ref} side-entry, mates {side}: Fab housing front {t:.2f} mm "
+                       f"{'inside' if t >= 0 else 'past'} the edge"
+                       + (f"; it can come {rm:.2f} mm forward before a pad is inside the "
+                          f"{ec:g} mm edge_clearance" if rm is not None and rm >= 0 else
+                          f"; a pad is already {-rm:.2f} mm inside the {ec:g} mm edge_clearance"
+                          if rm is not None else ''),
+                    'WARN' if rm is not None and rm < 0 else 'INFO'))
+    return out
 
 def _corridor(b, f):
     """Parts standing between a connector and the nearest board edge."""

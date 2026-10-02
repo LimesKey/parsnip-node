@@ -9,7 +9,7 @@ tools -> kcommon, never back. Edit a parser or a check-formatter here once and
 every tool sees it; guard the change with references/selftest.py.
 """
 import sys, os, re, glob, json, math, shutil, hashlib, marshal, subprocess, time
-from collections import defaultdict
+from collections import Counter, defaultdict
 
 __all__ = [
     'GND_RE', 'KNOWN_RAILS', 'Netlist', 'SchInfo', 'eng', 'fp_lib_dirs', 'fp_pads',
@@ -170,10 +170,11 @@ def fp_lib_dirs(projdir):
     _FPDIRS[projdir] = out
     return out
 
-def fp_pads(fpid, projdir):
+def fp_pads(fpid, projdir, count=False):
     """{pad number: pad type} of footprint 'Lib:Name' read from its .kicad_mod, or
     None when the library or file cannot be found. Numberless pads (paste
-    apertures, mechanical copper) and np_thru_hole drills are left out."""
+    apertures, mechanical copper) and np_thru_hole drills are left out. count=True
+    gives {pad number: copper pieces} instead (a merged pad group counts each)."""
     lib, _, name = (fpid or '').partition(':')
     d = fp_lib_dirs(projdir).get(lib)
     if not (name and d):
@@ -182,8 +183,8 @@ def fp_pads(fpid, projdir):
         root = load_sexp(os.path.join(d, name + '.kicad_mod'))
     except OSError:
         return None
-    return {p[1]: p[2] for p in kids(root, 'pad')
-            if len(p) > 2 and p[1] and p[2] != 'np_thru_hole'}
+    pads = [p for p in kids(root, 'pad') if len(p) > 2 and p[1] and p[2] != 'np_thru_hole']
+    return Counter(p[1] for p in pads) if count else {p[1]: p[2] for p in pads}
 
 # ---------------- S-expression parser ----------------
 
@@ -583,7 +584,8 @@ class SchInfo:
         self.pos = {}            # ref -> [(sheetpath, x, y)]
         self.place = {}          # ref -> [(file, sheetpath, x, y, rot, mirror, unit, lib_id)]
         self.libsyms = {}        # file -> {lib_id: lib symbol node}
-        self.sheetpath = {}      # file -> sheet path ('/BMS/')
+        self.sheetpath = {}      # file -> sheet path ('/BMS/'), its first instance
+        self.instances = {}      # file -> [(sheet path, uuid of the sheet symbol or None)]
         self.nc_total = self.nc_matched = 0
         self.files = []
 
@@ -595,6 +597,24 @@ class SchInfo:
             if len(p) > 2 and p[1] == name and isinstance(p[2], str):
                 return p[2]
         return ''
+
+    @classmethod
+    def inst_ref(cls, inst, suuid):
+        """a symbol's reference in one instance of a repeated sheet: the (instances
+        (project (path .../SHEET-UUID (reference R)))) entry, else the Reference
+        property (all a sheet used once ever needs)"""
+        if suuid:
+            for pr in kids(kid(inst, 'instances') or [], 'project'):
+                for p in kids(pr, 'path'):
+                    if len(p) > 1 and str(p[1]).endswith('/' + suuid) and val(p, 'reference'):
+                        return val(p, 'reference')
+        return cls._prop(inst, 'Reference')
+
+    def inst_list(self, base):
+        """[(path, sheet uuid)] to walk a file by: one entry per instance, and the uuid
+        only when there is more than one (so refs come from the instances block)"""
+        il = self.instances.get(base) or [(self.sheetpath.get(base, f"/{base}/"), None)]
+        return il if len(il) > 1 else [(il[0][0], None)]
 
     @staticmethod
     def _fnum(x):
@@ -653,15 +673,16 @@ class SchInfo:
                         page_of_file[pg] = base
                     break
         sheetpath = {}
-        def resolve(base, path):
-            if base in sheetpath:
+        def resolve(base, path, suuid=None):
+            # a sheet used twice (two sheet symbols, one file) gets one entry per use
+            if (path, suuid) in sheetpath.get(base, []):
                 return
-            sheetpath[base] = path
+            sheetpath.setdefault(base, []).append((path, suuid))
             for sh in kids(parsed.get(base, []), 'sheet'):
                 nm = self._prop(sh, 'Sheetname')
                 fl = os.path.basename(self._prop(sh, 'Sheetfile'))
                 if fl in parsed:
-                    resolve(fl, f"{path}{nm}/")
+                    resolve(fl, f"{path}{nm}/", val(sh, 'uuid') or None)
         if page_of_file:
             for pg, base in sorted(page_of_file.items(), key=lambda kv: kv[0]):
                 resolve(base, pagename.get(pg, f"/{base}/"))
@@ -674,9 +695,9 @@ class SchInfo:
                                  if kids(parsed[b], 'sheet')), sorted(parsed)[0])
             resolve(rootbase, '/')
 
+        self.instances = sheetpath
         for base, tree in parsed.items():
-            path = sheetpath.get(base, f"/{base}/")
-            self.sheetpath[base] = path
+            self.sheetpath[base] = (sheetpath.get(base) or [(f"/{base}/", None)])[0][0]
             libpins = {}
             self.libsyms[base] = {sym[1]: sym for ls in kids(tree, 'lib_symbols')
                                   for sym in kids(ls, 'symbol')}
@@ -694,27 +715,6 @@ class SchInfo:
                             pins.append((unit, style, val(p, 'number'),
                                          self._fnum(at[1]), self._fnum(at[2])))
                     libpins[sym[1]] = pins
-
-            pinat = {}          # (x,y) -> (ref, pin)
-            for inst in kids(tree, 'symbol'):
-                libid = val(inst, 'lib_id')
-                if not libid:
-                    continue
-                at = kid(inst, 'at')
-                sx, sy = self._fnum(at[1]), self._fnum(at[2])
-                rot = self._fnum(at[3]) if len(at) > 3 else 0
-                m = kid(inst, 'mirror')
-                mir = m[1] if m and len(m) > 1 else ''
-                unit = int(val(inst, 'unit') or 1)
-                ref = self._prop(inst, 'Reference')
-                if not ref or ref.startswith('#'):
-                    continue
-                self.pos.setdefault(ref, []).append((path, sx, sy))
-                self.place.setdefault(ref, []).append((base, path, sx, sy, rot, mir, unit, libid))
-                for u, st, num, px, py in libpins.get(libid, []):
-                    if u not in (0, unit) or st != 1:
-                        continue
-                    pinat[self._pinpos(px, py, sx, sy, rot, mir)] = (ref, num)
 
             shpin = set()       # hierarchical sheet pins are legal NC targets too
             for sh in kids(tree, 'sheet'):
@@ -740,22 +740,44 @@ class SchInfo:
                         seen.add(r); todo.append(r)
                 return hits
 
-            for nc in kids(tree, 'no_connect'):
-                at = kid(nc, 'at')
-                pt = (round(self._fnum(at[1]), 2), round(self._fnum(at[2]), 2))
-                if pt in shpin:
-                    continue
-                self.nc_total += 1
-                hits = [pinat[pt]] if pt in pinat else stub_pins(pt)
-                if len(hits) == 1:           # >1 pin = a real net, not an NC stub
-                    self.nc_matched += 1
-                    self.ncflag.add(hits[0])
+            for path, suuid in self.inst_list(base):
+                pinat = {}          # (x,y) -> (ref, pin)
+                for inst in kids(tree, 'symbol'):
+                    libid = val(inst, 'lib_id')
+                    if not libid:
+                        continue
+                    at = kid(inst, 'at')
+                    sx, sy = self._fnum(at[1]), self._fnum(at[2])
+                    rot = self._fnum(at[3]) if len(at) > 3 else 0
+                    m = kid(inst, 'mirror')
+                    mir = m[1] if m and len(m) > 1 else ''
+                    unit = int(val(inst, 'unit') or 1)
+                    ref = self.inst_ref(inst, suuid)
+                    if not ref or ref.startswith('#'):
+                        continue
+                    self.pos.setdefault(ref, []).append((path, sx, sy))
+                    self.place.setdefault(ref, []).append((base, path, sx, sy, rot, mir, unit, libid))
+                    for u, st, num, px, py in libpins.get(libid, []):
+                        if u not in (0, unit) or st != 1:
+                            continue
+                        pinat[self._pinpos(px, py, sx, sy, rot, mir)] = (ref, num)
 
-            for tx in kids(tree, 'text'):
-                at = kid(tx, 'at')
-                if isinstance(tx[1], str) and at:
-                    self.notes.append((path, self._fnum(at[1]), self._fnum(at[2]),
-                                       tx[1].replace('\\n', '\n')))
+                for nc in kids(tree, 'no_connect'):
+                    at = kid(nc, 'at')
+                    pt = (round(self._fnum(at[1]), 2), round(self._fnum(at[2]), 2))
+                    if pt in shpin:
+                        continue
+                    self.nc_total += 1
+                    hits = [pinat[pt]] if pt in pinat else stub_pins(pt)
+                    if len(hits) == 1:           # >1 pin = a real net, not an NC stub
+                        self.nc_matched += 1
+                        self.ncflag.add(hits[0])
+
+                for tx in kids(tree, 'text'):
+                    at = kid(tx, 'at')
+                    if isinstance(tx[1], str) and at:
+                        self.notes.append((path, self._fnum(at[1]), self._fnum(at[2]),
+                                           tx[1].replace('\\n', '\n')))
 
         self.valid = self.nc_total == 0 or self.nc_matched / self.nc_total >= 0.9
         if not self.valid:

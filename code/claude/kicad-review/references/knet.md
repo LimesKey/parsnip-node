@@ -8,7 +8,7 @@
 | `around REF...` | **highest value per call.** Pins, types, nets, position, every part one hop away. Use instead of `comp` + several `pin` calls. |
 | `check` | 17 rule-based findings, grouped ERROR/WARN/INFO. Exit 2 if any ERROR. Three or more findings sharing a message fold into one line, `tail [N]: refs` - `[49]` means 49 separate findings, not one. |
 | `check --since old.net` | only findings NEW vs an older export, plus a fixed/unchanged tally. |
-| `draw REF\|NET [-d N] [-o x.svg] [--spec]` | KiCad-style schematic from the netlist; `--spec` gives the editable ksch source. The focal part keeps its real pin sides and order (from the sheet's lib symbol), GND/rail pins get their glyph where they sit (`gnd PIN -BATT` for a non-GND return), a big or global net ends in a `glabel`, and a global net's other ICs are named on the note, not drawn as stubs. |
+| `draw REF\|NET [-d N] [-o x.svg] [--spec]` | KiCad-style schematic from the netlist; `--spec` gives the editable ksch source. The focal part keeps its real pin sides and order (from the sheet's lib symbol), GND/rail pins get their glyph where they sit (`gnd PIN -BATT` for a non-GND return), a big or global net ends in a `glabel`, and a global net's other ICs are named on a note line of their own above the net name (`+ U1 U5`), not drawn as stubs. Dual diodes (BAT54S/A/C, BAV99/70, BAW56) and `Device:R_Shunt` draw as ksch's `d2s/d2a/d2c`/`rsense`, over as many rows as their side pins and labels need; every part is oriented by where ksch puts its pins (a `Device:D` is 1=K, so pin 1 is not the symbol's start). |
 | `notes` | schematic text notes by sheet - designer intent that exists nowhere in the netlist. |
 | `rails` | each power rail: what feeds it, total decoupling, loads. |
 | `divider REF.PIN\|NET` | resistor-divider trip voltage from netlist resistor values, worst case from tolerance if stated. See below. |
@@ -143,7 +143,12 @@ carries an explicit NC flag.
   from G/S/D pin names. Stock DIODE pin names are never used: `Diode:BAV99`'s hidden
   names K/A/K contradict its graphics and `Diode:BAT54A` has none. Found D6 (BAV199
   on `D_Dual_Series_ACK`, should be `_AKC`). Extend the table for a new part; do not
-  loosen the match.
+  loosen the match. Power FETs: a generic `Q_[NP]MOS_xyz` symbol on a footprint that
+  numbers its pads by function (KiCad's VSONP/TDSON/VSON NexFET family: pad 1 = 3
+  copper pieces, pins 1-3, S; pad 2 = the gate; pad 3 = >= 4 pieces with the EP, D,
+  read from the `.kicad_mod`) must read `SGD`; anything else is an ERROR naming the
+  right symbol. FPPAD cannot see it because the pad numbers match. Found Q7/Q8
+  (CSD18512Q5B on `Q_NMOS_DGS`, D and S swapped).
 - **`GNDISLAND`** catches a different shape of bug than FLOATPWR: pins named like
   ground (GND, AGND, VSS, ...) that ARE wired to each other but never reach the
   board's real GND net - a merge that silently didn't happen. `is_gnd()` recognises

@@ -35,8 +35,12 @@ nc    U1.7         note x,y <text>              group x,y w,h <text>
 - `ic` anchor is the **top-left of the body**; pins run down each side at 2-unit
   pitch in the order listed, and `L:1=EN,,3=RST` leaves a blank slot to keep
   alignment. Height and width are automatic unless you set `h=`/`w=`.
+  T/B pin names sit inside the body (numbers beside the lead, outside), so with
+  T pins the first L/R pin moves down below the longest T name, and `h=` (the L/R
+  row span) grows by that and by the longest B name; `ic_margins()` gives the offset.
 - ORIENT: `v` (default, pin 1 top) `h` (pin 1 left) `vr` (pin 1 bottom) `hr` (pin 1
-  right). Transistors: gate/base left by default, `l` mirrors, anchor is the gate or
+  right); a trailing `m` (`hm`, `hrm`, `vrm`) mirrors before rotating, so a dual
+  diode's COM can point down in either direction. Transistors: gate/base left by default, `l` mirrors, anchor is the gate or
   base pin, drain/collector down-side of the channel; p-channel and PNP are drawn
   source/emitter up, the way they are actually used.
 - Address pins by number or name: `U8.6`, `U8.OUT`, `Q1.g`, `D1.k`, `R1.2`.
@@ -89,8 +93,11 @@ EOF
   come back as errors. Use it for any diagram of a circuit that exists.
 - Errors name the line and say what was expected. Fix and re-run; do not fall back
   to hand-written SVG.
-- The tool also warns about overlapping bodies, wires crossing a body, and pins
-  drawn but left unwired.
+- The tool also warns about overlapping bodies, wires crossing a body, overlapping
+  text (refs, values, pin names, notes, label names; widths estimated from DejaVu
+  Sans advances), and pins drawn but left unwired. A horizontal 2-pin part keeps
+  its ref within 0.95 above and its value within 1.2 below the pin line, so stacked
+  parts at a 3-unit row pitch never touch.
 - Flags: `--theme kicad|mono|dark`, `--px N` (22), `--us` (zigzag resistors),
   `--grid`, `--frame`, `--quiet`. Exit 3 = spec error, 2 = verify found an error.
 - Layout habits that avoid rework: 5-6 units between columns, 3 between rows, inputs

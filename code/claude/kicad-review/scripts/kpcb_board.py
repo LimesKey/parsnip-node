@@ -1,5 +1,5 @@
 """Board model for kpcb.py: part classification, geometry helpers, IPC-2221 math, FP and Board."""
-import sys, os, re, json, math, glob
+import os, re, json, math, glob
 from collections import defaultdict
 from kcommon import (load_sexp, kids, kid, val, has, prefix, parse_value, unesc_disp,
                      rail_voltage)
@@ -109,6 +109,49 @@ def pt_seg_dist(p, a, b):
         return math.hypot(p[0] - a[0], p[1] - a[1])
     t = max(0.0, min(1.0, ((p[0] - a[0]) * vx + (p[1] - a[1]) * vy) / L))
     return math.hypot(p[0] - a[0] - t * vx, p[1] - a[1] - t * vy)
+
+def seg_closest(p, a, b):
+    """the point of segment a-b nearest p"""
+    dx, dy = b[0] - a[0], b[1] - a[1]
+    L2 = dx * dx + dy * dy
+    t = max(0.0, min(1.0, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / L2)) if L2 else 0.0
+    return (a[0] + t * dx, a[1] + t * dy)
+
+def ray_hit(p, d, segs):
+    """distance along unit direction d from p to the first segment it crosses, or None"""
+    best = None
+    for a, b in segs:
+        ex, ey = b[0] - a[0], b[1] - a[1]
+        den = d[0] * ey - d[1] * ex
+        if abs(den) < 1e-12:
+            continue
+        t = ((a[0] - p[0]) * ey - (a[1] - p[1]) * ex) / den
+        u = ((a[0] - p[0]) * d[1] - (a[1] - p[1]) * d[0]) / den
+        if t > -1e-9 and -1e-9 <= u <= 1 + 1e-9 and (best is None or t < best):
+            best = t
+    return best
+
+def pad_box(p):
+    """a pad's copper as an axis-aligned box in board mm (anchor + custom primitives)"""
+    t = math.radians(p['prot'])
+    hx = abs(p['sx'] / 2 * math.cos(t)) + abs(p['sy'] / 2 * math.sin(t))
+    hy = abs(p['sx'] / 2 * math.sin(t)) + abs(p['sy'] / 2 * math.cos(t))
+    pts = [(p['x'] - hx, p['y'] - hy), (p['x'] + hx, p['y'] + hy)]
+    pts += [xf(u, v, p['x'], p['y'], p['prot']) for poly in p['prims'] for u, v in poly]
+    return bbox(pts)
+
+def text_box(x, y, ang, txt, node, k=1.0):
+    """estimated board box of a KiCad text at x,y (its anchor), absolute angle: 0.9 x
+    font width per character, 1.6 x height per line, placed by its (justify)"""
+    eff = kid(node, 'effects') or []
+    sz = kid(kid(eff, 'font') or [], 'size') or ['size', '1', '1']
+    js = set((kid(eff, 'justify') or [])[1:])
+    lines = txt.split('\\n')
+    w, h = .9 * k * float(sz[2]) * max(len(ln) for ln in lines), k * float(sz[1]) * (1.6 * len(lines) - .4)
+    left, right = ('right', 'left') if 'mirror' in js else ('left', 'right')
+    x0 = 0.0 if left in js else -w if right in js else -w / 2
+    y0 = 0.0 if 'top' in js else -h if 'bottom' in js else -h / 2
+    return bbox([xf(u, v, x, y, ang) for u in (x0, x0 + w) for v in (y0, y0 + h)])
 
 def _ccw(a, b, c):
     return (c[1] - a[1]) * (b[0] - a[0]) > (b[1] - a[1]) * (c[0] - a[0])
@@ -278,7 +321,8 @@ def ipc_width(need_a, thick_mm, external, dt):
 
 class FP:
     __slots__ = ('ref', 'value', 'fp', 'layer', 'x', 'y', 'rot', 'sheet', 'attr',
-                 'dnp', 'pads', 'crtyd', 'crtyd_real', 'cpoly', 'body', 'placed', '_edge', 'models')
+                 'dnp', 'pads', 'crtyd', 'crtyd_real', 'cpoly', 'body', 'placed', '_edge', 'models', 'art',
+                 'fab', 'scale', 'edgeref', 'arts', 'texts')
 
     @property
     def outline(self):
@@ -299,6 +343,10 @@ class FP:
 
     @property
     def back(self):
+        # a padless graphic's (layer) is meaningless (a B.Cu logo can carry F.SilkS
+        # art): its side is where the art is
+        if not self.pads and self.art:
+            return self.art == 'B'
         return self.layer.startswith('B.')
 
     @property
@@ -351,6 +399,10 @@ class Board:
             if val(ly, 'type') == 'copper' and len(ly) > 1 and isinstance(ly[1], str):
                 self.thick[ly[1]] = _f(val(ly, 'thickness'))
         self.outer = {self.copper[0], self.copper[-1]} if self.copper else set()
+        # what KiCad's Properties dialog quotes coordinates from, per Display origin
+        st = kid(root, 'setup') or []
+        self.origins = {'page': (0.0, 0.0), 'grid': self._xy(st, 'grid_origin'),
+                        'aux': self._xy(st, 'aux_axis_origin')}
 
         # routed tracks (segments + arcs) and vias, carrying their own net names
         self.tracks, self.vias = [], []
@@ -375,10 +427,19 @@ class Board:
                               'layers': [l for l in lys[1:] if isinstance(l, str)]})
 
         edge += self._graphics(root, None, 'gr_')
+        # board-level silk (pasted art, text): [(layer, bbox)]; text boxes are estimated
+        self.silk = []
+        for g in root[1:]:
+            if not (isinstance(g, list) and g and str(g[0]).startswith('gr_') and val(g, 'layer').endswith('.SilkS')):
+                continue
+            if g[0] == 'gr_text':
+                at = kid(g, 'at') or ['at', '0', '0']
+                self.silk.append((val(g, 'layer'), text_box(float(at[1]), float(at[2]), _f(at[3]) if len(at) > 3
+                                                            else 0.0, str(g[1]), g)))
+            elif self._gpts(g, g[0]):
+                self.silk.append((val(g, 'layer'), bbox(self._gpts(g, g[0]))))
         for node in kids(root, 'footprint'):
             f = self._footprint(node)
-            if f.ref in self.fps:                 # KiCad allows it; make it visible
-                f.ref = f"{f.ref}~dup"
             self.fps[f.ref] = f
             edge += self._graphics(node, f, 'fp_')
 
@@ -394,9 +455,10 @@ class Board:
         """Edge.Cuts polylines from a container, in board coordinates. Footprint
         graphics count too - a milled slot often lives inside a footprint."""
         ox, oy, rot = (f.x, f.y, f.rot) if f else (0.0, 0.0, 0.0)
+        kx, ky = f.scale if f else (1.0, 1.0)
         out = []
         def T(p):
-            return xf(p[0], p[1], ox, oy, rot)
+            return xf(p[0] * kx, p[1] * ky, ox, oy, rot)
         for tag in ('line', 'arc', 'rect', 'poly', 'circle'):
             for g in kids(node, pfx + tag):
                 if val(g, 'layer') != 'Edge.Cuts':
@@ -469,9 +531,8 @@ class Board:
         if tr:
             t, r, sc = kid(tr, 'translate') or [], kid(tr, 'rotate') or [], kid(tr, 'scale')
             at = ['at', *(t[1:3] or ['0', '0']), *(r[1:2] or ['0'])]
-            if sc and [_f(x, 1) for x in sc[1:3]] != [1.0, 1.0]:
-                print(f"kpcb: footprint scale {sc[1:3]} is not modelled, geometry of "
-                      f"this part is wrong", file=sys.stderr)
+        # (scale sx sy) multiplies the footprint-local geometry (scaled logos)
+        f.scale = kx, ky = tuple(_f(x, 1) for x in sc[1:3]) if tr and sc and len(sc) > 2 else (1.0, 1.0)
         f.x, f.y = (float(at[1]), float(at[2])) if at else (0.0, 0.0)
         f.rot = float(at[3]) if at and len(at) > 3 else 0.0
         f.layer = val(node, 'layer', 'F.Cu')
@@ -486,17 +547,37 @@ class Board:
                 f.ref = p[2]
             elif len(p) > 2 and p[1] == 'Value':
                 f.value = p[2]
+        # visible silk text (refdes, values, fp_text): (at) is footprint-local, its angle absolute
+        f.texts = []
+        for t in kids(node, 'property') + kids(node, 'fp_text'):
+            lay = val(t, 'layer')
+            hid = 'hide' in t or (kid(t, 'hide') or ['', 'no'])[1:2] == ['yes'] or \
+                'hide' in (kid(t, 'effects') or [])
+            if not lay.endswith('.SilkS') or hid or len(t) < 3:
+                continue
+            txt = str(t[2]).replace('${REFERENCE}', f.ref).replace('${VALUE}', f.value)
+            at = kid(t, 'at') or ['at', '0', '0']
+            tx, ty = xf(float(at[1]) * kx, float(at[2]) * ky, f.x, f.y, f.rot)
+            f.texts.append((lay, text_box(tx, ty, _f(at[3]) if len(at) > 3 else 0.0, txt, t, (kx + ky) / 2)))
+        if f.ref in self.fps:                     # KiCad allows it; keep every one visible
+            n = 2
+            while f"{f.ref}~dup{n}" in self.fps:
+                n += 1
+            f.ref = f"{f.ref}~dup{n}"
+        sides = [val(g, 'layer')[:2] for g in node[1:] if isinstance(g, list) and g
+                 and str(g[0]).startswith('fp_') and val(g, 'layer')[:2] in ('F.', 'B.')]
+        f.art = max('FB', key=lambda c: sides.count(c + '.')) if sides else None
 
         f.pads = []
-        pad_pts, all_pts, crt_pts, crt_segs = [], [], [], []
+        pad_pts, all_pts, crt_pts, crt_segs, fab_pts, dwg = [], [], [], [], [], []
         for p in kids(node, 'pad'):
             num = p[1] if len(p) > 1 else '?'
             pat = kid(p, 'at')
             lx, ly = (float(pat[1]), float(pat[2])) if pat else (0.0, 0.0)
             prot = float(pat[3]) if pat and len(pat) > 3 else 0.0
             sz = kid(p, 'size')
-            sx, sy = (float(sz[1]), float(sz[2])) if sz and len(sz) > 2 else (0.0, 0.0)
-            bx, by = xf(lx, ly, f.x, f.y, f.rot)
+            sx, sy = (float(sz[1]) * abs(kx), float(sz[2]) * abs(ky)) if sz and len(sz) > 2 else (0.0, 0.0)
+            bx, by = xf(lx * kx, ly * ky, f.x, f.y, f.rot)
             prims = self._pad_prims(p)          # custom pad copper, pad-local frame
             # pad AABB straight in board coords: a .kicad_pcb stores `prot` as the
             # ABSOLUTE board angle (f.rot already baked in), so envelope around the
@@ -509,7 +590,7 @@ class Board:
             for c in ((bx - hx, by - hy), (bx + hx, by - hy),
                       (bx + hx, by + hy), (bx - hx, by + hy)):
                 pad_pts.append(c)
-            pad_pts += [xf(u, v, bx, by, prot) for poly in prims for u, v in poly]
+            pad_pts += [xf(u * kx, v * ky, bx, by, prot) for poly in prims for u, v in poly]
             fn = re.sub(r'_\d+$', '', val(p, 'pinfunction'))
             net = val(p, 'net')
             lays = kid(p, 'layers') or []
@@ -527,35 +608,58 @@ class Board:
             if net:
                 self.nets[net].append((f.ref, num))
         # courtyard: the only outline KiCad guarantees is a keepout envelope
+        f.arts = []                             # a padless graphic's art: [(layer, item bbox)]
         for tag in ('fp_line', 'fp_rect', 'fp_arc', 'fp_poly', 'fp_circle'):
             for g in kids(node, tag):
                 lay = val(g, 'layer')
-                pts = []
-                if lay.endswith('.CrtYd') or lay.endswith('.Fab'):
-                    if tag in ('fp_line', 'fp_rect'):
-                        pts = [self._xy(g, 'start'), self._xy(g, 'end')]
-                    elif tag == 'fp_arc':
-                        pts = [self._xy(g, 'start'), self._xy(g, 'mid'), self._xy(g, 'end')]
-                    elif tag == 'fp_poly':
-                        pts = self._pts(g)
-                    elif tag == 'fp_circle':
-                        c, e = self._xy(g, 'center'), self._xy(g, 'end')
-                        r = math.hypot(e[0] - c[0], e[1] - c[1])
-                        pts = [(c[0] - r, c[1] - r), (c[0] + r, c[1] + r)]
-                pts = [xf(p[0], p[1], f.x, f.y, f.rot) for p in pts]
+                if tag == 'fp_line' and lay == 'Dwgs.User':
+                    dwg.append(tuple(xf(q[0] * kx, q[1] * ky, f.x, f.y, f.rot)
+                                     for q in (self._xy(g, 'start'), self._xy(g, 'end'))))
+                cf = lay.endswith('.CrtYd') or lay.endswith('.Fab')
+                art = not f.pads and not cf and lay[:2] in ('F.', 'B.')
+                if not (cf or art):
+                    continue
+                pts = [xf(p[0] * kx, p[1] * ky, f.x, f.y, f.rot) for p in self._gpts(g, tag)]
+                if art:
+                    if pts:
+                        f.arts.append((lay, bbox(pts)))
+                    continue
                 all_pts += pts
+                if lay.endswith('.Fab'):
+                    fab_pts += pts
                 if lay.endswith('.CrtYd'):
                     crt_pts += pts
                     crt_segs.append(self._crt_seg(g, tag, f))
         f.body = bbox(pad_pts + all_pts) if (pad_pts or all_pts) else (f.x, f.y, f.x, f.y)
         f.crtyd = bbox(crt_pts) if crt_pts else f.body
         f.crtyd_real = bool(crt_pts)
+        f.fab = bbox(fab_pts) if fab_pts else None       # the housing outline alone
+        # an edge-launch part's own "PCB Edge" line (Dwgs.User): where its flange expects the edge
+        mark = any(len(t) > 2 and re.search(r'PCB\s*Edge', str(t[2]), re.I) and val(t, 'layer') == 'Dwgs.User'
+                   for t in kids(node, 'fp_text'))
+        f.edgeref = dwg if mark and dwg else None
         f.cpoly = rings([s for s in crt_segs if s]) or None
         return f
 
+    @classmethod
+    def _gpts(cls, g, tag):
+        """a graphic's defining points in its own frame (a circle: its bbox corners)"""
+        t = tag[3:]
+        if t in ('line', 'rect'):
+            return [cls._xy(g, 'start'), cls._xy(g, 'end')]
+        if t == 'arc':
+            return [cls._xy(g, 'start'), cls._xy(g, 'mid'), cls._xy(g, 'end')]
+        if t == 'poly':
+            return cls._pts(g)
+        if t == 'circle':
+            c, e = cls._xy(g, 'center'), cls._xy(g, 'end')
+            r = math.hypot(e[0] - c[0], e[1] - c[1])
+            return [(c[0] - r, c[1] - r), (c[0] + r, c[1] + r)]
+        return []
+
     def _crt_seg(self, g, tag, f):
         """one courtyard primitive as a board-frame polyline, for rings()"""
-        T = lambda p: xf(p[0], p[1], f.x, f.y, f.rot)      # noqa: E731
+        T = lambda p: xf(p[0] * f.scale[0], p[1] * f.scale[1], f.x, f.y, f.rot)      # noqa: E731
         if tag == 'fp_line':
             return [T(self._xy(g, 'start')), T(self._xy(g, 'end'))]
         if tag == 'fp_rect':
@@ -589,6 +693,23 @@ class Board:
 
     def placed(self):
         return [f for f in self.fps.values() if f.placed]
+
+    def edge_clearance(self):
+        """copper-to-edge minimum: the larger of the .kicad_pro floor and any .kicad_dru
+        edge_clearance rule beside the board (0.3 mm when neither says)"""
+        if not hasattr(self, '_ec'):
+            d, v = os.path.dirname(os.path.abspath(self.path)), []
+            for pro in glob.glob(os.path.join(d, '*.kicad_pro')):
+                try:
+                    v.append(float(json.load(open(pro))['board']['design_settings']['rules']
+                                   ['min_copper_edge_clearance']))
+                except (OSError, ValueError, KeyError, TypeError):
+                    pass
+            for dru in glob.glob(os.path.join(d, '*.kicad_dru')):
+                v += [float(x) for x in re.findall(r'\(constraint edge_clearance \(min ([\d.]+)mm\)\)',
+                                                   open(dru, encoding='utf-8', errors='replace').read())]
+            self._ec = max(v) if v else 0.3
+        return self._ec
 
     def netclass(self, net):
         """Netclass of a net from the .kicad_pro beside the board (explicit

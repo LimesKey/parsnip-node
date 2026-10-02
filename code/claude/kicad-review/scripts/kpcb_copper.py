@@ -1,5 +1,5 @@
 """kpcb.py copper connectivity of one net: pads, tracks (split where another
-track tees into them), vias and zone-fill fragments in one graph. `net` counts
+track tees into or crosses them), vias and zone-fill fragments in one graph. `net` counts
 the pieces the copper is really in; `ampacity --from --to` walks the path
 between two pads with the pours as ideal conductors (their necks are not
 measured, and the output says so)."""
@@ -142,10 +142,35 @@ class Copper:
                             tpar = ((e[0] - o['a'][0]) * (o['b'][0] - o['a'][0]) +
                                     (e[1] - o['a'][1]) * (o['b'][1] - o['a'][1])) / L / L
                             splits[i].append((tpar, ke))
+        # two tracks whose centrelines cross mid-span are one piece of copper (KiCad
+        # merges it); an end on a body is a tee above, so only true crossings are left
+        for n, t in enumerate(self.tracks):
+            (ax, ay), (bx, by) = t['a'], t['b']
+            hw = t['w'] / 2
+            near_trk = {i for c in cells((min(ax, bx) - hw, min(ay, by) - hw, max(ax, bx) + hw, max(ay, by) + hw))
+                        for kind, i in grid.get((t['layer'], *c), ()) if kind == 'trk' and i > n}
+            for i in sorted(near_trk):
+                o = self.tracks[i]
+                (cx, cy), (dx, dy) = o['a'], o['b']
+                den = (bx - ax) * (dy - cy) - (by - ay) * (dx - cx)
+                if abs(den) < 1e-12:
+                    continue
+                s_ = ((cx - ax) * (dy - cy) - (cy - ay) * (dx - cx)) / den
+                u_ = ((cx - ax) * (by - ay) - (cy - ay) * (bx - ax)) / den
+                pt = (ax + s_ * (bx - ax), ay + s_ * (by - ay))
+                lim = hw + o['w'] / 2
+                if not (0 < s_ < 1 and 0 < u_ < 1) or \
+                        min(math.dist(pt, q) for q in (t['a'], t['b'], o['a'], o['b'])) <= lim:
+                    continue
+                k = ('pt', t['layer'], *_q(pt))
+                U.find(k)
+                splits[n].append((s_, k))
+                splits[i].append((u_, k))
         # a via or pad sitting on a track's body (not its end) joins it there
         def tee_into(nodef, x, y, r, lys):
-            for ly in lys:
-                node = nodef(ly)
+            todo = []                                # decide every track first, then join:
+            for ly in lys:                           # joining as we go made the outcome
+                node = nodef(ly)                     # depend on set order (hash seed)
                 for kind, i in set(near(ly, (x, y))):
                     if kind != 'trk':
                         continue
@@ -154,13 +179,16 @@ class Copper:
                         continue
                     if any(U.find(ekey(o, q)) == U.find(node) for q in (o['a'], o['b'])):
                         continue                     # already joined at an end
-                    L = math.dist(o['a'], o['b']) or 1
-                    tpar = min(1.0, max(0.0, ((x - o['a'][0]) * (o['b'][0] - o['a'][0]) +
-                                              (y - o['a'][1]) * (o['b'][1] - o['a'][1])) / L / L))
-                    kt = ('pt', ly, *_q((o['a'][0] + tpar * (o['b'][0] - o['a'][0]),
-                                         o['a'][1] + tpar * (o['b'][1] - o['a'][1]))))
-                    U.union(kt, node)
-                    splits[i].append((tpar, kt))
+                    todo.append((i, ly, node))
+            for i, ly, node in todo:
+                o = self.tracks[i]
+                L = math.dist(o['a'], o['b']) or 1
+                tpar = min(1.0, max(0.0, ((x - o['a'][0]) * (o['b'][0] - o['a'][0]) +
+                                          (y - o['a'][1]) * (o['b'][1] - o['a'][1])) / L / L))
+                kt = ('pt', ly, *_q((o['a'][0] + tpar * (o['b'][0] - o['a'][0]),
+                                     o['a'][1] + tpar * (o['b'][1] - o['a'][1]))))
+                U.union(kt, node)
+                splits[i].append((tpar, kt))
         for i, (f, p) in enumerate(self.pads):       # overlapping pads (a fused lead)
             hx, hy = p['_reach']
             for kind, j in set(x for ly in self.play[i] for x in near(ly, (p['x'], p['y']))):

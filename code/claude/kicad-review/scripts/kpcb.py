@@ -34,6 +34,17 @@ Commands:
   kpcb.py FILE height [REF...]        3D model height per part + the Z stack (cell +
                                       board + tallest part over it), via KiCad's GLB
                                       export of the STEP models; no model = UNKNOWN
+  kpcb.py FILE view REF.. [-r 5]      cropped PNG of the board layers around parts (or
+                                      X,Y / --box X0,Y0,X1,Y1), from kicad-cli's plot
+  kpcb.py FILE silk                   padless graphic footprints (logos): art layer, scaled
+                                      extent, the part body hiding it, pads it crosses
+  kpcb.py FILE movecheck REF X Y [ROT] what a move would newly break: foreign copper inside
+                                      the clearance, copper to edge, courtyard overlap;
+                                      `REF --scan x=X y=A..B`, `via X,Y NX,NY`. Read-only.
+  kpcb.py FILE freebox SIDE W H       where a W x H silk box fits on side f|b (clear of
+                                      courtyards, through pads, silk/art; 1 mm from edge)
+  kpcb.py FILE tidy                   near-miss alignment (rows/columns, pitch, hole insets,
+                                      rotations, centring), each run through movecheck
   kpcb.py FILE rf [NET...]            50-ohm trace review: width necks, microstrip Zo
                                       from the stackup, same-layer GND gap, reference
                                       plane under it, GND via fence vs lambda/20
@@ -96,6 +107,11 @@ from kpcb_viapad import c_viapad
 from kpcb_rf import c_rf
 from kpcb_height import c_height
 from kpcb_ic import c_ic, role_pads
+from kpcb_view import c_view
+from kpcb_silk import c_silk
+from kpcb_move import c_movecheck
+from kpcb_freebox import c_freebox
+from kpcb_tidy import c_tidy
 
 
 def c_summary(b, a):
@@ -120,6 +136,8 @@ def c_summary(b, a):
     else:
         print("outline: NONE on Edge.Cuts - every placement check is disabled")
     print(f"copper : {len(b.copper)} layers  {' '.join(b.copper)}")
+    print("origins: " + '  '.join(f"{k} {x:g},{y:g}" for k, (x, y) in b.origins.items() if k != 'page')
+          + "   (`where --origin grid|aux` quotes what KiCad's Properties dialog shows)")
     for n, l in b.zones:
         print(f"zone   : {n:<10} {' '.join(l)}")
     if b.teardrops:
@@ -207,10 +225,15 @@ def c_where(b, a):
     if not a.args:
         print("where needs a ref or an x,y coordinate", file=sys.stderr); return 1
     miss, pts = False, []
+    ox, oy = b.origins.get(a.origin, (0.0, 0.0))
+    if a.origin != 'page':
+        print(f"coordinates relative to the {a.origin} origin {ox:g},{oy:g} (KiCad: Display origin "
+              f"= {'Grid' if a.origin == 'grid' else 'Drill/place file'}, Y down), in and out")
+    O = lambda x, y, n=3: f"{x - ox:.{n}f}, {y - oy:.{n}f}"         # noqa: E731
     for spec in a.args:
         m = re.match(r'^(-?[\d.]+)\s*,\s*(-?[\d.]+)$', spec)
         if m:
-            p = (float(m.group(1)), float(m.group(2)))
+            p = (float(m.group(1)) + ox, float(m.group(2)) + oy)
             pts.append((spec, p))
             box = (p[0], p[1], p[0], p[1])
             if b.edge_segs:
@@ -218,7 +241,7 @@ def c_where(b, a):
                 d = f"   edge {min(pt_seg_dist(p, u, v) for u, v in b.edge_segs):.2f} mm"
             else:
                 where, d = 'no Edge.Cuts, so inside/outside is', ''
-            print(f"\n=== {p[0]:.2f},{p[1]:.2f}   {where} the outline{d}")
+            print(f"\n=== {O(*p, 2).replace(' ', '')}   {where} the outline{d}")
             _neigh(b, box, None, a)
             continue
         pad = _find_pad(b, spec)
@@ -227,7 +250,8 @@ def c_where(b, a):
             pts.append((spec, (p['x'], p['y'])))
             ly = ' '.join(l for l in p['layers'] if l.endswith('.Cu')) or ' '.join(p['layers'])
             print(f"\n=== {spec}  {p['fn'] or ''}  on {unesc_disp(p['net']) or '(no net)'}")
-            print(f"  at        : {p['x']:.3f}, {p['y']:.3f}  (absolute)  pad rot {p['prot']:g}")
+            print(f"  at        : {O(p['x'], p['y'])}  ({'absolute' if a.origin == 'page' else a.origin + ' origin'})"
+                  f"  pad rot {p['prot']:g}")
             print(f"  pad       : {p['kind']} {p['shape']} {p['sx']:.2f} x {p['sy']:.2f} mm"
                   + (f"  drill {p['drill']:.2f}" if p['drill'] else '') + f"  {ly}")
             if b.edge_segs:
@@ -249,9 +273,15 @@ def c_where(b, a):
               f"{'' if f.placed else '   [UNPLACED - parked off the outline]'}")
         print(f"  footprint : {f.fp}")
         print(f"  sheet     : {f.sheet}")
-        print(f"  at        : {f.x:.3f}, {f.y:.3f}  rot {f.rot:g}  layer {f.layer}")
-        print(f"  courtyard : {c[0]:.2f},{c[1]:.2f} .. {c[2]:.2f},{c[3]:.2f}  "
+        print(f"  at        : {O(f.x, f.y)}  rot {f.rot:g}  layer {f.layer}"
+              + (f"  scale {f.scale[0]:g} x {f.scale[1]:g}" if f.scale != (1.0, 1.0) else '')
+              + (f"  (padless, art on {'B' if f.back else 'F'})" if not f.pads and f.art else ''))
+        print(f"  courtyard : {O(c[0], c[1], 2).replace(' ', '')} .. {O(c[2], c[3], 2).replace(' ', '')}  "
               f"({c[2]-c[0]:.2f} x {c[3]-c[1]:.2f} mm){'' if f.crtyd_real else '  [NO CrtYd - pads+fab bbox]'}")
+        if f.fab:
+            fb = f.fab
+            print(f"  fab body  : {O(fb[0], fb[1], 2).replace(' ', '')} .. {O(fb[2], fb[3], 2).replace(' ', '')}  "
+                  f"({fb[2]-fb[0]:.2f} x {fb[3]-fb[1]:.2f} mm)  [Fab layer only: the housing]")
         if f.edge is not None:
             print(f"  edge dist : {f.edge:.2f} mm" + ("   <-- ON/ACROSS THE EDGE" if f.edge <= 0.001 else ""))
         tags = [t for t, ok in (('RF', b.is_rf(f)), ('hot', b.is_hot(f)),
@@ -423,9 +453,14 @@ def sync_findings(b, netpath, a):
         F.append({'severity': sev, 'rule': rule, 'msg': msg, 'refs': list(refs)})
 
     bf, nf = set(b.fps), set(n.comps)
-    if bf - nf:
+    # padless and never synced (no sheet): a logo or pasted art, not a component
+    art = {r for r in bf - nf if not b.fps[r].pads and not b.fps[r].sheet}
+    if art:
+        add('INFO', 'SYNCART', f"padless graphic footprints, not components ({len(art)}): "
+            f"{trunc(' '.join(sorted((r or '(blank)' for r in art), key=natkey)), 90)}")
+    if bf - nf - art:
         add('ERROR', 'SYNCPART', f"on the board but not in the netlist "
-            f"({len(bf-nf)}): {trunc(refrange(sorted(bf-nf, key=natkey)), 90)}")
+            f"({len(bf-nf-art)}): {trunc(refrange(sorted(bf-nf-art, key=natkey)), 90)}")
     if nf - bf:
         add('ERROR', 'SYNCPART', f"in the netlist but not on the board "
             f"({len(nf-bf)}): {trunc(refrange(sorted(nf-bf, key=natkey)), 90)}")
@@ -472,14 +507,18 @@ def c_sync(b, a):
         print(json.dumps(F, indent=1))
         return 2 if any(x['severity'] == 'ERROR' for x in F) else 0
     ne = sum(1 for x in F if x['severity'] == 'ERROR')
+    ni = sum(1 for x in F if x['severity'] == 'INFO')
     print(f"board   : {b.path}   {len(b.fps)} footprints")
     print(f"netlist : {netpath}   {len(n.comps)} components   exported {n.date}"
           + (f"   [{cands} .net files here; name one to be sure]" if cands > 1 else ""))
-    if not F:
+    if len(F) == ni:
         print("\nIN SYNC - same parts, same footprints, same values, same net on every "
               "pad.\nPlacement findings can be trusted to be about the current circuit.")
+        if F:
+            print_findings(F, '', rules=SYNC_RULES, cap=a.max)
         return 0
-    print_findings(F, f"\n{ne} error, {len(F)-ne} warn\n", rules=SYNC_RULES, cap=a.max)
+    print_findings(F, f"\n{ne} error, {len(F)-ne-ni} warn" + (f", {ni} info" if ni else '') + "\n",
+                   rules=SYNC_RULES, cap=a.max)
     if ne:
         print("\nThe board has not been re-synced from the schematic. Run KiCad's "
               "'Update PCB from\nSchematic' first - until then every other finding "
@@ -496,6 +535,7 @@ SYNC_RULES = {
     'SYNCVAL':  'value differs between board and netlist',
     'SYNCDNP':  'DNP flag differs between board and netlist',
     'SYNCNET':  'a pad sits on a different net than the netlist says',
+    'SYNCART':  'on the board only, but padless and unsynced: art, not a missing part',
 }
 
 # ---------------- one-call review ----------------
@@ -511,6 +551,7 @@ def c_review(b, a):
         try:
             F, n = sync_findings(b, netpath, a)
             ne = sum(1 for x in F if x['severity'] == 'ERROR')
+            F = [x for x in F if x['severity'] != 'INFO']
             if ne:
                 print(f"### STOP: board vs {os.path.basename(netpath)} - {ne} error(s)\n")
                 print_findings(F, '', rules=SYNC_RULES, cap=5)
@@ -629,7 +670,9 @@ def c_net(b, a):
 CMDS = {'summary': c_summary, 'check': c_check, 'where': c_where, 'map': c_map,
         'sheet': c_sheet, 'unplaced': c_unplaced, 'ic': c_ic, 'span': c_span,
         'zones': c_zones, 'sync': c_sync, 'review': c_review, 'ampacity': c_ampacity,
-        'viapad': c_viapad, 'net': c_net, 'rf': c_rf, 'height': c_height}
+        'viapad': c_viapad, 'net': c_net, 'rf': c_rf, 'height': c_height, 'view': c_view,
+        'silk': c_silk, 'movecheck': c_movecheck, 'freebox': c_freebox,
+        'tidy': c_tidy}
 
 def main():
     ap = argparse.ArgumentParser(add_help=False)
@@ -642,6 +685,9 @@ def main():
                     help='max lines per rule / per neighbour list before a +N tail (12)')
     ap.add_argument('--cols', type=int, default=48, help='for `map`: grid width (48)')
     ap.add_argument('--side', default='f', help='for `map`: f (front, default) or b (back)')
+    ap.add_argument('--origin', choices=('page', 'grid', 'aux'), default='page',
+                    help="for `where`: read and print x,y relative to the board's grid or aux "
+                         "(drill/place) origin, as KiCad's Properties dialog does (page)")
     for name, dflt, hlp in (('edge', 0.5, 'courtyard-to-board-edge minimum, mm'),
                             ('hole', 1.5, 'keepout beyond a mounting hole pad radius, mm'),
                             ('conn', 10.0, 'max connector distance from an edge, mm'),
@@ -692,6 +738,14 @@ def main():
                     help='for `viapad`: hide GND/power pads (routine drops), keep signal pads')
     ap.add_argument('--min', dest='min_vias', type=int, default=1,
                     help='for `viapad`: only pads holding >= N vias, e.g. 4 for thermal pads (1)')
+    ap.add_argument('--layers', default='',
+                    help="for `view`: comma list of layers (default: the part's side Cu/SilkS/Fab/CrtYd + Edge.Cuts)")
+    ap.add_argument('--box', default='', help='for `view`: X0,Y0,X1,Y1 board mm instead of refs')
+    ap.add_argument('--px', type=float, default=20, help='for `view`: pixels per mm (20)')
+    ap.add_argument('-o', '--out', default='', help='for `view`: output .png (or .svg)')
+    ap.add_argument('--scan', nargs='+', default=None, metavar='AXIS=V',
+                    help='for `movecheck`: slide REF along x=X y=Y0..Y1 (or y=Y x=X0..X1), print clear stretches')
+    ap.add_argument('--step', type=float, default=0.05, help='for `movecheck --scan`: step, mm (0.05)')
     ap.add_argument('--only', default='')
     ap.add_argument('--skip', default='')
     ap.add_argument('--json', action='store_true')
