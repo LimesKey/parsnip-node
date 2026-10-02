@@ -44,6 +44,7 @@ carry F.SilkS art), so `summary`, `map` and `where` count it on the art's side.
 | `rf [NET...]` | 50-ohm trace review. No net = every net whose netclass names RF/50. See below. |
 | `height [REF...]` | 3D-model height of each part and the board's Z stack. Shells out to KiCad's GLB export (~3 s). See below. |
 | `movecheck REF X Y [ROT]` | what moving REF there would **newly** break: foreign pads/tracks/vias inside the clearance, copper to the edge, a same-side courtyard overlap. `REF --scan x=X y=A..B [--step 0.05]` slides it and prints the clear stretches; `via X,Y NX,NY` moves one via and says whether tracks are tied to it. Read-only. See below. |
+| `tidy` | near-miss alignment, each fix pre-checked with `movecheck`: a row/column with one part 0.005-0.15 mm off, a row of >= 3 with an uneven pitch, mounting-hole insets that nearly agree, rotations off a multiple of 90, a small part a little off a big same-side part's long centre line (a thermistor under a cell holder). Prints `REF now -> new`; writes nothing. See below. |
 | `freebox SIDE W H` | where a W x H mm silk box (a logo, a label) fits on side `f`/`b`: clear of that side's courtyards, every through-hole pad and that side's silk (logos, board art, refdes and other footprint text), >= 1 mm inside the edge. Best centre per free region, by margin. See below. |
 | `silk` | every padless graphic footprint (logo, pasted art): the layers its art is really on (per item, not the footprint's `(layer)`), scaled extent, rotation, the same-side part body hiding it (HIDDEN >= 50% of its box), and the pads its art crosses. See below. |
 | `view REF... [-r 5] [--layers L,L] [-o x.png]` | PNG of the board around parts (their courtyards + `-r`), an `X,Y`, or `--box X0,Y0,X1,Y1`, on the part's side layers (Cu, SilkS, Fab, CrtYd + Edge.Cuts) unless `--layers`. Use it to check by eye what a number says (a void, a logo under a module, a setback). See below. |
@@ -486,6 +487,27 @@ range, `--step` mm) and prints contiguous clear and blocked stretches with what
 blocks each, so a centring move can pick its spot. `via X,Y NX,NY` takes the via
 nearest X,Y (within 0.15 mm): `tied: nothing` means a bare stitching via that is free
 to move (the pour reconnects it on refill); otherwise the tracks ending on it drag.
+
+## `tidy` - near misses, with the fix already checked
+
+Five passes over the placed parts (mounting holes only in the third):
+- **near-miss**: same-side parts of one footprint within 6 mm (or siblings of a
+  small family anywhere - <= 4 parts of that prefix and footprint, so SW1/SW2,
+  J4/J8, BT1/BT2, never every 0402 cap) whose x or y agree within 0.15 mm; a part
+  0.005-0.15 mm off the value most of the group shares (a tie: the lowest ref's)
+  is moved onto it.
+- **pitch**: a line of >= 3 same-footprint parts (one y, or one x) chained <= 6 mm
+  apart whose pitches differ by 0.02 mm to 25% of the mean: the middle parts move
+  to an even pitch between the two ends.
+- **hole inset**: each mounting hole's x and y inset from the outline bbox; a hole
+  0.005-0.5 mm off the common inset moves to it.
+- **rotation**: a part whose rotation is not a multiple of 90 goes to the nearest.
+- **centring**: a part whose centre sits inside a same-side part with >= 20x its
+  courtyard area, 0.005-2 mm off that part's long centre line (Fab body, else
+  courtyard), moves onto the line; the offset along the line is printed too.
+
+Every suggestion runs through `movecheck` at its new spot (`clear`, or the first new
+hit), so a fix that would break clearance says so before anyone drags the part.
 
 ## `freebox` - room for a silk box
 

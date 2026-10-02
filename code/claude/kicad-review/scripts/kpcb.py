@@ -43,6 +43,8 @@ Commands:
                                       `REF --scan x=X y=A..B`, `via X,Y NX,NY`. Read-only.
   kpcb.py FILE freebox SIDE W H       where a W x H silk box fits on side f|b (clear of
                                       courtyards, through pads, silk/art; 1 mm from edge)
+  kpcb.py FILE tidy                   near-miss alignment (rows/columns, pitch, hole insets,
+                                      rotations, centring), each run through movecheck
   kpcb.py FILE rf [NET...]            50-ohm trace review: width necks, microstrip Zo
                                       from the stackup, same-layer GND gap, reference
                                       plane under it, GND via fence vs lambda/20
@@ -109,6 +111,7 @@ from kpcb_view import c_view
 from kpcb_silk import c_silk
 from kpcb_move import c_movecheck
 from kpcb_freebox import c_freebox
+from kpcb_tidy import c_tidy
 
 
 def c_summary(b, a):
@@ -668,7 +671,8 @@ CMDS = {'summary': c_summary, 'check': c_check, 'where': c_where, 'map': c_map,
         'sheet': c_sheet, 'unplaced': c_unplaced, 'ic': c_ic, 'span': c_span,
         'zones': c_zones, 'sync': c_sync, 'review': c_review, 'ampacity': c_ampacity,
         'viapad': c_viapad, 'net': c_net, 'rf': c_rf, 'height': c_height, 'view': c_view,
-        'silk': c_silk, 'movecheck': c_movecheck, 'freebox': c_freebox}
+        'silk': c_silk, 'movecheck': c_movecheck, 'freebox': c_freebox,
+        'tidy': c_tidy}
 
 def main():
     ap = argparse.ArgumentParser(add_help=False)

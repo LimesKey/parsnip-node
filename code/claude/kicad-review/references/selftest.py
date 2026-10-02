@@ -221,6 +221,29 @@ def mini_project(d):
         + fill('F.Cu', (0.5, 0.5, 19.5, 19.5)) + fill('B.Cu', (0.5, 0.5, 9.5, 19.5), (14.5, 0.5, 19.5, 19.5)) + ')')
     return os.path.join(d, 't.net')
 
+def tidy_board(d):
+    """one near miss per tidy class: C3 0.08 mm off the C1/C2 row, R2 off an even
+    pitch, TP1 at 60 deg, H4 inset 3.1 vs 3.0, D1 0.3 mm off U1's long centre line (an X
+    track then sits 0.15 mm from its pads, so movecheck flags that one)"""
+    p = os.path.join(d, 'tidy.kicad_pcb')
+    def fp(ref, name, x, y, r=0, crt=(.5, .3), pads=(('1', -.4, 0), ('2', .4, 0)), drill=''):
+        return (f' (footprint "{name}" (layer "F.Cu") (at {x} {y} {r}) (property "Reference" "{ref}")'
+                f' (fp_rect (start {-crt[0]} {-crt[1]}) (end {crt[0]} {crt[1]}) (layer "F.CrtYd"))'
+                + ''.join(f' (pad "{n}" {"thru_hole" if drill else "smd"} rect (at {px} {py}) (size .3 .3)'
+                          f'{drill} (layers "F.Cu") (net "{ref}{n}"))' for n, px, py in pads) + ')')
+    hole = lambda r, x, y: fp(r, 'MountingHole_3.2mm', x, y, crt=(2, 2), pads=(('1', 0, 0),), drill=' (drill 3.2)')
+    open(p, 'w').write(
+        '(kicad_pcb (version 20240108) (generator "pcbnew")'
+        ' (layers (0 "F.Cu" signal) (2 "B.Cu" signal) (25 "Edge.Cuts" user))'
+        ' (gr_rect (start 0 0) (end 40 30) (layer "Edge.Cuts"))'
+        + fp('C1', 'C_0402', 5, 10) + fp('C2', 'C_0402', 7, 10) + fp('C3', 'C_0402', 9, 10.08)
+        + fp('R1', 'R_0603', 5, 15) + fp('R2', 'R_0603', 7.1, 15) + fp('R3', 'R_0603', 9, 15)
+        + fp('TP1', 'TestPoint', 15, 15, 60)
+        + hole('H1', 3, 3) + hole('H2', 37, 3) + hole('H3', 3, 27) + hole('H4', 36.9, 27)
+        + fp('U1', 'Holder', 25, 10, crt=(10, 3)) + fp('D1', 'D_0402', 28, 10.3)
+        + ' (segment (start 26 9.6) (end 30 9.6) (width 0.2) (layer "F.Cu") (net "X")))')
+    return p
+
 def freebox_board(d):
     """30 x 20 board: U1's courtyard over x 1..13, a logo over x 14..19, and board text
     "AB" anchored left-bottom at 25,2 - so a 6 x 4 box only fits right of x 19, below y 2"""
@@ -497,6 +520,13 @@ def main():
     CASES.append(("knet revpol fet", ['knet.py', fet, 'revpol'], 0,
                   ["FET channel(s) on, gate driven from the cells: Q1", "FET channels vs normal: Q1 off",
                    "isolated from the cells: U1", "bidirectional TVS/ESD, breakdown not in the part number: D1"]))
+    CASES.append(("kpcb tidy", ['kpcb.py', tidy_board(tmp.name), 'tidy'], 0,
+                  ["5 tidy suggestion(s)", "C3     9.000,10.080 -> 9.000,10.000   y to the row of C1 C2 (0.080 off)",
+                   "R2     7.100,15.000 -> 7.000,15.000   even 2.000 pitch along x between R1 and R3",
+                   "H4     36.900,27.000 -> 37.000,27.000   x inset 3.100 -> 3.000 mm like H1 H2 H3",
+                   "TP1    15.000,15.000 rot 60 -> 15.000,15.000 rot 90",
+                   "D1     28.000,10.300 -> 28.000,10.000   0.300 off U1's long centre line y=10.000",
+                   "movecheck: 2 new hit(s): D1.1 0.15 mm from a X track", "4 of the shown suggestions are clear"]))
     CASES.append(("kpcb freebox", ['kpcb.py', freebox_board(tmp.name), 'freebox', 'f', '6', '4'], 0,
                   ["1 region(s)", "centre   24.12,10.38    margin 1.75 mm  (region   52.0 mm2"]))
     mv = move_board(tmp.name)
