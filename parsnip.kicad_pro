@@ -1091,6 +1091,16 @@
         "uuid": "e557d4de-4a3e-41d8-8939-f62cada100d3"
       },
       {
+        "filename": "block_diagram.kicad_sch",
+        "name": "Block Diagram",
+        "uuid": "2b092683-5720-4512-a8c0-1f9873a11beb"
+      },
+      {
+        "filename": "power_tree.kicad_sch",
+        "name": "Power Tree",
+        "uuid": "fe585e85-7bc0-4618-85d2-b311d8322d79"
+      },
+      {
         "filename": "usb_interface.kicad_sch",
         "name": "USB Interface",
         "uuid": "a9f1fdad-fb49-4185-a4ff-ad8f47273e4d"
@@ -1118,6 +1128,14 @@
     [
       "e557d4de-4a3e-41d8-8939-f62cada100d3",
       "Overview"
+    ],
+    [
+      "2b092683-5720-4512-a8c0-1f9873a11beb",
+      "Block Diagram"
+    ],
+    [
+      "fe585e85-7bc0-4618-85d2-b311d8322d79",
+      "Power Tree"
     ],
     [
       "a9f1fdad-fb49-4185-a4ff-ad8f47273e4d",
@@ -1156,7 +1174,10 @@
       "Connectors"
     ]
   ],
-  "text_variables": {},
+  "text_variables": {
+    "REV": "1.1",
+    "DATE": "2026-10-03"
+  },
   "tuning_profiles": {
     "meta": {
       "version": 2

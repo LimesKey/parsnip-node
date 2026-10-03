@@ -5,10 +5,1399 @@
 	(uuid "804fd081-48ca-4be3-888b-d7e05f1f9f71")
 	(paper "A4")
 	(title_block
-		(title "Block Diagram & Notes")
+		(title "Cover")
+		(date "${DATE}")
+		(rev "${REV}")
 		(company "LimesKey")
 	)
 	(lib_symbols)
+	(text "Resistors and capacitors are 0402."
+		(exclude_from_sim no)
+		(at 132 117 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left top)
+		)
+		(uuid "013b9b74-09da-493c-ace2-6da41f36cb17")
+	)
+	(text "Schematic"
+		(exclude_from_sim no)
+		(at 14 39 0)
+		(effects
+			(font
+				(size 2 2)
+				(italic yes)
+			)
+			(justify left bottom)
+		)
+		(uuid "17a11bfe-5d0d-4678-a8f9-ac75ae7eeb93")
+	)
+	(text "Resistance in ohms, capacitance in farads. All voltages are DC."
+		(exclude_from_sim no)
+		(at 132 112 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left top)
+		)
+		(uuid "2be56155-71f5-4c78-beb0-cf6103882b41")
+	)
+	(text "REVISION HISTORY"
+		(exclude_from_sim no)
+		(at 126 47 0)
+		(effects
+			(font
+				(size 1.8 1.8)
+				(bold yes)
+			)
+			(justify left bottom)
+		)
+		(uuid "3b650edc-42fb-4e23-9d7c-4cc083822c8e")
+	)
+	(text "3."
+		(exclude_from_sim no)
+		(at 126 122 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left top)
+		)
+		(uuid "45846136-1d63-4b7e-b038-4d664d0c390a")
+	)
+	(text "6."
+		(exclude_from_sim no)
+		(at 126 139.6 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left top)
+		)
+		(uuid "515c7c59-a68f-4ae6-9a4f-1030cad23f91")
+	)
+	(text "Labels with the same name are connected. Top-level sheets join through\nglobal labels and power symbols, subsheets of Root through sheet pins."
+		(exclude_from_sim no)
+		(at 132 132 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left top)
+		)
+		(uuid "52d0d823-d67c-4296-be60-a8849caa05f5")
+	)
+	(text "4."
+		(exclude_from_sim no)
+		(at 126 127 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left top)
+		)
+		(uuid "6d983b24-cca9-4794-a4f8-94e60468b402")
+	)
+	(text "Some symbols are edited in the schematic. Do not run\nTools > Update Symbols from Library."
+		(exclude_from_sim no)
+		(at 132 144.6 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left top)
+		)
+		(uuid "6e76ca97-dad4-4d47-ae76-371d16fec8ab")
+	)
+	(text "2."
+		(exclude_from_sim no)
+		(at 126 117 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left top)
+		)
+		(uuid "708c88d3-2401-429e-962d-35f71233b390")
+	)
+	(text "DNP = do not populate. DNP symbols are drawn with a red X."
+		(exclude_from_sim no)
+		(at 132 122 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left top)
+		)
+		(uuid "748602af-71e6-4648-8866-96fed48dc34e")
+	)
+	(text "Meshtastic LoRa mesh node, 915 MHz"
+		(exclude_from_sim no)
+		(at 14 34 0)
+		(effects
+			(font
+				(size 2 2)
+			)
+			(justify left bottom)
+		)
+		(uuid "78acd012-f2af-4def-93a1-55673da481b1")
+	)
+	(text "NOTES, UNLESS OTHERWISE SPECIFIED:"
+		(exclude_from_sim no)
+		(at 126 107 0)
+		(effects
+			(font
+				(size 1.8 1.8)
+				(bold yes)
+			)
+			(justify left bottom)
+		)
+		(uuid "95722fe0-cd15-4171-9a13-71f76dc8f0e7")
+	)
+	(text "7."
+		(exclude_from_sim no)
+		(at 126 144.6 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left top)
+		)
+		(uuid "96dd61b2-385e-4d3d-90a1-41c80bedc550")
+	)
+	(text "5."
+		(exclude_from_sim no)
+		(at 126 132 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left top)
+		)
+		(uuid "a2c42e5e-87a1-42f3-9dc5-9ba6c17d1a75")
+	)
+	(text "PAGE LIST"
+		(exclude_from_sim no)
+		(at 14 47 0)
+		(effects
+			(font
+				(size 1.8 1.8)
+				(bold yes)
+			)
+			(justify left bottom)
+		)
+		(uuid "ad586dab-92ac-42b0-bab1-06701f83713f")
+	)
+	(text "PARSNIP-NODE"
+		(exclude_from_sim no)
+		(at 14 27 0)
+		(effects
+			(font
+				(size 5 5)
+				(bold yes)
+			)
+			(justify left bottom)
+		)
+		(uuid "bc8caa12-ab04-49d7-a0fe-6f4e9f0a1bf0")
+	)
+	(text "1."
+		(exclude_from_sim no)
+		(at 126 112 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left top)
+		)
+		(uuid "daee2696-dd79-4dc3-ba81-06f9682b9535")
+	)
+	(text "An overbar on a pin or net name denotes an active-low signal."
+		(exclude_from_sim no)
+		(at 132 127 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left top)
+		)
+		(uuid "e221cc49-ede9-4326-89cd-64cc20def369")
+	)
+	(text "PWR_FLAG symbols are for ERC only and are not parts."
+		(exclude_from_sim no)
+		(at 132 139.6 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left top)
+		)
+		(uuid "fd698c5b-d40b-4908-91ec-66fe020d8c07")
+	)
+	(table
+		(column_count 3)
+		(border
+			(external yes)
+			(header yes)
+			(stroke
+				(width 0.3)
+				(type solid)
+			)
+		)
+		(separators
+			(rows yes)
+			(cols yes)
+			(stroke
+				(width 0.15)
+				(type solid)
+			)
+		)
+		(column_widths 12 28 62)
+		(row_heights 6 6 6 6 6 6 6 6 6 6 6 6 6)
+		(uuid "06c2a504-fa74-479a-9d2f-21613a1ff3ce")
+		(cells
+			(table_cell "PAGE"
+				(exclude_from_sim no)
+				(at 14 49 0)
+				(size 12 6)
+				(margins 0.95 0.95 0.95 0.95)
+				(span 1 1)
+				(fill
+					(type none)
+				)
+				(effects
+					(font
+						(size 1.27 1.27)
+						(bold yes)
+					)
+					(justify left)
+				)
+				(uuid "f3ee12e8-2819-437a-9a80-4bac3e429f9d")
+			)
+			(table_cell "SHEET"
+				(exclude_from_sim no)
+				(at 26 49 0)
+				(size 28 6)
+				(margins 0.95 0.95 0.95 0.95)
+				(span 1 1)
+				(fill
+					(type none)
+				)
+				(effects
+					(font
+						(size 1.27 1.27)
+						(bold yes)
+					)
+					(justify left)
+				)
+				(uuid "afe68bd4-8f30-4702-826b-29ba6b92b905")
+			)
+			(table_cell "CONTENTS"
+				(exclude_from_sim no)
+				(at 54 49 0)
+				(size 62 6)
+				(margins 0.95 0.95 0.95 0.95)
+				(span 1 1)
+				(fill
+					(type none)
+				)
+				(effects
+					(font
+						(size 1.27 1.27)
+						(bold yes)
+					)
+					(justify left)
+				)
+				(uuid "0e831fe7-86ff-4968-95f7-047efe993477")
+			)
+			(table_cell "1"
+				(exclude_from_sim no)
+				(at 14 55 0)
+				(size 12 6)
+				(margins 0.95 0.95 0.95 0.95)
+				(span 1 1)
+				(fill
+					(type none)
+				)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left)
+					(href "#1")
+				)
+				(uuid "a64cd4be-4314-4425-8eea-8c583e16ad82")
+			)
+			(table_cell "Overview"
+				(exclude_from_sim no)
+				(at 26 55 0)
+				(size 28 6)
+				(margins 0.95 0.95 0.95 0.95)
+				(span 1 1)
+				(fill
+					(type none)
+				)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left)
+					(href "#1")
+				)
+				(uuid "2da8e18e-6c72-4cb9-9fe9-bbf323d5a2cd")
+			)
+			(table_cell "Cover: page list, revision history, notes"
+				(exclude_from_sim no)
+				(at 54 55 0)
+				(size 62 6)
+				(margins 0.95 0.95 0.95 0.95)
+				(span 1 1)
+				(fill
+					(type none)
+				)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left)
+					(href "#1")
+				)
+				(uuid "a6feb862-eb46-43dd-9fb5-c728b7beae3f")
+			)
+			(table_cell "2"
+				(exclude_from_sim no)
+				(at 14 61 0)
+				(size 12 6)
+				(margins 0.95 0.95 0.95 0.95)
+				(span 1 1)
+				(fill
+					(type none)
+				)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left)
+					(href "#2")
+				)
+				(uuid "9f6b563c-621a-4133-92f1-46e72d5d140d")
+			)
+			(table_cell "Block Diagram"
+				(exclude_from_sim no)
+				(at 26 61 0)
+				(size 28 6)
+				(margins 0.95 0.95 0.95 0.95)
+				(span 1 1)
+				(fill
+					(type none)
+				)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left)
+					(href "#2")
+				)
+				(uuid "08c4b760-f1dd-474e-bb8a-573bf1b77cf7")
+			)
+			(table_cell "MCU, buses and peripherals"
+				(exclude_from_sim no)
+				(at 54 61 0)
+				(size 62 6)
+				(margins 0.95 0.95 0.95 0.95)
+				(span 1 1)
+				(fill
+					(type none)
+				)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left)
+					(href "#2")
+				)
+				(uuid "99636927-c542-4d4f-8ed7-5d07ecddcf02")
+			)
+			(table_cell "3"
+				(exclude_from_sim no)
+				(at 14 67 0)
+				(size 12 6)
+				(margins 0.95 0.95 0.95 0.95)
+				(span 1 1)
+				(fill
+					(type none)
+				)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left)
+					(href "#3")
+				)
+				(uuid "d36e28d4-9b31-4b7d-a1bb-0b08bd0ea536")
+			)
+			(table_cell "Power Tree"
+				(exclude_from_sim no)
+				(at 26 67 0)
+				(size 28 6)
+				(margins 0.95 0.95 0.95 0.95)
+				(span 1 1)
+				(fill
+					(type none)
+				)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left)
+					(href "#3")
+				)
+				(uuid "f4baddaf-1ae8-42de-9687-b603d7aab564")
+			)
+			(table_cell "Inputs, charger, rails, loads"
+				(exclude_from_sim no)
+				(at 54 67 0)
+				(size 62 6)
+				(margins 0.95 0.95 0.95 0.95)
+				(span 1 1)
+				(fill
+					(type none)
+				)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left)
+					(href "#3")
+				)
+				(uuid "76196aa6-8202-4767-b26a-64d63845fff8")
+			)
+			(table_cell "4"
+				(exclude_from_sim no)
+				(at 14 73 0)
+				(size 12 6)
+				(margins 0.95 0.95 0.95 0.95)
+				(span 1 1)
+				(fill
+					(type none)
+				)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left)
+					(href "#4")
+				)
+				(uuid "c6629bd5-4689-4bcb-8aa0-407b1f9613c5")
+			)
+			(table_cell "USB Interface"
+				(exclude_from_sim no)
+				(at 26 73 0)
+				(size 28 6)
+				(margins 0.95 0.95 0.95 0.95)
+				(span 1 1)
+				(fill
+					(type none)
+				)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left)
+					(href "#4")
+				)
+				(uuid "a28a26de-87f1-49d3-a4f4-ac61c1bf05e4")
+			)
+			(table_cell "USB-C, TPS25751 PD controller, ESD"
+				(exclude_from_sim no)
+				(at 54 73 0)
+				(size 62 6)
+				(margins 0.95 0.95 0.95 0.95)
+				(span 1 1)
+				(fill
+					(type none)
+				)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left)
+					(href "#4")
+				)
+				(uuid "65aa91bf-6dab-4575-982a-1f7bcbb807d5")
+			)
+			(table_cell "5"
+				(exclude_from_sim no)
+				(at 14 79 0)
+				(size 12 6)
+				(margins 0.95 0.95 0.95 0.95)
+				(span 1 1)
+				(fill
+					(type none)
+				)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left)
+					(href "#5")
+				)
+				(uuid "f34c08f5-4427-44f2-b7f4-8448dc669d3f")
+			)
+			(table_cell "Charger"
+				(exclude_from_sim no)
+				(at 26 79 0)
+				(size 28 6)
+				(margins 0.95 0.95 0.95 0.95)
+				(span 1 1)
+				(fill
+					(type none)
+				)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left)
+					(href "#5")
+				)
+				(uuid "6cf85326-4428-4de1-93e8-11acd208e2d4")
+			)
+			(table_cell "BQ25798, input FETs, ship FET"
+				(exclude_from_sim no)
+				(at 54 79 0)
+				(size 62 6)
+				(margins 0.95 0.95 0.95 0.95)
+				(span 1 1)
+				(fill
+					(type none)
+				)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left)
+					(href "#5")
+				)
+				(uuid "ee626743-5360-49a9-8145-af5f80d77528")
+			)
+			(table_cell "6"
+				(exclude_from_sim no)
+				(at 14 85 0)
+				(size 12 6)
+				(margins 0.95 0.95 0.95 0.95)
+				(span 1 1)
+				(fill
+					(type none)
+				)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left)
+					(href "#6")
+				)
+				(uuid "50ca94ba-5f1b-4dd2-9cac-1683f11fa057")
+			)
+			(table_cell "BMS"
+				(exclude_from_sim no)
+				(at 26 85 0)
+				(size 28 6)
+				(margins 0.95 0.95 0.95 0.95)
+				(span 1 1)
+				(fill
+					(type none)
+				)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left)
+					(href "#6")
+				)
+				(uuid "ed82af00-27ff-42c1-ac89-ad131b419de2")
+			)
+			(table_cell "2S 21700 cells, MAX17320, F5, Q16"
+				(exclude_from_sim no)
+				(at 54 85 0)
+				(size 62 6)
+				(margins 0.95 0.95 0.95 0.95)
+				(span 1 1)
+				(fill
+					(type none)
+				)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left)
+					(href "#6")
+				)
+				(uuid "6ce6f6de-3e47-4348-9bb1-bddb347d2ae2")
+			)
+			(table_cell "7"
+				(exclude_from_sim no)
+				(at 14 91 0)
+				(size 12 6)
+				(margins 0.95 0.95 0.95 0.95)
+				(span 1 1)
+				(fill
+					(type none)
+				)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left)
+					(href "#7")
+				)
+				(uuid "eb2edf9d-3f3c-4bb0-b015-05203264a2dd")
+			)
+			(table_cell "Root"
+				(exclude_from_sim no)
+				(at 26 91 0)
+				(size 28 6)
+				(margins 0.95 0.95 0.95 0.95)
+				(span 1 1)
+				(fill
+					(type none)
+				)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left)
+					(href "#7")
+				)
+				(uuid "7d0e494c-bb81-4a38-a840-b34a509d5d9f")
+			)
+			(table_cell "ESP32-S3 MCU"
+				(exclude_from_sim no)
+				(at 54 91 0)
+				(size 62 6)
+				(margins 0.95 0.95 0.95 0.95)
+				(span 1 1)
+				(fill
+					(type none)
+				)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left)
+					(href "#7")
+				)
+				(uuid "a6facf65-ec0f-4b4e-b771-c5f304af5b8a")
+			)
+			(table_cell "8"
+				(exclude_from_sim no)
+				(at 14 97 0)
+				(size 12 6)
+				(margins 0.95 0.95 0.95 0.95)
+				(span 1 1)
+				(fill
+					(type none)
+				)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left)
+					(href "#8")
+				)
+				(uuid "2a72f555-a27d-407e-96a9-64567efe3398")
+			)
+			(table_cell "Rails"
+				(exclude_from_sim no)
+				(at 26 97 0)
+				(size 28 6)
+				(margins 0.95 0.95 0.95 0.95)
+				(span 1 1)
+				(fill
+					(type none)
+				)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left)
+					(href "#8")
+				)
+				(uuid "2a1012f0-e7dc-478a-a9af-ecd56f74fc51")
+			)
+			(table_cell "5 V / 3.3 V bucks, eFuse, sync clock"
+				(exclude_from_sim no)
+				(at 54 97 0)
+				(size 62 6)
+				(margins 0.95 0.95 0.95 0.95)
+				(span 1 1)
+				(fill
+					(type none)
+				)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left)
+					(href "#8")
+				)
+				(uuid "8fc1028f-e34b-4b70-ab2b-a4795b9d2eab")
+			)
+			(table_cell "9"
+				(exclude_from_sim no)
+				(at 14 103 0)
+				(size 12 6)
+				(margins 0.95 0.95 0.95 0.95)
+				(span 1 1)
+				(fill
+					(type none)
+				)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left)
+					(href "#9")
+				)
+				(uuid "ff73a335-17ee-4c35-8dae-2c18e6b1d092")
+			)
+			(table_cell "GNSS"
+				(exclude_from_sim no)
+				(at 26 103 0)
+				(size 28 6)
+				(margins 0.95 0.95 0.95 0.95)
+				(span 1 1)
+				(fill
+					(type none)
+				)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left)
+					(href "#9")
+				)
+				(uuid "0a99ec96-a915-48be-b880-896f22ae2104")
+			)
+			(table_cell "NEO-F10N, LDO, eFuse, antenna bias"
+				(exclude_from_sim no)
+				(at 54 103 0)
+				(size 62 6)
+				(margins 0.95 0.95 0.95 0.95)
+				(span 1 1)
+				(fill
+					(type none)
+				)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left)
+					(href "#9")
+				)
+				(uuid "84565e00-071e-4dfc-b622-b169c6fa407d")
+			)
+			(table_cell "10"
+				(exclude_from_sim no)
+				(at 14 109 0)
+				(size 12 6)
+				(margins 0.95 0.95 0.95 0.95)
+				(span 1 1)
+				(fill
+					(type none)
+				)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left)
+					(href "#10")
+				)
+				(uuid "8346b7e5-faaf-4f9e-b46a-89b3381abf32")
+			)
+			(table_cell "LoRa"
+				(exclude_from_sim no)
+				(at 26 109 0)
+				(size 28 6)
+				(margins 0.95 0.95 0.95 0.95)
+				(span 1 1)
+				(fill
+					(type none)
+				)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left)
+					(href "#10")
+				)
+				(uuid "08ddbc03-8152-400a-9c7f-7a4437ce5d77")
+			)
+			(table_cell "E22P-915M30S, antenna detect"
+				(exclude_from_sim no)
+				(at 54 109 0)
+				(size 62 6)
+				(margins 0.95 0.95 0.95 0.95)
+				(span 1 1)
+				(fill
+					(type none)
+				)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left)
+					(href "#10")
+				)
+				(uuid "fbd2b28a-b027-4e67-81f7-513a9f8c1f6b")
+			)
+			(table_cell "11"
+				(exclude_from_sim no)
+				(at 14 115 0)
+				(size 12 6)
+				(margins 0.95 0.95 0.95 0.95)
+				(span 1 1)
+				(fill
+					(type none)
+				)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left)
+					(href "#11")
+				)
+				(uuid "821e68d8-56ab-4285-9fc7-0e4e2445f8af")
+			)
+			(table_cell "Peripherals"
+				(exclude_from_sim no)
+				(at 26 115 0)
+				(size 28 6)
+				(margins 0.95 0.95 0.95 0.95)
+				(span 1 1)
+				(fill
+					(type none)
+				)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left)
+					(href "#11")
+				)
+				(uuid "75993ad3-7ee2-452d-9461-2d46d5d432c4")
+			)
+			(table_cell "GPIO expander, sensors, LEDs"
+				(exclude_from_sim no)
+				(at 54 115 0)
+				(size 62 6)
+				(margins 0.95 0.95 0.95 0.95)
+				(span 1 1)
+				(fill
+					(type none)
+				)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left)
+					(href "#11")
+				)
+				(uuid "cb99addb-75db-46d0-9cf3-2d42e2b122ab")
+			)
+			(table_cell "12"
+				(exclude_from_sim no)
+				(at 14 121 0)
+				(size 12 6)
+				(margins 0.95 0.95 0.95 0.95)
+				(span 1 1)
+				(fill
+					(type none)
+				)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left)
+					(href "#12")
+				)
+				(uuid "8cb13b63-2a86-4c83-85bb-4dc246d0c7d3")
+			)
+			(table_cell "Connectors"
+				(exclude_from_sim no)
+				(at 26 121 0)
+				(size 28 6)
+				(margins 0.95 0.95 0.95 0.95)
+				(span 1 1)
+				(fill
+					(type none)
+				)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left)
+					(href "#12")
+				)
+				(uuid "229eb7ab-39a8-46a3-b443-849cfed6d051")
+			)
+			(table_cell "Expansion headers, e-Ink display"
+				(exclude_from_sim no)
+				(at 54 121 0)
+				(size 62 6)
+				(margins 0.95 0.95 0.95 0.95)
+				(span 1 1)
+				(fill
+					(type none)
+				)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left)
+					(href "#12")
+				)
+				(uuid "9838a01f-fc11-47c0-bf66-b17f57cf7590")
+			)
+		)
+	)
+	(table
+		(column_count 4)
+		(border
+			(external yes)
+			(header yes)
+			(stroke
+				(width 0.3)
+				(type solid)
+			)
+		)
+		(separators
+			(rows yes)
+			(cols yes)
+			(stroke
+				(width 0.15)
+				(type solid)
+			)
+		)
+		(column_widths 12 22 104 20)
+		(row_heights 6 8 8 8 8 8)
+		(uuid "33d13fc6-1603-41dc-a094-3948d6805bea")
+		(cells
+			(table_cell "REV"
+				(exclude_from_sim no)
+				(at 126 49 0)
+				(size 12 6)
+				(margins 0.95 0.95 0.95 0.95)
+				(span 1 1)
+				(fill
+					(type none)
+				)
+				(effects
+					(font
+						(size 1.27 1.27)
+						(bold yes)
+					)
+					(justify left)
+				)
+				(uuid "b6d2c554-fa48-43bf-8b4a-c8b18b5fb971")
+			)
+			(table_cell "DATE"
+				(exclude_from_sim no)
+				(at 138 49 0)
+				(size 22 6)
+				(margins 0.95 0.95 0.95 0.95)
+				(span 1 1)
+				(fill
+					(type none)
+				)
+				(effects
+					(font
+						(size 1.27 1.27)
+						(bold yes)
+					)
+					(justify left)
+				)
+				(uuid "92263773-c0a6-4a82-b80d-ed0e5beaff88")
+			)
+			(table_cell "DESCRIPTION OF CHANGES"
+				(exclude_from_sim no)
+				(at 160 49 0)
+				(size 104 6)
+				(margins 0.95 0.95 0.95 0.95)
+				(span 1 1)
+				(fill
+					(type none)
+				)
+				(effects
+					(font
+						(size 1.27 1.27)
+						(bold yes)
+					)
+					(justify left)
+				)
+				(uuid "f8922bff-6745-4077-9e52-4ed084234564")
+			)
+			(table_cell "BY"
+				(exclude_from_sim no)
+				(at 264 49 0)
+				(size 20 6)
+				(margins 0.95 0.95 0.95 0.95)
+				(span 1 1)
+				(fill
+					(type none)
+				)
+				(effects
+					(font
+						(size 1.27 1.27)
+						(bold yes)
+					)
+					(justify left)
+				)
+				(uuid "fd36ae20-7be2-435f-ae10-eb08449fda50")
+			)
+			(table_cell "1.1"
+				(exclude_from_sim no)
+				(at 126 55 0)
+				(size 12 8)
+				(margins 0.95 0.95 0.95 0.95)
+				(span 1 1)
+				(fill
+					(type none)
+				)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left)
+				)
+				(uuid "c861a1fe-2066-419f-b1a8-d704e49fad38")
+			)
+			(table_cell "2026-10-03"
+				(exclude_from_sim no)
+				(at 138 55 0)
+				(size 22 8)
+				(margins 0.95 0.95 0.95 0.95)
+				(span 1 1)
+				(fill
+					(type none)
+				)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left)
+				)
+				(uuid "7d31ea40-7c7e-4f19-95e0-0503b6986db9")
+			)
+			(table_cell "Prototype schematic; PCB layout in progress"
+				(exclude_from_sim no)
+				(at 160 55 0)
+				(size 104 8)
+				(margins 0.95 0.95 0.95 0.95)
+				(span 1 1)
+				(fill
+					(type none)
+				)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left)
+				)
+				(uuid "1f20064c-65ec-4c93-bac9-0923ff13e3fe")
+			)
+			(table_cell "LimesKey"
+				(exclude_from_sim no)
+				(at 264 55 0)
+				(size 20 8)
+				(margins 0.95 0.95 0.95 0.95)
+				(span 1 1)
+				(fill
+					(type none)
+				)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left)
+				)
+				(uuid "0ffcbd23-c83c-4ade-bb5c-042f46bde5f2")
+			)
+			(table_cell ""
+				(exclude_from_sim no)
+				(at 126 63 0)
+				(size 12 8)
+				(margins 0.95 0.95 0.95 0.95)
+				(span 1 1)
+				(fill
+					(type none)
+				)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left)
+				)
+				(uuid "62bf3c72-ea23-46fa-bc85-01041bb35100")
+			)
+			(table_cell ""
+				(exclude_from_sim no)
+				(at 138 63 0)
+				(size 22 8)
+				(margins 0.95 0.95 0.95 0.95)
+				(span 1 1)
+				(fill
+					(type none)
+				)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left)
+				)
+				(uuid "1098e51b-3396-4ede-85a4-ab5f52076b1d")
+			)
+			(table_cell ""
+				(exclude_from_sim no)
+				(at 160 63 0)
+				(size 104 8)
+				(margins 0.95 0.95 0.95 0.95)
+				(span 1 1)
+				(fill
+					(type none)
+				)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left)
+				)
+				(uuid "057f24b0-ce4d-4f55-94ae-337ac5471f0c")
+			)
+			(table_cell ""
+				(exclude_from_sim no)
+				(at 264 63 0)
+				(size 20 8)
+				(margins 0.95 0.95 0.95 0.95)
+				(span 1 1)
+				(fill
+					(type none)
+				)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left)
+				)
+				(uuid "85532cc3-3e63-4d5b-8a47-c549bab9053a")
+			)
+			(table_cell ""
+				(exclude_from_sim no)
+				(at 126 71 0)
+				(size 12 8)
+				(margins 0.95 0.95 0.95 0.95)
+				(span 1 1)
+				(fill
+					(type none)
+				)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left)
+				)
+				(uuid "6d513849-161d-4f3c-8ec1-d00071aadf36")
+			)
+			(table_cell ""
+				(exclude_from_sim no)
+				(at 138 71 0)
+				(size 22 8)
+				(margins 0.95 0.95 0.95 0.95)
+				(span 1 1)
+				(fill
+					(type none)
+				)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left)
+				)
+				(uuid "553e2c5b-f70e-492e-b03f-7f0098516404")
+			)
+			(table_cell ""
+				(exclude_from_sim no)
+				(at 160 71 0)
+				(size 104 8)
+				(margins 0.95 0.95 0.95 0.95)
+				(span 1 1)
+				(fill
+					(type none)
+				)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left)
+				)
+				(uuid "f05c4159-5d22-4c89-8717-72062ceee854")
+			)
+			(table_cell ""
+				(exclude_from_sim no)
+				(at 264 71 0)
+				(size 20 8)
+				(margins 0.95 0.95 0.95 0.95)
+				(span 1 1)
+				(fill
+					(type none)
+				)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left)
+				)
+				(uuid "7dbb6e60-11a1-4bc4-9158-649b57ee1457")
+			)
+			(table_cell ""
+				(exclude_from_sim no)
+				(at 126 79 0)
+				(size 12 8)
+				(margins 0.95 0.95 0.95 0.95)
+				(span 1 1)
+				(fill
+					(type none)
+				)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left)
+				)
+				(uuid "e33040aa-c27e-4c37-b2c2-1bdc2346c9a4")
+			)
+			(table_cell ""
+				(exclude_from_sim no)
+				(at 138 79 0)
+				(size 22 8)
+				(margins 0.95 0.95 0.95 0.95)
+				(span 1 1)
+				(fill
+					(type none)
+				)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left)
+				)
+				(uuid "e0339ec5-c415-47a5-8c5a-c2f1da18c70e")
+			)
+			(table_cell ""
+				(exclude_from_sim no)
+				(at 160 79 0)
+				(size 104 8)
+				(margins 0.95 0.95 0.95 0.95)
+				(span 1 1)
+				(fill
+					(type none)
+				)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left)
+				)
+				(uuid "88b587b0-ffd1-40e6-90b7-96331b1688e5")
+			)
+			(table_cell ""
+				(exclude_from_sim no)
+				(at 264 79 0)
+				(size 20 8)
+				(margins 0.95 0.95 0.95 0.95)
+				(span 1 1)
+				(fill
+					(type none)
+				)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left)
+				)
+				(uuid "72b9c1d6-c6eb-4806-8845-10458547e20e")
+			)
+			(table_cell ""
+				(exclude_from_sim no)
+				(at 126 87 0)
+				(size 12 8)
+				(margins 0.95 0.95 0.95 0.95)
+				(span 1 1)
+				(fill
+					(type none)
+				)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left)
+				)
+				(uuid "3fdac235-8c4e-42ca-9cc5-58a1c839a0d2")
+			)
+			(table_cell ""
+				(exclude_from_sim no)
+				(at 138 87 0)
+				(size 22 8)
+				(margins 0.95 0.95 0.95 0.95)
+				(span 1 1)
+				(fill
+					(type none)
+				)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left)
+				)
+				(uuid "7b9c74ee-34d1-43d4-8bee-cffa57a9ce85")
+			)
+			(table_cell ""
+				(exclude_from_sim no)
+				(at 160 87 0)
+				(size 104 8)
+				(margins 0.95 0.95 0.95 0.95)
+				(span 1 1)
+				(fill
+					(type none)
+				)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left)
+				)
+				(uuid "dede1591-adfa-4543-bbc8-57333336c1d1")
+			)
+			(table_cell ""
+				(exclude_from_sim no)
+				(at 264 87 0)
+				(size 20 8)
+				(margins 0.95 0.95 0.95 0.95)
+				(span 1 1)
+				(fill
+					(type none)
+				)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left)
+				)
+				(uuid "b8e9c5d9-b24b-40f5-9995-f1f4afab79e1")
+			)
+		)
+	)
 	(sheet_instances
 		(path "/"
 			(page "1")
