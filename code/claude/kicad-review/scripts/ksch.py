@@ -297,7 +297,7 @@ def s_bat():
     pr = [L(0, 0, 0, .7), L(0, 2, 0, 1.3),
           L(-.6, .7, .6, .7, 1.3), L(-.3, .95, .3, .95, 1.3),
           L(-.6, 1.05, .6, 1.05, 1.3), L(-.3, 1.3, .3, 1.3, 1.3),
-          ('t', -.9, .62, '+', .45, 'middle', 0)]
+          ('t', -.45, .42, '+', .45, 'middle', 0)]     # by pin 1's lead: clear of a rotated cell's ref
     return pr, {'1': (0, 0, 'U'), '2': (0, 2, 'D'),
                 '+': (0, 0, 'U'), '-': (0, 2, 'D')}, (-.6, .7, .6, 1.3)
 
@@ -525,7 +525,7 @@ class Sym:
         if self.typ in ('ic', 'conn'):
             if self.flat:
                 v = ('%s  %s' % (self.ref, self.value or self.name)).strip()
-                return [('t', x0, y0 - .55, v, TXT, 'start', 0, 'ref')]
+                return [('t', x0, y0 - .3, v, TXT, 'start', 0, 'ref')]   # -.55 met a value one row up
             if self.ref:      # above the top pins' numbers, which stand beside their leads
                 nw = max((_adv(k, TXT * .8) for k, v in self.lpins.items() if v[2] == 'U'), default=0)
                 out.append(('t', (x0 + x1) / 2, y0 - max(.85, nw + .45), self.ref, TXT * 1.1, 'middle', 0, 'ref'))
@@ -559,24 +559,30 @@ class Sym:
 
 # ---------------- power / label glyphs ----------------
 
-def glyph_gnd(x, y, kind='gnd', name='', up=False):
+def glyph_gnd(x, y, kind='gnd', name='', up=False, left=False, stem=.8):
     """hangs down from (x,y); `up` flips it for a pin that faces up, so the
-    stub never runs back through the glyph"""
-    s = -1 if up else 1
-    pr = [('l', x, y, x, y + s * .8, 1.0)]
+    stub never runs back through the glyph; `left` puts a name on the left (a glyph
+    hung off a left-facing pin: the right side is the part's own row); a shorter
+    `stem` keeps a sideways glyph clear of the next row's pwr name"""
+    s, k = (-1 if up else 1), stem
+    pr = [('l', x, y, x, y + s * k, 1.0)]
     if kind == 'earth':
-        pr += [('l', x - .6, y + s * .8, x + .6, y + s * .8, 1.1),
-               ('l', x - .38, y + s * 1.1, x + .38, y + s * 1.1, 1.1),
-               ('l', x - .16, y + s * 1.4, x + .16, y + s * 1.4, 1.1)]
-        ext = 1.4
+        pr += [('l', x - .6, y + s * k, x + .6, y + s * k, 1.1),
+               ('l', x - .38, y + s * (k + .3), x + .38, y + s * (k + .3), 1.1),
+               ('l', x - .16, y + s * (k + .6), x + .16, y + s * (k + .6), 1.1)]
+        ext = k + .6
     else:
-        pr += [('p', [(x - .62, y + s * .8), (x + .62, y + s * .8), (x, y + s * 1.5)], True, False)]
-        ext = 1.5
-    x1 = x + .62
+        pr += [('p', [(x - .62, y + s * k), (x + .62, y + s * k), (x, y + s * (k + .7))], True, False)]
+        ext = k + .7
+    x0, x1 = x - .62, x + .62
     if name and name.upper() not in ('GND', ''):     # beside it: below lands in the next row
-        pr.append(('t', x + .85, y + s * 1.15 + .18, name, TXT, 'start', 0))
-        x1 = x + .85 + twid(name, TXT)
-    return pr, (x - .62, min(y, y + s * ext), x1, max(y, y + s * ext))
+        if left:
+            pr.append(('t', x - .85, y + s * (k + .2) + .18, name, TXT, 'end', 0))
+            x0 = x - .85 - twid(name, TXT)
+        else:
+            pr.append(('t', x + .85, y + s * (k + .2) + .18, name, TXT, 'start', 0))
+            x1 = x + .85 + twid(name, TXT)
+    return pr, (x0, min(y, y + s * ext), x1, max(y, y + s * ext))
 
 
 def glyph_pwr(x, y, name, down=False):
@@ -922,10 +928,11 @@ class Doc:
                 p = (x, y + 2)
             elif d == 'U':
                 p = (x, y - 2)
-            else:
-                p = (x + (2 if d == 'R' else -2), y + 1)
+            else:          # on the pin's row: a +-1 drop met the next row's pwr glyph
+                p = (x + (2 if d == 'R' else -2), y)
             self.wire((x, y, d), (p[0], p[1], 'D' if d == 'U' else 'U'))
-            pr, bb = glyph_gnd(p[0], p[1], 'earth' if kind == 'earth' else 'gnd', name, up=d == 'U')
+            pr, bb = glyph_gnd(p[0], p[1], 'earth' if kind == 'earth' else 'gnd', name, up=d == 'U',
+                               left=d == 'L', stem=.8 if d in ('U', 'D') else .5)
             for q in pr:
                 self.add(*q, 'pwr')
             if e[3]:
@@ -942,7 +949,7 @@ class Doc:
             elif d == 'D':
                 p = (x, y + 2)
             else:
-                p = (x + (2 if d == 'R' else -2), y - 1)
+                p = (x + (2 if d == 'R' else -2), y)
             self.wire((x, y, d), (p[0], p[1], 'U' if d == 'D' else 'D'))
             pr, bb = glyph_pwr(p[0], p[1], name, down=d == 'D')
             for q in pr:
@@ -1419,6 +1426,7 @@ def verify_doc(d, nl):
         elif real:
             rn = list(real)[0]
             for nm in names:
+                nm = nm.removesuffix('  SINGLE NODE')      # knet draw's marker, not part of the name
                 # a GND glyph may sit on PGND/GNDA/VSS, never on -BATT: GND_RE
                 # counts a pack negative as ground, but it is its own net
                 if rn and _norm(nm.split('/')[-1]) != _norm(rn.split('/')[-1]) \

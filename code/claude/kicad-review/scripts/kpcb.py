@@ -321,7 +321,9 @@ def _neigh(b, box, self_fp, a):
         # same-side contact is what `check` calls OVERLAP; a cross-side one is
         # just a projection, so label it differently and do not cry wolf
         flag = ''
-        if ov:
+        if g.art and not g.pads:
+            flag = '  (art)'                  # a logo has no body to clash with; `silk` covers it
+        elif ov:
             flag = '  OVERLAP' if (self_fp is None or g.back == self_fp.back) \
                    else '  (overlaps, opposite side)'
         print(f"    {d:>6.2f} mm  {g.ref:<6} {side} {trunc(g.value,20):<20} {trunc(g.fp,30)}{flag}")

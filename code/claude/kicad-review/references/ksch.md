@@ -97,7 +97,9 @@ EOF
   text (refs, values, pin names, notes, label names; widths estimated from DejaVu
   Sans advances), and pins drawn but left unwired. A horizontal 2-pin part keeps
   its ref within 0.95 above and its value within 1.2 below the pin line, so stacked
-  parts at a 3-unit row pitch never touch.
+  parts at a 3-unit row pitch never touch. A `gnd`/`pwr` on a left- or right-facing
+  pin sits on that pin's row (a gnd row over a pwr row in one column stays apart, and
+  a named gnd off a left-facing pin puts its name on the left, away from the part).
 - Flags: `--theme kicad|mono|dark`, `--px N` (22), `--us` (zigzag resistors),
   `--grid`, `--frame`, `--quiet`. Exit 3 = spec error, 2 = verify found an error.
 - Layout habits that avoid rework: 5-6 units between columns, 3 between rows, inputs

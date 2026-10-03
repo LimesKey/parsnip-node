@@ -177,6 +177,12 @@ A bridge whose only far-side pads are sense taps (a thermistor `TH*`, a test poi
 `TP*`, or a resistor >= 1k ohm - never a real power path) is never the bottleneck nor
 the narrowest single seg; the graph line names them (`sense-tap legs skipped: TH1`).
 When taps are the only bridges the net reads `meshed, no series bottleneck`.
+A bridge with at most one part that can source or sink DC on one side (caps, test
+points and taps don't count) and two or more on the other is a **pad stub**: it
+carries only that part's current, so it is neither the bottleneck nor the narrowest
+single seg. On a plane net every pad's stub is one, which used to name a 2-pin
+connector's 0.2 mm stub as the GND bottleneck. A three-way tee makes every arm a
+stub: without `--from/--to` the tool can't tell which part is the source.
 
 Warnings (each fires only with a known current; exit 2 on TRACE-THIN or VIA-FEW):
 
@@ -189,7 +195,11 @@ Warnings (each fires only with a known current; exit 2 on TRACE-THIN or VIA-FEW)
 - **PARALLEL-CHECK** (advisory) - a thinner segment exists but is paralleled, so
   it is not mandatory; fine only if its parallel group's widths sum to the current.
 - **MESH-CHECK** (advisory) - the net is a full mesh with no single mandatory
-  segment; confirm the parallel copper sums to the current.
+  segment; confirm the parallel copper sums to the current. Not on a poured net
+  (its loops close through the pour, which is not measured).
+- **STUB-CHECK** (advisory) - pad stubs under the current, narrowest first, as
+  `REF.PIN width amps` (narrowest per part). Only a part that sources or sinks the
+  budget carries it: `--from` that pad `--to` the load to solve the real path.
 - **PAD-NECK** (advisory) - the picked bottleneck is a short (< 2x its width), wide
   stub landing right on a pad. IPC-2221's long-trace formula overstates the risk
   here because the pad copper sinks heat locally; not a real limiter unless the

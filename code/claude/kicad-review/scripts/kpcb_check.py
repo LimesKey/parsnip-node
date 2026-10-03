@@ -88,7 +88,7 @@ def gen_findings(b, a):
 
     # --- NOCRTYD -------------------------------------------------------
     for f in P:
-        if not f.crtyd_real:
+        if not f.crtyd_real and not (f.art and not f.pads):   # a logo is `silk`'s job
             add('INFO', 'NOCRTYD', f"{f.ref} has no F/B.CrtYd geometry; "
                                    f"overlap tested on its pad+fab extent instead", [f.ref])
 
@@ -111,6 +111,8 @@ def gen_findings(b, a):
                 continue
             if b.is_hole(f) or b.is_hole(g):
                 continue                               # HOLECLR owns this pair
+            if any(h.art and not h.pads for h in (f, g)):
+                continue                               # padless art: `silk` owns it
             A = overlap_area(grow(f.crtyd, a.clear / 2), grow(g.crtyd, a.clear / 2))
             if A > 1e-6 and (f.cpoly or g.cpoly):
                 d, ov = poly_dist(f.outline, g.outline)     # the bboxes of a cross-shaped

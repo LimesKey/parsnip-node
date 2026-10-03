@@ -1,6 +1,6 @@
 ---
 name: part-search
-description: Look up and choose electronic components on LCSC, JLCPCB and DigiKey with part.py. Does parametric selection (e.g. a ceramic cap 4.7uF-100uF rated >=25V, cheapest first), finds cheaper drop-in alternates for a part on the board, reports JLCPCB Basic vs Extended and $3/line assembly fees, runs one-shot board sourcing triage, and returns pricing ladders, stock, MOQ and a verified datasheet URL. Use this whenever the user asks about a specific component, an LCSC C-number, an MPN, a distributor price, whether something is in stock, what a part costs at some quantity, what the datasheet link is, asks to compare two parts, asks to pick or find a part meeting electrical constraints, asks whether a part is JLC Basic, or asks to price or source a whole board. Use it instead of web search for anything part-shaped, and never hand-write a scraping script for LCSC - the working endpoints are already recorded here and the obvious ones are blocked.
+description: Look up and choose electronic components on LCSC, JLCPCB and DigiKey with part.py. Does parametric selection (e.g. a ceramic cap 4.7uF-100uF rated >=25V, cheapest first), finds cheaper drop-in alternates for a part on the board, reports JLCPCB Basic vs Extended and $3/line assembly fees, runs one-shot board sourcing triage, and returns pricing ladders, stock, MOQ and a verified datasheet URL. Use this whenever the user asks about a specific component, an LCSC C-number, an MPN, a distributor price, whether something is in stock, what a part costs at some quantity, what the datasheet link is, asks to compare two parts, asks to pick or find a part meeting electrical constraints, asks for the best or best-value part for an application (lowest Iq, RDS(on), noise), asks whether a part is JLC Basic, or asks to price or source a whole board. Use it instead of web search for anything part-shaped, and never hand-write a scraping script for LCSC - the working endpoints are already recorded here and the obvious ones are blocked.
 ---
 
 # Distributor part search and selection
@@ -8,8 +8,8 @@ description: Look up and choose electronic components on LCSC, JLCPCB and DigiKe
 `scripts/part.py` is stdlib-only Python 3. No install, no API key needed for LCSC or JLC.
 
 Code map (to patch one command, open only its module): `part.py` is the CLI plus
-`search`/`show`/`ds`/`compare`/`selftest`; HTTP, cache, FX and the LCSC/DigiKey/JLC
-clients are `part_core.py`; value parsing and the constraint grammar `part_value.py`;
+`search`/`show`/`ds`/`compare`/`selftest`; HTTP, cache, FX and the LCSC/DigiKey/JLC/
+Mouser clients are `part_core.py`; value parsing and the constraint grammar `part_value.py`;
 `pick`/`alt` `part_pick.py`; `bom`/`jlc`/`check` `part_bom.py`; `fpcheck` `part_fpcheck.py`.
 
 ```bash
@@ -23,6 +23,8 @@ python3 $P pick MLCC --cap 4.7u..100u --volt '>=25' --pkg 0805 --diel X7R,X5R
 | the question | command |
 | --- | --- |
 | "find me a cap 4.7-100 uF, >=25 V, cheapest" | `pick` - see [pick](references/pick.md) |
+| "the BEST LDO / FET / TVS for <application>", "lowest Iq", "best value" | read [best](references/best.md): limits from the board, `pick --sort ATTR` / `--pareto ATTR` `--xcheck`, verify the top 3 in the datasheet. The tool gathers specs; you judge |
+| "something like TPS2553 but lower RDS(on)" | `pick --like C55266 --rdson '<=50m'` (category + package from the part, limits from you) |
 | "find a TVS / LDO / I/O expander / test point that ..." | `pick TVS --pkg ... --vrwm ...` (the part-type word selects the JLC category; `--cat` to force one) |
 | "is there something cheaper than C45783" / "C45783 is out of stock" | `alt C45783` (nothing? it lists near misses that fail one limit) |
 | "is brand X (CCTC, Chinocera, ...) any good" | read [brands](references/brands.md) - no search needed |
@@ -30,7 +32,7 @@ python3 $P pick MLCC --cap 4.7u..100u --volt '>=25' --pkg 0805 --diel X7R,X5R
 | "is this part JLC Basic", "what are my assembly fees" | `jlc` - see [endpoints](references/endpoints.md) |
 | "datasheet link for X" | `ds` |
 | "get the datasheet so I can grep it" | `ds C... --save` |
-| "X vs Y" | `compare` |
+| "X vs Y" | `compare` (LCSC, JLC and DigiKey rows in one table: `compare C.. MPN --provider digikey`) |
 | "what does this whole board cost" | `bom` |
 | "source this board" / "what's blocking assembly" | `check` - `bom` + `jlc` + missing-code triage in one call |
 | "do my footprints/values match the parts" / "any wrong packages or values" | `fpcheck` - KiCad footprint + value vs the LCSC part, per part |
@@ -46,8 +48,12 @@ constraints, use `pick`, not `search`.**
 
 1. `pick <part type> --pkg ... --<limits>` - the cheapest in-stock (>=100, not EOL)
    parts that meet every limit; with a category the limits filter JLC server-side,
-   so the pool is exact. Unsure what the attributes are called? `--fields`.
-2. `compare C.. C.. C..` on the shortlist - only the parameters that differ.
+   so the pool is exact. Unsure what the attributes are called? `--fields`. A name
+   the category lacks gets a `did you mean` line, and a `coverage:` line says when an
+   attribute is listed on only part of the category. `clone? of` marks a row whose
+   MPN copies an earlier maker's.
+2. `compare C.. C.. C..` on the shortlist - only the parameters that differ
+   (`--attrs` for all). Rows merge across catalog spellings, values in SI units.
 3. `ds C.. --save`, then `kdoc.py grep 'Absolute Maximum' -d <MPN>` (kicad-review) for
    what LCSC's parameters do not carry: abs max, recommended operating range,
    derating, pinout, land pattern. A dimension off a drawing: `kdoc.py page`.
@@ -116,7 +122,7 @@ change.
 ## Run selftest first in a new session
 
 (`selftest --offline` is the no-network logic check to run after editing part.py;
-`selftest --golden DIR board.net` records 16 real outputs on its first run and diffs
+`selftest --golden DIR board.net` records 18 real outputs on its first run and diffs
 them after, with every cached reply frozen - a refactor must leave them unchanged.)
 
 LCSC has no public API. `part.py` uses undocumented endpoints that can start
@@ -173,8 +179,10 @@ not before a normal query.
 Stock is authoritative from the detail endpoint; a 0 in search results is a real 0.
 `pick` shows `unit@N` and `ext` (= unit x the actual buy quantity after MOQ rounding).
 
-DigiKey is optional and participates in `search`/`show` only, not `pick` - setup in
-[references/endpoints.md](references/endpoints.md).
+DigiKey is optional: `search`/`show`/`compare`, and `pick --source digikey` (its own
+parametric search, DigiKey prices) or `pick --xcheck` (both catalogs, one spec
+table). Mouser (`--provider mouser`, needs a free key) serves `search`/`show` only: no
+parametric filter. Setup in [references/endpoints.md](references/endpoints.md).
 
 ## Related
 

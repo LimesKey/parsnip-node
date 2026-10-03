@@ -8,6 +8,10 @@ part.py pick 'ferrite bead' --w 'Impedance@Frequency=~600' --irms '>=2'
 part.py pick TVS --pkg 'SMA(DO-214AC)' --vrwm '>=20' --vc '<=40'
 part.py pick MOSFET --vds '>=30' --rdson '<=10m' --pkg 'DFN-8(3x3)'
 part.py pick --cat 'I/O Expanders' --pkg TSSOP-16
+part.py pick LDO --pkg SOT-23-5 --vout 3.3 --sort iq          # lowest Iq first, true top-N
+part.py pick LDO --pkg SOT-23-5 --vout 3.3 --pareto iq --xcheck   # best value, + DigiKey
+part.py pick --like C55266 --rdson '<=60m'                    # like TPS2553, lower RDS(on)
+part.py pick 'load switch' --pkg SOT-23-6 --source digikey
 ```
 
 ## Where the candidates come from
@@ -27,7 +31,17 @@ found 3.3 V LDOs in SOT-23-5 where the LCSC pool found none.
   or inferred from the keyword when the phrase, or a word of it, names exactly one
   category (`TVS diode` -> `ESD and Surge Protection (TVS/ESD)`, `schottky` ->
   `Schottky Diodes`, `LDO`, `I2C GPIO expander` -> `I/O Expanders`, `test point`).
+  Application words go through a table first (`APP_CATS`, checked against real
+  parts): `load switch`/`current limit switch`/`ideal diode` -> Power Distribution
+  Switches / ORing Controllers, `eFuse`/`hot swap` -> Surge Protection Devices (SPDs)
+  (TPS25947 lives there), `buck`/`boost` -> DC-DC Converters, `charger`/`fuel gauge`
+  -> Battery Management, `level shifter`, `LNA`, `SAW`, `supervisor`. Word overlap
+  alone once sent `load switch` to Force Sensors, Load Cells.
   The header says `jlc N in '<category>'`.
+- **Like a part.** `--like C55266` takes the category and package from that part
+  (TPS2553: Power Distribution Switches, SOT-23-6) and the limits from the flags, with
+  none of `alt`'s equal-or-better holds. `--pkg '~'` drops the package. The part itself
+  is excluded.
 - **Package.** `--pkg` with one exact package goes server-side. The string must be
   LCSC's (`SMA(DO-214AC)`, `DFN-8(3x3)`); `search` or `show` shows it.
 - **Attributes (exact pool).** With a category, every limit whose attribute JLC's
@@ -53,6 +67,17 @@ found 3.3 V LDOs in SOT-23-5 where the LCSC pool found none.
   keyword naming white/CCT/CRI/high-power LEDs prints a note pointing at DigiKey
   (needs `DIGIKEY_CLIENT_ID`/`_SECRET`) and at `--cat 'Chip On Board (COB) Light
   Sources'` for COBs. Checked 2026-09-27.
+- **Names across catalogs.** A shorthand, or a verbatim name that is one catalog's
+  spelling of one, filters on every spelling the category carries and picks the most
+  populated (listed, not `-`): LDO Iq is LCSC `Supply Current (Iq)`, JLC `standby
+  current` (7,187 parts; `Quiescent Current` has 1), DigiKey `Current - Quiescent
+  (Iq)`; an LDO's max input is LCSC `Operating Voltage`, JLC `Voltage - Supply`. Before
+  this bridge `alt` of any LDO returned nothing. A `--w` name the category does not
+  have prints `no attribute ... did you mean 'standby current' (7,187 parts)` instead
+  of failing every part silently.
+- **Coverage.** A `coverage:` line names any limited or sorted attribute listed on
+  under 85% of the category (+ package): the rest (`-` or absent) can't pass a limit on
+  it and sort last (LDO SOT-23-5: ~80% list `standby current`, of 7,869).
 - **Fallback.** JLC finding nothing falls back to the LCSC pool (keyword search, then
   one `product/detail` call per candidate, `--pool` cap) and says so. `--source lcsc`
   forces it, `both` unions them.
@@ -61,6 +86,36 @@ found 3.3 V LDOs in SOT-23-5 where the LCSC pool found none.
   JLC assembly catalog on purpose.
 - **Dropped.** Stock under `--minstock` (default 100; `--anystock` = no floor) and
   EOL/NRND parts, counted in the header.
+
+## Sorting, best value, clones
+
+- `--sort price` (default) and `--sort stock` are server-side orders (`PRICE_SORT`,
+  `STOCK_SORT`), so the pages a pool walks are the cheapest / best-stocked ones.
+- `--sort ATTR` takes any shorthand (`iq`, `rdson`, `vf`, `cap`, ...) or verbatim
+  name. Direction comes from the name (Iq, RDS(on), Vf, noise, leakage low; ratings,
+  PSRR, capacitance high; `alt`'s direction table), the `sorted:` line says which,
+  `--desc` flips it. With a category it sends only that attribute's best facet values
+  (summing to ~400 parts, widened x4 until the other limits leave 3 x `-n` rows), so
+  the pool is the true top-N by the attribute, not the cheapest 600 re-sorted.
+- `--pareto ATTR` pools both ways (best-first by ATTR + cheapest) and shows only rows
+  no other row beats on both price and ATTR, cheapest first: what "best value" means.
+- **Clones.** Every shown row whose MPN strictly contains another maker's MPN listed on
+  LCSC earlier (lower C-number) gets `^ clone? of <mfr> <MPN> (C..)` with that part's
+  column values: TECH PUBLIC `TLV74333PDBVR-TP` lists Iq 800 nA, TI's `TLV74333PDBVR`
+  34 uA. The cheap rows with the best numbers are the least trustworthy, so a clone's
+  figure counts only after its own datasheet. Equal MPNs (BAT54S, AMS1117 second
+  sources) are not tagged. One cached LCSC search per affix of each shown row.
+
+## DigiKey as a pool
+
+`--source digikey` runs the same limits on DigiKey's v4 KeywordSearch: category,
+package (LCSC's string matched against `Supplier Device Package`, else `Package /
+Case`), every limit and an attribute sort's best values go server-side as parameter
+value ids, 50 rows a call (up to 8), DigiKey cut-tape prices in `--currency`. The
+category is `--cat` matched against DigiKey's names, the `--like` part's own, the JLC
+category when DigiKey has one of that name (only ~125 of 851 do), else the commonest
+leaf among keyword hits. `--xcheck` runs the normal pick, then the DigiKey one, then
+both top 3 in one spec table, with no verdict. Needs credentials (endpoints.md).
 
 ## alt: what "equal or better" holds
 
@@ -96,7 +151,7 @@ all work, `10V~35V` takes the first figure, and LCSC's test conditions are cut a
 
 `--cap --res --ind --volt --pkg --diel --tol --current --power --freq --temp --type
 --dcr --esr --vr --vf --ifwd --ir --vds --id --vgsth --rdson --isat --irms --vrwm --vc
---vout --iout`, plus the long spellings `--capacitance --resistance --inductance
+--vout --iout --iq --dropout --psrr --noise --vin`, plus the long spellings `--capacitance --resistance --inductance
 --voltage --package --dielectric --tolerance`. An unknown flag gets a "did you mean"
 and the reminder that limits go in the value (`--volt '>=50'`, not `--voltage-min`).
 
@@ -145,8 +200,9 @@ one to loosen.
 
 ## Flags
 
-`--sort price|stock|cap|volt` (default price), `--qty N` (default 100, MOQ/multiple
-applied), `-n N` rows (default 8), `--basic`, `--source jlc|lcsc|both` (default jlc),
+`--sort price|stock|ATTR` (default price), `--desc`, `--pareto ATTR`, `--like C..`,
+`--xcheck`, `--qty N` (default 100, MOQ/multiple
+applied), `-n N` rows (default 8), `--basic`, `--source jlc|lcsc|both|digikey` (default jlc),
 `--cat TEXT`, `--minstock N` (default 100), `--anystock`, `--fields`, `--e12`,
 `--pool N` LCSC parts to detail (default 240, LCSC pool only), `--maxq N` sub-queries
 (also the JLC call budget), `--jobs N` threads, `--nojlc`, `--json`, `--fresh`.

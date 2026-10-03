@@ -64,6 +64,7 @@ differ, e.g. `Input Capacitance(Ciss)` vs `Ciss-Input Capacitance`).
 | `currentPage: N` | **works**, keeps the sort order |
 | `stockFlag: true` | works: in stock only |
 | `componentLibraryType: "base"` | works: Basic only |
+| `sortMode: "STOCK_SORT", sortASC: "DESC"` | **works** (probed 2026-10-02): stock descending; `pick --sort stock` uses it. `STOCK`, `SALES_SORT`, `STOCK_COUNT_SORT` are ignored (code order) |
 | `stockSort: "desc"` | error response |
 | `componentAttributeList: [{"Drain to Source Voltage": ["30V", "40V"]}, {"Type": ["N-Channel"]}]` | **works** (captured from the jlcpcb.com/parts sidebar in a browser, 2026-09-23): a list of one-key maps, attribute name -> exact values; values OR, maps AND. The `/v2` path the site uses behaves the same. Earlier guesses (`attributeName`/`attributeValueList`, `attribute_name_en`/`attribute_value_name`, `componentAttributes`) error or return 0 |
 | `needAggs`, `searchSource`, `searchType`, `needSortAndCount` | `sortAndCountVoList` / `brandList` stay null: no facets |
@@ -122,8 +123,44 @@ or write `~/.config/partsearch/config.json` as
 `{"digikey_client_id": "...", "digikey_client_secret": "..."}`.
 
 Defaults are `--site CA --currency CAD`. The OAuth2 token is cached with its expiry.
-DigiKey participates in `search`/`show` only, not in `pick`.
+DigiKey serves `search`/`show`/`compare` and `pick --source digikey` / `--xcheck`.
+Free tier: 1,000 calls a day; every reply is cached 24 h.
 
-The DigiKey response normaliser (`_dk_norm`) has not been exercised against a live v4
-response. If `selftest` shows auth OK but search DEAD, the field mapping there is the
-place to look, not the request code.
+v4 reply facts (checked live 2026-10-02, `_dk_norm`):
+
+- the case is a parameter, `Supplier Device Package` (`SOT-583`) or `Package / Case`
+  (`SC-74A, SOT-753`); `ProductVariations[].PackageType` is the packaging (Cut Tape).
+- `Category` is a chain through `ChildCategories[0]` to the leaf (ICs > PMIC > LDO).
+- a cut-tape variation's `StandardPackage` is null (any multiple of 1); the tape & reel
+  variation's is the reel quantity. `QuantityAvailable` can be null in productdetails:
+  fall back to the variations' `QuantityAvailableforPackageType`.
+- datasheet links to ti.com come wrapped: `ti.com/general/docs/suppproductinfo.tsp?...
+  &gotoUrl=https%3A%2F%2Fwww.ti.com%2Flit%2Fgpn%2Ftlv743p` (`ds --save` unquotes it).
+
+Parametric search (`pick --source digikey`): POST `products/v4/search/keyword` with
+`FilterOptionsRequest: {CategoryFilter: [{Id: "699"}], MinimumQuantityAvailable: 100,
+SearchOptions: ["InStock"], ParameterFilterRequest: {CategoryFilter: {Id: "699"},
+ParameterFilters: [{ParameterId: 477, FilterValues: [{Id: "60 nA"}, ...]}]}}` and
+`SortOptions: {Field: "Price" | "QuantityAvailable", SortOrder: ...}`. Values are exact
+ids from the reply's `FilterOptions.ParametricFilters[].FilterValues[]` (`ValueId`,
+`ValueName`, `ProductCount`; a UnitOfMeasure parameter's id is its text, `60 nA`), the
+same shape as JLC's sidebar, so `_server_attrs` does both. `Limit` max 50.
+`SortOptions.Field` cannot be a parameter (checked in the generated v4 client), so an
+attribute sort narrows to the best values server-side and ranks locally. The leaf
+category tree is GET `products/v4/search/categories` (cached 7 days). Only ~125 of
+JLC's 851 category names exist there.
+
+## Mouser setup
+
+Optional, `search`/`show` only (`--provider mouser`, or `all` once a key is set).
+Free Search API key from mouser.com/api-search, then `MOUSER_API_KEY=...` or
+`"mouser_api_key"` in config.json. POST `api.mouser.com/api/v1/search/keyword?apiKey=`
+with `{"SearchByKeywordRequest": {"keyword", "records" (<= 50), "startingRecord"}}`;
+reply schema from the swagger at `api.mouser.com/api/docs/V1` (`SearchResults.Parts[]`:
+`MouserPartNumber`, `PriceBreaks[{Quantity, Price: "$1.23", Currency}]`,
+`AvailabilityInStock`, `Min`, `Mult`, `LifecycleStatus`, `ProductAttributes`). 30 calls
+a minute, 1,000 a day; no parametric filter, so never a `pick` pool. A bad key answers
+`Errors: [{Message: "Invalid unique identifier."}]` (checked live 2026-10-02) and is
+not cached. A good-key reply has not been seen live yet: `_mouser_norm` follows the
+swagger and an offline check in `selftest --offline`. Nexar/Octopart was skipped: new
+apps get a part limit of 0 outside the signup evaluation app, and paid tiers gate specs.

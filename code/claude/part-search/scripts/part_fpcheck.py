@@ -206,7 +206,7 @@ def _fpcheck_selftest():
         ('TSSOP-16', 'Package_SO:TSSOP-16_4.4x5mm_P0.65mm', 'ok'),
         ('QFN-32', 'Package_DFN_QFN:QFN-32-1EP_5x5mm_P0.5mm', 'ok'),
         # QFN thickness/finish prefixes (V/T/U/W/P) are marketing variants of
-        # the same land pattern, not a footprint difference - SKILL-BACKLOG.md
+        # the same land pattern, not a footprint difference - SKILL-BACKLOG-DONE.md
         ('WQFN-24', 'Package_DFN_QFN:VQFN-24_4x4mm_P0.5mm', 'ok'),
         ('TQFN-16', 'Package_DFN_QFN:QFN-16-1EP_3x3mm_P0.5mm', 'ok'),
         ('UQFN-20', 'Package_DFN_QFN:WQFN-20-1EP_4x4mm_P0.5mm', 'ok'),

@@ -1443,7 +1443,8 @@ class _SpecGen:
         self.nl, self.a = nl, a
         self.ks = _ksch()
         self.lines = []
-        self.placed = {}          # ref -> True
+        self.placed = {}          # ref -> the row it was drawn on (None: the focal part)
+        self.chained = set()      # nets whose branch is drawn (a second visit is one xref row)
         self.notes = []
         self._sympin_cache = {}   # ksch symbol type -> its fixed pin-key set
 
@@ -1465,9 +1466,7 @@ class _SpecGen:
         """a peer part shown as a symbol fragment: one pin, ref and value."""
         nl = self.nl
         if ref in self.placed:
-            self.emit('note %g,%g %s' % (trunk + .4, y + .45,
-                                         _q('to %s.%s (drawn above)' % (ref, pin))))
-            return None
+            return self.xref([(ref, pin)], side, trunk, y, srcx)
         name = trunc(unesc_disp(val), 16) or ref
         fname = unesc_disp(fn or nl.pinname(ref, pin) or '')
         if fname == pin:
@@ -1479,8 +1478,20 @@ class _SpecGen:
         self.emit('conn %s %g,%g %s flat %s:%s=%s%s' % (
             ref, x, y - 1, _q(name), 'R' if side < 0 else 'L', pin,
             _q(fname), ' dnp' if dnp else ''))
-        self.placed[ref] = True
+        self.placed[ref] = y
         return '%s.%s' % (ref, pin)
+
+    def xref(self, refpins, side, trunk, y, srcx):
+        """parts already drawn: a stub off the branch's riser (where the other loads'
+        wires turn) on this row, a note at its end. Floating under the row, the note
+        met the next row's glyphs and said nothing of which branch it belonged to.
+        Returns the stub end for the caller's wire."""
+        ys = [self.placed[r] for r, _p in refpins if self.placed.get(r) is not None]
+        where = '' if not ys else ' (drawn above)' if max(ys) < y else ' (drawn below)' if min(ys) > y else ''
+        txt = 'to %s%s' % (' '.join('%s.%s' % rp for rp in refpins), where)
+        mx, w = (srcx + trunk) / 2.0, self.ks._adv(txt, self.ks.TXT)
+        self.emit('note %g,%g %s' % (mx + .3 if side > 0 else mx - .3 - w, y + .18, _q(txt)))
+        return '%g,%g' % (mx, y)
 
     def two_pin(self, typ, ref, near, far, val, dnp, src, side, trunk, yy):
         """draw a real R/C/L symbol and terminate its far pin the way the
@@ -1489,7 +1500,7 @@ class _SpecGen:
         self.emit('%s %s %g,%g %s %s%s' % (typ, ref, x, y, orient,
                                            _q(trunc(unesc_disp(val), 14)),
                                            ' dnp' if dnp else ''))
-        self.placed[ref] = True
+        self.placed[ref] = yy
         self.emit('wire %s %s.%s' % (src, ref, near))
         if far is not None:
             self._end(ref, far)
@@ -1530,6 +1541,12 @@ class _SpecGen:
         loads, subs = b['loads'], b['subs']
         if not loads and not subs:
             return 1
+        if b['net'] in self.chained:     # drawn once already: one row, as _bh allocated
+            rp = [(l[0], l[1]) for l in loads] + [(x[0], x[4] if len(x) > 5 else '1') for x in subs]
+            self.emit('wire %s %s' % (src, self.xref(rp, side, trunk, ytop + ROW * row, srcx)))
+            return 1
+        if b['net']:
+            self.chained.add(b['net'])
         used = 0
         for (ref, pin, fn, val, dnp) in loads:
             yy = ytop + ROW * (row + used)
@@ -1552,6 +1569,7 @@ class _SpecGen:
             near, far = (sub[4], sub[5]) if len(sub) > 5 else ('1', '2')
             yy = ytop + ROW * (row + used)
             if ref in self.placed:
+                self.emit('wire %s %s' % (src, self.xref([(ref, near)], side, trunk, yy, srcx)))
                 used += 1
                 continue
             typ = _sym_for(ref)
@@ -1560,7 +1578,7 @@ class _SpecGen:
             self.emit('%s %s %g,%g %s %s%s' % (typ, ref, x, y, orient,
                                                _q(trunc(unesc_disp(val), 14)),
                                                ' dnp' if dnp else ''))
-            self.placed[ref] = True
+            self.placed[ref] = yy
             self.emit('wire %s %s.%s' % (src, ref, near))
             nxt = '%s.%s' % (ref, far)
             ntrunk = trunk + side * COL
@@ -1573,10 +1591,11 @@ class _SpecGen:
             elif not (sb['loads'] or sb['subs']):
                 self.emit('label %s %s' % (
                     _q(_leaf(sb['net']) + ('  SINGLE NODE' if sb['single'] else '')), nxt))
-            else:
+            else:     # left side: right-aligned to the far pin, but never into the next part's pin
+                t = _leaf(sb['net'])
                 self.emit('note %g,%g %s' % (
-                    (ntrunk + .4) if side < 0 else (trunk + 2.4), yy - .4,
-                    _q(_leaf(sb['net']))))
+                    max(trunk - 2.4 - self.ks._adv(t, self.ks.TXT), ntrunk + .2) if side < 0 else (trunk + 2.4),
+                    yy - .4, _q(t)))
                 used += self.chain(sb, nxt, side, ntrunk, row + used, ytop,
                                    trunk - 2 if side < 0 else trunk + 2) - 1
             used += 1
@@ -1587,7 +1606,7 @@ class _SpecGen:
         c = nl.comps[ref]
         # the focal part can reappear deeper in its own branches; it is already
         # on the sheet, so those become cross-references, not a second symbol
-        self.placed[ref] = True
+        self.placed[ref] = None
         classes = {x.strip().upper() for x in a.through.split(',') if x.strip()}
         declared = nl.sympins(ref)
         allp = sorted(set(declared) | set(nl.cpins.get(ref, {})), key=natkey)
@@ -1683,10 +1702,13 @@ class _SpecGen:
                 elif not (b['loads'] or b['subs']):
                     self.emit('label %s %s' % (_q(_leaf(b['net'])), src))
                 else:
-                    nx4 = (trunk + .4) if side < 0 else (nx + .4)
-                    self.emit('note %g,%g %s' % (nx4, y - .4, _q(_leaf(b['net']))))
+                    # a left-side note ends at the pin: from the trunk, a long one ran into the pin number
+                    nx4 = (lambda t: nx - .4 - self.ks._adv(t, self.ks.TXT)) if side < 0 else (lambda t: nx + .4)
+                    t = _leaf(b['net'])
+                    self.emit('note %g,%g %s' % (nx4(t), y - .4, _q(t)))
                     if b.get('also'):            # its own line: inline it ran into the next note
-                        self.emit('note %g,%g %s' % (nx4, y - .95, _q('+ ' + ' '.join(b['also']))))
+                        t = '+ ' + ' '.join(b['also'])
+                        self.emit('note %g,%g %s' % (nx4(t), y - .95, _q(t)))
                     self.chain(b, src, side, trunk, row, icy + top, nx)
                 row += rows[p]
         return self.lines

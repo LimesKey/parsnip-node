@@ -1,35 +1,77 @@
 """part.py `pick` and `alt`: the candidate pool, constraints and the drop-in table."""
 import sys, re, json
 import concurrent.futures as cf
-from part_core import (buy_qty, cached, dmoney1, _EOL_RE, http, jlc_annotate, jlc_facets,
-                       jlc_lib_map, lcsc_detail, lcsc_search, LCSC_SEARCH, price_at, resolve,
-                       trunc)
-from part_value import (attr_hit, attr_of, enum, _exact, FLAG_ATTRS, fmt_si, make_pred, _norm,
-                        series_in, _short, STD_V, _UNIT_OF)
+from part_core import (buy_qty, cached, dk_categories, dk_detail, _dk_norm, dk_query, dmoney1, _EOL_RE,
+                       http, jlc_annotate, jlc_facets, jlc_lib_map, lcsc_detail, lcsc_search,
+                       LCSC_SEARCH, price_at, resolve, trunc)
+from part_value import (alias_keys, attr_hit, attr_of, canon, enum, _exact, FLAG_ATTRS, fmt_si,
+                        make_pred, _norm, norm_val, series_in, _short, STD_V, _UNIT_OF)
+
+def facet_name(facets, name):
+    """The facet attribute `name` filters on, or None. Every catalog spelling of a
+    shorthand counts and the most populated wins: LDOs carry JLC's 'standby
+    current' on 7,187 parts and 'Quiescent Current' on 1; Power Inductors 'Current
+    - Saturation (Isat)' on 14 and '...Saturation(Isat)' on 79k."""
+    pop = lambda n: sum(c for v, c in facets[n].items() if v not in ('', '-'))   # noqa: E731
+    ks = alias_keys(name)
+    same = [n for n in facets if _norm(n) in ks] or \
+        [n for n in facets if any(len(k) > 3 and _norm(n).startswith(k) for k in ks)]
+    # listed values decide: DigiKey's 'Voltage - Output (Max)' is '-' on every fixed LDO
+    pname = max(same, key=pop) if same else attr_hit([(n, '') for n in facets], name)[0]
+    return max((n for n in facets if _norm(n) == _norm(pname)), key=pop) if pname else None
 
 def _server_attrs(cons, facets):
-    """(componentAttributeList, {constraint: parts meeting it alone}, [unmet]).
-    JLC matches attribute values exactly, so each constraint becomes the list of
-    sidebar values the local predicate accepts - ranges, >= and any-of all run
-    here, the server only intersects. A constraint whose attribute is not in the
-    facets is left to the local filter; 'unmet' ones no listed value meets."""
-    names = [(n, '') for n in facets]
-    attrs, counts, unmet = [], {}, []
+    """(componentAttributeList, {constraint: parts meeting it alone}, [unmet],
+    {constraint: facet name}, [not in the facets]). JLC matches attribute values
+    exactly, so each constraint becomes the list of sidebar values the local
+    predicate accepts - ranges, >= and any-of all run here, the server only
+    intersects. A constraint whose attribute is not in the facets is left to the
+    local filter (and named, so pick can say so); 'unmet' ones no listed value meets."""
+    attrs, counts, unmet, res, missing = [], {}, [], {}, []
     for name, lab, pred in cons:
-        pname = attr_hit(names, name)[0] if name != 'pkg' else None
-        if not pname:
+        if name == 'pkg':
             continue
-        # one attribute, two spellings: Power Inductors has 'Current - Saturation
-        # (Isat)' on 14 parts and '...Saturation(Isat)' on 79k; filter on the big one
-        pname = max((n for n in facets if _norm(n) == _norm(pname)),
-                    key=lambda n: sum(facets[n].values()))
+        pname = facet_name(facets, name)
+        if not pname:
+            missing.append(name)
+            continue
+        res[name] = pname
         vals = [v for v in facets[pname] if v not in ('', '-') and pred(v)]
         counts[name] = sum(facets[pname][v] for v in vals)
         if vals:
             attrs.append({pname: vals})
         else:
             unmet.append(name)
-    return attrs, counts, unmet
+    return attrs, counts, unmet, res, missing
+
+def _near_names(facets, name, k=3):
+    """facet names most like `name`, with part counts: the hint for a --w name the
+    category does not have (otherwise every candidate silently fails it)"""
+    import difflib
+    n0, w0 = _norm(name), set(re.findall(r'[a-z]+', name.lower()))
+    sc = sorted(((difflib.SequenceMatcher(None, n0, _norm(n)).ratio()
+                  + .3 * bool(w0 & set(re.findall(r'[a-z]+', n.lower()))), n) for n in facets), reverse=True)
+    return [(n, sum(facets[n].values())) for r, n in sc[:k] if r >= .5]
+
+# sort direction by attribute name: these first, then alt's table ('ge' = bigger is better)
+_SORT_RULES = (('le', r'noise|standby|quiescent|junction capacitance'),
+               ('ge', r'rejection|psrr|^capacitance$|inductance'))
+
+def sort_desc(name):
+    """True when a bigger value is better for `name` (sort descending)."""
+    rule = next((r for r, pat in _SORT_RULES + _ALT_RULES if re.search(pat, name.lower())), 'le')
+    return rule == 'ge'
+
+def _merit(r, name):
+    x = enum(attr_of(r.get('params'), name))
+    return None if x is None else abs(x)       # P-channel -30 V outranks -20 V
+
+def _best_values(facets, pname, desc, pred=None):
+    """[(value, parts)] of one facet attribute, best first, unparseable dropped"""
+    vals = [(abs(enum(v)), v, c) for v, c in facets[pname].items()
+            if v not in ('', '-') and enum(v) is not None and (pred is None or pred(v))]
+    vals.sort(key=lambda t: -t[0] if desc else t[0])
+    return [(v, c) for _x, v, c in vals]
 
 # ================================================================ pick engine
 
@@ -132,6 +174,44 @@ def _cat_hits(text, cats):
     rx = re.compile(r'\b' + r'\W+'.join(map(re.escape, text.lower().split())) + r'\w{0,2}\b')
     return [c for c in cats if rx.search(c.lower())]
 
+# application words -> JLC categories, first preferred. Word overlap alone sent
+# 'load switch' to 'Force Sensors, Load Cells' and 'current limit switch' to the
+# mechanical 'Limit Switches'. Checked against real parts 2026-10-02: TPS2553/
+# TPS22945/LM66100 Power Distribution Switches, TPS25947 Surge Protection Devices,
+# LM74700/MAX40200 ORing Controllers, BQ25798/MAX17320/TP4056 Battery Management,
+# LM61460/TPS61033 DC-DC Converters, TXS0108E Translators, BGA725 RF Amplifiers.
+APP_CATS = {
+    'load switch': ['Power Distribution Switches'],
+    'power switch': ['Power Distribution Switches'],
+    'high side switch': ['Power Distribution Switches'],
+    'current limit switch': ['Power Distribution Switches'],
+    'current limited switch': ['Power Distribution Switches'],
+    'efuse': ['Surge Protection Devices (SPDs)', 'Power Distribution Switches'],
+    'e-fuse': ['Surge Protection Devices (SPDs)', 'Power Distribution Switches'],
+    'hot swap': ['Surge Protection Devices (SPDs)', 'Power Distribution Switches'],
+    'ideal diode': ['ORing Controllers', 'Power Distribution Switches'],
+    'buck': ['DC-DC Converters'], 'boost': ['DC-DC Converters'], 'buck-boost': ['DC-DC Converters'],
+    'buck boost': ['DC-DC Converters'], 'dc-dc': ['DC-DC Converters'], 'dcdc': ['DC-DC Converters'],
+    'switching regulator': ['DC-DC Converters'],
+    'buck controller': ['DC-DC Controllers'], 'boost controller': ['DC-DC Controllers'],
+    'charger': ['Battery Management'], 'battery charger': ['Battery Management'],
+    'fuel gauge': ['Battery Management'], 'bms': ['Battery Management'],
+    'level shifter': ['Translators, Level Shifters'], 'level translator': ['Translators, Level Shifters'],
+    'lna': ['RF Amplifiers', 'Low Noise Amplifiers (LNA) - RF'],
+    'low noise amplifier': ['RF Amplifiers', 'Low Noise Amplifiers (LNA) - RF'],
+    'saw': ['SAW Filters'], 'saw filter': ['SAW Filters'],
+    'supervisor': ['Supervisor and Reset ICs'], 'reset ic': ['Supervisor and Reset ICs'],
+    'voltage detector': ['Supervisor and Reset ICs'], 'voltage monitor': ['Supervisor and Reset ICs'],
+    'current sense amplifier': ['Current Sense Amplifiers'], 'current monitor': ['Current Sense Amplifiers'],
+}
+
+def _app_cats(text):
+    """APP_CATS entry for the longest application phrase in `text`, or []"""
+    t = ' ' + re.sub(r'\s+', ' ', text.lower()) + ' '
+    hit = max((k for k in APP_CATS if re.search(r'(?<![\w-])' + re.escape(k) + r'(?![\w-])', t)),
+              key=len, default=None)
+    return APP_CATS[hit] if hit else []
+
 def _pick_category(a):
     """JLC category for the pool: --cat (unique substring match, else verbatim), or
     inferred from the pick keyword when its phrase, or every word of it that names
@@ -154,7 +234,8 @@ def _pick_category(a):
     if not text:
         return None
     cats = categories(a.fresh)
-    whole = _cat_hits(text, cats)
+    app = _app_cats(text)
+    whole = app or _cat_hits(text, cats)
     a._catamb = whole                  # kept for c_pick's hint when none is chosen
     if len(whole) == 1:
         return whole[0]
@@ -175,6 +256,8 @@ def _pick_category(a):
                       reverse=True)
         if len(size) > 1 and size[0][0] >= 10 * size[1][0]:
             return size[0][1]
+    if app:
+        return app[0]                  # the table's preferred one; the header names it
     uniq = {h[0] for w in text.split() if len(w) >= 3 for h in [_cat_hits(w, cats)] if len(h) == 1}
     return uniq.pop() if len(uniq) == 1 else None
 
@@ -216,28 +299,57 @@ def build_pool(a, cons, keywords, jkeywords=None):
     detail call per part. Each falls back to the other when it finds nothing;
     `both` unions them. Measured 2026-09-23 on MOSFET/MLCC/schottky/LDO picks:
     jlc was cheaper-or-equal on all four and 4x faster cold."""
+    if a.source == 'digikey':
+        return dk_pool(a, cons)
     note, jkeywords = [], jkeywords or keywords
+    # the server sort is the order pages walk in: price (any other sort ranks the
+    # pool locally) or stock. A relevance page was 200 of 523 matching LDOs.
     jkw = dict(pkg=_pkg_literal(cons), category=getattr(a, '_jcat', None),
-               cheapest=a.sort == 'price', instock=a.minstock > 0, budget=a.maxq)
+               cheapest='stock' if a.sort == 'stock' else True, instock=a.minstock > 0, budget=a.maxq)
     exact = []                          # set when JLC filtered on the attributes
 
     def jlc(library=None):
         # with a category, every constraint the sidebar can express goes to JLC as
         # an exact value list, so the pool IS the matching parts, cheapest first,
         # instead of the cheapest 600 of the category filtered afterwards
-        attrs, kws = None, jkeywords
+        attrs, kws, best, sp = None, jkeywords, None, None
         if jkw['category'] and not getattr(a, '_noattr', False):
             fac = jlc_facets(jkw['category'], jkw['pkg'], a.fresh)
             if fac:
-                attrs, a._facet_counts, unmet = _server_attrs(cons, fac)
+                attrs, a._facet_counts, unmet, a._resolved, miss = _server_attrs(cons, fac)
+                a._missing = {m: _near_names(fac, m) for m in miss}
                 exact.append(True)
+                sp = facet_name(fac, a._sortattr) if getattr(a, '_sortattr', None) else None
+                a._coverage = _coverage(fac, list(a._resolved.items()) + ([(a._sortattr, sp)] if sp else []),
+                                        _jlc_total(jkw, a))
                 if unmet:
                     note.append(f"no {' / '.join(unmet)} value in '{jkw['category']}'"
                                 f"{' ' + jkw['pkg'] if jkw['pkg'] else ''} meets the limit")
                     return []
-                kws = [''] if attrs else kws
-        rows = _stock_ok(list(jlc_lib_map(kws, a.fresh, library=library, attrs=attrs,
-                                          **jkw).values()), a)
+                if sp:     # an attribute sort: send only its best values, so the pool is the true top
+                    a._sortp = sp
+                    best = _best_values(fac, sp, a._desc,
+                                        next((p for n, _l, p in cons if a._resolved.get(n) == sp), None))
+                kws = [''] if attrs or best else kws
+        fetch = lambda at: list(jlc_lib_map(kws, a.fresh, library=library, attrs=at,     # noqa: E731
+                                            **jkw).values())
+        if best:
+            target = 400
+            while True:            # widen until the other limits leave enough rows
+                pre, cum = [], 0
+                for v, c in best:
+                    pre.append(v)
+                    cum += c
+                    if cum >= target:
+                        break
+                rows = fetch([x for x in (attrs or []) if sp not in x] + [{sp: pre}])
+                if len(pre) == len(best) or sum((r.get('stock') or 0) >= a.minstock for r in rows) >= 3 * a.n:
+                    break
+                target *= 4
+            note.append(f"best-first on {sp}: {len(pre)} of {len(best)} values")
+        else:
+            rows = fetch(attrs)
+        rows = _stock_ok(rows, a)
         note.append(f"jlc {'base library ' if library else ''}{len(rows)}"
                     + (f" in '{jkw['category']}'" if jkw['category'] else '')
                     + (f", {len(attrs)} limit(s) server-side" if attrs else ''))
@@ -283,6 +395,129 @@ def build_pool(a, cons, keywords, jkeywords=None):
         recs += [r for r in second() if r['sku'] not in have]
     return recs, '; '.join(note)
 
+def _jlc_total(jkw, a):
+    """parts in the category (+ package), any stock: the coverage denominator"""
+    from part_core import jlc_search
+    try:
+        return jlc_search('', 1, a.fresh, pkg=jkw['pkg'], category=jkw['category'])[1]
+    except Exception:
+        return 0
+
+def _coverage(fac, named, tot):
+    """[(name, facet name, listed, '-', total)] for each attribute listed on under
+    85% of the category (+ package): a part that does not list it fails a limit
+    on it and sorts last, which silently shrinks the pool (LDO SOT-23-5 Noise:
+    '-' on 2,579 of 7,268, absent on ~1,700 more)."""
+    out = []
+    for name, pn in named:
+        v = fac.get(pn) or {}
+        dash = v.get('-', 0) + v.get('', 0)
+        listed = sum(v.values()) - dash
+        if tot and listed < .85 * tot:
+            out.append((name, pn, listed, dash, tot))
+    return out
+
+def _dk_category(a):
+    """(DigiKey leaf category id, name) to pool from, or (None, why): --cat against
+    DigiKey's names, the --like part's own category, the JLC category when DigiKey
+    has one of that name, else the commonest leaf among keyword hits."""
+    cats = dk_categories(a)
+    if not cats:
+        return None, 'no DigiKey credentials or category list (see endpoints.md)'
+    if a.cat:
+        hits = _cat_hits(a.cat, list(cats))
+        hits = [c for c in hits if c.lower() == a.cat.lower()] or hits
+        return (cats[hits[0]][0], hits[0]) if len(hits) == 1 else \
+            (None, f"--cat {a.cat!r} matches {len(hits)} DigiKey categories: " + ', '.join(hits[:8]))
+    if getattr(a, '_like_mpn', None):
+        r = dk_detail(a._like_mpn, a)
+        leaf = (r or {}).get('category', '').split(' > ')[-1]
+        if leaf in cats:
+            return cats[leaf][0], leaf
+    jc = getattr(a, '_jcat', None)
+    if jc in cats:
+        return cats[jc][0], jc
+    text = ' '.join(x for x in a.args if x).strip()
+    if not text:
+        return None, 'give a keyword or --cat (DigiKey category names differ from JLC\'s)'
+    from collections import Counter
+    d = dk_query({'Keywords': text, 'Limit': 50, 'Offset': 0}, a)
+    leaves = Counter(_dk_norm(p, a.currency)['category'].split(' > ')[-1] for p in d.get('Products') or [])
+    leaf = next((c for c, _n in leaves.most_common() if c in cats), None)
+    return (cats[leaf][0], leaf) if leaf else (None, f"no DigiKey category found for {text!r}; give --cat")
+
+def dk_pool(a, cons):
+    """pick's pool from DigiKey's v4 KeywordSearch: category, package, every limit
+    and an attribute sort's best values go server-side as parameter value ids (the
+    same predicate-over-facet-values as JLC's sidebar), price or stock order, 50
+    rows a call. Prices are DigiKey's (cut tape) in --currency."""
+    cid, cname = _dk_category(a)
+    if not cid:
+        return [], f"digikey: {cname}"
+    flt = {'CategoryFilter': [{'Id': str(cid)}], 'MinimumQuantityAvailable': a.minstock}
+    if a.minstock > 0:
+        flt['SearchOptions'] = ['InStock']
+    d = dk_query({'Keywords': '', 'Limit': 1, 'Offset': 0, 'FilterOptionsRequest': flt}, a)
+    if 'FilterOptions' not in d:
+        return [], f"digikey: {trunc(d.get('detail') or d.get('_error') or d, 90)}"
+    pf = d['FilterOptions'].get('ParametricFilters') or []
+    fac = {f['ParameterName']: {v['ValueName']: v.get('ProductCount') or 0 for v in f.get('FilterValues') or []}
+           for f in pf}
+    ids = {f['ParameterName']: (f['ParameterId'], {v['ValueName']: v['ValueId'] for v in f.get('FilterValues') or []})
+           for f in pf}
+    attrs, a._facet_counts, unmet, a._resolved, miss = _server_attrs(cons, fac)
+    a._missing, a._jcat = {m: _near_names(fac, m) for m in miss}, cname
+    pk = next((p for n, _l, p in cons if n == 'pkg'), None)
+    if pk:              # DigiKey files the case under two names; LCSC's string matches the first
+        hit = next(((pn, v) for pn in ('Supplier Device Package', 'Package / Case')
+                    for v in [[x for x in fac.get(pn, {}) if pk(x)]] if v), None)
+        if hit:
+            attrs.append({hit[0]: hit[1]})
+            a._resolved['pkg'] = hit[0]
+        else:
+            unmet.append('pkg')
+    sp = facet_name(fac, a._sortattr) if getattr(a, '_sortattr', None) else None
+    a._coverage = _coverage(fac, list(a._resolved.items()) + ([(a._sortattr, sp)] if sp else []),
+                            d.get('ProductsCount') or 0)
+    note = f"digikey '{cname}' ({cid})"
+    if unmet:
+        return [], note + f": no {' / '.join(unmet)} value meets the limit"
+    order = {'Field': 'QuantityAvailable', 'SortOrder': 'Descending'} if a.sort == 'stock' else \
+        {'Field': 'Price', 'SortOrder': 'Ascending'}
+
+    def fetch(at):
+        f = dict(flt, ParameterFilterRequest={'CategoryFilter': {'Id': str(cid)}, 'ParameterFilters': [
+            {'ParameterId': ids[n][0], 'FilterValues': [{'Id': ids[n][1][v]} for v in vals]}
+            for x in at for n, vals in x.items()]})
+        out, tot = [], 0
+        for k in range(min(a.maxq, 8)):      # 50 a call; DigiKey allows 1,000 calls a day
+            r = dk_query({'Keywords': '', 'Limit': 50, 'Offset': 50 * k, 'FilterOptionsRequest': f,
+                          'SortOptions': order}, a)
+            out += [_dk_norm(p, a.currency) for p in r.get('Products') or []]
+            tot = r.get('ProductsCount') or tot
+            if len(r.get('Products') or []) < 50 or len(out) >= tot:
+                break
+        return out, tot
+    if sp:             # best values first, widened until the other limits leave enough rows
+        a._sortp = sp
+        best = _best_values(fac, sp, a._desc, next((p for n, _l, p in cons if a._resolved.get(n) == sp), None))
+        target = 200
+        while True:
+            pre, cum = [], 0
+            for v, c in best:
+                pre.append(v)
+                cum += c
+                if cum >= target:
+                    break
+            recs, tot = fetch([x for x in attrs if sp not in x] + [{sp: pre}])
+            if len(pre) == len(best) or len(recs) >= 3 * a.n:
+                break
+            target *= 4
+        note += f", best-first on {sp}: {len(pre)} of {len(best)} values"
+    else:
+        recs, tot = fetch(attrs)
+    return _stock_ok(recs, a), note + f": {len(recs)} of {tot}, {len(attrs)} limit(s) server-side"
+
 def apply_cons(recs, cons):
     """(passing recs, {constraint: candidates failing it}, near misses). Every
     failure counts, so one candidate can add to several constraints; a near miss
@@ -303,16 +538,158 @@ def apply_cons(recs, cons):
             near.append((r,) + bad[0])
     return out, why, near
 
+def _like(a):
+    """--like C..: category and package from an exemplar, limits from the user, so
+    'something like TPS2553 but lower RDS(on)' needs no category name and none of
+    alt's equal-or-better holds. `--pkg '~'` drops the package."""
+    b = (resolve(a.like, a) or [None])[0]
+    if not b:
+        sys.exit(f"pick --like: {a.like} not found")
+    jlc_annotate([b], a.jobs, a.fresh)
+    a._jcat = b.get('jcat') or (b.get('category') if b['source'] == 'JLC' else None)
+    if not a._jcat:
+        sys.exit(f"pick --like: {b.get('sku')} is in no JLC category; give --cat")
+    a.pkg = a.pkg or b.get('package')
+    a._like_mpn = b.get('mpn')
+    if a.source != 'digikey':
+        a.source = 'jlc'
+    a._exclude = {b.get('sku')}
+    print(f"like {b.get('sku')} {b.get('mpn')} ({b.get('mfr')}): '{a._jcat}', package {a.pkg}")
+    if not a.args:
+        a.args = ['']
+
+def _sortkey(a, unit):
+    if a.sort == 'price':
+        return lambda r: (unit(r) is None, unit(r) or 0)
+    if a.sort == 'stock':
+        return lambda r: -(r.get('stock') or 0)
+    name = getattr(a, '_sortp', None) or a._sortattr
+    return lambda r: (_merit(r, name) is None, -(_merit(r, name) or 0) if a._desc else (_merit(r, name) or 0),
+                      unit(r) is None, unit(r) or 0)
+
+def _pareto(rows, unit, name, desc):
+    """rows no other row beats on both price and `name`, cheapest first"""
+    out, top = [], None
+    for r in sorted((r for r in rows if unit(r) is not None and _merit(r, name) is not None),
+                    key=lambda r: (unit(r), -_merit(r, name) if desc else _merit(r, name))):
+        m = _merit(r, name)
+        if top is None or (m > top if desc else m < top):
+            out.append(r)
+            top = m
+    return out
+
+def spec_table(recs, a):
+    """`compare`'s table: one row per quantity, not per spelling (LCSC 'Supply
+    Current (Iq)', JLC 'standby current' and DigiKey 'Current - Quiescent (Iq)'
+    share a row), values in SI with their test condition, LCSC/JLC/DigiKey records
+    side by side. Differing rows only unless --attrs."""
+    keys, label = [], {}
+    for r in recs:
+        for k, _ in (r.get('params') or []):
+            if k and canon(k) not in label:
+                label[canon(k)] = k
+                keys.append(canon(k))
+    w = max(18, min(30, max((len(str(label[k])) for k in keys), default=18)))
+    print(f"{'':<{w}} " + ' '.join(f"{trunc(r.get('mpn'), 22):<24}" for r in recs))
+    def row(lab, vals):
+        print(f"{trunc(lab, w):<{w}} " + ' '.join(f"{trunc(v, 23):<24}" for v in vals))
+    row('source/sku', [f"{r['source']} {r.get('sku')}" for r in recs])
+    row('manufacturer', [r.get('mfr') for r in recs])
+    row('package', [r.get('package') for r in recs])
+    row('stock', [f"{r.get('stock'):,}" if isinstance(r.get('stock'), int) else r.get('stock') for r in recs])
+    q = a.qty or 1
+    row(f'unit @{q}', [dmoney1(price_at(r.get('ladder') or [], buy_qty(q, r.get('moq'), r.get('multiple'))),
+                               r.get('currency') or 'USD', a) for r in recs])
+    row('moq / mult', [f"{r.get('moq')} / {r.get('multiple')}" for r in recs])
+    row('lifecycle', [r.get('lifecycle') for r in recs])
+    print()
+    def by_canon(r):           # two spellings, one row: a listed value beats a '-'
+        d = {}
+        for kk, vv in r.get('params') or []:
+            if d.get(canon(kk)) in (None, '', '-'):
+                d[canon(kk)] = vv
+        return d
+    cv = [by_canon(r) for r in recs]
+    for k in keys:
+        vals = [norm_val(d.get(k, '-')) for d in cv]
+        if len({str(v) for v in vals}) > 1 or a.attrs:
+            row(label[k], vals)
+    print("\n(" + ('every parameter' if a.attrs else 'only differing parameters shown; --attrs for all')
+          + "; values in SI units with their test condition after @)")
+
+def _rname(a, c):
+    """the attribute a column or limit was filtered on (the server's facet name)"""
+    return (getattr(a, '_resolved', None) or {}).get(c, c)
+
+def _cnum(sku):
+    return int(sku[1:]) if re.fullmatch(r'C\d+', sku or '') else float('inf')
+
+def _cores(mpn):
+    """the MPN with one maker's affix cut ('TLV74333PDBVR-TP' -> 'TLV74333PDBVR'),
+    the strings to search for the part it copies"""
+    m = (mpn or '').upper().strip()
+    out = [re.sub(r'[-_/#][A-Z0-9]{1,4}$', '', m), re.sub(r'^[A-Z]{1,4}[-_]', '', m)]
+    return [c for c in dict.fromkeys(out) if c != m and len(c) >= 5]
+
+def clone_of(row, cands):
+    """The part `row` likely copies: another maker's MPN that the row's MPN strictly
+    contains, listed on LCSC earlier (a lower C-number). Equal MPNs are second
+    sources (BAT54S, AMS1117), not tagged; the C-number keeps Torex's own
+    XC6206P332MR-G from reading as a copy of a later XC6206P332MR."""
+    mpn, n, best = (row.get('mpn') or '').upper(), _cnum(row.get('sku')), None
+    for c in cands:
+        cm = (c.get('mpn') or '').upper()
+        if len(cm) < 5 or cm == mpn or cm not in mpn or _cnum(c.get('sku')) >= n \
+                or (c.get('mfr') or '').lower() == (row.get('mfr') or '').lower():
+            continue
+        if best is None or (len(cm), -_cnum(c.get('sku'))) > (len(best['mpn']), -_cnum(best.get('sku'))):
+            best = c
+    return best
+
+def _tag_clones(rows, a):
+    """row['_clone'] = the original's record: a clone's
+    best-in-class figure (800 nA Iq vs TI's 34 uA) is the least trustworthy number
+    in a merit ranking. One cached LCSC search per affix of each shown row."""
+    def one(r):
+        cands = [c for core in _cores(r.get('mpn')) for c in lcsc_search(core, 10, a.fresh)[0]]
+        o = clone_of(r, cands) if cands else None
+        if o:
+            r['_clone'] = lcsc_detail(o['sku'], a.fresh) or o
+    with cf.ThreadPoolExecutor(max_workers=a.jobs) as ex:
+        list(ex.map(one, [r for r in rows if re.fullmatch(r'C\d+', r.get('sku') or '')]))
+
 def c_pick(a):
+    if getattr(a, 'xcheck', False) and a.source != 'digikey':
+        import argparse
+        a._xbase = argparse.Namespace(**dict({k: v for k, v in vars(a).items() if not k.startswith('_')},
+                                             source='digikey', xcheck=False, w=list(a.w)))
+    if getattr(a, 'like', None):
+        _like(a)
     cons = _cons_from_args(a)
     if not getattr(a, '_jcat', None) and (a.cat or a.source != 'lcsc'):
         a._jcat = _pick_category(a)
     kws, jkws = _keywords(a, cons)
-    if not kws:
+    if a.source == 'digikey':
+        a.nojlc = True                 # JLC's Basic/Extended says nothing about a DigiKey row
+    if not (kws or jkws or a.source == 'digikey'):
         print("pick: give a keyword and/or at least one constraint, e.g.\n"
               "  part.py pick MLCC --cap 4.7u..100u --volt '>=25' --pkg 0805 --diel X7R")
         return 1
+    par = getattr(a, 'pareto', None)
+    if par:
+        a.sort = par
+    if a.sort not in ('price', 'stock'):
+        from part_value import ALIAS
+        a._sortattr = a.sort
+        a._desc = sort_desc(ALIAS.get(a.sort.lower(), [a.sort.lower()])[0]) ^ bool(getattr(a, 'desc', False))
     recs, note = build_pool(a, cons, kws, jkws)
+    if par:                            # the best-by-attribute pool + the cheapest pool
+        a.sort, sa, a._sortattr = 'price', a._sortattr, None
+        more, note2 = build_pool(a, cons, kws, jkws)
+        a._sortattr = sa
+        have = {r['sku'] for r in recs}
+        recs += [r for r in more if r['sku'] not in have]
+        note += '; ' + note2
     if a.fields:                                  # cheap discovery pass
         names = {}
         for r in recs:
@@ -326,7 +703,10 @@ def c_pick(a):
             top = sorted(vals.items(), key=lambda x: -x[1])[:8]
             print(f"  {trunc(k,w):<{w}} {trunc(', '.join(v for v,_ in top), 80)}")
         return 0
-    hits, why, near = apply_cons(recs, cons)
+    # filter on the facet attribute the server used: a row listing two spellings
+    # must be judged on the same one
+    fcons = [((getattr(a, '_resolved', None) or {}).get(n, n), lab, p) for n, lab, p in cons]
+    hits, why, near = apply_cons(recs, fcons)
     excl = getattr(a, '_exclude', None) or set()
     selfhit = [h for h in hits if h.get('sku') in excl]
     hits = [h for h in hits if h.get('sku') not in excl]
@@ -336,23 +716,28 @@ def c_pick(a):
     def unit(r):
         q = buy_qty(qty, r.get('moq'), r.get('multiple'))
         return price_at(r.get('ladder') or [], q)
-    keyf = {'price': lambda r: (unit(r) is None, unit(r) or 0),
-            'stock': lambda r: -(r.get('stock') or 0),
-            'cap':   lambda r: -(enum(attr_of(r.get('params'), 'cap')) or 0),
-            'volt':  lambda r: -(enum(attr_of(r.get('params'), 'volt')) or 0)}
-    hits.sort(key=keyf.get(a.sort, keyf['price']))
+    pname = getattr(a, '_sortp', None) or getattr(a, '_sortattr', None)
+    if par:
+        hits = _pareto(hits, unit, pname, a._desc)
+    keyf = _sortkey(a, unit) if not par else (lambda r: (unit(r) is None, unit(r) or 0))
+    hits.sort(key=keyf)
     eol = 0
     if not a.basic:               # --basic quotes the JLC assembly catalog on purpose
         hits = _stock_ok(_lcsc_reprice(hits[:max(3 * a.n, 24)], a), a)
         eol = sum(1 for h in hits if _EOL_RE.search(h.get('lifecycle') or ''))
         hits = [h for h in hits if not _EOL_RE.search(h.get('lifecycle') or '')]
-        hits.sort(key=keyf.get(a.sort, keyf['price']))
+        if par:                   # LCSC retail can reorder the JLC-priced front
+            hits = _pareto(hits, unit, pname, a._desc)
+        hits.sort(key=keyf)
     hits = hits[:a.n]
+    _tag_clones(hits, a)
     if not a.nojlc:
         jlc_annotate(hits, a.jobs, a.fresh)
     if a.json:
         print(json.dumps(hits, indent=1)); return 0 if hits else 1
     cols = [n for n, _, _ in cons if n != 'pkg'][:4]
+    if pname and all(_norm(c) != _norm(pname) and getattr(a, '_resolved', {}).get(c) != pname for c in cols):
+        cols = ([pname] + cols)[:4]
     if not cols:
         # no --cap/--volt/--diel-style constraint was given (e.g. a --basic whole-
         # library dump), so there's nothing in `cons` to build columns from. Fall
@@ -364,7 +749,8 @@ def c_pick(a):
             for k, _ in (r.get('params') or []):
                 freq[k] = freq.get(k, 0) + 1
         cols = [k for k, _ in sorted(freq.items(), key=lambda kv: -kv[1])[:4]]
-    hdr = (f"{'sku':<11} {'mpn':<22} {'mfr':<14} {'pkg':<8} "
+    sw = max([11] + [len(r.get('sku') or '') for r in hits])     # DigiKey numbers run to 26
+    hdr = (f"{'sku':<{sw}} {'mpn':<22} {'mfr':<14} {'pkg':<8} "
            + ''.join(f"{trunc(_short(c),8):<9}" for c in cols)
            + f"{'stock':>9}  {'unit@'+str(qty):<12} {'ext':<10} jlc")
     shown = jkws if a.basic or a.source == 'jlc' else kws
@@ -373,9 +759,24 @@ def c_pick(a):
     print(f"pick: {' | '.join(k or '(category/package only)' for k in shown[:3])}"
           f"{' ...' if len(shown)>3 else ''}   [{note}; {len(hits)} shown"
           + (f"; dropped {', '.join(drop)}" if drop else '') + "]")
-    res = {}
+    if pname:
+        print(f"  {'pareto' if par else 'sorted'}: {pname}, {'highest' if a._desc else 'lowest'} best"
+              + (" (rows no other row beats on both price and it)" if par else '')
+              + "; --desc flips")
+    for name, near_ in (getattr(a, '_missing', None) or {}).items():
+        print(f"  no attribute {name!r} in '{a._jcat}': it filters locally, where most parts don't list "
+              f"it and fail" + (": did you mean " + ', '.join(f"{n!r} ({c:,} parts)" for n, c in near_)
+                                if near_ else ''))
+    cov = getattr(a, '_coverage', None) or []
+    if cov:            # one line: alt holds a dozen attributes
+        print(f"  coverage: of {cov[0][4]:,} parts in the category, only "
+              + ', '.join(f"~{100 * listed // tot}% list {pn}" for _n, pn, listed, _d, tot in cov)
+              + "; the rest can't pass a limit on it and sort last")
+    res = {k: {v} for k, v in (getattr(a, '_resolved', None) or {}).items() if _norm(k) != _norm(v)}
     for r in (hits or recs[:40]):
         for name, _, _ in cons:
+            if name in (getattr(a, '_resolved', None) or {}):
+                continue
             got = attr_hit(r.get('params'), name)[0]
             if got and _norm(got) != _norm(name):
                 res.setdefault(name, set()).add(got)
@@ -403,7 +804,7 @@ def c_pick(a):
     if not hits and getattr(a, '_facet_counts', None) is not None and not getattr(a, '_noattr', False):
         a._noattr = True       # an exact pool holds no near misses: widen it to find them
         recs, _ = build_pool(a, cons, kws, jkws)
-        _, why, near = apply_cons(recs, cons)
+        _, why, near = apply_cons(recs, fcons)
     if why and not hits:
         print("  candidates failing each limit (one part can fail several): "
               + ', '.join(f"{k}({v})" for k, v in sorted(why.items(), key=lambda x: -x[1])))
@@ -417,15 +818,21 @@ def c_pick(a):
         nat = r.get('currency') or 'USD'
         q = buy_qty(qty, r.get('moq'), r.get('multiple'))
         up = unit(r)
-        vals = ''.join(f"{trunc(attr_of(r.get('params'), c), 8):<9}" for c in cols)
+        vals = ''.join(f"{trunc(attr_of(r.get('params'), _rname(a, c)), 8):<9}" for c in cols)
         st = r.get('stock')
         lib = {'base': 'BASIC', 'expand': 'ext'}.get(r.get('library'), '-')
         if r.get('source') == 'JLC' and not a.basic:
             lib += '  JLC price (no LCSC detail)'
-        print(f"{r.get('sku',''):<11} {trunc(r.get('mpn'),22):<22} {trunc(r.get('mfr'),14):<14} "
+        print(f"{r.get('sku',''):<{sw}} {trunc(r.get('mpn'),22):<22} {trunc(r.get('mfr'),14):<14} "
               f"{trunc(r.get('package'),8):<8} {vals}"
               f"{(f'{st:,}' if isinstance(st,int) else '?'):>9}  "
               f"{dmoney1(up, nat, a):<12} {dmoney1(up*q if up else None, nat, a):<10} {lib}")
+        if r.get('_clone'):
+            o = r['_clone']
+            ov = [f"{_short(c)} {v}" for c in cols for v in [attr_of(o.get('params'), _rname(a, c))] if v]
+            print(f"{'':<{sw}} ^ clone? of {o.get('mfr')} {o.get('mpn')} ({o.get('sku')})"
+                  + (f": {', '.join(ov)} there" if ov else '')
+                  + " - trust its figures only after its own datasheet")
     if not hits:
         print("  nothing matched. `--fields` lists the attribute names and values that "
               "are actually present, or loosen one constraint.")
@@ -438,10 +845,26 @@ def c_pick(a):
                       f"{trunc(r.get('mfr'),14):<14} {dmoney1(up, r.get('currency') or 'USD', a):<10} "
                       f"stock {r.get('stock') or 0:>9,}   {name} = {v if v is not None else '(not listed)'}"
                       f"  (limit {lab})")
+        if getattr(a, '_xbase', None):     # nothing on LCSC is exactly when DigiKey matters
+            _xcheck(a)
         return 1
     print("\n`part.py show <sku>` for the ladder and a verified datasheet"
           + ("" if a.nojlc else "   jlc: BASIC = no $3 Extended line fee"))
+    a._shown = hits
+    if getattr(a, '_xbase', None):
+        _xcheck(a)
     return 0
+
+def _xcheck(a):
+    """--xcheck: the same limits on DigiKey, then both shortlists' top 3 in one spec
+    table. No verdict: which is better is a judgement over the whole table."""
+    b = a._xbase
+    print(f"\n{'=' * 30} DigiKey, same limits {'=' * 30}")
+    c_pick(b)
+    both = (getattr(a, '_shown', None) or [])[:3] + (getattr(b, '_shown', None) or [])[:3]
+    if both:
+        print(f"\n{'=' * 30} shortlist spec table {'=' * 30}")
+        spec_table(both, a)
 
 # same class or better: an X7R may replace an X5R, never the reverse
 _DIEL_RANK = ['Y5V', 'Z5U', 'X7T', 'X6S', 'X5R', 'X7S', 'X7R', 'C0G', 'NP0']
@@ -456,7 +879,7 @@ _ALT_RULES = (
     ('le', r'^capacitance$|junction capacitance'),     # a TVS/ESD's C (an MLCC's is held exact)
     ('skip', r'temperature|feature|capacitance|charge|surge|ciss|coss|crss|\(range\)'),
     ('le', r'rds|resistance|dcr|esr|forward(?!.*current)|leakage|clamping|quiescent'
-           r'|supply current|dropout|threshold|tolerance|stability|impedance\(zz'),
+           r'|supply current|standby current|dropout|threshold|tolerance|stability|impedance\(zz'),
     ('ge', r'voltage|current|power|dissipation|vgs|breakdown'),
 )
 # an NTC lists B at up to four reference temperatures, most alternates only one:
@@ -556,6 +979,7 @@ def _pick_selftest():
             'Operating Temperature': None, 'Configuration': None},
         _alt_hold('Drain to Source Voltage', '-30V') == '<=-30',      # P-channel
         _alt_hold('Emitted Color', 'Green') == 'Green',                # unranked text: equal
+        _alt_hold('standby current', '34uA') == '<=34u',               # JLC's LDO Iq: lower is better
         make_pred('<=5m')[0]('4.6mΩ@4.5V') and not make_pred('<=5m')[0]('8mΩ@10V'),
         # category words: whole word, plural ok, 'led' is not 'Leaded'
         _cat_hits('led', ['LED Drivers', 'Multilayer Ceramic Capacitors MLCC - Leaded']) == ['LED Drivers'],
@@ -574,7 +998,7 @@ def _pick_selftest():
     # JLC server-side filter: facet values the local predicate accepts, '-' never
     cons = [(n, lab, make_pred(lab)[0]) for n, lab in (('volt', '>=25'), ('cap', '10u'))]
     fac = {'Voltage Rated': {'10V': 5, '25V': 7, '50V': 3, '-': 2}, 'Capacitance': {'1uF': 4, '10uF': 9}}
-    checks.append(_server_attrs(cons, fac) == (
+    checks.append(_server_attrs(cons, fac)[:3] == (
         [{'Voltage Rated': ['25V', '50V']}, {'Capacitance': ['10uF']}], {'volt': 10, 'cap': 9}, []))
     checks.append(_server_attrs(cons[:1], {'Voltage Rated': {'10V': 5}})[2] == ['volt'])
     # two spellings of one attribute: filter on the one most parts use
@@ -589,6 +1013,31 @@ def _pick_selftest():
     ok, why, near = apply_cons(recs, cons)
     checks.append([r['sku'] for r in ok] == ['C'] and why == {'volt': 1, 'cap': 2}
                   and [(n[0]['sku'], n[1], n[3]) for n in near] == [('B', 'cap', '1uF')])
+    # every catalog spelling of a shorthand: the most populated facet wins
+    ldo = {'standby current': {'34uA': 9, '1uA': 7180}, 'Quiescent Current': {'-': 1}, 'Noise': {'-': 5}}
+    checks.append([facet_name(ldo, n) for n in ('iq', 'Supply Current (Iq)', 'Quiescent Current', 'Noise', 'zz')]
+                  == ['standby current'] * 3 + ['Noise', None])
+    checks.append(_server_attrs([('iq', '<=1u', make_pred('<=1u')[0]), ('Ground Current', '<=1u',
+                                                                        make_pred('<=1u')[0])], ldo)[3:]
+                  == ({'iq': 'standby current'}, ['Ground Current']))
+    checks.append(_near_names(ldo, 'Ground Current')[0][0] == 'standby current')
+    # sort direction from the name, and the pareto front (price up, merit strictly better)
+    checks.append([sort_desc(n) for n in ('standby current', 'capacitance', 'voltagerated',
+                                          'drainsourceonresistancerdson', 'powersupplyrejectionratiopsrr')]
+                  == [False, True, True, False, True])
+    pr = [{'sku': k, 'p': p, 'params': [('standby current', v)]}
+          for k, p, v in (('A', 1, '50uA'), ('B', 2, '60uA'), ('C', 3, '5uA'), ('D', 3, '1uA'), ('E', 4, '2uA'))]
+    checks.append([r['sku'] for r in _pareto(pr, lambda r: r['p'], 'standby current', False)] == ['A', 'D'])
+    # application words name the category; word overlap sent 'load switch' to load cells
+    checks.append([_app_cats(t)[:1] for t in ('load switch', 'current limit switch', 'sawtooth', 'eFuse 5V')]
+                  == [['Power Distribution Switches']] * 2 + [[], ['Surge Protection Devices (SPDs)']])
+    # clones: strict containment, another maker, listed earlier
+    ti = {'sku': 'C408972', 'mpn': 'TLV74333PDBVR', 'mfr': 'Texas Instruments'}
+    checks.append(_cores('TLV74333PDBVR-TP') == ['TLV74333PDBVR']
+                  and clone_of({'sku': 'C49451989', 'mpn': 'TLV74333PDBVR-TP', 'mfr': 'TECH PUBLIC'}, [ti]) == ti
+                  and clone_of({'sku': 'C5446', 'mpn': 'XC6206P332MR-G', 'mfr': 'TOREX'},
+                               [{'sku': 'C9000000', 'mpn': 'XC6206P332MR', 'mfr': 'X'}]) is None
+                  and clone_of({'sku': 'C9', 'mpn': 'BAT54S', 'mfr': 'A'}, [{'sku': 'C1', 'mpn': 'BAT54S', 'mfr': 'B'}]) is None)
     bad = [i for i, ok in enumerate(checks, 1) if not ok]
     assert not bad, f"pick self-test failed check(s) {bad}"
     return f"{len(checks)}/{len(checks)}"

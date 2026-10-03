@@ -53,3 +53,14 @@ c C3 70,4 v 1uF
 gnd C3.1
 pwr -BATT C3.2
 pwr -BATT R5.4
+# row-collision cases knet's draw hit: a rotated cell's + vs its ref, a sideways gnd
+# row over a sideways pwr row in one column, a named gnd off a left-facing pin, and a
+# flat box one row under a long value
+bat BT1 80,4 hr "21700 Li-ion"
+r R6 80,7 hr 10k
+d D4 80,10 hr PZU12B2L
+conn U2 76,12 TPS259474LRPWR flat R:5=IN_5
+gnd BT1.2 -BATT
+pwr +3V3 R6.2
+gnd D4.2 -BATT
+net TRK @x=82 BT1.1 R6.1 D4.1 U2.5

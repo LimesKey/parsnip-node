@@ -143,14 +143,8 @@ def _is_tap_ref(b, ref):
         return val is not None and val >= 1000.0
     return False
 
-def _bridge_is_tap(b, g, i):
-    """The tap refs if bridge edge `i` isolates a pendant sub-branch, on EITHER side,
-    whose sole pads belong to sense-tap parts (see `_is_tap_ref`), else None. Such a
-    bridge is a false series bottleneck: the net's full budgeted current has
-    no reason to detour down a thermistor or pull-up leg, so it should not be
-    picked as the mandatory bridge for a TRACE-THIN verdict. Checking both
-    sides (not just the smaller one) sidesteps a tie when a 2-node net splits
-    1-vs-1."""
+def _bridge_sides(g, i):
+    """The pad refs on each side of bridge edge `i`: (set, set)."""
     u, w = g['enode'][i]
     seen = {u}
     stack = [u]
@@ -163,11 +157,31 @@ def _bridge_is_tap(b, g, i):
             stack.append(y)
     comp_nodes = {n for n, c in g['cid'].items() if c == g['cid'][u]}
     other = comp_nodes - seen
-    for side in (seen, other):
-        refs = {ref for ref, nd in g['pad_node'] if nd in side}
+    return tuple({ref for ref, nd in g['pad_node'] if nd in side} for side in (seen, other))
+
+def _bridge_is_tap(b, sides):
+    """The tap refs if a bridge isolates a pendant sub-branch, on EITHER side,
+    whose sole pads belong to sense-tap parts (see `_is_tap_ref`), else None. Such a
+    bridge is a false series bottleneck: the net's full budgeted current has
+    no reason to detour down a thermistor or pull-up leg, so it should not be
+    picked as the mandatory bridge for a TRACE-THIN verdict. Checking both
+    sides (not just the smaller one) sidesteps a tie when a 2-node net splits
+    1-vs-1."""
+    for refs in sides:
         if refs and all(_is_tap_ref(b, ref) for ref in refs):
             return refs
     return None
+
+def _bridge_stub(b, sides):
+    """A pad stub: one side holds at most ONE part that can source or sink DC (caps,
+    test points and sense taps can't) and the other side two or more. It carries only
+    that part's current, so it is no series bottleneck of the net; on a plane net
+    every pad's stub is one. Returns (True, the ref or None), else (False, None)."""
+    car = [{r for r in refs if prefix(r) != 'C' and not _is_tap_ref(b, r)} for refs in sides]
+    for x, y in ((0, 1), (1, 0)):
+        if len(car[x]) <= 1 and len(car[y]) >= 2:
+            return True, next(iter(car[x]), None)
+    return False, None
 
 def _bott_fields(b, t, dt):
     """Bottleneck fields from a single track dict (the constraining segment)."""
@@ -189,7 +203,7 @@ def _amp_row(b, net, need, a, graph=False):
     # narrowest MANDATORY segment: a bridge in the connectivity graph, i.e. one all
     # the current must cross. A segment in a parallel loop is skipped, so split-and-
     # reconverge no longer reads as one thin strand. Falls back to naive if no graph.
-    meshed, comp, bott, g, taps = False, None, naive, None, []
+    meshed, comp, bott, g, taps, stubs = False, None, naive, None, [], []
     if graph and segs:
         g = _net_graph(b, net)
     if g:
@@ -199,10 +213,21 @@ def _amp_row(b, net, need, a, graph=False):
         # no reason to run down it, so it is never the bottleneck nor the
         # "narrowest single seg" (see _bridge_is_tap). Taps alone leave no
         # series bottleneck: that reads as meshed, and names the taps.
-        tapof = {i: _bridge_is_tap(b, g, i) for i in sorted(g['bridges'])}
+        sides = {i: _bridge_sides(g, i) for i in sorted(g['bridges'])}
+        tapof = {i: _bridge_is_tap(b, sd) for i, sd in sides.items()}
         taps = sorted({r for v in tapof.values() if v for r in v}, key=natkey)
-        real_idx = [i for i, v in tapof.items() if not v]
-        rest = [x for i, x in enumerate(g['segs']) if x is not None and not tapof.get(i)]
+        stubof = {i: _bridge_stub(b, sd) for i, sd in sides.items() if not tapof[i]}
+        best = {}                                # narrowest stub per carrier part
+        for i, (stub, ref) in stubof.items():
+            t = g['segs'][i]
+            if stub and ref and (ref not in best or _seg_amp(b, t, a.dt) < best[ref][0]):
+                best[ref] = (_seg_amp(b, t, a.dt), t)
+        pads = _net_pads(b, net)
+        stubs = sorted((amp, '%s.%s' % _nearest_pad_dist([q for q in pads if q[0] == ref], t['mid'])[:2],
+                        t['w'], t['mid']) for ref, (amp, t) in best.items())
+        real_idx = [i for i, v in tapof.items() if not v and not stubof[i][0]]
+        rest = [x for i, x in enumerate(g['segs'])
+                if x is not None and not tapof.get(i) and not stubof.get(i, (False,))[0]]
         naive = min(rest, key=lambda t: _seg_amp(b, t, a.dt)) if rest else None
         if real_idx:
             bott = min((g['segs'][i] for i in real_idx), key=lambda t: _seg_amp(b, t, a.dt))
@@ -238,6 +263,7 @@ def _amp_row(b, net, need, a, graph=False):
             'bott_w': bf['w'], 'pad_neck': pad_neck,
             'naive_i': nf['i'], 'naive_ly': nf['ly'], 'naive_w': nf['w'], 'naive_mid': nf['mid'],
             'meshed': meshed, 'comp': comp, 'graphed': graph and bool(segs), 'taps': taps,
+            'stubs': stubs,
             'ends': sorted({r for r, _n, _x, _y in pads},
                            key=lambda r: (prefix(r) in ('C', 'R', 'TP', 'TH', 'FB'), natkey(r))),
             'bott_near': _nearest_pad(pads, bf['mid']),
@@ -254,8 +280,16 @@ def _amp_verdicts(row, a):
     if need is None:
         return []
     out = []
+    thin = [x for x in row['stubs'] if x[0] < need]
+    if thin:
+        out.append(('STUB-CHECK', f"{len(thin)} pad stub(s) under {need:.2f} A, each the only "
+                                  f"copper to one part: " + ', '.join(f"{pad} {w:.2f} mm {i:.2f} A"
+                                                                     for i, pad, w, _m in thin[:6])
+                    + (f" +{len(thin) - 6} more" if len(thin) > 6 else '')
+                    + ". A stub carries only its part's current; if that part sources or sinks "
+                      "this budget, `--from`/`--to` it"))
     if row['meshed']:                    # a full mesh: no single segment is mandatory
-        if row['naive_i'] < need:
+        if row['naive_i'] < need and not row['poured']:   # a poured net's loops close through the pour
             out.append(('MESH-CHECK', f"no series bottleneck (fully meshed); narrowest single "
                                      f"seg is {row['naive_i']:.2f} A but current splits - "
                                      f"confirm the parallel copper sums >= {need:.2f} A"))
@@ -311,6 +345,8 @@ def _print_amp(row, a):
     if row['meshed']:
         kind = 'meshed, no series bottleneck' + (f" (sense-tap legs skipped: {' '.join(row['taps'])})"
                                                   if row['taps'] else '')
+        if row['stubs']:
+            kind += f"; {len(row['stubs'])} part(s) hang on pad stubs"
     else:
         tag = ' (narrowest bridge)' if row['graphed'] else ''
         near = f" near {row['bott_near']}" if row['bott_near'] else ''
@@ -325,6 +361,7 @@ def _print_amp(row, a):
         naive_note = f"; narrowest single seg {row['naive_i']:.2f} A (paralleled)" \
             if row['naive_i'] < row['bott_i'] - 1e-6 else ''
         naive_note += f"; sense-tap legs skipped: {' '.join(row['taps'])}" if row['taps'] and not row['meshed'] else ''
+        naive_note += f"; {len(row['stubs'])} part(s) on pad stubs, not series" if row['stubs'] and not row['meshed'] else ''
         print(f"    graph: {len(row['ends'])} pad(s){note}{naive_note}")
     if row['graphed'] and row['pour']:
         print("    pours: " + '; '.join(f"{ly} {ar:.0f} mm2 in {n} fragment(s)"
@@ -361,6 +398,7 @@ def _amp_json(row):
             'bottleneck_is_pad_neck': row['pad_neck'],
             'narrowest_single_A': round(row['naive_i'], 3) if row['naive_i'] < math.inf else None,
             'meshed': row['meshed'], 'sense_taps': row['taps'],
+            'pad_stubs': [{'pad': pad, 'width_mm': w, 'amp_A': round(i, 3)} for i, pad, w, _m in row['stubs']],
             'components': row['comp'],
             'layers': [{'layer': l, 'minw_mm': w, 'len_mm': round(ln, 2), 'amp_A': round(i, 3),
                         'external': e} for l, w, ln, i, e, _m, _s in row['layers']],

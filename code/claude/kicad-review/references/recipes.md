@@ -86,7 +86,7 @@ and MPN-named footprints clear automatically; divergent nomenclature -> REVIEW.
 # Self-test after editing a tool
 
 ```bash
-python3 references/selftest.py     # 68 checks, asserts, exit 0 = all pass (~15 s)
+python3 references/selftest.py     # 71 checks, asserts, exit 0 = all pass (~15 s)
 ```
 
 Before a refactor, record the real board's outputs, then check after - a pure
@@ -110,7 +110,7 @@ shunt/choke exclusions, `fet.net` for revpol's gate-driven FET), plus formula ch
 (microstrip Zo, the CPWG field solver vs exact cases, glTF transform). Small boards
 generated in the temp dir carry one case each: duplicate refs and a B.Cu logo with
 F.SilkS art (`dup_board`), footprint scale + origins (`scale_board`), the hash-seed
-tee (`tee_board`), PAD-NECK (`neck_board`), EDGEREF (`edge_board`), `movecheck`,
+tee (`tee_board`), PAD-NECK (`neck_board`), STUB-CHECK (`stub_board`), EDGEREF (`edge_board`), `movecheck`,
 `silk`, `freebox` and `tidy` boards, and netlists for knet draw's note line and
 multi-pin symbols. Static fixtures beside this file: `selftest_cross.kicad_pcb`
 (tracks crossing mid-span) and `selftest_repeat/` (one sheet file used twice). `kdrc`, `kmerge` and `height` need

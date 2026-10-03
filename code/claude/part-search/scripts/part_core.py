@@ -325,30 +325,44 @@ def dk_headers(tok, a):
             'Content-Type': 'application/json'}
 
 def _dk_norm(p, currency):
+    """A DigiKey v4 product as an LCSC-shaped record. The case is a parameter
+    ('Supplier Device Package', else 'Package / Case'); PackageType is the
+    packaging (Cut Tape). The category is the leaf of the ChildCategories chain;
+    a cut-tape variation's StandardPackage is null, i.e. any multiple of 1."""
     var = (p.get('ProductVariations') or [{}])
     v = next((x for x in var if (x.get('PackageType') or {}).get('Name', '').lower().startswith(('cut', 'bulk'))), var[0])
     ladder = [(int(s.get('BreakQuantity', 1)), float(s.get('UnitPrice', 0)))
               for s in (v.get('StandardPricing') or []) if s.get('UnitPrice') is not None]
     params = [(x.get('ParameterText') or x.get('Parameter'), x.get('ValueText') or x.get('Value'))
               for x in (p.get('Parameters') or [])]
-    cat = p.get('Category') or {}
-    catname = cat.get('Name', '')
-    if cat.get('ChildCategories'):
-        catname += ' > ' + (cat['ChildCategories'][0] or {}).get('Name', '')
+    pd = dict(params)
+    names, cat = [], p.get('Category') or {}
+    while cat:
+        names.append(cat.get('Name', ''))
+        cat = (cat.get('ChildCategories') or [None])[0]
+    stock = p.get('QuantityAvailable')
+    if stock is None:
+        stock = max((x.get('QuantityAvailableforPackageType') or 0 for x in var), default=None)
+    reel = next((x.get('StandardPackage') for x in var
+                 if (x.get('PackageType') or {}).get('Name', '').lower().startswith('tape & reel')), None)
+    life = (p.get('ProductStatus') or {}).get('Status')
+    if p.get('EndOfLife') or p.get('Discontinued'):
+        life = f"{life} (EOL)" if life and 'obsolete' not in life.lower() else life or 'EOL'
     return {
         'source': 'DigiKey',
         'sku': v.get('DigiKeyProductNumber') or p.get('DigiKeyProductNumber'),
         'mpn': p.get('ManufacturerProductNumber') or p.get('ManufacturerPartNumber'),
         'mfr': (p.get('Manufacturer') or {}).get('Name'),
         'desc': (p.get('Description') or {}).get('ProductDescription') or p.get('DetailedDescription'),
-        'package': (v.get('PackageType') or {}).get('Name'),
-        'category': catname,
-        'stock': p.get('QuantityAvailable'),
+        'package': pd.get('Supplier Device Package') or pd.get('Package / Case') or '?',
+        'category': ' > '.join(n for n in names if n),
+        'stock': stock,
         'stock_detail': {'variation': v.get('QuantityAvailableforPackageType')},
         'moq': v.get('MinimumOrderQuantity'),
-        'multiple': v.get('StandardPackage'),
+        'multiple': v.get('StandardPackage') or 1,
+        'reel_qty': reel,
         'packaging': (v.get('PackageType') or {}).get('Name'),
-        'lifecycle': (p.get('ProductStatus') or {}).get('Status'),
+        'lifecycle': life,
         'rohs': (p.get('Classifications') or {}).get('RohsStatus'),
         'currency': currency,
         'ladder': sorted(ladder),
@@ -370,6 +384,37 @@ def dk_search(keyword, n, a):
         return [], trunc(d.get('detail') or d.get('title') or d.get('_error') or 'no Products in response', 100)
     return [_dk_norm(p, a.currency) for p in d['Products'][:n]], f"{d.get('ProductsCount','?')} matches"
 
+DK_CATS = 'https://api.digikey.com/products/v4/search/categories'
+
+def dk_categories(a):
+    """{DigiKey leaf category name: (id, path)}, cached 7 days. Only ~125 of JLC's
+    851 category names exist here (LDOs, Battery Management, SAW Filters do;
+    MOSFETs, MLCC, DC-DC Converters don't)."""
+    tok, _ = dk_token(a.fresh)
+    if not tok:
+        return {}
+    def go():
+        d = http(DK_CATS, headers=dk_headers(tok, a), method='GET', timeout=60)
+        out = {}
+        def walk(c, path):
+            kids = c.get('Children') or c.get('ChildCategories') or []
+            if not kids:
+                out[c['Name']] = (c['CategoryId'], ' > '.join(path))
+            for k in kids:
+                walk(k, path + [k['Name']])
+        for c in (d or {}).get('Categories') or []:
+            walk(c, [c['Name']])
+        return out or None
+    return cached('dkcats', a.site, go, a.fresh, ttl=7 * 24 * 3600) or {}
+
+def dk_query(body, a):
+    """One v4 KeywordSearch POST (cached), raw reply or {'_error': ...}"""
+    tok, note = dk_token(a.fresh)
+    if not tok:
+        return {'_error': note}
+    return cached('dkq', json.dumps(body, sort_keys=True) + f"|{a.site}|{a.currency}",
+                  lambda: http(DK_KEYWORD, data=body, headers=dk_headers(tok, a)), a.fresh) or {}
+
 def dk_detail(pn, a):
     tok, note = dk_token(a.fresh)
     if not tok:
@@ -380,6 +425,61 @@ def dk_detail(pn, a):
     d = cached('dkdet', f"{pn}|{a.site}|{a.currency}", go, a.fresh)
     p = d.get('Product') or (d.get('Products') or [None])[0]
     return _dk_norm(p, a.currency) if p else None
+
+# ---------------------------------------------------------------- Mouser
+# Search API v1 (swagger: api.mouser.com/api/docs/V1): free key, 30 calls/min and
+# 1,000/day, 50 rows a call, keyword or part number only - no parametric filter,
+# so it serves search/show (price, stock, lifecycle of an MPN LCSC lacks), never
+# a pick pool. Key: MOUSER_API_KEY or config.json "mouser_api_key".
+MOUSER_KEYWORD = 'https://api.mouser.com/api/v1/search/keyword?apiKey={key}'
+
+def _num(s):
+    """'$1,234.50' / '1.234,50 \u20ac' / '12 In Stock' -> float, None when no digits"""
+    t = re.sub(r'[^\d.,]', '', str(s or ''))
+    if not t:
+        return None
+    if ',' in t and '.' in t:
+        t = t.replace(',', '') if t.rfind('.') > t.rfind(',') else t.replace('.', '').replace(',', '.')
+    elif ',' in t:
+        t = t.replace(',', '.') if len(t.split(',')[-1]) != 3 else t.replace(',', '')
+    try:
+        return float(t)
+    except ValueError:
+        return None
+
+def _mouser_norm(p):
+    """A Mouser MouserPart as an LCSC-shaped record (field names per the swagger)."""
+    pb = p.get('PriceBreaks') or []
+    attrs = [(x.get('AttributeName'), x.get('AttributeValue')) for x in p.get('ProductAttributes') or []]
+    st = _num(p.get('AvailabilityInStock')) if p.get('AvailabilityInStock') else _num(p.get('Availability'))
+    life = p.get('LifecycleStatus') or ('Discontinued' if str(p.get('IsDiscontinued')).lower() == 'true' else None)
+    return {
+        'source': 'Mouser', 'sku': p.get('MouserPartNumber'), 'mpn': p.get('ManufacturerPartNumber'),
+        'mfr': p.get('Manufacturer'), 'desc': p.get('Description'), 'category': p.get('Category'),
+        'package': dict(attrs).get('Package / Case') or '?',
+        'stock': int(st) if st is not None else None,
+        'moq': int(_num(p.get('Min')) or 1), 'multiple': int(_num(p.get('Mult')) or 1),
+        'lifecycle': life, 'rohs': p.get('ROHSStatus'), 'lead_time': p.get('LeadTime'),
+        'currency': (pb[0].get('Currency') if pb else None) or 'USD',
+        'ladder': sorted((int(x['Quantity']), _num(x.get('Price'))) for x in pb
+                         if x.get('Quantity') and _num(x.get('Price')) is not None),
+        'params': attrs, 'url': p.get('ProductDetailUrl'),
+        'datasheet_candidates': [('mouser DataSheetUrl', p.get('DataSheetUrl'))],
+    }
+
+def mouser_search(keyword, n, a):
+    key = cfg('mouser_api_key', 'MOUSER_API_KEY')
+    if not key:
+        return [], 'no key (set MOUSER_API_KEY or config.json mouser_api_key)'
+    def go():          # an Errors reply (bad key, rate limit) is never cached
+        d = http(MOUSER_KEYWORD.format(key=key), headers={'Content-Type': 'application/json'},
+                 data={'SearchByKeywordRequest': {'keyword': keyword, 'records': min(n, 50), 'startingRecord': 0}})
+        return dict(d, _error='mouser') if d.get('Errors') else d
+    d = cached('mouser', f"{keyword}|{n}", go, a.fresh) or {}
+    if d.get('Errors'):
+        return [], trunc('; '.join(e.get('Message') or '' for e in d['Errors']), 100)
+    sr = d.get('SearchResults') or {}
+    return [_mouser_norm(p) for p in (sr.get('Parts') or [])[:n]], f"{sr.get('NumberOfResult', '?')} matches"
 
 def resolve(spec, a):
     """C-code -> LCSC detail, else JLC's record (assembly-only parts LCSC does not
@@ -397,6 +497,10 @@ def resolve(spec, a):
             out.append(full or hits[0])
     if a.provider in ('all', 'digikey'):
         hits, _ = dk_search(spec, 1, a)
+        if hits:
+            out.append(hits[0])
+    if a.provider in ('all', 'mouser'):
+        hits, _ = mouser_search(spec, 1, a)
         if hits:
             out.append(hits[0])
     return out
@@ -423,7 +527,8 @@ def jlc_search(keyword, n=200, fresh=False, library=None, instock=False,
     overlap, with 'library' = 'base' (JLC Basic) | 'expand' (Extended, $3/line).
     Server-side filters (probed 2026-09-23, endpoints.md): pkg = exact package
     string, category = JLC's exact category name (a rec's 'category'), cheapest =
-    price ascending, attrs = [{attribute: [exact values, any-of]}, ...] ANDed.
+    price ascending ('stock': stock descending), attrs = [{attribute: [exact
+    values, any-of]}, ...] ANDed.
     The index covers ~7.2M parts, i.e. the LCSC catalog."""
     body = {'currentPage': page, 'pageSize': min(max(int(n), 1), 200), 'keyword': keyword}
     if library:
@@ -435,7 +540,7 @@ def jlc_search(keyword, n=200, fresh=False, library=None, instock=False,
     if category:
         body['secondSortName'] = category      # request's second = response's first
     if cheapest:
-        body['sortMode'], body['sortASC'] = 'PRICE_SORT', 'ASC'
+        body['sortMode'], body['sortASC'] = ('STOCK_SORT', 'DESC') if cheapest == 'stock' else ('PRICE_SORT', 'ASC')
     if attrs:
         body['componentAttributeList'] = attrs
     def go():

@@ -68,25 +68,36 @@ ALIAS = {
     'isat': ['saturationcurrent', 'currentsaturation'],
     'irms': ['currentrating', 'ratedcurrent'],
     # TVS / regulators
-    'vrwm': ['reversestandoffvoltage'], 'vc': ['clampingvoltage'],
-    'vout': ['outputvoltage'], 'iout': ['outputcurrent'],
+    'vrwm': ['reversestandoffvoltage', 'voltagereversestandoff'],
+    'vc': ['clampingvoltage', 'voltageclamping'],
+    'vout': ['outputvoltage', 'voltageoutput'], 'iout': ['outputcurrent', 'currentoutput'],
+    # one quantity, three catalogs: LCSC 'Supply Current (Iq)', JLC 'standby current'
+    # (same 34 uA on TLV74333P), DigiKey 'Current - Quiescent (Iq)'
+    'iq': ['quiescentcurrent', 'supplycurrentiq', 'standbycurrent', 'currentquiescentiq',
+           'quiescentcurrentiq'],
+    'dropout': ['voltagedropout', 'dropoutvoltage'],
+    # an LDO's max input: LCSC 'Operating Voltage', JLC 'Voltage - Supply', DigiKey
+    # 'Voltage - Input (Max)'. Unbridged, `alt` of any LDO held a name JLC lacks
+    'vin': ['operatingvoltage', 'voltagesupply', 'supplyvoltage', 'inputvoltage', 'voltageinput'],
+    'psrr': ['powersupplyrejectionratiopsrr', 'psrr'], 'noise': ['noise', 'voltagenoise'],
 }
 _UNIT_OF = {'cap': 'F', 'res': '\u2126', 'ind': 'H', 'volt': 'V', 'current': 'A',
             'power': 'W', 'freq': 'Hz', 'vr': 'V', 'vf': 'V', 'ifwd': 'A',
             'vds': 'V', 'isat': 'A', 'irms': 'A', 'id': 'A', 'vgsth': 'V',
-            'vrwm': 'V', 'vc': 'V', 'vout': 'V', 'iout': 'A'}
+            'vrwm': 'V', 'vc': 'V', 'vout': 'V', 'iout': 'A', 'iq': 'A', 'dropout': 'V', 'vin': 'V'}
 # Every shorthand gets its own --flag. Anything not here is still reachable with
 # --w NAME=SPEC, which also accepts the verbatim LCSC attribute name.
 FLAG_ATTRS = ('cap', 'res', 'ind', 'volt', 'pkg', 'diel', 'tol', 'current', 'power',
               'freq', 'temp', 'type', 'dcr', 'vr', 'vf', 'ifwd', 'ir', 'vds', 'id',
-              'vgsth', 'rdson', 'isat', 'irms', 'esr', 'vrwm', 'vc', 'vout', 'iout')
+              'vgsth', 'rdson', 'isat', 'irms', 'esr', 'vrwm', 'vc', 'vout', 'iout', 'iq',
+              'dropout', 'psrr', 'noise', 'vin')
 
 def attr_hit(params, name):
     """(resolved parameter name, value) or (None, None). Resolution order:
     exact alias, then prefix match, then containment. Ties break on shortest name
     then alphabetically, so the answer never depends on parameter ordering - two
     parts in the same pool must resolve `volt` to the same attribute."""
-    keys = ALIAS.get(name.lower()) or [_norm(name)]
+    keys = alias_keys(name)
     pn = [(_norm(k), k, v) for k, v in (params or []) if k]
     for k in keys:
         for n, orig, v in pn:
@@ -113,6 +124,29 @@ def attr_hit(params, name):
         return None, None
     cands.sort()
     return cands[0][3], cands[0][4]
+
+def alias_keys(name):
+    """Normalised names `name` may be called: a shorthand's list, a verbatim name
+    that is one catalog's spelling of a shorthand (LCSC 'Supply Current (Iq)') with
+    the other catalogs' spellings after it, else the name alone."""
+    n0 = _norm(name)
+    return ALIAS.get(name.lower()) or next(([n0] + [k for k in al if k != n0]
+                                            for al in ALIAS.values() if n0 in al), [n0])
+
+def canon(name):
+    """one key per quantity across catalogs: the shorthand a name is an exact
+    alias of, else its normalised self"""
+    n = _norm(name)
+    pre = [(len(x), k) for k, al in ALIAS.items() for x in al if len(x) >= 9 and n.startswith(x)]
+    return next((k for k, al in ALIAS.items() if n in al), max(pre)[1] if pre else n)
+
+def norm_val(v):
+    """'0.034mA' -> '34uA', '34\u00b5A' -> '34uA', '125mV@(300mA)' -> '125mV @(300mA)': one
+    notation across catalogs, the test condition kept. Ranges and text stay raw."""
+    head, at, cond = str(v).partition('@')
+    m = re.fullmatch(r'\s*[-+]?[\d.]+\s*[pnu\u00b5\u03bcmkKMG]?\s*(\u2126|\u03a9|F|V|A|W|Hz|H)\s*', head)
+    x = enum(head) if m else None
+    return f"{fmt_si(x, m.group(1))}{' @' + cond.strip() if at else ''}" if x is not None else v
 
 def attr_of(params, name):
     return attr_hit(params, name)[1]

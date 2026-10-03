@@ -62,7 +62,7 @@ CASES = [
     ("kpcb ic",      ['kpcb.py', PCB, 'ic'],                    1, ["no regulator-shaped part found"]),  # 1 = not found
     ("kpcb ampacity",['kpcb.py', PCB, 'ampacity', 'PWR', '--amps', '5'], 2, ["TRACE-THIN", "VIA-FEW"]),
     ("kpcb amp-par", ['kpcb.py', PCB, 'ampacity', 'PAR', '--amps', '5'], 0, ["MESH-CHECK"]),  # parallel edges: no bridge, not flagged thin
-    # selftest_amp2.kicad_pcb: false-positive classes from SKILL-BACKLOG.md.
+    # selftest_amp2.kicad_pcb: false-positive classes from SKILL-BACKLOG-DONE.md.
     # NECK's 0.5 mm track end overlaps U1's pad (its cap reaches x 5.05, the pad edge is
     # 5.15), so the 0.2 mm stub is inside one piece of metal: no neck at all
     ("kpcb amp-neck", ['kpcb.py', PCB2, 'ampacity', 'NECK', '--amps', '1.0'],
@@ -328,6 +328,23 @@ def neck_board(d):
         ' (segment (start 5.35 5) (end 15 5) (width 0.3) (layer "F.Cu") (net "N")))')
     return p
 
+def stub_board(d):
+    """J1 -> J2 on a 1.5 mm trunk, with U1 and C1 each on a 0.2 mm stub off it. Every
+    arm of the tee is a pad stub (three DC parts), U1's is the only one under 2 A, and
+    C1's cap stub is no carrier at all."""
+    p = os.path.join(d, 'stub.kicad_pcb')
+    pad = lambda r, x, y: (f' (footprint "P" (layer "F.Cu") (at {x} {y}) (property "Reference" "{r}")'
+                           ' (pad "1" smd rect (at 0 0) (size 1 1) (layers "F.Cu") (net "N")))')
+    seg = lambda a, b, w: f' (segment (start {a}) (end {b}) (width {w}) (layer "F.Cu") (net "N"))'
+    open(p, 'w').write(
+        '(kicad_pcb (version 20240108) (generator "pcbnew")'
+        ' (layers (0 "F.Cu" signal) (2 "B.Cu" signal) (25 "Edge.Cuts" user))'
+        ' (gr_rect (start 0 0) (end 20 10) (layer "Edge.Cuts"))'
+        + pad('J1', 2, 5) + pad('J2', 18, 5) + pad('U1', 10, 8) + pad('C1', 14, 8)
+        + seg('2 5', '10 5', 1.5) + seg('10 5', '14 5', 1.5) + seg('14 5', '18 5', 1.5)
+        + seg('10 5', '10 8', 0.2) + seg('14 5', '14 8', 0.2) + ')')
+    return p
+
 def dup_board(d):
     """Three padless `REF**` logos (KiCad allows duplicate refs; the third is a B.Cu
     footprint whose art is on F.SilkS) beside one real part, R1."""
@@ -401,6 +418,25 @@ def also_net(d):
         ' (net (code "2") (name "VP")' + nd(('R1', '2')) + ')'
         ' (net (code "3") (name "/A")' + nd(('U1', '2'), ('U2', '2'), ('U3', '2')) + ')'
         ' (net (code "4") (name "/B")' + nd(('U1', '3'), ('U2', '3'), ('U3', '3')) + ')))')
+    return p
+
+def xref_net(d):
+    """U1.2 -> R1 -> /B -> R2 -> GND, and U1.3 on /B too: the second visit to /B is
+    one stub row naming the parts drawn above (rows were allocated that way)."""
+    os.makedirs(os.path.join(d, 'xref'))
+    p = os.path.join(d, 'xref', 'xref.net')
+    r = lambda q: f' (comp (ref "{q}") (value "10k") (libsource (lib "Device") (part "R")))'
+    nd = lambda *rp: ''.join(f' (node (ref "{a}") (pin "{q}"))' for a, q in rp)
+    open(p, 'w').write(
+        '(export (version "E") (design (source "xref.kicad_sch"))'
+        ' (components (comp (ref "U1") (value "IC") (libsource (lib "x") (part "ic3")))' + r('R1') + r('R2') + ')'
+        ' (libparts (libpart (lib "x") (part "ic3") (pins (pin (num "1") (name "IRQ") (type "output"))'
+        ' (pin (num "2") (name "A") (type "input")) (pin (num "3") (name "B") (type "input"))))'
+        ' (libpart (lib "Device") (part "R") (pins (pin (num "1") (name "~") (type "passive"))'
+        ' (pin (num "2") (name "~") (type "passive")))))'
+        ' (nets (net (code "1") (name "/A")' + nd(('U1', '2'), ('R1', '1')) + ')'
+        ' (net (code "2") (name "/B")' + nd(('R1', '2'), ('U1', '3'), ('R2', '1')) + ')'
+        ' (net (code "3") (name "GND")' + nd(('R2', '2')) + ')))')
     return p
 
 def multi_net(d):
@@ -568,6 +604,9 @@ def main():
                    "0.10 mm inside the 0.3 mm edge_clearance"]))
     CASES.append(("kpcb amp-pad-neck", ['kpcb.py', neck_board(tmp.name), 'ampacity', 'N', '--amps', '1.0'], 0,
                   ["PAD-NECK", "stub landing right on U1.1"]))
+    CASES.append(("kpcb amp-stub", ['kpcb.py', stub_board(tmp.name), 'ampacity', 'N', '--amps', '2'], 0,
+                  ["meshed, no series bottleneck; 3 part(s) hang on pad stubs",
+                   "STUB-CHECK: 1 pad stub(s) under 2.00 A, each the only copper to one part: U1.1 0.20 mm"]))
     dp = dup_board(tmp.name)
     CASES.append(("kpcb sync art", ['kpcb.py', dp, 'sync', os.path.join(tmp.name, 'dup.net')], 0,
                   ["IN SYNC", "[INFO] SYNCART", "(3): REF** REF**~dup2 REF**~dup3"]))
@@ -580,6 +619,9 @@ def main():
     CASES.append(("kpcb summary origins", ['kpcb.py', sp, 'summary'], 0, ["origins: grid 5,5  aux 2,3"]))
     CASES.append(("knet draw also-line", ['knet.py', also_net(tmp.name), 'draw', 'U1', '--spec'], 0,
                   ['note 6.4,0.6 IRQ\nnote 6.4,0.05 "+ U2 U3"']))
+    CASES.append(("knet draw xref", ['knet.py', xref_net(tmp.name), 'draw', 'U1', '--spec'], 0,
+                  ['note -12.69,4.18 "to U1.3"\nwire R1.2 -10.5,4',
+                   'note -11.54,10.18 "to R1.2 R2.1 (drawn above)"\nwire U1.3 -4.5,10']))
     mn = multi_net(tmp.name)
     CASES.append(("knet draw multi-pin spec", ['knet.py', mn, 'draw', 'U1', '--spec'], 0,
                   ["d2s D1 ", "rsense R1 ", "label MID D1.3", "gnd R1.4", "wire U1.3 D2.1"]))

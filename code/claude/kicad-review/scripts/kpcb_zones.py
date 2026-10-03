@@ -193,7 +193,7 @@ def _keepouts(b):
         f = b.fps.get(ref)
         for z in kids(node, 'zone'):
             if f:                                    # footprint rule areas are stored local
-                add(z, lambda x, y, f=f: xf(x, y, f.x, f.y, f.rot))
+                add(z, lambda x, y, f=f: xf(x * f.scale[0], y * f.scale[1], f.x, f.y, f.rot))
     return out
 
 

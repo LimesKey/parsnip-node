@@ -18,6 +18,9 @@ Choosing a part (constraints, ranges, cheapest-first)
   part.py pick 'schottky diode' --pkg SOD-123 --fields   # what are the attrs called?
   part.py alt C115844 --qty 100        same category + package, equal-or-better
                                        on every rated parameter, cheaper/stocked
+  part.py pick LDO --pkg SOT-23-5 --vout 3.3 --sort iq     best Iq first (true top-N)
+  part.py pick LDO --pkg SOT-23-5 --vout 3.3 --pareto iq   best value: price vs Iq
+  part.py pick --like C55266 --w 'RDS(on)=<=50m'           like TPS2553, lower RDS(on)
 
 Looking a part up
   part.py show C18164413 C14709        ladder, stock, params, verified datasheet
@@ -43,15 +46,20 @@ Constraint grammar (every --flag and every --w NAME=SPEC)
 Attribute shorthands, resolved onto LCSC's real parameter names
   --cap --res --ind --volt --pkg --diel --tol --current --power --freq --temp
   --type --dcr --esr --vr --vf --ifwd --ir --vds --id --vgsth --rdson --isat
-  --irms --vrwm --vc --vout --iout   (--capacitance --package --voltage ... also work)
+  --irms --vrwm --vc --vout --iout --iq --dropout --psrr --noise
+  (--capacitance --package --voltage ... also work). A verbatim name that is one
+  catalog's spelling (LCSC 'Supply Current (Iq)') also finds the others (JLC
+  'standby current', DigiKey 'Current - Quiescent (Iq)').
   Anything else: --w 'Voltage - DC Reverse (Vr)=>=40'. `pick` prints a `resolved:`
   line whenever a shorthand mapped to a differently-named attribute - check it.
 
 Useful flags
   --offline      selftest: the offline logic checks only (no network), exit 1 on failure
-  --golden DIR   selftest --golden DIR board.net: record 16 real outputs, then diff them
+  --golden DIR   selftest --golden DIR board.net: record 18 real outputs, then diff them
   --qty N        unit + extended price at that quantity, MOQ/multiple applied
-  --sort         price (default) | stock | cap | volt
+  --sort         price (default) | stock | ATTR (iq, rdson, cap, any name; --desc flips)
+  --pareto ATTR  rows no other row beats on both price and ATTR
+  --like C..     pick: category + package from an exemplar part
   --basic        JLC Basic library only, i.e. no $3 Extended line fee
   --fields       list attribute names/values instead of filtering
   --minstock N   pick/alt drop parts with less LCSC stock (default 100)
@@ -65,7 +73,8 @@ Useful flags
   --attrs        show every parameter, not just the headline ones
   --json         machine-readable output
   --fresh        bypass the disk cache for this call
-  --provider lcsc|jlc|digikey|all  (search/show only; pick does not use DigiKey)
+  --provider lcsc|jlc|digikey|mouser|all  (search/show/compare; pick uses --source)
+  --source digikey   pick on DigiKey's parametric search; --xcheck = both catalogs
   --instock      search: drop zero-stock hits   --anystock  pick: no stock floor
   -n N           result count (default 8)
 
@@ -74,8 +83,9 @@ pick/alt are LCSC retail (pick re-prices its JLC-pooled rows from LCSC). jlc,
 pick --basic and the JLC rows in `search` are JLCPCB assembly-catalog prices.
 Say which one you are quoting.
 
-DigiKey needs free credentials from developer.digikey.com (create an app, use the
-Production "Product Information V4" API). Then:
+Mouser (search/show only) needs a free Search API key: MOUSER_API_KEY or config.json
+"mouser_api_key". DigiKey needs free credentials from developer.digikey.com (create
+an app, use the Production "Product Information V4" API). Then:
   export DIGIKEY_CLIENT_ID=...
   export DIGIKEY_CLIENT_SECRET=...
 or put them in ~/.config/partsearch/config.json as {"digikey_client_id": "...",
@@ -84,13 +94,14 @@ or put them in ~/.config/partsearch/config.json as {"digikey_client_id": "...",
 Cache: ~/.cache/partsearch (override PARTSEARCH_CACHE), 24 h TTL. Cache hits are
 free, so re-querying the same part in a later chat costs nothing.
 """
-import sys, os, re, json, glob, argparse, subprocess
-from part_core import (best_datasheet, buy_qty, CACHE, conv, dk_search, dk_token, dmoney,
+import sys, os, re, json, glob, argparse, subprocess, urllib.parse
+from part_core import (best_datasheet, buy_qty, CACHE, cfg, conv, dk_search, dk_token, dmoney,
                        dmoney1, fx_note, fx_rates, http, jlc_annotate, JLC_FACETS, jlc_facets,
                        jlc_detail, JLC_SEARCH, jlc_search, LCSC_DETAIL, lcsc_search, LCSC_SEARCH,
-                       load_knet, money, price_at, resolve, trunc, verify_pdf)
+                       load_knet, money, mouser_search, _mouser_norm, _num, price_at, resolve, trunc,
+                       verify_pdf)
 from part_value import FLAG_ATTRS
-from part_pick import c_alt, c_pick, _pick_selftest
+from part_pick import c_alt, c_pick, _pick_selftest, spec_table
 from part_bom import c_bom, c_check, c_jlc
 from part_fpcheck import c_fpcheck, _fpcheck_selftest
 
@@ -182,6 +193,7 @@ GOLDEN = [
     "show C1525 C14709 --nods", "show C408408 --nods", "compare C1525 C52923",
     "search TPS61033", "fpcheck {net}", "bom {net} --qty 5", "jlc {net}",
     "check {net} --qty 5",
+    "pick LDO --pkg SOT-23-5 --vout 3.3 --sort iq", "alt C408972 -n 4",
 ]
 
 def golden(d, net):
@@ -221,9 +233,23 @@ def c_selftest(a):
         return golden(a.golden, a.args[0])
     try:
         ti = [('lcsc pdfUrl', 'https://www.ti.com.cn/cn/lit/ds/symlink/esd501.pdf?ts=17')]
+        fam = lambda x: [('lcsc pdfUrl', f'https://www.ti.com/lit/ds/symlink/{x}.pdf')]   # noqa: E731
         assert [_ds_name(r) for r in ({'mpn': 'ESD501DPYR', 'datasheet_candidates': ti},
-                                      {'mpn': 'TPN2R203NC,L1Q(M)'}, {'mpn': 'MAX17320G22+T'})] \
-            == ['ESD501', 'TPN2R203NC', 'MAX17320G22'], 'ds --save names'
+                                      {'mpn': 'TPN2R203NC,L1Q(M)'}, {'mpn': 'MAX17320G22+T'},
+                                      {'mpn': 'TPS22945DCKR', 'datasheet_candidates': fam('tps22944')},
+                                      {'mpn': 'TLV74333PDBVR', 'datasheet_candidates': fam('tlv743p')},
+                                      {'mpn': 'TPS22945DCKR', 'datasheet_candidates': [(
+                                          'dk', 'https://www.ti.com/general/docs/suppproductinfo.tsp?distId=10'
+                                                '&gotoUrl=https%3A%2F%2Fwww.ti.com%2Flit%2Fgpn%2Ftps22944')]})] \
+            == ['ESD501', 'TPN2R203NC', 'MAX17320G22', 'TPS22945', 'TLV74333PDBVR', 'TPS22945'], 'ds --save names'
+        mp = _mouser_norm({'MouserPartNumber': '595-TPS61033DRLR', 'ManufacturerPartNumber': 'TPS61033DRLR',
+                           'Manufacturer': 'Texas Instruments', 'AvailabilityInStock': '12543', 'Min': '1',
+                           'Mult': '1', 'LifecycleStatus': None, 'IsDiscontinued': 'false',
+                           'PriceBreaks': [{'Quantity': 1, 'Price': '$1.23', 'Currency': 'USD'},
+                                           {'Quantity': 1000, 'Price': '$1,000.50', 'Currency': 'USD'}],
+                           'ProductAttributes': [{'AttributeName': 'Package / Case', 'AttributeValue': 'SOT-583'}]})
+        assert (mp['stock'], mp['ladder'], mp['package'], _num('1.234,50 \u20ac')) == \
+            (12543, [(1, 1.23), (1000, 1000.5)], 'SOT-583', 1234.5), 'mouser normaliser'
         import kcap
         assert kcap._partsearch(), 'kcap cannot import its part_core/part_value calls'
         from part_pick import LIGHT_LED
@@ -231,7 +257,7 @@ def c_selftest(a):
                                                     'red LED', 'LED', 'ledger white')] \
             == [True, True, True, False, False, False], 'lighting-LED gap note'
         off = (f"OK    pick/alt parsing {_pick_selftest()}, fpcheck matcher {_fpcheck_selftest()}, "
-               f"ds names 3/3, kcap bridge, lighting-LED note")
+               f"ds names 6/6, mouser normaliser, kcap bridge, lighting-LED note")
     except AssertionError as e:
         off = f"FAIL  {e}"
     if a.offline:
@@ -265,6 +291,8 @@ def c_selftest(a):
         print(f"  DigiKey srch  {'OK  ' if r else 'DEAD'}  {note2}")
         if r:
             print(f"                -> {r[0]['sku']} {r[0]['mpn']}")
+    m, note4 = mouser_search('TPS61033', 3, a)
+    print(f"  Mouser srch   {'OK  ' if m else 'n/a ' if 'no key' in note4 else 'DEAD'}  {note4}")
     ok2, note3 = verify_pdf('https://datasheet.lcsc.com/datasheet/pdf/'
                             '02336ea48ea44ca18c72517dd3cb7b47.pdf')
     print(f"  datasheet chk {'OK  ' if ok2 else 'DEAD'}  {note3}")
@@ -300,6 +328,12 @@ def c_search(a):
             r = [x for x in r if (x.get('stock') or 0) > 0][:a.n]
         rows += r
         notes.append(f"DigiKey {len(r)} ({note})")
+    if a.provider in ('all', 'mouser') and (a.provider == 'mouser' or cfg('mouser_api_key', 'MOUSER_API_KEY')):
+        r, note = mouser_search(kw, a.n * (3 if a.instock else 1), a)
+        if a.instock:
+            r = [x for x in r if (x.get('stock') or 0) > 0][:a.n]
+        rows += r
+        notes.append(f"Mouser {len(r)} ({note})")
     if a.json:
         print(json.dumps(rows, indent=1)); return
     print(f"search: {kw}    [{'; '.join(notes)}]\n")
@@ -382,17 +416,27 @@ def _ds_name(r):
     uppercase. A ti.com lit/ds/symlink/<x> or lit/gpn/<x> link (LCSC's or JLC's)
     names the datasheet itself (BQ25798RQMR -> BQ25798); otherwise the MPN cut at
     an orderable tail (',115' '(LF)' '+T' '#PBF'), which leaves a passive's value
-    suffix alone. Vendor variant codes (NEO-F10N-00B) need --name."""
+    suffix alone. Vendor variant codes (NEO-F10N-00B) need --name. A TI family
+    datasheet named after a sibling (TPS22944 for a TPS22945DCKR) takes the ordered
+    part's digits instead, so `kdoc grep -d TPS22945` finds it."""
     cands = list(r.get('datasheet_candidates') or [])
     if re.fullmatch(r'C\d+', r.get('sku') or '') and r.get('source') != 'JLC':
         cands += (jlc_detail(r['sku']) or {}).get('datasheet_candidates') or []
+    base = re.sub(r'[^\w.-]+', '_', re.split(r'[,(#+]', r.get('mpn') or r.get('sku') or 'datasheet')[0]
+                  ).strip('_').upper()
     for _, u in cands:
-        m = re.search(r'ti\.com(?:\.cn)?/(?:\w+/)?lit/(?:ds/symlink|gpn)/([\w.-]+?)(?:\.pdf)?(?:[?#]|$)',
-                      u or '')
+        # unquoted: DigiKey wraps TI links in suppproductinfo.tsp?gotoUrl=https%3A%2F%2F...
+        m = re.search(r'ti\.com(?:\.cn)?/(?:\w+/)?lit/(?:ds/symlink|gpn)/([\w.-]+?)(?:\.pdf)?(?:[?#&]|$)',
+                      urllib.parse.unquote(u or ''))
         if m:
-            return m.group(1).upper()
-    base = re.split(r'[,(#+]', r.get('mpn') or r.get('sku') or 'datasheet')[0]
-    return re.sub(r'[^\w.-]+', '_', base).strip('_').upper()
+            ti, n = m.group(1).upper(), len(m.group(1))
+            if not r.get('mpn') or base.startswith(ti):
+                return ti
+            c = len(os.path.commonprefix([ti, base]))
+            # a sibling differs only in its last 1-2 digits (TPS2294[45], LM614[46]0);
+            # a family name (TLV743P for TLV74333P) keeps the whole MPN
+            return base[:n] if c >= n - 2 and ti[c:].isdigit() and base[c:n].isdigit() else base
+    return base
 
 def save_datasheet(r, url, a):
     """Fetch the whole verified PDF, file it as <dir>/<PART>.pdf and index it with
@@ -436,35 +480,7 @@ def c_compare(a):
         print("nothing to compare"); return
     if a.json:
         print(json.dumps(recs, indent=1)); return
-    keys, seen = [], set()
-    for r in recs:
-        for k, _ in (r.get('params') or []):
-            if k and k not in seen:
-                seen.add(k); keys.append(k)
-    w = max(18, min(30, max((len(str(k)) for k in keys), default=18)))
-    cols = [trunc(r.get('mpn'), 22) for r in recs]
-    print(f"{'':<{w}} " + ' '.join(f"{c:<24}" for c in cols))
-    def row(label, vals):
-        print(f"{trunc(label,w):<{w}} " + ' '.join(f"{trunc(v,23):<24}" for v in vals))
-    row('source/sku', [f"{r['source']} {r.get('sku')}" for r in recs])
-    row('manufacturer', [r.get('mfr') for r in recs])
-    row('package', [r.get('package') for r in recs])
-    row('stock', [f"{r.get('stock'):,}" if isinstance(r.get('stock'), int) else r.get('stock') for r in recs])
-    q = a.qty or 1
-    row(f'unit @{q}', [dmoney1(price_at(r.get('ladder') or [],
-                                        buy_qty(q, r.get('moq'), r.get('multiple'))),
-                               r.get('currency') or 'USD', a) for r in recs])
-    row('moq / mult', [f"{r.get('moq')} / {r.get('multiple')}" for r in recs])
-    row('lifecycle', [r.get('lifecycle') for r in recs])
-    print()
-    for k in keys:
-        vals = []
-        for r in recs:
-            d = {kk: vv for kk, vv in (r.get('params') or [])}
-            vals.append(d.get(k, '-'))
-        if len({str(v) for v in vals}) > 1 or a.attrs:
-            row(k, vals)
-    print("\n(only differing parameters shown; --attrs for all)")
+    spec_table(recs, a)
 
 CMDS = {'selftest': c_selftest, 'search': c_search, 'show': c_show, 'ds': c_ds,
         'compare': c_compare, 'bom': c_bom, 'pick': c_pick, 'alt': c_alt,
@@ -476,7 +492,7 @@ def main():
     ap.add_argument('args', nargs='*')
     ap.add_argument('-n', type=int, default=8)
     ap.add_argument('--qty', type=int, default=None)
-    ap.add_argument('--provider', default='all', choices=['all', 'lcsc', 'jlc', 'digikey'])
+    ap.add_argument('--provider', default='all', choices=['all', 'lcsc', 'jlc', 'digikey', 'mouser'])
     ap.add_argument('--site', default='CA', help='DigiKey locale site (CA, US, ...)')
     ap.add_argument('--currency', default='CAD', help='DigiKey currency')
     ap.add_argument('--attrs', action='store_true')
@@ -518,11 +534,23 @@ def main():
                          "'I/O Expanders'); pick infers one from the keyword when a word names one")
     ap.add_argument('--w', action='append', default=[], metavar='NAME=SPEC',
                     help='pick constraint on any other attribute (repeatable)')
-    ap.add_argument('--sort', default='price', choices=['price', 'stock', 'cap', 'volt'])
-    ap.add_argument('--source', default='jlc', choices=['lcsc', 'jlc', 'both'],
+    ap.add_argument('--sort', default='price', metavar='price|stock|ATTR',
+                    help='pick: price (default), stock, or any attribute (a shorthand like iq/rdson/'
+                         'cap or a verbatim name); an attribute sort pools its best values first')
+    ap.add_argument('--desc', action='store_true', help='pick: flip an attribute sort\'s direction')
+    ap.add_argument('--pareto', default=None, metavar='ATTR',
+                    help='pick: only rows no other row beats on both price and ATTR (best value)')
+    ap.add_argument('--like', default=None, metavar='C..',
+                    help="pick: category + package from this part, limits from the flags "
+                         "(--pkg '~' for any package)")
+    ap.add_argument('--source', default='jlc', choices=['lcsc', 'jlc', 'both', 'digikey'],
                     help='candidate pool: jlc (default) = JLC index with server-side '
-                         'package/category/price sort; lcsc = keyword search + detail. '
-                         'Prices shown are LCSC retail either way (except --basic)')
+                         'package/category/price sort; lcsc = keyword search + detail; '
+                         'digikey = DigiKey parametric search (DigiKey prices). '
+                         'Prices shown are LCSC retail for jlc/lcsc/both (except --basic)')
+    ap.add_argument('--xcheck', action='store_true',
+                    help='pick: run the same limits on DigiKey too and print both shortlists '
+                         'in one spec table (no verdict)')
     ap.add_argument('--basic', action='store_true', help='JLC Basic parts only (no $3 line fee)')
     ap.add_argument('--nojlc', action='store_true', help='skip the Basic/Extended annotation')
     ap.add_argument('--offline', action='store_true',
