@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Merge the netlists of several root schematics into one .net.
 
-parsnip keeps battery.kicad_sch and usb_interface.kicad_sch as their own
+parsnip keeps charger.kicad_sch and usb_interface.kicad_sch as their own
 top-level sheets rather than as hierarchical sheets. Stable kicad-cli (10.0.x)
 exports one root at a time, so no single export sees the whole board; this runs
 an export per root and splices the results into one netlist that knet.py and

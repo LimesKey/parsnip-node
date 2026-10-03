@@ -303,7 +303,7 @@
 		)
 		(path "/a7ef5b5a-01ac-4195-9f12-be0676d66fcc")
 		(sheetname "/Charger/")
-		(sheetfile "battery.kicad_sch")
+		(sheetfile "charger.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -4427,7 +4427,7 @@
 		(property ki_fp_filters "*VQFN*4x4mm?P0.4mm*")
 		(path "/9cdf0d0f-de61-4660-abb3-52d5cd2ed489")
 		(sheetname "/Charger/")
-		(sheetfile "battery.kicad_sch")
+		(sheetfile "charger.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -5611,7 +5611,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/d68e3eb7-3edc-4c84-bda9-df1c98058d34")
 		(sheetname "/Charger/")
-		(sheetfile "battery.kicad_sch")
+		(sheetfile "charger.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -8136,7 +8136,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/bf3ee9f8-26ca-44d1-b9e6-27e31a945b1c")
 		(sheetname "/Charger/")
-		(sheetfile "battery.kicad_sch")
+		(sheetfile "charger.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -11486,7 +11486,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/961e79e6-726b-431a-8a55-fcbae37f2e93")
 		(sheetname "/Charger/")
-		(sheetfile "battery.kicad_sch")
+		(sheetfile "charger.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -11724,7 +11724,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/065c0c15-dbc1-46ca-bcba-6a1067a0229e")
 		(sheetname "/Charger/")
-		(sheetfile "battery.kicad_sch")
+		(sheetfile "charger.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -14167,7 +14167,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/7cccb899-2ac2-4e1f-a70b-fc2f2206b71d")
 		(sheetname "/Charger/")
-		(sheetfile "battery.kicad_sch")
+		(sheetfile "charger.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -17709,7 +17709,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/6d3807ab-cd49-4214-9692-cb4fe5dabb4f")
 		(sheetname "/Charger/")
-		(sheetfile "battery.kicad_sch")
+		(sheetfile "charger.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -18488,7 +18488,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/1eadbaab-03f1-442b-a77b-05511f02feca")
 		(sheetname "/Charger/")
-		(sheetfile "battery.kicad_sch")
+		(sheetfile "charger.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -26377,7 +26377,7 @@
 		(property ki_fp_filters "VSON*3.3x3.3mm*P0.65mm*NexFET*")
 		(path "/2df2ef8c-1b48-429b-9cdc-d02c38dda225")
 		(sheetname "/Charger/")
-		(sheetfile "battery.kicad_sch")
+		(sheetfile "charger.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -27496,7 +27496,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/0e2ad266-46e1-40d9-b53f-79e2ac5f8de2")
 		(sheetname "/Charger/")
-		(sheetfile "battery.kicad_sch")
+		(sheetfile "charger.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -27948,7 +27948,7 @@
 		(property ki_fp_filters "TO-???* *_Diode_* *SingleDiode* D_*")
 		(path "/3e34da15-f584-48bb-ab93-ee2efd134bbb")
 		(sheetname "/Charger/")
-		(sheetfile "battery.kicad_sch")
+		(sheetfile "charger.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -36446,7 +36446,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/bd64005e-55e7-4bdb-b702-4ee29043a89f")
 		(sheetname "/Charger/")
-		(sheetfile "battery.kicad_sch")
+		(sheetfile "charger.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -36946,7 +36946,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/10f403c2-460f-4e2a-aa41-b5425c3b3230")
 		(sheetname "/Charger/")
-		(sheetfile "battery.kicad_sch")
+		(sheetfile "charger.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -37197,7 +37197,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/609f9a3c-4306-4dcc-8e03-fe0f24811139")
 		(sheetname "/Charger/")
-		(sheetfile "battery.kicad_sch")
+		(sheetfile "charger.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -38913,7 +38913,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/3ca0ff75-6984-4632-8876-796478d53c69")
 		(sheetname "/Charger/")
-		(sheetfile "battery.kicad_sch")
+		(sheetfile "charger.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -39802,7 +39802,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/bf1daab0-0d7e-40dc-8910-2fa1d4bc1f79")
 		(sheetname "/Charger/")
-		(sheetfile "battery.kicad_sch")
+		(sheetfile "charger.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -42194,7 +42194,7 @@
 		(property ki_fp_filters "LED* LED_SMD:* LED_THT:*")
 		(path "/436fb00e-806c-4a17-bc6f-067cdceac9a9")
 		(sheetname "/Charger/")
-		(sheetfile "battery.kicad_sch")
+		(sheetfile "charger.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -44135,7 +44135,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/c6480366-f632-4825-85f1-1988db8a43fd")
 		(sheetname "/Charger/")
-		(sheetfile "battery.kicad_sch")
+		(sheetfile "charger.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -45378,7 +45378,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/7935e16b-c0be-4b36-8fb5-a6fec1f10fe8")
 		(sheetname "/Charger/")
-		(sheetfile "battery.kicad_sch")
+		(sheetfile "charger.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -45840,7 +45840,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/1b92a2e4-7aef-4c68-9134-cd3a9dd34514")
 		(sheetname "/Charger/")
-		(sheetfile "battery.kicad_sch")
+		(sheetfile "charger.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -47676,7 +47676,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/c3641a3d-b482-4b3d-9eac-0fdd635b5425")
 		(sheetname "/Charger/")
-		(sheetfile "battery.kicad_sch")
+		(sheetfile "charger.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -48362,7 +48362,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/899c9398-5ddc-4feb-937e-f9ea055df341")
 		(sheetname "/Charger/")
-		(sheetfile "battery.kicad_sch")
+		(sheetfile "charger.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -49662,7 +49662,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/9cd05b00-5e30-467d-9a9e-8f2848a6ed52")
 		(sheetname "/Charger/")
-		(sheetfile "battery.kicad_sch")
+		(sheetfile "charger.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -51226,7 +51226,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/0376ab11-390c-4170-994a-e45dc6532cc1")
 		(sheetname "/Charger/")
-		(sheetfile "battery.kicad_sch")
+		(sheetfile "charger.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -53357,7 +53357,7 @@
 		)
 		(path "/7a5b9769-0203-440d-bd39-87aa6da811ab")
 		(sheetname "/Charger/")
-		(sheetfile "battery.kicad_sch")
+		(sheetfile "charger.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -56402,7 +56402,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/b5644cc1-4ecd-452c-adf2-5e63462ae03b")
 		(sheetname "/Charger/")
-		(sheetfile "battery.kicad_sch")
+		(sheetfile "charger.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -58496,7 +58496,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/56e3014d-4b48-49a3-b5c8-c79c2b81f6c1")
 		(sheetname "/Charger/")
-		(sheetfile "battery.kicad_sch")
+		(sheetfile "charger.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -58682,7 +58682,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/67db5ab5-fc2a-4c43-baaf-7b9b84c278f0")
 		(sheetname "/Charger/")
-		(sheetfile "battery.kicad_sch")
+		(sheetfile "charger.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -59248,7 +59248,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/3576f4de-7711-4907-b2fe-9a09d95253a2")
 		(sheetname "/Charger/")
-		(sheetfile "battery.kicad_sch")
+		(sheetfile "charger.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -61767,7 +61767,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/192b5a02-b536-4417-8d37-9b687704f5eb")
 		(sheetname "/Charger/")
-		(sheetfile "battery.kicad_sch")
+		(sheetfile "charger.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -64398,7 +64398,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/65588467-d0ef-4028-8162-f14578cf655d")
 		(sheetname "/Charger/")
-		(sheetfile "battery.kicad_sch")
+		(sheetfile "charger.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -65362,7 +65362,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/61b48982-32ad-4bc4-aed7-c973a421f0ed")
 		(sheetname "/Charger/")
-		(sheetfile "battery.kicad_sch")
+		(sheetfile "charger.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -66885,7 +66885,7 @@
 		(property ki_fp_filters "Pin* Test*")
 		(path "/34807043-e068-4574-b0e2-ae28825760d5")
 		(sheetname "/Charger/")
-		(sheetfile "battery.kicad_sch")
+		(sheetfile "charger.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -68775,7 +68775,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/3c22fd1f-973a-48c0-ac5d-38c4da00c789")
 		(sheetname "/Charger/")
-		(sheetfile "battery.kicad_sch")
+		(sheetfile "charger.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -69026,7 +69026,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/1accbb8c-9fde-4883-8b45-b2d1d3b7033b")
 		(sheetname "/Charger/")
-		(sheetfile "battery.kicad_sch")
+		(sheetfile "charger.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -69451,7 +69451,7 @@
 		)
 		(path "/949ce483-db9c-49f4-b22d-07d5b0c892d3")
 		(sheetname "/Charger/")
-		(sheetfile "battery.kicad_sch")
+		(sheetfile "charger.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -70001,7 +70001,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/75f3ab16-1b5f-44c4-b37f-42227bb948be")
 		(sheetname "/Charger/")
-		(sheetfile "battery.kicad_sch")
+		(sheetfile "charger.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -70464,7 +70464,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/4f89824f-5559-4f37-ac30-946c46117935")
 		(sheetname "/Charger/")
-		(sheetfile "battery.kicad_sch")
+		(sheetfile "charger.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -77401,7 +77401,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/12c273ed-1782-45b9-b5b1-411215ae9bb9")
 		(sheetname "/Charger/")
-		(sheetfile "battery.kicad_sch")
+		(sheetfile "charger.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -78774,7 +78774,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/2d2d8189-6316-47a9-bb90-5af2bbb13f65")
 		(sheetname "/Charger/")
-		(sheetfile "battery.kicad_sch")
+		(sheetfile "charger.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -79025,7 +79025,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/e75f9c67-044a-4e8e-8551-f90933bd0bd0")
 		(sheetname "/Charger/")
-		(sheetfile "battery.kicad_sch")
+		(sheetfile "charger.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -79989,7 +79989,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/a74817ad-2626-40d9-af9d-8896f5553574")
 		(sheetname "/Charger/")
-		(sheetfile "battery.kicad_sch")
+		(sheetfile "charger.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -81194,7 +81194,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/9406ee6d-f4aa-41f2-921f-9078a27c4655")
 		(sheetname "/Charger/")
-		(sheetfile "battery.kicad_sch")
+		(sheetfile "charger.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -81919,7 +81919,7 @@
 		(property ki_fp_filters "Choke_* *Coil* Inductor_* L_*")
 		(path "/409d09c8-d36e-4f0d-8ec7-a535630807c7")
 		(sheetname "/Charger/")
-		(sheetfile "battery.kicad_sch")
+		(sheetfile "charger.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -85818,7 +85818,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/695004df-3c1e-46a9-8ec1-7729f7edd478")
 		(sheetname "/Charger/")
-		(sheetfile "battery.kicad_sch")
+		(sheetfile "charger.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -86287,7 +86287,7 @@
 		(property ki_fp_filters "TO-???* *_Diode_* *SingleDiode* D_*")
 		(path "/bfa76e15-b111-4a23-8f6e-5a69b4866d70")
 		(sheetname "/Charger/")
-		(sheetfile "battery.kicad_sch")
+		(sheetfile "charger.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -92851,7 +92851,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/6cac9523-ecd1-4c8a-90a0-c6f03c1a6e3d")
 		(sheetname "/Charger/")
-		(sheetfile "battery.kicad_sch")
+		(sheetfile "charger.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -95222,7 +95222,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/4d6ebf73-077f-4938-871e-1c3e999cb929")
 		(sheetname "/Charger/")
-		(sheetfile "battery.kicad_sch")
+		(sheetfile "charger.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -96705,7 +96705,7 @@
 		)
 		(path "/461067ee-6e41-4e25-85c8-7d135e0c8ec3")
 		(sheetname "/Charger/")
-		(sheetfile "battery.kicad_sch")
+		(sheetfile "charger.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -97969,7 +97969,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/ae62d9fa-f77c-439b-9d3a-5b9f0435f150")
 		(sheetname "/Charger/")
-		(sheetfile "battery.kicad_sch")
+		(sheetfile "charger.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -103590,7 +103590,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/8f334c3e-4a5b-4c42-ab0d-45e1d7e36f2d")
 		(sheetname "/Charger/")
-		(sheetfile "battery.kicad_sch")
+		(sheetfile "charger.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -104328,7 +104328,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/e2bb5fa2-4fa8-40b6-b5fd-0bb421827d21")
 		(sheetname "/Charger/")
-		(sheetfile "battery.kicad_sch")
+		(sheetfile "charger.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -105910,7 +105910,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/74b4fbc0-86f7-4acb-b85d-40655a0c02ec")
 		(sheetname "/Charger/")
-		(sheetfile "battery.kicad_sch")
+		(sheetfile "charger.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -107237,7 +107237,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/57f1ad13-5b70-49ff-84d3-43f665303a0f")
 		(sheetname "/Charger/")
-		(sheetfile "battery.kicad_sch")
+		(sheetfile "charger.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -109216,7 +109216,7 @@
 		)
 		(path "/3731a62a-e47a-47ec-ba34-e07cd1d99410")
 		(sheetname "/Charger/")
-		(sheetfile "battery.kicad_sch")
+		(sheetfile "charger.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -113278,7 +113278,7 @@
 		(property ki_fp_filters "R_* RV_*")
 		(path "/be4527fa-7c03-4840-bf52-6eaa1f0dc4cc")
 		(sheetname "/Charger/")
-		(sheetfile "battery.kicad_sch")
+		(sheetfile "charger.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -115881,7 +115881,7 @@
 		(property ki_fp_filters "WSON*1EP*2x2mm*P0.65mm*EP1x1.6mm*")
 		(path "/7781f62b-1d73-4fb3-92b2-cbb1550cb0f2")
 		(sheetname "/Charger/")
-		(sheetfile "battery.kicad_sch")
+		(sheetfile "charger.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -121948,7 +121948,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/d30e2615-b3cd-4dad-8772-39f58d9187d1")
 		(sheetname "/Charger/")
-		(sheetfile "battery.kicad_sch")
+		(sheetfile "charger.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -124216,7 +124216,7 @@
 		(property ki_fp_filters "Connector*:*_1x??_*")
 		(path "/f4369743-175f-4700-9b15-bc2f3ba7c53c")
 		(sheetname "/Charger/")
-		(sheetfile "battery.kicad_sch")
+		(sheetfile "charger.kicad_sch")
 		(units
 			(unit
 				(name "A")
@@ -131579,7 +131579,7 @@
 		(property ki_fp_filters "TO-???* *_Diode_* *SingleDiode* D_*")
 		(path "/c1908ef6-56c5-4e6e-880b-ab01c204aa16")
 		(sheetname "/Charger/")
-		(sheetfile "battery.kicad_sch")
+		(sheetfile "charger.kicad_sch")
 		(units
 			(unit
 				(name "A")

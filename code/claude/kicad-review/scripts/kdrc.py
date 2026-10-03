@@ -39,7 +39,7 @@ is given.
 
 Config: kdrc.json beside the board, same shape and precedence as kpcb.json.
   {"suppress": ["ERC:LIB_SYMBOL_MISMATCH", "DRC:SILK_OVERLAP:U1"],
-   "erc_roots": ["parsnip.kicad_sch", "battery.kicad_sch"],   # optional
+   "erc_roots": ["parsnip.kicad_sch", "charger.kicad_sch"],   # optional
    "max": 25}
 A bare "ERC:RULE" mutes the whole rule; "ERC:RULE:TOKEN" mutes only findings
 whose refs or message contain TOKEN. Rule names are the kicad-cli violation
