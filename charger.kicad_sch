@@ -14942,7 +14942,7 @@
 		(dnp no)
 		(uuid "9cdf0d0f-de61-4660-abb3-52d5cd2ed489")
 		(property "Reference" "U8"
-			(at 153.924 53.848 0)
+			(at 151.638 56.896 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -14952,12 +14952,13 @@
 			)
 		)
 		(property "Value" "BQ25798"
-			(at 153.924 56.388 0)
+			(at 171.704 56.896 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
 				(font
-					(size 1.27 1.27)
+					(size 1.524 1.524)
+					(bold yes)
 				)
 			)
 		)
