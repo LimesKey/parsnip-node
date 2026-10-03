@@ -1,0 +1,17 @@
+(kicad_sch
+	(version 20260830)
+	(generator "eeschema")
+	(generator_version "10.99")
+	(uuid "804fd081-48ca-4be3-888b-d7e05f1f9f71")
+	(paper "A4")
+	(title_block
+		(title "Block Diagram & Notes")
+		(company "LimesKey")
+	)
+	(lib_symbols)
+	(sheet_instances
+		(path "/"
+			(page "1")
+		)
+	)
+)

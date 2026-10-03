@@ -5,7 +5,7 @@
 	(uuid "36f1dd35-7641-4142-9b4b-ec28c38a5953")
 	(paper "A4")
 	(title_block
-		(title "Battery Managment System (BMS)")
+		(title "Battery Management System (BMS)")
 		(date "2026-09-27")
 		(company "LimesKey")
 	)
@@ -4565,9 +4565,9 @@
 			(embedded_fonts no)
 		)
 	)
-	(text "Battery Management System (BMS)"
+	(text "${TITLE}"
 		(exclude_from_sim no)
-		(at 156.464 36.068 0)
+		(at 156.464 38.354 0)
 		(effects
 			(font
 				(size 2.794 2.794)
@@ -4576,16 +4576,6 @@
 			)
 		)
 		(uuid "b889ac47-f259-4fcc-9c01-8d8452e89b6b")
-	)
-	(text "4 x 10uF 50V"
-		(exclude_from_sim no)
-		(at 261.366 64.262 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-		)
-		(uuid "c861ebcd-08c9-43fd-8d71-bfa15d23583d")
 	)
 	(text "20A Trip"
 		(exclude_from_sim no)
@@ -4596,6 +4586,46 @@
 			)
 		)
 		(uuid "ed841559-2091-41f8-856e-b4b14e20233c")
+	)
+	(text_box "Q16: low-side reverse-polarity FET. R135 pulls the gate to cell+, D6 clamps Vgs at 15 V. A reversed cell holds it off."
+		(exclude_from_sim no)
+		(at 67.31 113.9688 0)
+		(size 19.05 10.4912)
+		(margins 0.9525 0.9525 0.9525 0.9525)
+		(stroke
+			(width 0)
+			(type solid)
+		)
+		(fill
+			(type none)
+		)
+		(effects
+			(font
+				(size 0.889 0.889)
+			)
+			(justify left top)
+		)
+		(uuid "8d6255a7-55b6-46bc-b3a9-c7ca4fb6edbe")
+	)
+	(text_box "Q5/Q6: MAX17320 CHG/DIS protection FETs, back-to-back common drain."
+		(exclude_from_sim no)
+		(at 208.28 67.2148 0)
+		(size 33.02 5.1752)
+		(margins 0.9525 0.9525 0.9525 0.9525)
+		(stroke
+			(width 0)
+			(type solid)
+		)
+		(fill
+			(type none)
+		)
+		(effects
+			(font
+				(size 1.016 1.016)
+			)
+			(justify left top)
+		)
+		(uuid "a39e4da2-a05f-416a-a2f5-71a0bc775679")
 	)
 	(junction
 		(at 64.77 110.49)
@@ -13436,7 +13466,7 @@
 			)
 		)
 		(property "Value" "10uF"
-			(at 272.034 57.15 0)
+			(at 272.034 56.134 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -13513,8 +13543,7 @@
 			)
 		)
 		(property "Voltage Rating" "50V"
-			(at 269.24 57.15 0)
-			(hide yes)
+			(at 274.066 58.42 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects

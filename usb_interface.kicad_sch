@@ -5,7 +5,7 @@
 	(uuid "63083088-7666-4a3a-8878-9789c1decff5")
 	(paper "A4")
 	(title_block
-		(title "USB Interface")
+		(title "USB-C Port: PD, OVP/ESD, Data")
 		(date "2026-09-24")
 		(company "LimesKey")
 	)
@@ -5443,8 +5443,8 @@
 		)
 	)
 	(rectangle
-		(start 16.51 133.35)
-		(end 93.98 193.04)
+		(start 16.51 130.81)
+		(end 88.9 193.04)
 		(stroke
 			(width 0)
 			(type dash)
@@ -5461,29 +5461,41 @@
 			(font
 				(size 2.032 2.032)
 				(thickness 0.254)
+				(bold yes)
 			)
 		)
 		(uuid "847c93cd-3c8b-47ef-8c8a-ef2b89569a48")
 	)
 	(text "Optional Liquid Detection"
 		(exclude_from_sim no)
-		(at 34.798 190.5 0)
+		(at 36.576 134.62 0)
 		(effects
 			(font
-				(size 1.778 1.778)
+				(size 1.905 1.905)
+				(bold yes)
 			)
 		)
 		(uuid "93846bf5-f9c7-4c10-87a5-a3e5143f7bd5")
 	)
-	(text "7 x 10uF"
+	(text_box "U21: TPS25751 config EEPROM, address 0x50 on I2C_PMIC (E2-E0 pulled low by RN1). JP6: write protect (A = writable, B = protected)."
 		(exclude_from_sim no)
-		(at 108.204 57.912 0)
+		(at 222.25 111.76 0)
+		(size 54.61 8.0375)
+		(margins 0.9525 0.9525 0.9525 0.9525)
+		(stroke
+			(width 0)
+			(type solid)
+		)
+		(fill
+			(type none)
+		)
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
+			(justify left top)
 		)
-		(uuid "f637a182-9506-4042-8e78-1bf97909c6f1")
+		(uuid "cd0654a7-32f1-4871-b472-a21d74013405")
 	)
 	(junction
 		(at 181.61 114.3)
@@ -5528,7 +5540,7 @@
 		(uuid "17f151cd-1b26-4bc6-bded-637a3722d589")
 	)
 	(junction
-		(at 71.12 162.56)
+		(at 66.04 165.1)
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "1988734b-9583-4ae7-94a5-8dcffce58dea")
@@ -5708,7 +5720,7 @@
 		(uuid "6be9a9d5-3940-4ed4-902e-3d6dc040ef5b")
 	)
 	(junction
-		(at 48.26 162.56)
+		(at 43.18 165.1)
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "6d61e1c2-8e47-416e-95ff-b83eeb3a7a21")
@@ -5828,7 +5840,7 @@
 		(uuid "a323557e-1bad-45d7-afe3-efc3b31a9fe2")
 	)
 	(junction
-		(at 71.12 140.97)
+		(at 66.04 143.51)
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "a723fec0-d729-4af7-bb03-1cb7d869bc25")
@@ -5924,7 +5936,7 @@
 		(uuid "c9d22811-0248-4fe7-8d7f-c5ab8856ffe6")
 	)
 	(junction
-		(at 48.26 140.97)
+		(at 43.18 143.51)
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "d1225573-e475-44ec-8b52-29a63b440ceb")
@@ -6041,7 +6053,7 @@
 	)
 	(wire
 		(pts
-			(xy 88.9 147.32) (xy 88.9 140.97)
+			(xy 83.82 149.86) (xy 83.82 143.51)
 		)
 		(stroke
 			(width 0)
@@ -6071,7 +6083,7 @@
 	)
 	(wire
 		(pts
-			(xy 48.26 172.72) (xy 48.26 170.18)
+			(xy 43.18 175.26) (xy 43.18 172.72)
 		)
 		(stroke
 			(width 0)
@@ -6371,7 +6383,7 @@
 	)
 	(wire
 		(pts
-			(xy 88.9 140.97) (xy 83.82 140.97)
+			(xy 83.82 143.51) (xy 78.74 143.51)
 		)
 		(stroke
 			(width 0)
@@ -6481,7 +6493,7 @@
 	)
 	(wire
 		(pts
-			(xy 48.26 158.75) (xy 48.26 162.56)
+			(xy 43.18 161.29) (xy 43.18 165.1)
 		)
 		(stroke
 			(width 0)
@@ -6741,7 +6753,7 @@
 	)
 	(wire
 		(pts
-			(xy 27.94 140.97) (xy 26.67 140.97)
+			(xy 22.86 143.51) (xy 21.59 143.51)
 		)
 		(stroke
 			(width 0)
@@ -6921,7 +6933,7 @@
 	)
 	(wire
 		(pts
-			(xy 26.67 140.97) (xy 26.67 148.59)
+			(xy 21.59 143.51) (xy 21.59 151.13)
 		)
 		(stroke
 			(width 0)
@@ -7001,7 +7013,7 @@
 	)
 	(wire
 		(pts
-			(xy 71.12 165.1) (xy 71.12 162.56)
+			(xy 66.04 167.64) (xy 66.04 165.1)
 		)
 		(stroke
 			(width 0)
@@ -7081,7 +7093,7 @@
 	)
 	(wire
 		(pts
-			(xy 71.12 162.56) (xy 71.12 158.75)
+			(xy 66.04 165.1) (xy 66.04 161.29)
 		)
 		(stroke
 			(width 0)
@@ -7171,7 +7183,7 @@
 	)
 	(wire
 		(pts
-			(xy 48.26 152.4) (xy 48.26 153.67)
+			(xy 43.18 154.94) (xy 43.18 156.21)
 		)
 		(stroke
 			(width 0)
@@ -7341,7 +7353,7 @@
 	)
 	(wire
 		(pts
-			(xy 48.26 162.56) (xy 48.26 165.1)
+			(xy 43.18 165.1) (xy 43.18 167.64)
 		)
 		(stroke
 			(width 0)
@@ -7421,7 +7433,7 @@
 	)
 	(wire
 		(pts
-			(xy 33.02 140.97) (xy 48.26 140.97)
+			(xy 27.94 143.51) (xy 43.18 143.51)
 		)
 		(stroke
 			(width 0)
@@ -7471,7 +7483,7 @@
 	)
 	(wire
 		(pts
-			(xy 71.12 142.24) (xy 71.12 140.97)
+			(xy 66.04 144.78) (xy 66.04 143.51)
 		)
 		(stroke
 			(width 0)
@@ -7511,7 +7523,7 @@
 	)
 	(wire
 		(pts
-			(xy 48.26 142.24) (xy 48.26 140.97)
+			(xy 43.18 144.78) (xy 43.18 143.51)
 		)
 		(stroke
 			(width 0)
@@ -7671,7 +7683,7 @@
 	)
 	(wire
 		(pts
-			(xy 39.37 162.56) (xy 48.26 162.56)
+			(xy 34.29 165.1) (xy 43.18 165.1)
 		)
 		(stroke
 			(width 0)
@@ -8051,7 +8063,7 @@
 	)
 	(wire
 		(pts
-			(xy 71.12 170.18) (xy 71.12 172.72)
+			(xy 66.04 172.72) (xy 66.04 175.26)
 		)
 		(stroke
 			(width 0)
@@ -8061,7 +8073,7 @@
 	)
 	(wire
 		(pts
-			(xy 78.74 140.97) (xy 71.12 140.97)
+			(xy 73.66 143.51) (xy 66.04 143.51)
 		)
 		(stroke
 			(width 0)
@@ -8071,7 +8083,7 @@
 	)
 	(wire
 		(pts
-			(xy 66.04 162.56) (xy 71.12 162.56)
+			(xy 60.96 165.1) (xy 66.04 165.1)
 		)
 		(stroke
 			(width 0)
@@ -8161,7 +8173,7 @@
 	)
 	(wire
 		(pts
-			(xy 71.12 152.4) (xy 71.12 153.67)
+			(xy 66.04 154.94) (xy 66.04 156.21)
 		)
 		(stroke
 			(width 0)
@@ -8350,7 +8362,7 @@
 		(uuid "01adda07-148b-4157-9d33-d00fc610bdf6")
 	)
 	(label "SBU1"
-		(at 39.37 162.56 180)
+		(at 34.29 165.1 180)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -8370,7 +8382,7 @@
 		(uuid "155cb180-24a7-439e-83fa-378eb38db8c2")
 	)
 	(label "GPIO2"
-		(at 63.5 177.8 180)
+		(at 58.42 180.34 180)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -8490,7 +8502,7 @@
 		(uuid "730566b8-9d13-405a-8e22-a83990c94b39")
 	)
 	(label "GPIO2"
-		(at 63.5 147.32 180)
+		(at 58.42 149.86 180)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -8530,7 +8542,7 @@
 		(uuid "a5040db1-4bcd-4912-b3d6-2fec900ab2e6")
 	)
 	(label "GPIO2"
-		(at 40.64 147.32 180)
+		(at 35.56 149.86 180)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -8550,7 +8562,7 @@
 		(uuid "b29823b3-d753-4868-9f5a-40b978ec2d0b")
 	)
 	(label "GPIO2"
-		(at 40.64 177.8 180)
+		(at 35.56 180.34 180)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -8600,7 +8612,7 @@
 		(uuid "d0e3f1c1-2e38-4c1c-803b-4e13c653e1c0")
 	)
 	(label "SBU2"
-		(at 66.04 162.56 180)
+		(at 60.96 165.1 180)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -9207,7 +9219,7 @@
 	)
 	(symbol
 		(lib_id "power:GND")
-		(at 48.26 182.88 0)
+		(at 43.18 185.42 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -9217,7 +9229,7 @@
 		(dnp no)
 		(uuid "044286ca-4f05-44b9-8fd5-2f115aa913c8")
 		(property "Reference" "#PWR034"
-			(at 48.26 189.23 0)
+			(at 43.18 191.77 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -9228,7 +9240,7 @@
 			)
 		)
 		(property "Value" "GND"
-			(at 48.26 187.198 0)
+			(at 43.18 189.738 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -9238,7 +9250,7 @@
 			)
 		)
 		(property "Footprint" ""
-			(at 48.26 182.88 0)
+			(at 43.18 185.42 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -9249,7 +9261,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 48.26 182.88 0)
+			(at 43.18 185.42 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -9260,7 +9272,7 @@
 			)
 		)
 		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
-			(at 48.26 182.88 0)
+			(at 43.18 185.42 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -9429,7 +9441,7 @@
 	)
 	(symbol
 		(lib_id "Transistor_FET:CSD25480F3")
-		(at 68.58 147.32 0)
+		(at 63.5 149.86 0)
 		(mirror x)
 		(unit 1)
 		(body_style 1)
@@ -9440,7 +9452,7 @@
 		(dnp no)
 		(uuid "096b2dee-7662-4189-a699-ff68b1b7e01a")
 		(property "Reference" "Q3"
-			(at 65.532 143.764 0)
+			(at 60.452 146.304 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -9451,7 +9463,7 @@
 			)
 		)
 		(property "Value" "CSD23280F3"
-			(at 71.882 150.876 0)
+			(at 66.802 153.416 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -9462,7 +9474,7 @@
 			)
 		)
 		(property "Footprint" "Package_DFN_QFN:Texas_PicoStar_DFN-3_0.69x0.60mm"
-			(at 98.933 142.621 0)
+			(at 93.853 145.161 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -9473,7 +9485,7 @@
 			)
 		)
 		(property "Datasheet" "https://www.ti.com/lit/ds/symlink/csd23280f3.pdf"
-			(at 99.695 144.907 0)
+			(at 94.615 147.447 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -9484,7 +9496,7 @@
 			)
 		)
 		(property "Description" "MOSFET P-ch 12V, 97mΩ @4.5V, FemtoFET 0.73x0.64mm"
-			(at 68.58 147.32 0)
+			(at 63.5 149.86 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -9495,7 +9507,7 @@
 			)
 		)
 		(property "MPN" "CSD23280F3T"
-			(at 68.58 147.32 0)
+			(at 63.5 149.86 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -9506,7 +9518,7 @@
 			)
 		)
 		(property "Manufacturer" "Texas Instruments"
-			(at 98.933 142.621 0)
+			(at 93.853 145.161 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -9517,7 +9529,7 @@
 			)
 		)
 		(property "LCSC Part" "C139374"
-			(at 68.58 147.32 0)
+			(at 63.5 149.86 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -10208,7 +10220,7 @@
 	)
 	(symbol
 		(lib_id "power:+3V3")
-		(at 71.12 140.97 0)
+		(at 66.04 143.51 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -10218,7 +10230,7 @@
 		(dnp no)
 		(uuid "15acbfdf-ccd1-47a4-b5c9-6f9d0a31aee2")
 		(property "Reference" "#PWR035"
-			(at 71.12 144.78 0)
+			(at 66.04 147.32 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -10229,7 +10241,7 @@
 			)
 		)
 		(property "Value" "PD_LDO_3V3"
-			(at 71.12 137.16 0)
+			(at 66.04 139.7 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -10239,7 +10251,7 @@
 			)
 		)
 		(property "Footprint" ""
-			(at 71.12 140.97 0)
+			(at 66.04 143.51 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -10250,7 +10262,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 71.12 140.97 0)
+			(at 66.04 143.51 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -10261,7 +10273,7 @@
 			)
 		)
 		(property "Description" "Power symbol creates a global label with name \"+3V3\""
-			(at 71.12 140.97 0)
+			(at 66.04 143.51 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -10272,7 +10284,7 @@
 			)
 		)
 		(property "LCSC Part" ""
-			(at 71.12 140.97 0)
+			(at 66.04 143.51 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -10283,7 +10295,7 @@
 			)
 		)
 		(property "Voltage Rating" ""
-			(at 71.12 140.97 0)
+			(at 66.04 143.51 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -10294,7 +10306,7 @@
 			)
 		)
 		(property "Tolerance" ""
-			(at 71.12 140.97 0)
+			(at 66.04 143.51 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -10305,7 +10317,7 @@
 			)
 		)
 		(property "Capacitor Rating" ""
-			(at 71.12 140.97 0)
+			(at 66.04 143.51 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -10612,7 +10624,7 @@
 	)
 	(symbol
 		(lib_id "Transistor_FET:Q_NMOS_GSD")
-		(at 45.72 177.8 0)
+		(at 40.64 180.34 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -10622,7 +10634,7 @@
 		(dnp no)
 		(uuid "1b712b50-c976-436f-8f82-1b2966365a16")
 		(property "Reference" "Q2"
-			(at 51.054 175.26 0)
+			(at 45.974 177.8 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -10633,7 +10645,7 @@
 			)
 		)
 		(property "Value" "CSD15380F3"
-			(at 31.75 179.07 0)
+			(at 26.67 181.61 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -10644,7 +10656,7 @@
 			)
 		)
 		(property "Footprint" "Package_DFN_QFN:Texas_PicoStar_DFN-3_0.69x0.60mm"
-			(at 50.8 175.26 0)
+			(at 45.72 177.8 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -10655,7 +10667,7 @@
 			)
 		)
 		(property "Datasheet" "https://www.ti.com/lit/ds/symlink/csd15380f3.pdf"
-			(at 45.72 177.8 0)
+			(at 40.64 180.34 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -10666,7 +10678,7 @@
 			)
 		)
 		(property "Description" "MOSFET N-ch 20V, 1.17Ω @4.5V, FemtoFET 0.73x0.64mm"
-			(at 45.72 177.8 0)
+			(at 40.64 180.34 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -10677,7 +10689,7 @@
 			)
 		)
 		(property "MPN" "CSD15380F3"
-			(at 45.72 177.8 0)
+			(at 40.64 180.34 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -10688,7 +10700,7 @@
 			)
 		)
 		(property "Manufacturer" "Texas Instruments"
-			(at 50.8 175.26 0)
+			(at 45.72 177.8 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -10699,7 +10711,7 @@
 			)
 		)
 		(property "LCSC Part" "C529568"
-			(at 45.72 177.8 0)
+			(at 40.64 180.34 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -11301,7 +11313,7 @@
 	)
 	(symbol
 		(lib_id "Device:R_Small")
-		(at 48.26 167.64 0)
+		(at 43.18 170.18 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -11312,7 +11324,7 @@
 		(fields_autoplaced yes)
 		(uuid "27a8bb6f-7f9f-4f43-a3c2-f272fe72c0f5")
 		(property "Reference" "R29"
-			(at 50.8 166.3699 0)
+			(at 45.72 168.9099 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -11323,7 +11335,7 @@
 			)
 		)
 		(property "Value" "1M"
-			(at 50.8 168.9099 0)
+			(at 45.72 171.4499 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -11334,7 +11346,7 @@
 			)
 		)
 		(property "Footprint" "Resistor_SMD:R_0402_1005Metric"
-			(at 48.26 167.64 0)
+			(at 43.18 170.18 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -11345,7 +11357,7 @@
 			)
 		)
 		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/ab245271d0a5d84ab94e85543b99f406.pdf?productCode=C2918201"
-			(at 48.26 167.64 0)
+			(at 43.18 170.18 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -11356,7 +11368,7 @@
 			)
 		)
 		(property "Description" "RES 1MΩ ±0.1% 100mW 0402"
-			(at 48.26 167.64 0)
+			(at 43.18 170.18 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -11367,7 +11379,7 @@
 			)
 		)
 		(property "MPN" "WF04H1004BTL"
-			(at 48.26 167.64 0)
+			(at 43.18 170.18 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -11378,7 +11390,7 @@
 			)
 		)
 		(property "Manufacturer" "Walsin"
-			(at 48.26 167.64 0)
+			(at 43.18 170.18 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -11389,7 +11401,7 @@
 			)
 		)
 		(property "LCSC Part" "C2918201"
-			(at 48.26 167.64 0)
+			(at 43.18 170.18 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -11400,7 +11412,7 @@
 			)
 		)
 		(property "Tolerance" "0.1%"
-			(at 48.26 167.64 0)
+			(at 43.18 170.18 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -11411,7 +11423,7 @@
 			)
 		)
 		(property "Power Rating" "100mW"
-			(at 48.26 167.64 0)
+			(at 43.18 170.18 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -11592,7 +11604,7 @@
 	)
 	(symbol
 		(lib_id "power:GND")
-		(at 88.9 147.32 0)
+		(at 83.82 149.86 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -11602,7 +11614,7 @@
 		(dnp no)
 		(uuid "2b498262-c106-4102-98a3-473b2e922452")
 		(property "Reference" "#PWR039"
-			(at 88.9 153.67 0)
+			(at 83.82 156.21 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -11613,7 +11625,7 @@
 			)
 		)
 		(property "Value" "GND"
-			(at 88.9 151.638 0)
+			(at 83.82 154.178 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -11623,7 +11635,7 @@
 			)
 		)
 		(property "Footprint" ""
-			(at 88.9 147.32 0)
+			(at 83.82 149.86 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -11634,7 +11646,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 88.9 147.32 0)
+			(at 83.82 149.86 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -11645,7 +11657,7 @@
 			)
 		)
 		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
-			(at 88.9 147.32 0)
+			(at 83.82 149.86 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -12409,7 +12421,7 @@
 	)
 	(symbol
 		(lib_id "Transistor_FET:Q_NMOS_GSD")
-		(at 68.58 177.8 0)
+		(at 63.5 180.34 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -12419,7 +12431,7 @@
 		(dnp no)
 		(uuid "446baa8b-c132-4974-8e90-8be13307a02f")
 		(property "Reference" "Q4"
-			(at 73.914 175.26 0)
+			(at 68.834 177.8 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -12430,7 +12442,7 @@
 			)
 		)
 		(property "Value" "CSD15380F3"
-			(at 55.118 179.07 0)
+			(at 50.038 181.61 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -12441,7 +12453,7 @@
 			)
 		)
 		(property "Footprint" "Package_DFN_QFN:Texas_PicoStar_DFN-3_0.69x0.60mm"
-			(at 73.66 175.26 0)
+			(at 68.58 177.8 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -12452,7 +12464,7 @@
 			)
 		)
 		(property "Datasheet" "https://www.ti.com/lit/ds/symlink/csd15380f3.pdf"
-			(at 68.58 177.8 0)
+			(at 63.5 180.34 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -12463,7 +12475,7 @@
 			)
 		)
 		(property "Description" "MOSFET N-ch 20V, 1.17Ω @4.5V, FemtoFET 0.73x0.64mm"
-			(at 68.58 177.8 0)
+			(at 63.5 180.34 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -12474,7 +12486,7 @@
 			)
 		)
 		(property "MPN" "CSD15380F3"
-			(at 68.58 177.8 0)
+			(at 63.5 180.34 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -12485,7 +12497,7 @@
 			)
 		)
 		(property "Manufacturer" "Texas Instruments"
-			(at 73.66 175.26 0)
+			(at 68.58 177.8 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -12496,7 +12508,7 @@
 			)
 		)
 		(property "LCSC Part" "C529568"
-			(at 68.58 177.8 0)
+			(at 63.5 180.34 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -12673,7 +12685,7 @@
 	)
 	(symbol
 		(lib_id "Device:C_Small")
-		(at 81.28 140.97 270)
+		(at 76.2 143.51 270)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -12683,7 +12695,7 @@
 		(dnp no)
 		(uuid "472eb93c-a62c-4a5b-8d07-575ee21a6b28")
 		(property "Reference" "C25"
-			(at 81.28 137.922 90)
+			(at 76.2 140.462 90)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -12693,7 +12705,7 @@
 			)
 		)
 		(property "Value" "1uF"
-			(at 81.28 144.018 90)
+			(at 76.2 146.558 90)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -12703,7 +12715,7 @@
 			)
 		)
 		(property "Footprint" "Capacitor_SMD:C_0402_1005Metric"
-			(at 81.28 140.97 0)
+			(at 76.2 143.51 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -12714,7 +12726,7 @@
 			)
 		)
 		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/71a9f8eccc4da164324d4a716182c5e3.pdf?productCode=C53426846"
-			(at 81.28 140.97 0)
+			(at 76.2 143.51 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -12725,7 +12737,7 @@
 			)
 		)
 		(property "Description" "CAP MLCC 1uF ±10% 25V X7R 0402"
-			(at 81.28 140.97 0)
+			(at 76.2 143.51 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -12736,7 +12748,7 @@
 			)
 		)
 		(property "MPN" "TCC0402X7R105K250AT"
-			(at 81.28 140.97 0)
+			(at 76.2 143.51 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -12747,7 +12759,7 @@
 			)
 		)
 		(property "Manufacturer" "CCTC"
-			(at 81.28 140.97 0)
+			(at 76.2 143.51 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -12758,7 +12770,7 @@
 			)
 		)
 		(property "LCSC Part" "C53426846"
-			(at 81.28 140.97 0)
+			(at 76.2 143.51 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -12769,7 +12781,7 @@
 			)
 		)
 		(property "Voltage Rating" "25V"
-			(at 81.28 140.97 0)
+			(at 76.2 143.51 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -12780,7 +12792,7 @@
 			)
 		)
 		(property "Dielectric" "X7R"
-			(at 81.28 140.97 0)
+			(at 76.2 143.51 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -12791,7 +12803,7 @@
 			)
 		)
 		(property "Tolerance" "10%"
-			(at 81.28 140.97 0)
+			(at 76.2 143.51 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -13767,7 +13779,7 @@
 	)
 	(symbol
 		(lib_id "power:GND")
-		(at 71.12 182.88 0)
+		(at 66.04 185.42 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -13777,7 +13789,7 @@
 		(dnp no)
 		(uuid "642ac07e-5c48-47fd-ae09-062228d3b9bf")
 		(property "Reference" "#PWR036"
-			(at 71.12 189.23 0)
+			(at 66.04 191.77 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -13788,7 +13800,7 @@
 			)
 		)
 		(property "Value" "GND"
-			(at 71.12 187.198 0)
+			(at 66.04 189.738 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -13798,7 +13810,7 @@
 			)
 		)
 		(property "Footprint" ""
-			(at 71.12 182.88 0)
+			(at 66.04 185.42 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -13809,7 +13821,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 71.12 182.88 0)
+			(at 66.04 185.42 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -13820,7 +13832,7 @@
 			)
 		)
 		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
-			(at 71.12 182.88 0)
+			(at 66.04 185.42 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -16085,7 +16097,7 @@
 	)
 	(symbol
 		(lib_id "Device:C_Small")
-		(at 30.48 140.97 270)
+		(at 25.4 143.51 270)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -16095,7 +16107,7 @@
 		(dnp no)
 		(uuid "aa42240c-d7ed-477b-9bad-03bc641c7f6b")
 		(property "Reference" "C20"
-			(at 30.48 137.922 90)
+			(at 25.4 140.462 90)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -16105,7 +16117,7 @@
 			)
 		)
 		(property "Value" "1uF"
-			(at 30.48 144.018 90)
+			(at 25.4 146.558 90)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -16115,7 +16127,7 @@
 			)
 		)
 		(property "Footprint" "Capacitor_SMD:C_0402_1005Metric"
-			(at 30.48 140.97 0)
+			(at 25.4 143.51 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -16126,7 +16138,7 @@
 			)
 		)
 		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/71a9f8eccc4da164324d4a716182c5e3.pdf?productCode=C53426846"
-			(at 30.48 140.97 0)
+			(at 25.4 143.51 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -16137,7 +16149,7 @@
 			)
 		)
 		(property "Description" "CAP MLCC 1uF ±10% 25V X7R 0402"
-			(at 30.48 140.97 0)
+			(at 25.4 143.51 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -16148,7 +16160,7 @@
 			)
 		)
 		(property "MPN" "TCC0402X7R105K250AT"
-			(at 30.48 140.97 0)
+			(at 25.4 143.51 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -16159,7 +16171,7 @@
 			)
 		)
 		(property "Manufacturer" "CCTC"
-			(at 30.48 140.97 0)
+			(at 25.4 143.51 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -16170,7 +16182,7 @@
 			)
 		)
 		(property "LCSC Part" "C53426846"
-			(at 30.48 140.97 0)
+			(at 25.4 143.51 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -16181,7 +16193,7 @@
 			)
 		)
 		(property "Voltage Rating" "25V"
-			(at 30.48 140.97 0)
+			(at 25.4 143.51 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -16192,7 +16204,7 @@
 			)
 		)
 		(property "Dielectric" "X7R"
-			(at 30.48 140.97 0)
+			(at 25.4 143.51 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -16203,7 +16215,7 @@
 			)
 		)
 		(property "Tolerance" "10%"
-			(at 30.48 140.97 0)
+			(at 25.4 143.51 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -17089,7 +17101,7 @@
 	)
 	(symbol
 		(lib_id "Device:R_Small")
-		(at 71.12 167.64 0)
+		(at 66.04 170.18 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -17100,7 +17112,7 @@
 		(fields_autoplaced yes)
 		(uuid "bfbd3633-1fe8-4100-bff0-6f193cf11cb4")
 		(property "Reference" "R31"
-			(at 73.66 166.3699 0)
+			(at 68.58 168.9099 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -17111,7 +17123,7 @@
 			)
 		)
 		(property "Value" "1M"
-			(at 73.66 168.9099 0)
+			(at 68.58 171.4499 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -17122,7 +17134,7 @@
 			)
 		)
 		(property "Footprint" "Resistor_SMD:R_0402_1005Metric"
-			(at 71.12 167.64 0)
+			(at 66.04 170.18 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -17133,7 +17145,7 @@
 			)
 		)
 		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/ab245271d0a5d84ab94e85543b99f406.pdf?productCode=C2918201"
-			(at 71.12 167.64 0)
+			(at 66.04 170.18 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -17144,7 +17156,7 @@
 			)
 		)
 		(property "Description" "RES 1MΩ ±0.1% 100mW 0402"
-			(at 71.12 167.64 0)
+			(at 66.04 170.18 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -17155,7 +17167,7 @@
 			)
 		)
 		(property "MPN" "WF04H1004BTL"
-			(at 71.12 167.64 0)
+			(at 66.04 170.18 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -17166,7 +17178,7 @@
 			)
 		)
 		(property "Manufacturer" "Walsin"
-			(at 71.12 167.64 0)
+			(at 66.04 170.18 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -17177,7 +17189,7 @@
 			)
 		)
 		(property "LCSC Part" "C2918201"
-			(at 71.12 167.64 0)
+			(at 66.04 170.18 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -17188,7 +17200,7 @@
 			)
 		)
 		(property "Tolerance" "0.1%"
-			(at 71.12 167.64 0)
+			(at 66.04 170.18 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -17199,7 +17211,7 @@
 			)
 		)
 		(property "Power Rating" "100mW"
-			(at 71.12 167.64 0)
+			(at 66.04 170.18 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -17304,7 +17316,7 @@
 	)
 	(symbol
 		(lib_id "Device:R_Small")
-		(at 71.12 156.21 0)
+		(at 66.04 158.75 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -17315,7 +17327,7 @@
 		(fields_autoplaced yes)
 		(uuid "c13f0736-f316-48fe-a7fd-915a31a12f9a")
 		(property "Reference" "R30"
-			(at 73.66 154.9399 0)
+			(at 68.58 157.4799 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -17326,7 +17338,7 @@
 			)
 		)
 		(property "Value" "100k"
-			(at 73.66 157.4799 0)
+			(at 68.58 160.0199 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -17337,7 +17349,7 @@
 			)
 		)
 		(property "Footprint" "Resistor_SMD:R_0402_1005Metric"
-			(at 71.12 156.21 0)
+			(at 66.04 158.75 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -17348,7 +17360,7 @@
 			)
 		)
 		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/f4da32bad2b63678770dda69cfcd538f.pdf?productCode=C2984406"
-			(at 71.12 156.21 0)
+			(at 66.04 158.75 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -17359,7 +17371,7 @@
 			)
 		)
 		(property "Description" "RES 100kΩ ±0.1% 25ppm 62.5mW 0402 thin film"
-			(at 71.12 156.21 0)
+			(at 66.04 158.75 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -17370,7 +17382,7 @@
 			)
 		)
 		(property "MPN" "ARG02BTC1003"
-			(at 71.12 156.21 0)
+			(at 66.04 158.75 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -17381,7 +17393,7 @@
 			)
 		)
 		(property "Manufacturer" "Viking Tech"
-			(at 71.12 156.21 0)
+			(at 66.04 158.75 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -17392,7 +17404,7 @@
 			)
 		)
 		(property "LCSC Part" "C2984406"
-			(at 71.12 156.21 0)
+			(at 66.04 158.75 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -17403,7 +17415,7 @@
 			)
 		)
 		(property "Tolerance" "0.1%"
-			(at 71.12 156.21 0)
+			(at 66.04 158.75 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -17414,7 +17426,7 @@
 			)
 		)
 		(property "Power Rating" "62.5mW"
-			(at 71.12 156.21 0)
+			(at 66.04 158.75 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -18361,7 +18373,7 @@
 	)
 	(symbol
 		(lib_id "Device:R_Small")
-		(at 48.26 156.21 0)
+		(at 43.18 158.75 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -18372,7 +18384,7 @@
 		(fields_autoplaced yes)
 		(uuid "d1dd2b85-1233-4063-8190-3c081f03f615")
 		(property "Reference" "R28"
-			(at 50.8 154.9399 0)
+			(at 45.72 157.4799 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -18383,7 +18395,7 @@
 			)
 		)
 		(property "Value" "100k"
-			(at 50.8 157.4799 0)
+			(at 45.72 160.0199 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -18394,7 +18406,7 @@
 			)
 		)
 		(property "Footprint" "Resistor_SMD:R_0402_1005Metric"
-			(at 48.26 156.21 0)
+			(at 43.18 158.75 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -18405,7 +18417,7 @@
 			)
 		)
 		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/f4da32bad2b63678770dda69cfcd538f.pdf?productCode=C2984406"
-			(at 48.26 156.21 0)
+			(at 43.18 158.75 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -18416,7 +18428,7 @@
 			)
 		)
 		(property "Description" "RES 100kΩ ±0.1% 25ppm 62.5mW 0402 thin film"
-			(at 48.26 156.21 0)
+			(at 43.18 158.75 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -18427,7 +18439,7 @@
 			)
 		)
 		(property "MPN" "ARG02BTC1003"
-			(at 48.26 156.21 0)
+			(at 43.18 158.75 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -18438,7 +18450,7 @@
 			)
 		)
 		(property "Manufacturer" "Viking Tech"
-			(at 48.26 156.21 0)
+			(at 43.18 158.75 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -18449,7 +18461,7 @@
 			)
 		)
 		(property "LCSC Part" "C2984406"
-			(at 48.26 156.21 0)
+			(at 43.18 158.75 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -18460,7 +18472,7 @@
 			)
 		)
 		(property "Tolerance" "0.1%"
-			(at 48.26 156.21 0)
+			(at 43.18 158.75 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -18471,7 +18483,7 @@
 			)
 		)
 		(property "Power Rating" "62.5mW"
-			(at 48.26 156.21 0)
+			(at 43.18 158.75 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -18643,7 +18655,7 @@
 	)
 	(symbol
 		(lib_id "Transistor_FET:CSD25480F3")
-		(at 45.72 147.32 0)
+		(at 40.64 149.86 0)
 		(mirror x)
 		(unit 1)
 		(body_style 1)
@@ -18654,7 +18666,7 @@
 		(dnp no)
 		(uuid "d8e7b000-cb68-4835-bc0c-0a2d8f8a333c")
 		(property "Reference" "Q1"
-			(at 42.418 143.764 0)
+			(at 37.338 146.304 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -18665,7 +18677,7 @@
 			)
 		)
 		(property "Value" "CSD23280F3"
-			(at 49.53 150.622 0)
+			(at 44.45 153.162 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -18676,7 +18688,7 @@
 			)
 		)
 		(property "Footprint" "Package_DFN_QFN:Texas_PicoStar_DFN-3_0.69x0.60mm"
-			(at 76.073 142.621 0)
+			(at 70.993 145.161 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -18687,7 +18699,7 @@
 			)
 		)
 		(property "Datasheet" "https://www.ti.com/lit/ds/symlink/csd23280f3.pdf"
-			(at 76.835 144.907 0)
+			(at 71.755 147.447 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -18698,7 +18710,7 @@
 			)
 		)
 		(property "Description" "MOSFET P-ch 12V, 97mΩ @4.5V, FemtoFET 0.73x0.64mm"
-			(at 45.72 147.32 0)
+			(at 40.64 149.86 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -18709,7 +18721,7 @@
 			)
 		)
 		(property "MPN" "CSD23280F3T"
-			(at 45.72 147.32 0)
+			(at 40.64 149.86 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -18720,7 +18732,7 @@
 			)
 		)
 		(property "Manufacturer" "Texas Instruments"
-			(at 76.073 142.621 0)
+			(at 70.993 145.161 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -18731,7 +18743,7 @@
 			)
 		)
 		(property "LCSC Part" "C139374"
-			(at 45.72 147.32 0)
+			(at 40.64 149.86 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -19715,7 +19727,7 @@
 	)
 	(symbol
 		(lib_id "power:+3V3")
-		(at 48.26 140.97 0)
+		(at 43.18 143.51 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -19725,7 +19737,7 @@
 		(dnp no)
 		(uuid "f6510aca-2aad-48ee-9a8e-e5662f94967c")
 		(property "Reference" "#PWR033"
-			(at 48.26 144.78 0)
+			(at 43.18 147.32 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -19736,7 +19748,7 @@
 			)
 		)
 		(property "Value" "PD_LDO_3V3"
-			(at 48.26 137.16 0)
+			(at 43.18 139.7 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -19746,7 +19758,7 @@
 			)
 		)
 		(property "Footprint" ""
-			(at 48.26 140.97 0)
+			(at 43.18 143.51 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -19757,7 +19769,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 48.26 140.97 0)
+			(at 43.18 143.51 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -19768,7 +19780,7 @@
 			)
 		)
 		(property "Description" "Power symbol creates a global label with name \"+3V3\""
-			(at 48.26 140.97 0)
+			(at 43.18 143.51 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -19779,7 +19791,7 @@
 			)
 		)
 		(property "LCSC Part" ""
-			(at 48.26 140.97 0)
+			(at 43.18 143.51 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -19790,7 +19802,7 @@
 			)
 		)
 		(property "Voltage Rating" ""
-			(at 48.26 140.97 0)
+			(at 43.18 143.51 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -19801,7 +19813,7 @@
 			)
 		)
 		(property "Tolerance" ""
-			(at 48.26 140.97 0)
+			(at 43.18 143.51 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -19812,7 +19824,7 @@
 			)
 		)
 		(property "Capacitor Rating" ""
-			(at 48.26 140.97 0)
+			(at 43.18 143.51 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -19836,7 +19848,7 @@
 	)
 	(symbol
 		(lib_id "power:GND")
-		(at 26.67 148.59 0)
+		(at 21.59 151.13 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -19846,7 +19858,7 @@
 		(dnp no)
 		(uuid "fb6f5413-4317-4838-a8d0-7a03fb2c764b")
 		(property "Reference" "#PWR030"
-			(at 26.67 154.94 0)
+			(at 21.59 157.48 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -19857,7 +19869,7 @@
 			)
 		)
 		(property "Value" "GND"
-			(at 26.67 152.908 0)
+			(at 21.59 155.448 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -19867,7 +19879,7 @@
 			)
 		)
 		(property "Footprint" ""
-			(at 26.67 148.59 0)
+			(at 21.59 151.13 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -19878,7 +19890,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 26.67 148.59 0)
+			(at 21.59 151.13 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -19889,7 +19901,7 @@
 			)
 		)
 		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
-			(at 26.67 148.59 0)
+			(at 21.59 151.13 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
