@@ -1,5 +1,21 @@
 # Recipes
 
+**An ad-hoc query no command covers.** Import the parsers; never hand-match
+parentheses or regex a KiCad file:
+
+```python
+import sys; sys.path.insert(0, '<skill>/scripts')
+from kcommon import load_sexp, kids, kid, val, Netlist   # parse_sexp(text) for a string
+from kpcb_board import Board
+b = Board('parsnip.kicad_pcb')   # b.fps[REF]: x y rot layer value pads[{num net x y w drill}] crtyd;
+                                 # b.tracks[{net layer w a b len}] b.vias[{net size drill x y layers}]
+                                 # b.zones b.fills[{net layer pts area}] b.copper b.stack b.outline
+nl = Netlist('parsnip-merged.net')  # nl.comps[REF] nl.nets[NET] -> [{ref pin}] nl.cpins[REF][PIN] -> NET
+t = load_sexp('charger.kicad_sch'); [kid(s, 'at') for s in kids(t, 'symbol')]
+```
+
+Via sizes and counts are already `kpcb.py FILE vias`.
+
 **"Review this board's layout"** - one call: `kpcb.py FILE review`. It ends by
 naming the next calls to make, so there is nothing to work out first.
 
@@ -86,7 +102,7 @@ and MPN-named footprints clear automatically; divergent nomenclature -> REVIEW.
 # Self-test after editing a tool
 
 ```bash
-python3 references/selftest.py     # 71 checks, asserts, exit 0 = all pass (~15 s)
+python3 references/selftest.py     # 91 checks, asserts, exit 0 = all pass (~15 s)
 ```
 
 Before a refactor, record the real board's outputs, then check after - a pure
@@ -112,7 +128,10 @@ generated in the temp dir carry one case each: duplicate refs and a B.Cu logo wi
 F.SilkS art (`dup_board`), footprint scale + origins (`scale_board`), the hash-seed
 tee (`tee_board`), PAD-NECK (`neck_board`), STUB-CHECK (`stub_board`), EDGEREF (`edge_board`), `movecheck`,
 `silk`, `freebox` and `tidy` boards, and netlists for knet draw's note line and
-multi-pin symbols. Static fixtures beside this file: `selftest_cross.kicad_pcb`
+multi-pin symbols. Newer ones: `power_net` (powertree + rails, with a knet.json),
+`i2c_net` (a resistor strap and a duplicate address), `lint2_project` (SHUNTBUS,
+TEXTOVER, and a `pages/` project for PAGEORDER/NAVORDER), `kproj_project` (all
+four kproj commands, then a lock refusal), `front_project` (kfront check/pages). Static fixtures beside this file: `selftest_cross.kicad_pcb`
 (tracks crossing mid-span) and `selftest_repeat/` (one sheet file used twice). `kdrc`, `kmerge` and `height` need
 kicad-cli, so they are verified against the real board, not in selftest. `sync` on a real board+net that *match* prints IN SYNC in two lines;
 the two fixtures here are deliberately different circuits, so `sync` is the

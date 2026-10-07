@@ -33,6 +33,7 @@ Usage:
   kdoc.py near 'bias-t' 'resistor'            pages where BOTH terms appear
   kdoc.py page NEOM9N 74                      path to the page image (then `view` it)
   kdoc.py text NEOM9N 74                      dump one page's text
+  kdoc.py text NEOM9N -p 74-76                several pages (-p also filters grep/near)
   kdoc.py toc esp32c6                         heading-ish lines per page
   kdoc.py list                                cached docs, page counts, image support
 
@@ -43,7 +44,7 @@ for column/table-layout sensitive patterns.
 Cache defaults to ~/.cache/kdoc (override with KDOC_CACHE). Re-extraction is
 automatic when the source file's size or mtime changes.
 """
-import sys, os, re, json, zipfile, subprocess, argparse, glob, shutil
+import sys, os, re, json, zipfile, subprocess, argparse, glob, shutil, zlib, signal
 
 CACHE = os.environ.get('KDOC_CACHE', os.path.expanduser('~/.cache/kdoc'))
 TEXT_EXT = {'.txt', '.md', '.log', '.net', '.csv', '.tsv'}
@@ -58,6 +59,28 @@ def slug(path):
     stem = re.sub(r'\W+', '_', stem)
     # BUG FIX: meshtastic.pdf and meshtastic.net used to collide and overwrite each other
     return stem if ext.lower() == '.pdf' else f"{stem}_{re.sub(r'\W+','',ext.lower())}"
+
+def _held(name):
+    """Real path of the file a cache slot was extracted from, or None."""
+    try:
+        return os.path.realpath(open(os.path.join(CACHE, name, '.source')).read().split('|')[0])
+    except OSError:
+        return None
+
+def cache_dir(path):
+    """The cache slot for path: slug(path), unless that slot holds a different file
+    that still exists (two makers' SI2308.pdf), then slug_<parent dir>, then a path
+    hash. One shared slug used to repoint `-d SI2308` at whichever was indexed last.
+    A slot whose source is gone (file moved or renamed) is reused."""
+    rp = os.path.realpath(path)
+    base = slug(path)
+    cands = (base, f"{base}_{re.sub(r'\W+', '_', os.path.basename(os.path.dirname(rp)))}",
+             f"{base}_{zlib.crc32(rp.encode()):08x}")
+    for name in cands:
+        held = _held(name)
+        if not held or held == rp or not os.path.exists(held):
+            return os.path.join(CACHE, name)
+    return os.path.join(CACHE, cands[-1])
 
 def stamp(path):
     st = os.stat(path)
@@ -88,7 +111,7 @@ def page_zip(path):
 # ---------------- extraction ----------------
 
 def extract(path, force=False, ocr=False):
-    out = os.path.join(CACHE, slug(path))
+    out = cache_dir(path)
     mark = os.path.join(out, '.source')
     cached = (not force and os.path.isdir(out) and os.path.exists(mark)
             and open(mark).read().strip() == f"{os.path.abspath(path)}|{stamp(path)}"
@@ -101,6 +124,9 @@ def extract(path, force=False, ocr=False):
     ext = os.path.splitext(path)[1].lower()
     if ext != '.xlsx' and zipfile.is_zipfile(path) and not page_zip(path):
         raise ValueError('a zip archive (.jar/.docx/...), not a page container')
+    if os.path.basename(out) != slug(path) and not os.path.isdir(out):
+        print(f"  ({os.path.basename(path)}: slot {slug(path)} already holds {_held(slug(path))}; "
+              f"cached as {os.path.basename(out)})", file=sys.stderr)
     os.makedirs(out, exist_ok=True)
     if ext == '.xlsx':
         _xlsx(path, out)
@@ -501,7 +527,7 @@ def c_index(a):
             # named explicitly, so say exactly what went wrong and keep going
             print(f"  {slug(f):<38} FAILED: {type(e).__name__}: {e}")
             continue
-        print(f"  {slug(f):<38} {len(pages(d)):>4} pages  {fmt_tag(d)}")
+        print(f"  {os.path.basename(d):<38} {len(pages(d)):>4} pages  {fmt_tag(d)}")
 
 def c_list(a):
     autoindex()
@@ -530,6 +556,8 @@ def _search(a, pat):
     for d in docs(a.doc):
         dd = os.path.join(CACHE, d)
         for num, f in pages(dd):
+            if a.pages and num not in a.pages:
+                continue
             raw = open(f, encoding='utf-8', errors='replace').read().replace('\r\n', '\n').replace('\r', '\n')
             if a.raw:
                 hay, omap = raw, None
@@ -563,8 +591,9 @@ def c_grep(a):
         scans = [d for d in docs(a.doc) if os.path.exists(os.path.join(CACHE, d, '.scan'))]
         hint = (f"\n  {', '.join(scans)} has image-only page(s) with no text layer; "
                 f"re-index with `kdoc.py index <file> --ocr` to read them" if scans else "")
-        print(f"no hits for {a.args[0]!r} in {len(docs(a.doc))} doc(s). "
-              f"try a shorter pattern, drop -d, or --raw for column/table layouts" + hint)
+        print(f"no hits for {a.args[0]!r} in {len(docs(a.doc))} doc(s)"
+              + (f" on page(s) {_pagespan(a.pages)}" if a.pages else "") + ". "
+              "try a shorter pattern, drop -d, or --raw for column/table layouts" + hint)
         return 1
     else:
         print(f"\n{total} hits across {len({d for d, _ in per})} doc(s), "
@@ -581,6 +610,8 @@ def c_near(a):
     for d in docs(a.doc):
         dd = os.path.join(CACHE, d)
         for num, f in pages(dd):
+            if a.pages and num not in a.pages:
+                continue
             raw = open(f, encoding='utf-8', errors='replace').read()
             hay = raw if a.raw else normalise(raw)[0]
             m1, m2 = p1.search(hay), p2.search(hay)
@@ -610,22 +641,41 @@ def _pagenum(tok):
     m = re.fullmatch(r'[A-Za-z]*(\d+)', str(tok).strip())
     return m.group(1) if m else tok
 
+def _pageset(spec):
+    """-p/--pages: '7', '15,18,22', '38-39' or a pasted 'p12'/'chunk6' -> a set."""
+    out = set()
+    for tok in spec.split(','):
+        a, _, b = tok.strip().partition('-')
+        a = int(_pagenum(a))
+        out.update(range(a, int(_pagenum(b)) + 1) if b else (a,))
+    return out
+
+def _pagespan(ps):
+    return ','.join(map(str, sorted(ps)))
+
 def _doc_and_page(a):
-    """Accept 'page DOC N' and also 'kdoc.py -d DOC page N'.
+    """(doc, [pages]) from 'page DOC N', 'kdoc.py -d DOC page N' or '-p N,M'.
 
     Every other subcommand takes the doc via -d/--doc, so requiring it
     positionally here was an inconsistency that just raised IndexError."""
+    if a.pages:
+        if len(a.args) > 1 or not (a.args or a.doc):
+            raise SystemExit("with -p give the doc once: 'kdoc.py text DOC -p 3-5' or '-d DOC text -p 3-5'")
+        return (a.args[0] if a.args else a.doc), sorted(a.pages)
     if len(a.args) >= 2:
-        return a.args[0], _pagenum(a.args[1])
+        return a.args[0], [_pagenum(a.args[1])]
     if len(a.args) == 1:
         if getattr(a, 'doc', None):
-            return a.doc, _pagenum(a.args[0])
+            return a.doc, [_pagenum(a.args[0])]
         raise SystemExit(
             "need a doc and a page: 'kdoc.py page DOC N' or 'kdoc.py -d DOC page N'")
     raise SystemExit("need a page number")
 
 def c_page(a):
-    d, n = _doc_and_page(a)
+    d, ns = _doc_and_page(a)
+    return max(_page1(a, d, n) or 0 for n in ns)
+
+def _page1(a, d, n):
     ensure(d)
     cands = docs(d)
     for cand in cands:
@@ -650,17 +700,22 @@ def c_page(a):
     return 1
 
 def c_text(a):
-    d, n = _doc_and_page(a)
+    d, ns = _doc_and_page(a)
     ensure(d)
     cands = docs(d)
     for cand in cands:
-        p = os.path.join(CACHE, cand, f'{n}.txt')
-        if os.path.exists(p):
+        ps = [(n, os.path.join(CACHE, cand, f'{n}.txt')) for n in ns]
+        if any(os.path.exists(p) for _, p in ps):
             if len(cands) > 1:
                 print(f"(-d {d!r} matched {len(cands)} docs: {', '.join(cands)} - showing {cand})",
                       file=sys.stderr)
-            print(open(p, encoding='utf-8', errors='replace').read().replace('\r', '\n')); return
-    print(f"no cached page {d}:{n}; `kdoc.py list` shows docs and page counts"); return 1
+            for n, p in ps:
+                if len(ps) > 1:
+                    print(f"=== {cand} {page_label(os.path.join(CACHE, cand), int(n))}")
+                print(open(p, encoding='utf-8', errors='replace').read().replace('\r', '\n')
+                      if os.path.exists(p) else f"(no page {n})")
+            return
+    print(f"no cached page {d}:{_pagespan(map(int, ns))}; `kdoc.py list` shows docs and page counts"); return 1
 
 HEAD = re.compile(r'^\s*((?:\d+(?:\.\d+)*)\s+[A-Z][^\n]{2,70}|[A-Z][A-Za-z0-9 ,/()-]{3,60})\s*$')
 
@@ -684,6 +739,8 @@ def main():
     ap.add_argument('cmd', choices=list(CMDS))
     ap.add_argument('args', nargs='*')
     ap.add_argument('-d', '--doc', default=None, help='restrict to docs matching substring')
+    ap.add_argument('-p', '--pages', type=_pageset, default=None,
+                    help="grep/near/text/page: only these pages ('7', '15,18,22', '38-39')")
     ap.add_argument('-C', '--context', type=int, default=110)
     ap.add_argument('-m', '--max', type=int, default=20, help='max shown hits PER DOC')
     ap.add_argument('--count', action='store_true', help='hit counts only')
@@ -694,16 +751,14 @@ def main():
     ap.add_argument('--ocr', action='store_true',
                     help='index: OCR image-only PDF pages (needs tesseract)')
     ap.add_argument('-h', '--help', action='store_true')
-    a = ap.parse_args()
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    from kcommon import parse_args
+    a = parse_args(ap)
     if a.help:
         print(__doc__); return 0
     return CMDS[a.cmd](a) or 0
 
-try:                      # piping to `head` should not print a traceback
-    import signal
-    signal.signal(signal.SIGPIPE, signal.SIG_DFL)
-except Exception:
-    pass
-
 if __name__ == '__main__':
+    if hasattr(signal, 'SIGPIPE'):                  # piping to `head`: no traceback
+        signal.signal(signal.SIGPIPE, signal.SIG_DFL)
     sys.exit(main() or 0)

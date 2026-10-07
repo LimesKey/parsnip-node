@@ -24,7 +24,7 @@ The first run records GOLDEN (read-only commands, no kicad-cli) into DIR; every
 later run diffs against it and exits 1 on any change. Record before a refactor,
 check after: a pure refactor must be byte-identical. Delete DIR to re-record.
 """
-import os, sys, subprocess, tempfile
+import os, sys, json, subprocess, tempfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SK   = os.path.dirname(HERE)                       # skill root
@@ -79,6 +79,8 @@ CASES = [
     # a +3V3 via dropped on U1 pad 1's centre -> one same-net via-in-pad, no mismatch
     ("kpcb viapad",  ['kpcb.py', PCB, 'viapad'],                 0,
      ["1 via(s) in 1 SMD pad(s)", "U1", "OK same net (+3V3)"]),
+    ("kpcb vias",    ['kpcb.py', PCB, 'vias'],                   0,
+     ["2 via(s), 2 net(s)", "0.45  0.20      1  through  +3V3 1"]),
     ("kpcb viapad --signal", ['kpcb.py', PCB, 'viapad', '--signal'], 0, ["1 PWR / 0 SIG", "showing 0"]),
     ("kpcb where pad", ['kpcb.py', PCB, 'where', 'U1.1', 'U1.2'], 0,
      ["8.500, 8.500  (absolute)", "U1.1 -> U1.2: 4.24 mm"]),
@@ -466,6 +468,62 @@ def multi_net(d):
         ' (net (code "6") (name "/NG")' + nd(('U1', '3'), ('D2', '1')) + ')))')
     return p
 
+def power_net(d):
+    """BT1 -> F1 -> VSYS -> U1 buck (SW -> L1, FB 402k/174k) -> +3V3 -> U3 eFuse (ILM
+    549 R to GND) -> 3V3_OUT -> U2; and J1 VBUS -> R5 0 R -> VSYS, a second way in.
+    knet.json beside it gives VFB and the ILIM table row."""
+    os.makedirs(os.path.join(d, 'pwr'))
+    open(os.path.join(d, 'pwr', 'knet.json'), 'w').write(
+        '{"vref": {"BUCK": 1.0}, "ilim": {"TPS25947": {"549": "5.40/6.07/6.60 A"}}}')
+    p = os.path.join(d, 'pwr', 'pwr.net')
+    pins = lambda *pn: ' (pins' + ''.join(f' (pin (num "{i + 1}") (name "{m}") (type "passive"))'
+                                          for i, m in enumerate(pn)) + ')'
+    comp = lambda r, v, part: f' (comp (ref "{r}") (value "{v}") (libsource (lib "x") (part "{part}")))'
+    net = lambda c, name, *rp, cls='Default': (f' (net (code "{c}") (name "{name}") (class "{cls}")'
+                                               + ''.join(f' (node (ref "{r}") (pin "{q}"))' for r, q in rp) + ')')
+    open(p, 'w').write(
+        '(export (version "E") (design (source "pwr.kicad_sch")) (components'
+        + comp('BT1', 'cell', 'cell') + comp('F1', '1A', 'Fuse') + comp('U1', 'BUCK1', 'buck')
+        + comp('L1', '2.2u', 'L') + comp('R1', '402k', 'R') + comp('R2', '174k', 'R')
+        + comp('U3', 'TPS25947', 'efuse') + comp('R4', '549', 'R') + comp('U2', 'MCU', 'load')
+        + comp('J1', 'USB', 'conn') + comp('R5', '0', 'R') + ')'
+        ' (libparts (libpart (lib "x") (part "cell")' + pins('+', '-') + ')'
+        ' (libpart (lib "x") (part "Fuse")' + pins('1', '2') + ')'
+        ' (libpart (lib "x") (part "buck")' + pins('VIN', 'SW', 'FB', 'GND') + ')'
+        ' (libpart (lib "x") (part "L")' + pins('1', '2') + ') (libpart (lib "x") (part "R")' + pins('1', '2') + ')'
+        ' (libpart (lib "x") (part "efuse")' + pins('IN', 'OUT', 'ILM', 'GND') + ')'
+        ' (libpart (lib "x") (part "load")' + pins('VCC') + ') (libpart (lib "x") (part "conn")' + pins('VBUS') + '))'
+        ' (nets' + net(1, 'N_BT', ('BT1', '1'), ('F1', '1'))
+        + net(2, 'GND', ('BT1', '2'), ('U1', '4'), ('R2', '2'), ('R4', '2'), ('U3', '4'))
+        + net(3, 'VSYS', ('F1', '2'), ('U1', '1'), ('R5', '2'), cls='PWR_HIGH')
+        + net(4, 'Net-(U1-SW)', ('U1', '2'), ('L1', '1')) + net(5, 'Net-(U1-FB)', ('U1', '3'), ('R1', '2'), ('R2', '1'))
+        + net(6, '+3V3', ('L1', '2'), ('R1', '1'), ('U3', '1')) + net(7, 'Net-(U3-ILM)', ('U3', '3'), ('R4', '1'))
+        + net(8, '3V3_OUT', ('U3', '2'), ('U2', '1')) + net(9, 'VBUS', ('J1', '1'), ('R5', '1')) + '))')
+    return p
+
+def i2c_net(d):
+    """U1 (an MCU, IO1/IO2) with two TCAL9539: U2 A0 via R1 10k to +3V3, A1 GND (0x75);
+    U3 A0 straight to +3V3, A1 GND (0x75 again: a duplicate). R3 pulls SDA up."""
+    os.makedirs(os.path.join(d, 'i2c'))
+    p = os.path.join(d, 'i2c', 'i2c.net')
+    pins = lambda *pn: ' (pins' + ''.join(f' (pin (num "{i + 1}") (name "{m}") (type "passive"))'
+                                          for i, m in enumerate(pn)) + ')'
+    comp = lambda r, v, part: f' (comp (ref "{r}") (value "{v}") (libsource (lib "x") (part "{part}")))'
+    net = lambda c, name, *rp: (f' (net (code "{c}") (name "{name}")'
+                                + ''.join(f' (node (ref "{r}") (pin "{q}"))' for r, q in rp) + ')')
+    open(p, 'w').write(
+        '(export (version "E") (design (source "i2c.kicad_sch")) (components'
+        + comp('U1', 'MCU', 'mcu') + comp('U2', 'TCAL9539', 'io') + comp('U3', 'TCAL9539', 'io')
+        + comp('R1', '10k', 'R') + comp('R3', '2.2k', 'R') + ')'
+        ' (libparts (libpart (lib "x") (part "mcu")' + pins('IO1', 'IO2') + ')'
+        ' (libpart (lib "x") (part "io")' + pins('SDA', 'SCL', 'A0', 'A1') + ')'
+        ' (libpart (lib "x") (part "R")' + pins('1', '2') + '))'
+        ' (nets' + net(1, 'SDA', ('U1', '1'), ('U2', '1'), ('U3', '1'), ('R3', '1'))
+        + net(2, 'SCL', ('U1', '2'), ('U2', '2'), ('U3', '2'))
+        + net(3, '+3V3', ('R1', '2'), ('U3', '3'), ('R3', '2')) + net(4, 'Net-(U2-A0)', ('U2', '3'), ('R1', '1'))
+        + net(5, 'GND', ('U2', '4'), ('U3', '4')) + '))')
+    return p
+
 def fet_pinout_project(d):
     """Q1 (Q_NMOS_DGS) on a footprint that numbers its pads by function like KiCad's
     VSONP-8: pad 1 three pins (S), pad 2 the gate, pad 3 four pins + EP (D)"""
@@ -516,12 +574,94 @@ def lint_project(d):
         ' (net (code "2") (name "/K") (node (ref "U1") (pin "2")))'
         ' (net (code "3") (name "/L") (node (ref "R3") (pin "2")))))')
 
+def kproj_project(d):
+    """a/ (navigator first, page 2) owns child c.kicad_sch (page 3) via sheet symbol
+    U1; b/ is page 1. The board names c.kicad_sch on two footprints."""
+    os.makedirs(d)
+    open(os.path.join(d, 't.kicad_pro'), 'w').write(json.dumps(
+        {'schematic': {'top_level_sheets': [{'filename': 'a.kicad_sch', 'name': 'A', 'uuid': 'ua'},
+                                            {'filename': 'b.kicad_sch', 'name': 'B', 'uuid': 'ub'}]},
+         'sheets': [['ua', 'A'], ['ub', 'B'], ['U1', 'C']]}, indent=2) + '\n')
+    inst = lambda pg: f'\t(sheet_instances\n\t\t(path "/"\n\t\t\t(page "{pg}")\n\t\t)\n\t)\n'
+    open(os.path.join(d, 'a.kicad_sch'), 'w').write(
+        '(kicad_sch\n\t(version 20260830)\n\t(generator_version "10.99")\n\t(sheet\n\t\t(at 10 10)\n'
+        '\t\t(uuid "U1")\n\t\t(property "Sheetname" "C")\n\t\t(property "Sheetfile" "c.kicad_sch")\n'
+        '\t\t(instances\n\t\t\t(project "t"\n\t\t\t\t(path "/ua"\n\t\t\t\t\t(page "3")\n'
+        '\t\t\t\t)\n\t\t\t)\n\t\t)\n\t)\n' + inst(2) + ')\n')
+    open(os.path.join(d, 'b.kicad_sch'), 'w').write('(kicad_sch\n' + inst(1) + ')\n')
+    open(os.path.join(d, 'c.kicad_sch'), 'w').write('(kicad_sch\n)\n')
+    open(os.path.join(d, 't.kicad_pcb'), 'w').write(
+        '(kicad_pcb\n\t(footprint "R"\n\t\t(sheetfile "c.kicad_sch")\n\t)\n'
+        '\t(footprint "C"\n\t\t(sheetfile "c.kicad_sch")\n\t)\n)\n')
+    return d
+
+def front_project(d):
+    """main.kicad_sch (page 1) holds U8 (BQ25798) and J1; front.kicad_sch (page 2,
+    no parts) quotes them: a right pair, a wrong address, a wrong part, a missing
+    ref, a range running past J1, and a cover page table one row stale."""
+    os.makedirs(d)
+    open(os.path.join(d, 't.kicad_pro'), 'w').write(json.dumps(
+        {'schematic': {'top_level_sheets': [{'filename': 'main.kicad_sch', 'name': 'Main', 'uuid': 'um'},
+                                            {'filename': 'front.kicad_sch', 'name': 'Front', 'uuid': 'uf'}]}},
+        indent=2) + '\n')
+    open(os.path.join(d, 't.net'), 'w').write(
+        '(export (version "E") (design (source "main.kicad_sch") (sheet (number "1") (name "/Main/"))'
+        ' (sheet (number "2") (name "/Front/"))) (components'
+        ' (comp (ref "U8") (value "BQ25798") (libsource (lib "x") (part "c")) (sheetpath (names "/Main/")))'
+        ' (comp (ref "J1") (value "USB") (libsource (lib "x") (part "j")) (sheetpath (names "/Main/"))))'
+        ' (libparts) (nets (net (code "1") (name "N") (node (ref "U8") (pin "1")) (node (ref "J1") (pin "1")))))')
+    txt = lambda s, x, y: f' (text "{s}" (at {x} {y} 0))'
+    cell = lambda s, pg: f' (table_cell "{s}" (at 0 0 0) (effects (href "#{pg}")))'
+    open(os.path.join(d, 'main.kicad_sch'), 'w').write('(kicad_sch (sheet_instances (path "/" (page "1"))))')
+    open(os.path.join(d, 'front.kicad_sch'), 'w').write(
+        '(kicad_sch' + txt('BQ25798 (U8)', 50, 50) + txt('0x6A', 50, 52) + txt('TPS25751 (U8)', 90, 50)
+        + txt('debug header U99', 90, 60) + txt('USB (J1-J2)', 90, 70) + txt('CHARGER (E2-E0 by U8)', 90, 80)
+        + ' (table (column_count 2) (cells' + cell('PAGE', 1) + cell('SHEET', 1) + cell('1', 1) + cell('Main', 1)
+        + cell('2', 3) + cell('Front', 3) + '))' + ' (sheet_instances (path "/" (page "2"))))')
+    return os.path.join(d, 't.net')
+
+def lint2_project(d):
+    """C1 and C2 (horizontal) feed one vertical GND wire at x=50 from opposite sides
+    with no GND symbol on it (SHUNTBUS, both forms); R9's reference sits on C2's
+    value (TEXTOVER). A pages/ project: navigator B, A; pages A=1, its child C=3, B=2."""
+    os.makedirs(d)
+    lib = ('(lib_symbols (symbol "x:C" (pin_names (hide yes)) (pin_numbers (hide yes))'
+           ' (symbol "C_0_1" (rectangle (start -0.5 1) (end 0.5 -1)))'
+           ' (symbol "C_1_1" (pin passive line (at 0 2.54 270) (length 1.27) (name "~") (number "1"))'
+           ' (pin passive line (at 0 -2.54 90) (length 1.27) (name "~") (number "2")))))')
+    fld = lambda k, v, x, y: f' (property "{k}" "{v}" (at {x} {y} 0) (effects (font (size 1.27 1.27))))'
+    sym = lambda ref, val_, x, y, rx, ry: (f' (symbol (lib_id "x:C") (at {x} {y} 90) (unit 1)'
+                                          + fld('Reference', ref, rx, ry) + fld('Value', val_, x, y + 3) + ')')
+    open(os.path.join(d, 'lint2.kicad_sch'), 'w').write(
+        '(kicad_sch ' + lib + sym('C1', '1u', 45, 50, 45, 47) + sym('C2', '1u', 55, 50, 55, 47)
+        + sym('R9', 'x', 70, 70, 55.3, 53)
+        + ' (wire (pts (xy 50 40) (xy 50 60))) (wire (pts (xy 47.54 50) (xy 50 50)))'
+        ' (wire (pts (xy 50 50) (xy 52.46 50))) (sheet_instances (path "/" (page "1"))))')
+    open(os.path.join(d, 'lint2.net'), 'w').write(
+        '(export (version "E") (design (source "lint2.kicad_sch") (sheet (number "1") (name "/")))'
+        ' (components' + ''.join(f' (comp (ref "{r}") (value "1u") (libsource (lib "x") (part "C")))'
+                                 for r in ('C1', 'C2', 'R9')) + ')'
+        ' (nets (net (code "1") (name "GND") (node (ref "C1") (pin "2")) (node (ref "C2") (pin "1")))'
+        ' (net (code "2") (name "/A") (node (ref "C1") (pin "1"))) (net (code "3") (name "/B") (node (ref "C2") (pin "2")))))')
+    pg = os.path.join(d, 'pages')
+    os.makedirs(pg)
+    open(os.path.join(pg, 't.kicad_pro'), 'w').write(
+        '{"schematic": {"top_level_sheets": [{"filename": "b.kicad_sch", "name": "B"},'
+        ' {"filename": "a.kicad_sch", "name": "A"}]}}')
+    open(os.path.join(pg, 'a.kicad_sch'), 'w').write(
+        '(kicad_sch (sheet (at 10 10) (size 10 10) (property "Sheetname" "C") (property "Sheetfile" "c.kicad_sch")'
+        ' (instances (project "t" (path "/u1" (page "3"))))) (sheet_instances (path "/" (page "1"))))')
+    open(os.path.join(pg, 'b.kicad_sch'), 'w').write('(kicad_sch (sheet_instances (path "/" (page "2"))))')
+    open(os.path.join(pg, 'c.kicad_sch'), 'w').write('(kicad_sch)')
+    return os.path.join(d, 'lint2.net'), pg
+
 GOLDEN = [['kpcb.py', '{pcb}', c] for c in ('summary', 'check', 'span', 'zones', 'rf', 'viapad', 'ic',
                                             'height', 'unplaced', 'sheet', 'map', 'review')] \
     + [['kpcb.py', '{pcb}', 'sync', '{net}'], ['kpcb.py', '{pcb}', 'ic', 'U13'],
        ['kpcb.py', '{pcb}', 'ampacity', 'VSYS'], ['kpcb.py', '{pcb}', 'where', 'U12'],
        ['kpcb.py', '{pcb}', 'net', 'VSYS'], ['kpcb.py', '{pcb}', 'check', '--json']] \
-    + [['knet.py', '{net}', c] for c in ('summary', 'check', 'rails', 'revpol', 'unconnected', 'bom')] \
+    + [['knet.py', '{net}', c] for c in ('summary', 'check', 'rails', 'revpol', 'unconnected', 'bom',
+                                         'powertree', 'i2c')] \
     + [['kpcb.py', '{pcb}', 'zones', '--voids'], ['kpcb.py', '{pcb}', 'zones', 'U12'],
        ['kpcb.py', '{pcb}', 'ic', 'U8'], ['kpcb.py', '{pcb}', 'net', 'GND'],
        ['kpcb.py', '{pcb}', 'ampacity', '--from', 'Q16.1', '--to', 'R41.1', '--amps', '6'],
@@ -573,6 +713,27 @@ def main():
                    "U3 pad 5 (smd) of QFN has no symbol pin", "U3.6 (X) is on NX but t:QFN has no pad 6"]))
     CASES.append(("knet rfstub", ['knet.py', os.path.join(tmp.name, 'rf.net'), 'check', '--only', 'RFSTUB'], 0,
                   ["ANT [RF_50OHM] has 3 populated parts on it (J1, R1, U1)", "1 warn"]))
+    # /Root/CS has one node, /Root/Sub/CS the rest: a local label on parent and child
+    sp = os.path.join(tmp.name, 'split.net')
+    open(sp, 'w').write(
+        '(export (version "E") (design (source "s.kicad_sch")) (components'
+        ' (comp (ref "U1") (value "X") (libsource (lib "x") (part "y")))'
+        ' (comp (ref "J1") (value "C") (libsource (lib "x") (part "y")))) (libparts)'
+        ' (nets (net (code "1") (name "/Root/CS") (node (ref "U1") (pin "1")))'
+        ' (net (code "2") (name "/Root/Sub/CS") (node (ref "J1") (pin "1")) (node (ref "U1") (pin "2")))))')
+    CASES.append(("knet solo split label", ['knet.py', sp, 'check', '--only', 'SOLO'], 2,
+                  ["net /Root/CS has only U1.1 on it; /Root/Sub/CS (J1.1, U1.2) has the same name on another sheet"]))
+    CASES.append(("knet i2c", ['knet.py', i2c_net(tmp.name), 'i2c'], 2,
+                  ["=== SDA  /  SCL", "pull-ups : R3 2.2k (SDA) to +3V3",
+                   "target   : U2    TCAL9539             0x75        A0: R1 10k to +3V3; A1: GND",
+                   "controller: U1 MCU (IO1)", "ERROR address 0x75 used by U2 U3"]))
+    CASES.append(("knet powertree", ['knet.py', power_net(tmp.name), 'powertree'], 0,
+                  ["cells BT1: N_BT", "-> F1 1A -> VSYS  (also fed from VBUS via R5)",
+                   "-> U1 BUCK1  [FB 402k/174k: Vout = 3.310 V] -> L1 2.2u -> +3V3  3.3 V",
+                   "-> U3 TPS25947  [ILIM 5.40/6.07/6.60 A (R4 549)] -> 3V3_OUT  3.3 V  loads U2",
+                   "J1 VBUS: VBUS  5 V"]))
+    CASES.append(("knet rails powertree", ['knet.py', os.path.join(tmp.name, 'pwr', 'pwr.net'), 'rails'], 0,
+                  ["=== VSYS   ? V", "source : F1 [1A] from N_BT  (powertree)"]))
     fet = os.path.join(tmp.name, 'fet.net')
     CASES.append(("knet revpol fet", ['knet.py', fet, 'revpol'], 0,
                   ["FET channel(s) on, gate driven from the cells: Q1", "FET channels vs normal: Q1 off",
@@ -633,6 +794,37 @@ def main():
                    "pins 1-3 must be SGD; as drawn they are DGS and the FET mounts with D and S swapped",
                    "use Transistor_FET:Q_NMOS_SGD"]))
     lnet = os.path.join(tmp.name, 'lint', 'lint.net')
+    wide = os.path.join(tmp.name, 'wide.ksch')
+    open(wide, 'w').write('r R1 0,0 v 1k\nr R2 120,0 v 1k\nwire R1.2 R2.2\n')
+    CASES.append(("ksch --paper", ['ksch.py', 'check', '--paper', 'A4', wide], 0,
+                  ["over A4's usable 277 x 190 mm"]))
+    l2net, pages = lint2_project(os.path.join(tmp.name, 'lint2'))
+    fn = front_project(os.path.join(tmp.name, 'front'))
+    CASES.append(("kfront check", ['kfront.py', fn, 'check'], 2,
+                  ["0x6A under \"BQ25798 (U8)\" but `knet i2c` gives 0x6B for U8",
+                   "\"TPS25751 (U8)\" but U8 is BQ25798", "U99 is not in the netlist", "J2 is not in the netlist",
+                   "4 error(s)"]))
+    CASES.append(("kfront pages", ['kfront.py', fn, 'pages'], 2, ["row 2: page 2 links to #3"]))
+    kp = kproj_project(os.path.join(tmp.name, 'kproj'))
+    for lab, args, ex, want in (
+            ("kproj renumber", ['renumber'], 0, ["a.kicad_sch: 1 page 2 -> 1 (A)", "page 3 -> 2 (C in a.kicad_sch)",
+                                                "b.kicad_sch: 1 page 1 -> 3 (B)"]),
+            ("kproj rename", ['rename', 'c.kicad_sch', 'd.kicad_sch'], 0,
+             ["a.kicad_sch: 1 Sheetfile c.kicad_sch -> d.kicad_sch", "t.kicad_pcb: 2 (sheetfile) c.kicad_sch -> d.kicad_sch"]),
+            ("kproj order", ['order', 'B'], 0, ["navigator order B, A"]),
+            ("kproj add-sheet", ['add-sheet', 'n.kicad_sch', 'N', '--after', 'B'], 0,
+             ["n.kicad_sch: created", "at position 2", "n.kicad_sch: 1 page 0 -> 2 (N)"]),
+            ("kproj refuses on a lock", ['renumber'], 3, ["KiCad holds the project"])):
+        if lab.endswith('lock'):         # a second copy, so the sequence above still runs
+            kp = kproj_project(os.path.join(tmp.name, 'kproj2'))
+            open(os.path.join(kp, '~a.kicad_sch.lck'), 'w').close()
+        else:                            # a KiCad open on any project must not fail the edits
+            args = args + ['--force']
+        CASES.append((lab, ['kproj.py', kp] + args, ex, want))
+    CASES.append(("ksheet lint shunt+text", ['ksheet.py', l2net, 'lint', '--only', 'SHUNTBUS,TEXTOVER'], 2,
+                  ["C1 C2: horizontal 2-pin shunts into one vertical GND wire at x=50 with no GND symbol within any distance",
+                   "C1 and C2 meet the vertical GND wire at 50,50 from opposite sides",
+                   "C2 value '1u' overlaps R9 reference 'R9'"]))
     CASES.append(("ksheet lint", ['ksheet.py', lnet, 'lint'], 2,
                   ["R1's body", "/NA ends at 70,40 and /NB starts 2.54 mm", "U1.1 (A) at 94.92,94.92: /J runs 1.27 mm",
                    "U1: 1 object(s) within 2.54 mm of its pin ends: R3.2 (1.27 mm from pin 2)"]))
@@ -678,6 +870,24 @@ def main():
     ok6 = 0.95 < r < 1.1 and kpcb_amp.dt_ipc(kpcb_amp.ipc_current(0.3, 0.035, True, 10), 0.3, 0.035, True) - 10 < 1e-6
     fails += not ok6
     print(f"{'ok  ' if ok6 else 'FAIL'}  ampacity rise model: rod {r:.2f} C, IPC inverse round-trip")
+    # cache_prune: past the cap the oldest entries go, and a plot directory goes whole
+    import kcommon, kmerge
+    pd, keep = os.path.join(tmp.name, 'cache'), kcommon.CACHE
+    os.makedirs(os.path.join(pd, 'svg', 'old'))
+    for i, f in enumerate(('svg/old/a.svg', 'svg/old/b.svg', 'old.bin', 'new.bin')):
+        open(os.path.join(pd, f), 'wb').write(b'x' * 100)
+        os.utime(os.path.join(pd, f), (i, i))
+    os.utime(os.path.join(pd, 'svg', 'old'), (1, 1))
+    kcommon.CACHE = pd
+    kcommon.cache_prune(250)
+    kcommon.CACHE = keep
+    ok8 = sorted(os.listdir(pd)) == ['new.bin', 'old.bin', 'svg'] and not os.listdir(os.path.join(pd, 'svg'))
+    # kmerge's raw round trip: an escaped string survives parse -> dump byte-exact
+    tree = kcommon.parse_sexp('(design (source "C:\\\\x \\"q\\"") (n 1))', mark='\0')
+    ok8 &= kcommon.parse_sexp(kmerge.dump(tree), mark='\0') == tree and \
+        kmerge.val(tree, 'source') == 'C:\\x "q"' and kmerge.q('C:\\x "q"') == tree[1][1]
+    fails += not ok8
+    print(f"{'ok  ' if ok8 else 'FAIL'}  cache_prune drops oldest/whole dirs; kmerge escaped round trip")
     # SLOT: the voids board's SIG track crosses a 10 x 10 box on the F.Cu GND plane
     import kpcb_zones, kpcb_board
     vb = kpcb_board.Board(os.path.join(tmp.name, 'voids.kicad_pcb'))
@@ -710,13 +920,46 @@ def main():
     print(f"{'ok  ' if ok2 else 'FAIL'}  glTF node transform {[round(x, 3) for x in p]}")
     # kdoc: a plain pattern crosses separator/dash variants (but a leading space still
     # anchors), and a filename or path addresses its doc
-    import kdoc
+    import kdoc, argparse
     ok3 = bool(kdoc.smart_re('keep-out').search('antenna keepout zone')
                and kdoc.smart_re('-40').search('−40 C')
                and not kdoc.smart_re(' EN').search('ENABLE')
                and kdoc._fkey('docs/datasheets/max17320.pdf') == kdoc._fkey('max17320'))
     fails += not ok3
     print(f"{'ok  ' if ok3 else 'FAIL'}  kdoc pattern folding + -d path")
+    # kdoc: two files sharing a basename get two cache slots (the second used to
+    # repoint -d at itself and win), and -p takes lists, ranges and pasted labels
+    import io, contextlib
+    kdoc.CACHE = os.path.join(tmp.name, 'kdoc')
+    for sub in 'ab':
+        os.makedirs(os.path.join(tmp.name, 'kd' + sub))
+        open(os.path.join(tmp.name, 'kd' + sub, 'X1.txt'), 'w').write(sub * 9)
+    with contextlib.redirect_stderr(io.StringIO()):
+        ka, kb = (kdoc.extract(os.path.join(tmp.name, 'kd' + sub, 'X1.txt')) for sub in 'ab')
+    ok14 = ka != kb and kdoc.docs('X1.txt') == ['X1_txt'] and kb.endswith('X1_txt_kdb') \
+        and kdoc._pageset('2,5-7,p9') == {2, 5, 6, 7, 9}
+    fails += not ok14
+    print(f"{'ok  ' if ok14 else 'FAIL'}  kdoc same-basename slots {os.path.basename(ka)}, {os.path.basename(kb)}; -p sets")
+    # kcommon.parse_args: dash + uppercase tokens that are not options are values;
+    # real options, attached short values and negative numbers are untouched.
+    # kicad_running sees a KiCad lock file in the project dir.
+    import kcommon
+    pa = argparse.ArgumentParser(add_help=False)
+    pa.add_argument('args', nargs='*'); pa.add_argument('--net', default=''); pa.add_argument('-d', default='')
+    pn = kcommon.parse_args(pa, ['net', '-BATT', '--net', '-VIN', '-dX', '-40'])
+    open(os.path.join(tmp.name, '~t.kicad_sch.lck'), 'w').close()
+    ok15 = pn.args == ['net', '-BATT', '-40'] and pn.net == '-VIN' and pn.d == 'X' \
+        and any('lock file' in r for r in kcommon.kicad_running(tmp.name))
+    fails += not ok15
+    print(f"{'ok  ' if ok15 else 'FAIL'}  parse_args dash values {pn.args} --net {pn.net}; lock guard")
+    # ksheet page order: depth-first reads A(1) C(3) B(2); the navigator lists B first.
+    # _xf rotates before it mirrors: at rot 270 + mirror x, lib +x points sheet up
+    import ksheet
+    po = ksheet.page_order(pages)[0]
+    ok16 = [x['rule'] for x in po] == ['PAGEORDER', 'NAVORDER'] and '1 /A/, 3 /A/C/, 2 /B/' in po[0]['msg'] \
+        and kcommon._xf(1, 0, 270, 'x') == (0, -1) and kcommon._xf(1, 0, 90, '') == (0, -1)
+    fails += not ok16
+    print(f"{'ok  ' if ok16 else 'FAIL'}  ksheet PAGEORDER/NAVORDER {[x['rule'] for x in po]}; _xf rotate-then-mirror")
     # duplicate refs: every footprint block becomes one Board entry, and a padless
     # logo's side is its art layer, not its (layer)
     db = kpcb_board.Board(dp)
@@ -725,7 +968,6 @@ def main():
     fails += not ok8
     print(f"{'ok  ' if ok8 else 'FAIL'}  Board keeps duplicate refs {sorted(db.fps)}")
     # `height` with no models loaded: R1 is UNKNOWN, the padless logos are not parts
-    import io, contextlib, argparse
     kpcb_height.heights = lambda b: ({}, [])
     buf = io.StringIO()
     with contextlib.redirect_stdout(buf):
@@ -757,6 +999,45 @@ def main():
     fails += not ok12
     print(f"{'ok  ' if ok12 else 'FAIL'}  ksch ic top/bottom pin names inside the body: VCC_RF y {t0:.2f}..{t1:.2f}, "
           f"ENABLE baseline {ln[2]:.2f}, body h {bb[3]:.2f}")
+    # ksch papercuts: KiCad's junction rule (a wire through a pin end gets a dot, two
+    # wires up one stub from a pin do not), an ic with bottom pins keeps its value
+    # above the body, a TVS2200-style part maps onto a diode (GND = anode), and a
+    # note laid over a wire is reported
+    j = (ksch.junctions([((0, 0), (4, 0))], [(2, 0)]), ksch.junctions([((0, 0), (0, -1)), ((0, -1), (0, 0))], [(0, 0)]))
+    sy = ksch.Sym('ic', 'U9', 0, 0, sides={'L': [('1', 'IN')], 'B': [('2', 'GND')]}, value='X')
+    vy = [f[2] for f in sy.fields() if f[-1] == 'val']
+    bn = ksch.by_name(ksch.s_d('dz')[1], {'1': ('IN', 'p'), '2': ('GND', 'p'), '3': ('IN', 'p'), '7': ('EP', 'p')})
+    kx = ksch.Doc({})
+    kx.parse('r R1 0,0 h 1k\nr R2 6,0 h 1k\nwire R1.2 R2.1\nnote 2.5,0.2 "over the wire"')
+    cr = [m for _s, m in ksch.check_doc(kx) if 'running through' in m]
+    ok17 = j == ([(2, 0)], []) and vy and vy[0] < sy.bbox()[1] and bn \
+        and bn[1] == {'1': 'k', '2': 'a', '3': 'k', '7': 'a'} and len(cr) == 1 and 'over the wire' in cr[0]
+    fails += not ok17
+    print(f"{'ok  ' if ok17 else 'FAIL'}  ksch junction rule {j}, ic value above body, TVS pin map, text-over-wire")
+    # ksch 1:1 geometry: a lib symbol (10.16 mm body, pin 1 left, 2 right, 3+4 stacked
+    # at the bottom) lands on grid units; a Device:R-length span re-spaces a 2-pin part
+    sys.path.insert(0, S)
+    import kcommon as kc
+    lib = kc.parse_sexp('(symbol "x:U" (symbol "U_0_1" (rectangle (start -5.08 5.08) (end 5.08 -5.08)))'
+                        ' (symbol "U_1_1" (pin input line (at -7.62 2.54 0) (length 2.54) (name "IN") (number "1"))'
+                        ' (pin output line (at 7.62 0 180) (length 2.54) (name "OUT") (number "2"))'
+                        ' (pin power_in line (at 0 -7.62 90) (length 2.54) (name "GND") (number "3"))'
+                        ' (pin power_in line (at 0 -7.62 90) (length 2.54) (name "GND") (number "4"))))')
+    _pr, lp, lbb, lnm = ksch.s_lib(lib, 1)
+    spr = ksch.stretch(*ksch.s_r(), 3)[1]
+    ok18 = lp == {'1': (-1.0, 1.0, 'L'), '2': (5.0, 2.0, 'R'), '3': (2.0, 5.0, 'D'), '4': (2.0, 5.0, 'D')} \
+        and lbb == (0.0, 0.0, 4.0, 4.0) and lnm['2'] == 'OUT' and spr == {'1': (0, 0, 'U'), '2': (0, 3, 'D')}
+    fails += not ok18
+    print(f"{'ok  ' if ok18 else 'FAIL'}  ksch lib-symbol geometry 1:1 {lbb}, stretched R span {spr['2'][1]}")
+    # kverify's sheet summary: a uniform GUI move reads as one offset, renumbering apart
+    import kverify
+    va = '(sheet_instances (path "/" (page "4"))) (at 10 20) (xy 1 2) (start 0 0)'
+    vb = '(sheet_instances (path "/" (page "6"))) (at 7.46 20) (xy -1.54 2) (start -2.54 0)'
+    vs = kverify.delta_summary(va, vb)
+    ok19 = vs == 'page 4 -> 6; 3 coordinates moved, all by (-2.54,+0)' \
+        and kverify.delta_summary(va, va.replace('(at', '(foo (at')).startswith('structure changed')
+    fails += not ok19
+    print(f"{'ok  ' if ok19 else 'FAIL'}  kverify sheet delta: {vs}")
     # `view`: the crop is a viewBox rewrite in board mm; the real plot needs kicad-cli
     import kpcb_view, shutil
     vbox = kpcb_view.crop('<svg width="297mm" height="210mm" viewBox="0 0 297 210">', (10, 20, 30, 50))
@@ -776,7 +1057,7 @@ def main():
     ok10 = rs == {'8.27'}
     fails += not ok10
     print(f"{'ok  ' if ok10 else 'FAIL'}  copper graph independent of hash seed: R {sorted(rs)} mohm")
-    print(f"\n{len(CASES) + 13 - fails}/{len(CASES) + 13} passed")
+    print(f"\n{len(CASES) + 19 - fails}/{len(CASES) + 19} passed")
     return 1 if fails else 0
 
 if __name__ == '__main__':

@@ -57,7 +57,7 @@ the case-code geometry table) --catalog-max-a/-b UF --live --fresh --json
 --pkg P1,P2 --diel D1,D2 -n N (solve: search scope/result count) --need SPEC
 (solve: minimum effective capacitance).
 """
-import sys, os, re, math, json, argparse
+import sys, os, re, math, json, argparse, signal
 
 # ---------------------------------------------------------------- bias curves
 
@@ -572,11 +572,7 @@ def main():
         print("solve needs --need <capacitance>, e.g. --need 8uF"); return 1
     return c_solve(a, part_mod)
 
-try:                      # piping to `head` should not print a traceback
-    import signal
-    signal.signal(signal.SIGPIPE, signal.SIG_DFL)
-except Exception:
-    pass
-
 if __name__ == '__main__':
+    if hasattr(signal, 'SIGPIPE'):                  # piping to `head`: no traceback
+        signal.signal(signal.SIGPIPE, signal.SIG_DFL)
     sys.exit(main() or 0)

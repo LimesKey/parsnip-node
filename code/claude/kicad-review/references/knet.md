@@ -12,8 +12,10 @@
 (drawn above)`, and a net drawn twice (a pin back on a net an earlier branch drew) is
 one such row naming every part, not a row each. A left-side net note ends at its
 pin, so a long name never runs into the IC's pin number. Dual diodes (BAT54S/A/C, BAV99/70, BAW56) and `Device:R_Shunt` draw as ksch's `d2s/d2a/d2c`/`rsense`, over as many rows as their side pins and labels need; every part is oriented by where ksch puts its pins (a `Device:D` is 1=K, so pin 1 is not the symbol's start). |
-| `notes` | schematic text notes by sheet - designer intent that exists nowhere in the netlist. |
-| `rails` | each power rail: what feeds it, total decoupling, loads. |
+| `notes` | schematic text notes and text boxes by sheet, each with its font size (`SMALL` under 1.27 mm, totals per sheet) - designer intent that exists nowhere in the netlist. |
+| `rails` | each power net: what feeds it (from `powertree`), total decoupling, loads. Power nets = name-derived rails + power netclasses (`PWR_HIGH`) + nets a `power_out` pin drives (switch nodes excluded); `? V` when no name or knet.json gives a voltage. |
+| `i2c` | each bus (SDA net + what 0 R links and closed jumpers join, paired with its SCL): pull-ups and their rail, the controller (an MCU GPIO or an `I2Cc` pin), each target's 7-bit address resolved from its strap pins (GND / rail / R to X / divider ratio), connectors. Two targets on one address = ERROR, exit 2. Built-in table: BQ25798, MAX17320, QMC6309, TCAL9539, LSM6DSV16X, M24512, TPS25751 (ADCIN1/2 per its tables 8-2/8-6); others via knet.json `"i2c": {"PART": {"base": "0x48", "straps": ["A0", "A1"]}}` or `{"addr": ["0x42"]}`. |
+| `powertree` | sources (top of each cell stack, then connector pins named VBUS/SOLAR/VIN/BAT) -> links (L, FB, F, R <= 10 R, closed jumpers), FET channels and regulators -> rails -> loads, as an indented tree. Each buck's Vout from its FB divider, an eFuse ILIM from a table (knet.json `vref`/`ilim`); a second way in prints as `also fed from`. The input a power-tree page needs. |
 | `divider REF.PIN\|NET` | resistor-divider trip voltage from netlist resistor values, worst case from tolerance if stated. See below. |
 | `diff old.net` | what changed vs an earlier export (rename-safe: compares neighbour sets). |
 | `comp REF...` | pin table with net, node count, supply rail. |
@@ -85,8 +87,14 @@ when not every load is printed.
 `knet.json` next to the netlist persists board defaults:
 
 ```json
-{"rails": {"+BATT": 8.4}, "fanout": 8, "suppress": ["RFSTUB:GPS_ANT", "OCNOPULL:U9"]}
+{"rails": {"+BATT": 8.4}, "fanout": 8, "suppress": ["RFSTUB:GPS_ANT", "OCNOPULL:U9"],
+ "vref": {"LM61460": 1.0},
+ "ilim": {"TPS25947": {"549": "5.400/6.068/6.600 A", "6.65k": "0.425/0.500/0.575 A"}}}
 ```
+
+`vref` (feedback reference, V) and `ilim` (resistor value -> the datasheet's
+min/typ/max row) are keyed by a substring of the part value, read from the
+datasheet, never guessed; `powertree` prints `Vout = 3.310 x VFB` without them.
 
 Precedence: defaults < knet.json < CLI.
 
@@ -107,6 +115,10 @@ carries an explicit NC flag.
 - **`DOMAIN`** is the useful one: it infers each net's pulled-to voltage from series
   resistors and ferrites to named rails and compares against each IC's supply rail,
   catching pull-ups to 5 V on 3.3 V logic.
+- **`SOLO`** (a named net with one node) names the other half when the same short
+  name lives on another sheet (`/Root/CS_DISPLAY` alone, `/Root/Connectors/CS_DISPLAY`
+  with J5.4 ...): a local label on a parent and on its subsheet never connect; fix with
+  a hierarchical label + sheet pin, or a global label.
 - **`PARPIN`** catches a paralleled pad left floating: two or more pins on the same
   part sharing the same declared pin NAME (e.g. multiple BAT pins on a charger IC)
   where one is wired to a real net and a sibling is not. Matches on pin name rather

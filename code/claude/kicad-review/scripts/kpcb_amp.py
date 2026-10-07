@@ -429,7 +429,7 @@ def _amp_path(b, a):
     ends = [_find_pad(b, x) for x in (a.src, a.dst)]
     if not all(ends):
         print(f"need --from REF.PIN and --to REF.PIN on the board (got {a.src!r}, {a.dst!r})"); return 1
-    (fs, ps), (ft, pt) = ends
+    (fs, ps), (_, pt) = ends
     if ps['net'] != pt['net']:
         print(f"{a.src} is on {ps['net']} but {a.dst} is on {pt['net']}: a path needs one net"); return 1
     net = ps['net']

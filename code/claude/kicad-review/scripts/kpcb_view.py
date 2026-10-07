@@ -1,6 +1,6 @@
 """kpcb.py `view`: a cropped PNG of chosen board layers, from kicad-cli's own plot."""
 import os, re, hashlib, subprocess
-from kcommon import kicad_cli, CACHE
+from kcommon import kicad_cli, cache_prune, CACHE
 from kpcb_board import bbox
 
 LAYERS = {False: 'F.Cu,F.SilkS,F.Fab,F.CrtYd,Edge.Cuts', True: 'B.Cu,B.SilkS,B.Fab,B.CrtYd,Edge.Cuts'}
@@ -17,6 +17,7 @@ def plot(b, layers):
                             '--exclude-drawing-sheet', '-o', out, b.path], capture_output=True, text=True)
         if not os.path.exists(out):
             raise RuntimeError((r.stderr or r.stdout).strip()[-400:])
+        cache_prune()
     return out
 
 

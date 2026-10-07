@@ -38,11 +38,12 @@ carry F.SilkS art), so `summary`, `map` and `where` count it on the art's side.
 | `zones` | pour coverage per layer from the last saved fill: area%, island count, edge margins. |
 | `zones REF...` | does a net's fill actually cover THIS footprint's courtyard - point-sampled, not just the fill's bounding box - and which foreign tracks SLOT that plane under it. Closes "is GND continuous under U9" without a KiCad render. See below. |
 | `zones --voids [--area 2]` | copper-free regions in the plane pour (removed islands) and, for each, a via spot that clears everything and lands in the plane on another layer. See below. |
+| `vias` | every via by size / drill / layer span (through or blind), the top nets on each, and the worst drill aspect ratio against the stackup thickness. |
 | `viapad [--signal] [--min N]` | every component with a via centred inside one of its SMD pads (via-in-pad), each pad tagged GND/PWR/SIG. See below. |
 | `where REF.PAD ...` | a pad's absolute centre, size, layer, net and nearest same-net pads. Two specs (pads, refs or x,y) also print the distance between them. |
 | `net NET` | every pad on a net with absolute xy, copper per layer (segments, length, width range), vias, zones, extent, and whether the copper is **one piece** (else the pads in each cut-off piece) plus padless islands. Accepts the short name (`LORA_ANT`). |
 | `rf [NET...]` | 50-ohm trace review. No net = every net whose netclass names RF/50. See below. |
-| `height [REF...]` | 3D-model height of each part and the board's Z stack. Shells out to KiCad's GLB export (~3 s). See below. |
+| `height [REF...]` | 3D-model height of each part and the board's Z stack. Shells out to KiCad's GLB export (~15 s, then cached until the board, a `${KIPRJMOD}` model or kicad-cli changes). See below. |
 | `movecheck REF X Y [ROT]` | what moving REF there would **newly** break: foreign pads/tracks/vias inside the clearance, copper to the edge, a same-side courtyard overlap. `REF --scan x=X y=A..B [--step 0.05]` slides it and prints the clear stretches; `via X,Y NX,NY` moves one via and says whether tracks are tied to it. Read-only. See below. |
 | `tidy` | near-miss alignment, each fix pre-checked with `movecheck`: a row/column with one part 0.005-0.15 mm off, a row of >= 3 with an uneven pitch, mounting-hole insets that nearly agree, rotations off a multiple of 90, a small part a little off a big same-side part's long centre line (a thermistor under a cell holder). Prints `REF now -> new`; writes nothing. See below. |
 | `freebox SIDE W H` | where a W x H mm silk box (a logo, a label) fits on side `f`/`b`: clear of that side's courtyards, every through-hole pad and that side's silk (logos, board art, refdes and other footprint text), >= 1 mm inside the edge. Best centre per free region, by margin. See below. |
@@ -58,8 +59,7 @@ carry F.SilkS art), so `summary`, `map` and `where` count it on the art's side.
 `--tol 1` `--span 0` (all mm; `--span 0` means half the board diagonal), plus
 `--fanout 8`. For `ic`: `--anchor REF`, `--cin REF,REF`, `--cout REF,REF`,
 `--ncin 3`, `--ncout 3`, `--assoc 6`. For `ampacity`: `--amps X` (required
-current on the named net), `--net=NAME` (repeatable, for a net name that starts
-with `-`), `--dt 10` (allowed temp rise, C), `--plating 20` (via barrel copper,
+current on the named net), `--net NAME` (repeatable), `--dt 10` (allowed temp rise, C), `--plating 20` (via barrel copper,
 um), `--vdrop 0.25` (V-drop flag threshold), `--from REF.PIN --to REF.PIN` (path
 solve). For `zones`: `--voids`, `--area 2` (smallest void core, mm2), `--net=NAME`
 (the plane net, default the biggest pour). For `viapad`: `--signal`, `--min N`.
@@ -131,11 +131,9 @@ re-reads on every save. Three ways to call it:
   nets (most copper length) with their capacity so the power nets surface without
   a budget file.
 
-A net name that starts with `-` (e.g. `-BATT`) looks like an option to argparse;
-pass it as `ampacity --amps 2.7 --net=-BATT` (repeatable, `=` required - a space
-before the dash still confuses argparse), as `ampacity --amps 2.7 -- -BATT +PACK`
-(flags first, then `--`, then the nets), or put it in the kpcb.json `current{}`
-budget where the dash is harmless.
+A net name that starts with `-` works as typed: `ampacity -BATT --amps 2.7` and
+`--net -BATT` (every tool reads a dash + uppercase token that is not one of its
+options as a value; kcommon `parse_args`).
 
 To make a finding fixable it prints, per net: a **`find it:`** line listing the
 components on the net (ICs/connectors first) - click any in KiCad to highlight the
@@ -476,7 +474,8 @@ JLC would put an `rf` line ~0.5-0.8 ohm higher. At a 16 mil gap JLC returns the
 bare microstrip width (ignores the side ground); kzo does not, and reads 2.6% low there.
 It models rectangular copper and the board file's stackup - the fab's trapezoid and
 its own stackup numbers (check h and er in the `Zo ... microstrip` line against the
-fab's) are the arbiter. ~0.1 s per solve, memoised; gaps round to 0.01 mm.
+fab's) are the arbiter. ~0.1-0.2 s per solve, one call's solves in parallel, memoised
+on disk (a re-run is instant until a gap, width or the stackup changes); gaps round to 0.01 mm.
 
 ## `movecheck` - try a nudge before making it
 

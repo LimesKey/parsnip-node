@@ -50,10 +50,17 @@ FLAGS
   --us              zigzag resistors instead of the KiCad/IEC box
   --grid            draw the dot grid.  --frame  draw a border
   --quiet           suppress the check report
-"""
-import sys, os, re, math, argparse
+  --paper A4|A3     draw the sheet's usable frame (277 x 190 / 400 x 277 mm) and
+                    WARN when the drawing is bigger. The summary line always
+                    gives the extent in mm.
 
-VERSION = "1.0"
+With --net, an `ic` given no L:/R:/T:/B: pins is drawn 1:1 from its symbol on
+the sheet (body, pin positions, lead lengths, stacked pins: lib mm / 2.54 =
+units), and r/c/l/fb/ntc/fuse take the library symbol's pin span (Device:R and
+Device:L are 3 units, the _Small ones 2). Without a sheet symbol it falls back
+to the automatic power-up / ground-down layout.
+"""
+import sys, os, re, math, argparse, signal
 
 # ---------------- themes ----------------
 
@@ -371,13 +378,6 @@ TWO_PIN = {
     'd2c': lambda o: s_dual('d2c', o.get('kind', 'd')),
 }
 
-ANCHOR_NOTE = {
-    'ic': 'top-left of body', 'conn': 'top-left of body',
-    'nmos': 'gate pin', 'pmos': 'gate pin', 'npn': 'base pin', 'pnp': 'base pin',
-    'ant': 'feed pin', 'tp': 'pin 1',
-}
-
-
 # ---------------- IC / connector body ----------------
 
 TXT = 0.5          # KiCad default text height: 50 mil
@@ -446,11 +446,103 @@ def s_ic(sides, w=None, h=None, name='', pitch=PITCH):
     return pr, pins, (0, 0, w, h)
 
 
+MM = 2.54          # one grid unit
+PAPER = {'A4': (277.0, 190.0), 'A3': (400.0, 277.0)}   # usable mm inside KiCad's border
+
+
+def s_lib(lib, unit=1):
+    """An `ic` 1:1 with its KiCad library symbol (with --net): body rectangle, pin
+    ends, lead lengths and stacked pins from the sheet's lib symbol, mm / 2.54 =
+    grid units, y flipped, anchored at the body's top-left like any `ic`.
+    Returns (prims, pins, body bbox, {pin: name})."""
+    import kcommon as kc
+    f, fv = float, kc.SchInfo._fnum
+    def ok(sub):
+        b = sub[1].rsplit('_', 2)
+        try:
+            return int(b[1]) in (0, unit) and int(b[2]) in (0, 1)
+        except (IndexError, ValueError):
+            return True
+    subs = [sub for sub in kc.kids(lib, 'symbol') if ok(sub)]
+    hid = lambda node, tag: (lambda n: n is not None and ('hide' in n or kc.val(n, 'hide') == 'yes'))(kc.kid(node, tag))
+    pn = kc.kid(lib, 'pin_names')
+    off = fv(kc.val(pn, 'offset')) if pn is not None and kc.val(pn, 'offset') else .508
+    names_on, nums_on = not hid(lib, 'pin_names'), not hid(lib, 'pin_numbers')
+    rects = [(f(kc.kid(g, 'start')[1]), f(kc.kid(g, 'start')[2]), f(kc.kid(g, 'end')[1]), f(kc.kid(g, 'end')[2]))
+             for sub in subs for g in kc.kids(sub, 'rectangle')]
+    raw = []
+    for sub in subs:
+        for p in kc.kids(sub, 'pin'):
+            if 'hide' in p or kc.val(p, 'hide') == 'yes':
+                continue
+            at, nm = kc.kid(p, 'at'), kc.kid(p, 'name')
+            raw.append((kc.val(p, 'number'), nm[1] if nm and len(nm) > 1 else '', f(at[1]), f(at[2]),
+                        f(at[3]) if len(at) > 3 else 0.0, f(kc.val(p, 'length') or 0)))
+    xs = [x for r in rects for x in (r[0], r[2])] or [x + math.cos(math.radians(a)) * ln for _n, _m, x, _y, a, ln in raw]
+    ys = [y for r in rects for y in (r[1], r[3])] or [y + math.sin(math.radians(a)) * ln for _n, _m, _x, y, a, ln in raw]
+    left, top = min(xs), max(ys)
+    X, Y = (lambda x: (x - left) / MM), (lambda y: (top - y) / MM)
+    pr = [('r', X(min(r[0], r[2])), Y(max(r[1], r[3])), abs(r[2] - r[0]) / MM, abs(r[3] - r[1]) / MM, 1)
+          for r in rects]
+    pins, names, seen = {}, {}, {}
+    for num, nm, x, y, a, ln in raw:
+        c, sn = round(math.cos(math.radians(a))), round(math.sin(math.radians(a)))
+        ex, ey = X(x), Y(y)
+        rx, ry = ex + c * ln / MM, ey - sn * ln / MM
+        side = 'L' if c > 0 else 'R' if c < 0 else 'U' if sn < 0 else 'D'
+        pins[num], names[num] = (ex, ey, side), nm
+        seen.setdefault((round(ex, 3), round(ey, 3)), []).append((num, nm, side, rx, ry))
+    o = off / MM + .05
+    for (ex, ey), grp in seen.items():
+        nums = ','.join(n for n, *_ in grp)
+        nm = next((m for _n, m, *_ in grp if m and m != '~'), '')
+        _n, _m, side, rx, ry = grp[0]
+        pr.append(L(ex, ey, rx, ry))
+        if side in 'LR':
+            k = 1 if side == 'L' else -1
+            if names_on and nm:
+                pr.append(('t', rx + k * o, ry + .17, nm, TXT, 'start' if k > 0 else 'end', 0))
+            if nums_on:
+                pr.append(('t', rx - k * .3, ry - .28, nums, TXT * .8, 'end' if k > 0 else 'start', 0))
+        else:
+            k = 1 if side == 'U' else -1
+            if names_on and nm:
+                pr.append(('t', rx + .17, ry + k * o, nm, TXT, 'end' if k > 0 else 'start', -90))
+            if nums_on:
+                pr.append(('t', rx - .28, ry - k * .3, nums, TXT * .8, 'start' if k > 0 else 'end', -90))
+    big = max(rects, key=lambda r: abs(r[2] - r[0]) * abs(r[3] - r[1]), default=None)
+    bb = ((X(min(big[0], big[2])), Y(max(big[1], big[3])), X(max(big[0], big[2])), Y(min(big[1], big[3])))
+          if big else (0, 0, (max(xs) - left) / MM, (top - min(ys)) / MM))
+    return pr, pins, bb, names
+
+
+def stretch(pr, pins, bb, span):
+    """a 2-pin symbol drawn pin 1 (0,0) .. pin 2 (0,2), re-spaced to the library
+    symbol's real pin span (Device:R/C/L are 7.62 mm = 3 units, the _Small ones 2)"""
+    d = (span - 2) / 2
+    fy = lambda y: 0 if abs(y) < 1e-9 else span if abs(y - 2) < 1e-9 else y + d
+    out = []
+    for p in pr:
+        k = p[0]
+        if k == 'l':
+            out.append(('l', p[1], fy(p[2]), p[3], fy(p[4]), p[5]))
+        elif k == 'p':
+            out.append(('p', [(x, fy(y)) for x, y in p[1]], p[2], p[3]))
+        elif k in ('r', 'c', 't'):
+            out.append((k, p[1], p[2] + d) + tuple(p[3:]))
+        elif k == 'a':
+            out.append(('a', p[1], p[2] + d, p[3], p[4] + d) + tuple(p[5:]))
+        else:
+            out.append(p)
+    pins = {n: (x, fy(y), dd) for n, (x, y, dd) in pins.items()}
+    return out, pins, (bb[0], bb[1] + d, bb[2], bb[3] + d)
+
+
 # ---------------- symbol instance ----------------
 
 class Sym:
     def __init__(self, typ, ref, x, y, orient='v', value='', name='', opts=None,
-                 sides=None, w=None, h=None, pitch=PITCH, dnp=False, flat=False):
+                 sides=None, w=None, h=None, pitch=PITCH, dnp=False, flat=False, geom=None):
         self.typ, self.ref, self.x, self.y = typ, ref, x, y
         self.value, self.name, self.dnp, self.flat = value, name, dnp, flat
         o = (orient or 'v').lower()
@@ -462,10 +554,12 @@ class Sym:
         self.deg = ORIENT.get(o, 0)
         opts = opts or {}
         if typ in ('ic', 'conn'):
-            pr, pins, bb = s_ic(sides or {}, w, h, name or value, pitch)
+            pr, pins, bb = geom or s_ic(sides or {}, w, h, name or value, pitch)
             self.deg, self.mir = 0, False       # bodies stay upright
         else:
             pr, pins, bb = TWO_PIN[typ](opts)
+            if opts.get('span'):
+                pr, pins, bb = stretch(pr, pins, bb, opts['span'])
         self.prims, self.lpins, self.lbb = pr, pins, bb
 
     def _t(self, x, y):
@@ -526,13 +620,25 @@ class Sym:
             if self.flat:
                 v = ('%s  %s' % (self.ref, self.value or self.name)).strip()
                 return [('t', x0, y0 - .3, v, TXT, 'start', 0, 'ref')]   # -.55 met a value one row up
-            if self.ref:      # above the top pins' numbers, which stand beside their leads
-                nw = max((_adv(k, TXT * .8) for k, v in self.lpins.items() if v[2] == 'U'), default=0)
-                out.append(('t', (x0 + x1) / 2, y0 - max(.85, nw + .45), self.ref, TXT * 1.1, 'middle', 0, 'ref'))
-            v = self.value or self.name
+            # leads stand above a body with top pins and below one with bottom pins, so
+            # centred text crosses them: with top pins both fields go outside the top-left
+            # corner (the first left pin is a row lower); with bottom pins only, the
+            # value joins the ref above the body
+            v, sides = self.value or self.name, {p[2] for p in self.lpins.values()}
+            if 'U' in sides:
+                if v:
+                    out.append(('t', x0 - .3, y0 - .25, v, TXT, 'end', 0, 'val'))
+                if self.ref:
+                    out.append(('t', x0 - .3, y0 - (1.0 if v else .25), self.ref, TXT * 1.1, 'end', 0, 'ref'))
+                return out
+            ty = y0 - .85
+            if v and 'D' in sides:
+                out.append(('t', (x0 + x1) / 2, ty, v, TXT, 'middle', 0, 'val'))
+                ty, v = ty - .8, ''
+            if self.ref:
+                out.append(('t', (x0 + x1) / 2, ty, self.ref, TXT * 1.1, 'middle', 0, 'ref'))
             if v:
-                dy = 2.9 if any(p[2] == 'D' for p in self.lpins.values()) else 1.25
-                out.append(('t', (x0 + x1) / 2, y1 + dy, v, TXT, 'middle', 0, 'val'))
+                out.append(('t', (x0 + x1) / 2, y1 + 1.25, v, TXT, 'middle', 0, 'val'))
             return out
         horiz = self.deg in (90, 270)
         if horiz:
@@ -540,12 +646,15 @@ class Sym:
             # NTC's arrow) keeps its text where an R's sits, so a 3-unit row pitch fits
             pv = self.pins().values()
             cy = sum(p[1] for p in pv) / len(pv) if pv else (y0 + y1) / 2
-            if self.ref:
-                out.append(('t', (x0 + x1) / 2, y0 - min(.6, max(.25, .95 - (cy - y0))),
-                            self.ref, TXT, 'middle', 0, 'ref'))
-            if self.value:
-                out.append(('t', (x0 + x1) / 2, y1 + min(.85, max(.5, 1.2 - (y1 - cy))),
-                            self.value, TXT, 'middle', 0, 'val'))
+            ry = y0 - min(.6, max(.25, .95 - (cy - y0)))
+            vy = y1 + min(.85, max(.5, 1.2 - (y1 - cy)))
+            # a side lead (a dual diode's COM) runs through the text line on its side:
+            # that field starts just right of the lead instead of centred on it
+            side = {d: x for x, _y, d in pv if d in ('U', 'D')}
+            for t, y, role, d in ((self.ref, ry, 'ref', 'U'), (self.value, vy, 'val', 'D')):
+                if t:
+                    out.append(('t', side[d] + .3, y, t, TXT, 'start', 0, role) if d in side
+                               else ('t', (x0 + x1) / 2, y, t, TXT, 'middle', 0, role))
         else:
             # side leads (a dual diode's COM, a shunt's sense pins) push text across
             left = any(d == 'R' for _x, _y, d in self.pins().values())
@@ -724,17 +833,23 @@ def retrace(segs):
     return None
 
 
-def junctions(segs):
-    ends = {}
-    for s in segs:
-        for p in s:
-            ends[_k(*p)] = ends.get(_k(*p), 0) + 1
-    out = []
-    for p, n in ends.items():
-        deg = n + 2 * sum(1 for s in segs if on_seg(p, s))
-        if deg >= 3:
-            out.append(p)
-    return out
+def junctions(segs, pins=()):
+    """KiCad's rule (IsExplicitJunctionNeeded): a dot where 3+ distinct exits meet -
+    each wire end's direction, both directions of a wire running through, and a pin
+    end as its own exit. So a wire laid through a pin end gets its dot; two wires
+    leaving a pin along one stub do not."""
+    sg = lambda v: (v > 1e-6) - (v < -1e-6)
+    exits = {}
+    for a, b in segs:
+        for p, q in ((a, b), (b, a)):
+            exits.setdefault(_k(*p), set()).add((sg(q[0] - p[0]), sg(q[1] - p[1])))
+    for i, p in enumerate(pins):
+        exits.setdefault(_k(*p), set()).add(('pin', i))
+    for p, e in exits.items():
+        for a, b in segs:
+            if on_seg(p, (a, b)):
+                e |= {(sg(a[0] - p[0]), sg(a[1] - p[1])), (sg(b[0] - p[0]), sg(b[1] - p[1]))}
+    return sorted(p for p, e in exits.items() if len(e) >= 3)
 
 
 class UF:
@@ -769,6 +884,11 @@ def by_name(lpins, sympins):
     or None unless every real pin names a letter the symbol draws"""
     letters = {k: v for k, v in lpins.items() if not k.isdigit()}
     want = {num: _norm(nm) for num, (nm, _t) in sympins.items()}
+    if want and set(letters) == {'a', 'k'} and not all(n in letters for n in want.values()):
+        # a multi-pin protector (TVS2200: IN x3, GND x4, EP) drawn as one diode
+        g = {num for num, n in want.items() if re.match(r'(gnd|vss|ep$|pad$)', n)}
+        if g and len(g) < len(want):
+            want = {num: 'a' if num in g else 'k' for num in want}
     if not want or not letters or not all(n in letters for n in want.values()):
         return None
     return {num: letters[n] for num, n in want.items()}, want
@@ -995,11 +1115,33 @@ class Doc:
             raise SpecError(f"duplicate ref '{ref}'")
         if val == '@' and self.nl:
             val = unesc(self.nl.value(ref))
+        span = self.lib_span(ref) if kw in ('r', 'c', 'cp', 'l', 'fb', 'ntc', 'fuse') else None
         sym = Sym(kw, ref, x, y, orient, val, dnp=dnp,
-                  opts={'us': self.o.get('us'), 'kind': 'ds' if sk else 'd'})
+                  opts={'us': self.o.get('us'), 'kind': 'ds' if sk else 'd', 'span': span})
         self.syms[ref] = sym
         self.order.append(ref)
         self.real_pins(ref, sym)
+
+    def lib_place(self, ref):
+        """(lib symbol node, unit) of ref on its sheet, with --net and a valid sidecar"""
+        si = self.nl.sch() if (self.nl and self.o.get('lib')) else None
+        if not si or not si.valid or ref not in si.place:
+            return None, 0
+        pl = si.place[ref][0]
+        return si.libsyms.get(pl[0], {}).get(pl[7]), pl[6]
+
+    def lib_span(self, ref):
+        """pin-to-pin units of a 2-pin part's library symbol, when not the 2 drawn"""
+        lib, unit = self.lib_place(ref)
+        if lib is None:
+            return None
+        import kcommon as kc
+        pts = [(float(kc.kid(p, 'at')[1]), float(kc.kid(p, 'at')[2]))
+               for sub in kc.kids(lib, 'symbol') for p in kc.kids(sub, 'pin')]
+        if len(pts) != 2:
+            return None
+        sp = round(math.dist(*pts) / MM * 2) / 2
+        return sp if sp and sp != 2 else None
 
     def real_pins(self, ref, sym):
         """With --net, renumber a symbol's pins to the real part's by pin NAME:
@@ -1050,10 +1192,17 @@ class Doc:
                 name = t
         if name == '@':
             name = unesc(self.nl.value(ref)) if self.nl else ref
+        geom = None
         if not sides:
             if not self.nl:
                 raise SpecError('no pins given (need L:/R:/T:/B:, or --net for auto)')
-            sides = self.auto_sides(ref)
+            lib, unit = self.lib_place(ref)
+            if lib is not None:          # 1:1 with the KiCad symbol on the sheet
+                pr_, pins_, bb_, names_ = s_lib(lib, unit)
+                geom = (pr_, pins_, bb_)
+                sides = {}
+            else:
+                sides = self.auto_sides(ref)
         # blank slots keep alignment: replace None with a spacer
         clean = {}
         for s, lst in sides.items():
@@ -1067,7 +1216,7 @@ class Doc:
         if ref in self.syms:
             raise SpecError(f"duplicate ref '{ref}'")
         sym = Sym(kw, ref, x, y, 'v', '', name, sides=clean, w=w, h=h, pitch=pitch,
-                  dnp=dnp, flat=flat)
+                  dnp=dnp, flat=flat, geom=geom)
         for s, lst in clean.items():
             for num, nm in lst:
                 if num.startswith('\x00'):
@@ -1079,6 +1228,10 @@ class Doc:
             for num, nm in lst:
                 if nm:
                     self.alias[ref].setdefault(_norm(nm), num)
+        if geom:
+            for num, nm in sorted(names_.items(), key=lambda z: (len(z[0]), z[0])):
+                if nm and nm != '~':
+                    self.alias[ref].setdefault(_norm(unesc(nm)), num)
 
     def auto_sides(self, ref):
         """netlist-driven placement: power up, ground down, inputs left,
@@ -1137,8 +1290,8 @@ class Doc:
                 self.segs.append((p1, p2))
             if ax == 'x':
                 self.add('t', tv + .3, lo - .7, name, TXT, 'start', 0, 'label')
-            else:
-                self.add('t', lo - .6, tv - .5, name, TXT, 'start', 0, 'label')
+            else:              # left of the trunk's end, on its line: the first part's
+                self.add('t', lo - .3, tv + .17, name, TXT, 'end', 0, 'label')   # wire lands at lo
         else:
             for e in eps[1:]:
                 self.wire(eps[0][:3], e[:3])
@@ -1204,6 +1357,10 @@ class Doc:
         if self.title:
             y0 -= 1.6
             x1 = max(x1, x0 + twid(self.title, TXT * 1.3))
+        pw, ph = (v / MM for v in PAPER.get(self.o.get('paper') or '', (0, 0)))
+        if pw:                       # the sheet's usable frame, from the drawing's top-left
+            fx, fy = x0 - .4, y0 - .4
+            x1, y1 = max(x1, fx + pw), max(y1, fy + ph)
         W = (x1 - x0 + 2 * M) * PX
         H = (y1 - y0 + 2 * M) * PX
 
@@ -1230,6 +1387,12 @@ class Doc:
         if self.o.get('frame'):
             e.append('<rect x="4" y="4" width="%.0f" height="%.0f" fill="none" stroke="%s"/>'
                      % (W - 8, H - 8, T['note']))
+        if pw:
+            e.append('<rect x="%s" y="%s" width="%s" height="%s" fill="none" stroke="%s" '
+                     'stroke-dasharray="%s,%s"/>' % (X(fx), Y(fy), S(pw), S(ph), T['note'], S(.4), S(.25)))
+            e.append(self._text(X(fx + pw) - 4, Y(fy + ph) - 4, f"{self.o['paper']} usable "
+                                f"{PAPER[self.o['paper']][0]:g} x {PAPER[self.o['paper']][1]:g} mm",
+                                S(TXT * .8), 'end', T['note']))
         if self.title:
             e.append(self._text(X(x0), Y(y0 + 1.0), self.title, S(TXT * 1.3), 'start',
                                 T['body'], 0, bold=True))
@@ -1237,7 +1400,7 @@ class Doc:
             e.append('<line x1="%s" y1="%s" x2="%s" y2="%s" stroke="%s" stroke-width="%s" '
                      'stroke-linecap="round"/>'
                      % (X(a[0]), Y(a[1]), X(b[0]), Y(b[1]), T['wire'], S(.055)))
-        for jx, jy in junctions(self.segs):
+        for jx, jy in junctions(self.segs, [q[:2] for sy in self.syms.values() for q in sy.pins().values()]):
             e.append('<circle cx="%s" cy="%s" r="%s" fill="%s"/>'
                      % (X(jx), Y(jy), S(.14), T['junc']))
         for op in self.build():
@@ -1345,11 +1508,16 @@ def check_doc(d):
         out.append(('WARN', f"text {ta[0]!r} overlaps {tb[0]!r} at {ta[1]:g},{ta[2]:g} - move one"))
     if len(hits) > 8:
         out.append(('WARN', f"+{len(hits) - 8} more overlapping text pair(s)"))
+    cross = _text_crossings(d)
+    for t, x, y in cross[:8]:
+        out.append(('WARN', f"text {t!r} at {x:g},{y:g} has a wire or lead running through it - move it"))
+    if len(cross) > 8:
+        out.append(('WARN', f"+{len(cross) - 8} more text(s) crossed by a wire"))
     return out
 
 
-def _text_overlaps(d):
-    """pairs of drawn texts whose boxes overlap (width from twid, height from
+def _text_boxes(d):
+    """[(text, x, y, box, role)] for every drawn text (width from _adv, height from
     the cap height above the baseline and a descender below)"""
     T = []
     for op in d.build():
@@ -1361,8 +1529,29 @@ def _text_overlaps(d):
         bb = (x0, y - .7 * size, x0 + w, y + .15 * size)
         if rot:                                   # vertical text: turn the box about (x, y)
             bb = (x - .7 * size, y - (bb[2] - x), x + .15 * size, y - (bb[0] - x))
-        T.append((plain(s), x, y, bb))
+        T.append((plain(s), x, y, bb, op[-1]))
+    return T
+
+
+def _text_overlaps(d):
+    """pairs of drawn texts whose boxes overlap"""
+    T = _text_boxes(d)
     return [(a, b) for i, a in enumerate(T) for b in T[i + 1:] if _ovl(a[3], b[3])]
+
+
+def _text_crossings(d):
+    """[(text, x, y)]: a ref, value, note, title or net name whose box a wire or a
+    symbol line (a lead, a body edge) runs through; pin names and numbers are
+    placed against their own leads by construction"""
+    lines = list(d.segs) + [((op[1], op[2]), (op[3], op[4])) for op in d.build() if op[0] == 'l']
+    out = []
+    for t, x, y, bb, role in _text_boxes(d):
+        if role in ('pnum', 'pname'):
+            continue
+        ib = (bb[0] + .08, bb[1] + .08, bb[2] - .08, bb[3] - .08)
+        if any(_seg_hits_box(sg, ib) for sg in lines):
+            out.append((t, x, y))
+    return out
 
 
 def drawn_nets(d):
@@ -1491,6 +1680,7 @@ def main():
     ap.add_argument('--grid', action='store_true')
     ap.add_argument('--frame', action='store_true')
     ap.add_argument('--quiet', action='store_true')
+    ap.add_argument('--paper', default='', type=str.upper, choices=['', *PAPER])
     ap.add_argument('-h', '--help', action='store_true')
     a, pos = ap.parse_known_args(sys.argv[1:])
     bad = [p for p in pos if p.startswith('--')]
@@ -1512,7 +1702,8 @@ def main():
             nl = load_netlist(a.net)
         except FileNotFoundError:
             print(f"no such netlist: {a.net}", file=sys.stderr); return 3
-    d = Doc(dict(px=a.px, theme=a.theme, us=a.us, grid=a.grid, frame=a.frame, nl=nl))
+    d = Doc(dict(px=a.px, theme=a.theme, us=a.us, grid=a.grid, frame=a.frame, nl=nl,
+                 lib=bool(nl), paper=a.paper))
     d.parse(text)
     if d.errors:
         for m in d.errors:
@@ -1521,6 +1712,12 @@ def main():
     msgs = check_doc(d)
     if nl and (a.verify or a.net):
         msgs += verify_doc(d, nl)
+    bx0, by0, bx1, by1 = d.bbox()
+    wmm, hmm = (bx1 - bx0) * MM, (by1 - by0) * MM
+    for pp in [a.paper] if a.paper else []:
+        if wmm > PAPER[pp][0] or hmm > PAPER[pp][1]:
+            msgs.append(('WARN', f"the drawing is {wmm:.0f} x {hmm:.0f} mm, over {pp}'s usable "
+                                 f"{PAPER[pp][0]:g} x {PAPER[pp][1]:g} mm"))
     hard = [m for m in msgs if m[0] == 'ERROR']
     if a.cmd == 'check':
         for s, m in msgs or [('INFO', 'no findings')]:
@@ -1528,20 +1725,15 @@ def main():
         return 2 if hard else 0
     out = a.out or 'ksch.svg'
     open(out, 'w', encoding='utf-8').write(d.svg())
-    x0, y0, x1, y1 = d.bbox()
     print(f"wrote {out}  ({len(d.order)} symbols, {len(d.segs)} wire segments, "
-          f"{(x1 - x0):.0f}x{(y1 - y0):.0f} units)")
+          f"{(bx1 - bx0):.0f}x{(by1 - by0):.0f} units = {wmm:.0f} x {hmm:.0f} mm)")
     if not a.quiet:
         for s, m in msgs:
             print(f"{s:<6} {m}")
     return 2 if hard else 0
 
 
-try:
-    import signal
-    signal.signal(signal.SIGPIPE, signal.SIG_DFL)
-except Exception:
-    pass
-
 if __name__ == '__main__':
+    if hasattr(signal, 'SIGPIPE'):                  # piping to `head`: no traceback
+        signal.signal(signal.SIGPIPE, signal.SIG_DFL)
     sys.exit(main() or 0)

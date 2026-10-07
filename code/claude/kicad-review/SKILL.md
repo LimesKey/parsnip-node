@@ -1,6 +1,7 @@
 ---
 name: kicad-review
-description: Query and review KiCad netlists (.net), schematics (.kicad_sch), board placement (.kicad_pcb) and datasheets, and draw schematics: knet.py, kpcb.py, ksheet.py, ksch.py, kdoc.py. Use for any question touching a KiCad schematic, netlist, ERC, BOM, footprint, pin, net, connectivity, decoupling or power rail ("what does U2 pin 9 connect to"), and for board layout, placement, floorplan, footprint position, courtyard, edge clearance, mounting hole or keepout ("is U8 too close to the antenna"), and schematic-sheet geometry or readability ("where is U7 on the sheet", "is this drawing misleading", "show me that part of the schematic"). `kpcb.py FILE ic U13` also RECOMMENDS where a regulator's caps, inductor and feedback divider go, with a diagram: use it for "where do these go", "lay out this buck/LDO", "minimise the switching loop". Never answer connectivity or geometry from memory or by eyeballing a schematic or board image; exports go stale within a session. Use it too for ANY request to draw or show a circuit, even one not on the board yet: ksch.py draws real symbols from a text spec and hand-written SVG is never right.
+description: >-
+  Query and review KiCad netlists (.net), schematics (.kicad_sch), board placement (.kicad_pcb) and datasheets, and draw schematics: knet.py, kpcb.py, ksheet.py, ksch.py, kdoc.py. Use for any question touching a KiCad schematic, netlist, ERC, BOM, footprint, pin, net, connectivity, decoupling or power rail ("what does U2 pin 9 connect to"), and for board layout, placement, floorplan, footprint position, courtyard, edge clearance, mounting hole or keepout ("is U8 too close to the antenna"), and schematic-sheet geometry or readability ("where is U7 on the sheet", "is this drawing misleading", "show me that part of the schematic"). `kpcb.py FILE ic U13` also RECOMMENDS where a regulator's caps, inductor and feedback divider go, with a diagram: use it for "where do these go", "lay out this buck/LDO", "minimise the switching loop". Never answer connectivity or geometry from memory or by eyeballing a schematic or board image; exports go stale within a session. Use it too for ANY request to draw or show a circuit, even one not on the board yet: ksch.py draws real symbols from a text spec and hand-written SVG is never right.
 ---
 
 # KiCad netlist review, placement review and schematic drawing
@@ -21,6 +22,7 @@ D=<skill>/scripts/kdoc.py   S=<skill>/scripts/ksch.py
 | what does the part's datasheet say | PDFs | `kdoc.py` | [kdoc](references/kdoc.md) |
 | where is it on the schematic sheet, is the drawing readable, show me that region | `.kicad_sch` + `.net` | `ksheet.py` | [ksheet](references/ksheet.md) |
 | show me the circuit | - | `ksch.py` | [ksch](references/ksch.md) |
+| rename / reorder / renumber / add a sheet, prove nothing else changed, keep the cover / block diagram / power tree true | `.kicad_pro` + sheets | `kproj.py`, `kverify.py`, `kfront.py` | [kproj](references/kproj.md) |
 
 `knet check` and `kpcb check` are heuristics on the netlist and placement;
 `kdrc.py` runs **KiCad's own** DRC (honouring `parsnip.kicad_dru`) and ERC, the
@@ -31,7 +33,8 @@ footprint-library resolver, the `Netlist` + `SchInfo` model and the finding
 formatter). It has no CLI of its own - edit it once and every tool sees it; the
 dependency only points tools -> kcommon. Parsed files over 100 kB are cached in
 `~/.cache/kicad-review` (marshal, keyed on path + size + mtime; one snapshot per
-file), so a kpcb call on a 12 MB board costs ~0.3 s instead of ~0.9 s. `kzo.py`
+file; the oldest entries go once it passes 512 MB), and zone fills are parsed only
+by the commands that read them, so most kpcb calls on the 12 MB board take ~0.3 s. `kzo.py`
 (trace impedance, the CPWG field solver) is kpcb's only other import.
 `kpcb.py` needs `kcommon.py` beside it but does **not** need the
 `.net` - pads carry their own net names and pin functions. Find the `.net` first:
@@ -95,13 +98,20 @@ scrambled. The plot only tells you which sheet a symbol lives on.
 | vias in pads worth a fab note | `kpcb.py FILE viapad --signal` (or `--min 4` for thermal arrays) |
 | what does a backwards cell or pack do | `knet.py FILE revpol` - junctions that conduct (fused?), FETs the cells switch, ICs that lose ground, IC pins pushed below GND with their ESD current |
 | what voltage does this divider set | `knet.py FILE divider U5.OVLO` - nominal + worst case from real resistor values |
+| what feeds what, every rail, each buck's Vout and eFuse ILIM | `knet.py FILE powertree` - sources -> FETs/regulators -> rails -> loads |
+| which I2C address is each part, any duplicates | `knet.py FILE i2c` - per bus: controller, targets, addresses resolved from strap pins |
+| via sizes, drills, aspect ratio | `kpcb.py FILE vias` |
+| rename/reorder/renumber sheets, then prove the circuit did not change | `kproj.py DIR ...`, then `kverify.py DIR` - one PASS/FAIL line per check |
+| do the cover, block diagram, power tree still match the board | `kfront.py FILE.net check` and `pages` |
+| why won't the file open / which KiCad opens it / is KiCad holding the project | `kdrc.py FILE.kicad_pcb doctor` |
 | unfamiliar board, what is on it | `knet.py FILE summary` then `check` |
 | draw a circuit that exists | `knet.py FILE draw U8 -d 2 -o out.svg` |
 | draw a circuit that does not exist yet | write a ksch spec, `ksch.py render` - see [ksch](references/ksch.md) |
 | what does the datasheet say | `kdoc.py grep 'Y' --count` to pick the page, then grep with context |
 
 More in [references/recipes.md](references/recipes.md), including the self-test to
-run after editing any tool.
+run after editing any tool, and the 5-line import for an ad-hoc query (Board,
+Netlist, load_sexp) - never re-implement paren matching in an inline script.
 
 ## Hard rules
 

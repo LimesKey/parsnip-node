@@ -37,53 +37,17 @@ import sys
 import tempfile
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from kcommon import kicad_cli, sch_files, top_level_sheets  # noqa: E402
+from kcommon import kicad_cli, kid, kids, parse_sexp, sch_files, top_level_sheets  # noqa: E402
 
 # ---------------------------------------------------------------- s-expressions
-
-
-def parse(text):
-    """Return a nested list. Atoms stay strings; quoted strings keep a \0 marker
-    so re-serialising can tell "1" (a string) from 1 (a bare token)."""
-    out, stack, i, n = [], [], 0, len(text)
-    while i < n:
-        c = text[i]
-        if c == "(":
-            new = []
-            (stack[-1] if stack else out).append(new)
-            stack.append(new)
-            i += 1
-        elif c == ")":
-            stack.pop()
-            i += 1
-        elif c == '"':
-            j, buf = i + 1, []
-            while j < n and text[j] != '"':
-                if text[j] == "\\":
-                    buf.append(text[j + 1])
-                    j += 2
-                else:
-                    buf.append(text[j])
-                    j += 1
-            (stack[-1] if stack else out).append("\0" + "".join(buf))
-            i = j + 1
-        elif c.isspace():
-            i += 1
-        else:
-            j = i
-            while j < n and not text[j].isspace() and text[j] not in "()\"":
-                j += 1
-            (stack[-1] if stack else out).append(text[i:j])
-            i = j
-    return out[0] if len(out) == 1 else out
+# Quoted strings are parsed raw behind a \0 marker (parse_sexp mark=), so dump()
+# writes them back byte-exact and can tell "1" (a string) from 1 (a bare token).
 
 
 def dump(node, indent=0):
     pad = "  " * indent
     if isinstance(node, str):
-        if node.startswith("\0"):
-            return '"%s"' % node[1:].replace("\\", "\\\\").replace('"', '\\"')
-        return node
+        return '"%s"' % node[1:] if node.startswith("\0") else node
     if not node:
         return "()"
     head = node[0]
@@ -96,25 +60,20 @@ def dump(node, indent=0):
     return "(" + " ".join(parts[:1]) + "".join(parts[1:]) + "\n" + pad + ")"
 
 
-def kids(node, tag):
-    return [c for c in node if isinstance(c, list) and c and c[0] == tag]
+def q(s):
+    """plain text -> a quoted atom"""
+    return "\0" + s.replace("\\", "\\\\").replace('"', '\\"')
 
 
-def kid(node, tag):
-    got = kids(node, tag)
-    return got[0] if got else None
+def unq(s):
+    """a quoted atom -> plain text (a bare token as is)"""
+    return s[1:].replace('\\"', '"').replace("\\\\", "\\") if s.startswith("\0") else s
 
 
 def val(node, tag):
-    """First value of (tag value), with the quoted-string marker stripped."""
+    """First value of (tag value) as plain text."""
     c = kid(node, tag)
-    if not c or len(c) < 2 or not isinstance(c[1], str):
-        return None
-    return c[1][1:] if c[1].startswith("\0") else c[1]
-
-
-def q(s):
-    return "\0" + s
+    return unq(c[1]) if c and len(c) > 1 and isinstance(c[1], str) else None
 
 
 # ---------------------------------------------------------------- export
@@ -129,7 +88,7 @@ def export(root, workdir):
     if r.returncode != 0 or not os.path.exists(out):
         sys.exit("%s failed on %s:\n%s%s" % (cli, root, r.stdout, r.stderr))
     text = open(out).read()
-    return parse(text), text
+    return parse_sexp(text, mark="\0"), text
 
 
 # ---------------------------------------------------------------- merge
@@ -190,8 +149,7 @@ def merge(roots):
             if sheetpath is not None and prefix != "/":
                 names = kid(sheetpath, "names")
                 if names and len(names) > 1 and isinstance(names[1], str):
-                    cur = names[1][1:] if names[1].startswith("\0") else names[1]
-                    names[1] = q(scope(cur, prefix))
+                    names[1] = q(scope(unq(names[1]), prefix))
             comps.append(comp)
             n_c += 1
 

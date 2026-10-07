@@ -94,7 +94,7 @@ or put them in ~/.config/partsearch/config.json as {"digikey_client_id": "...",
 Cache: ~/.cache/partsearch (override PARTSEARCH_CACHE), 24 h TTL. Cache hits are
 free, so re-querying the same part in a later chat costs nothing.
 """
-import sys, os, re, json, glob, argparse, subprocess, urllib.parse
+import sys, os, re, json, glob, argparse, subprocess, urllib.parse, signal
 from part_core import (best_datasheet, buy_qty, CACHE, cfg, conv, dk_search, dk_token, dmoney,
                        dmoney1, fx_note, fx_rates, http, jlc_annotate, JLC_FACETS, jlc_facets,
                        jlc_detail, JLC_SEARCH, jlc_search, LCSC_DETAIL, lcsc_search, LCSC_SEARCH,
@@ -242,6 +242,11 @@ def c_selftest(a):
                                           'dk', 'https://www.ti.com/general/docs/suppproductinfo.tsp?distId=10'
                                                 '&gotoUrl=https%3A%2F%2Fwww.ti.com%2Flit%2Fgpn%2Ftps22944')]})] \
             == ['ESD501', 'TPN2R203NC', 'MAX17320G22', 'TPS22945', 'TLV74333PDBVR', 'TPS22945'], 'ds --save names'
+        from part_core import ds_candidates
+        assert ds_candidates({'datasheet_candidates': [('jlc', 'https://www.lcsc.com/datasheet/lcsc_datasheet_'
+                                                               '2310251550_Sunlord-MWSA0503S-2R2MT_C408408.pdf')]})[1] \
+            == ('jlc (wmsc v2)', 'https://wmsc.lcsc.com/wmsc/upload/file/pdf/v2/lcsc/'
+                                 '2310251550_Sunlord-MWSA0503S-2R2MT_C408408.pdf'), 'wmsc v2 datasheet fallback'
         mp = _mouser_norm({'MouserPartNumber': '595-TPS61033DRLR', 'ManufacturerPartNumber': 'TPS61033DRLR',
                            'Manufacturer': 'Texas Instruments', 'AvailabilityInStock': '12543', 'Min': '1',
                            'Mult': '1', 'LifecycleStatus': None, 'IsDiscontinued': 'false',
@@ -257,7 +262,7 @@ def c_selftest(a):
                                                     'red LED', 'LED', 'ledger white')] \
             == [True, True, True, False, False, False], 'lighting-LED gap note'
         off = (f"OK    pick/alt parsing {_pick_selftest()}, fpcheck matcher {_fpcheck_selftest()}, "
-               f"ds names 6/6, mouser normaliser, kcap bridge, lighting-LED note")
+               f"ds names 6/6, wmsc v2 fallback, mouser normaliser, kcap bridge, lighting-LED note")
     except AssertionError as e:
         off = f"FAIL  {e}"
     if a.offline:
@@ -470,6 +475,8 @@ def save_datasheet(r, url, a):
     if not kdoc:
         print("  indexed   : kdoc.py not found; `kdoc.py index` it by hand"); return
     p = subprocess.run([sys.executable, kdoc, 'index', out], capture_output=True, text=True)
+    if ' scan ' in p.stdout:          # image-only pages (Sunlord's catalogs): OCR them now
+        p = subprocess.run([sys.executable, kdoc, 'index', out, '--ocr'], capture_output=True, text=True)
     print(f"  indexed   : {(p.stdout.strip() or p.stderr.strip())[:120]}")
 
 def c_compare(a):
@@ -589,11 +596,7 @@ def main():
         print(f"\n  {note}")
     return rc
 
-try:                      # piping to `head` should not print a traceback
-    import signal
-    signal.signal(signal.SIGPIPE, signal.SIG_DFL)
-except Exception:
-    pass
-
 if __name__ == '__main__':
+    if hasattr(signal, 'SIGPIPE'):                  # piping to `head`: no traceback
+        signal.signal(signal.SIGPIPE, signal.SIG_DFL)
     sys.exit(main() or 0)

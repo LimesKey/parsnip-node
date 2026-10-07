@@ -32,6 +32,22 @@ Read this once per session before any traversal or coordinate work.
   sheet gets a WARNING on load.
 - **An open eeschema writes `_autosave-*.kicad_sch` files.** Every tool ignores them.
 
+## Multi-top-level projects (KiCad 10.99)
+
+- **The project manager tree lists only the .kicad_sch named after the project.**
+  Other top-level sheets show up there only when KiCad's git integration attaches
+  (`project_tree_pane.cpp` `showAllSchematics`). Membership is the `.kicad_pro`
+  `schematic.top_level_sheets` list plus sheet symbols, not that tree.
+- **Navigator order = `top_level_sheets` order** (loaded verbatim); **plot/PDF order
+  = page numbers.** A top-level page number lives in its own file's
+  `(sheet_instances (path "/" (page N)))`, a subsheet's in the parent's sheet symbol
+  `(instances ... (page N))`. `ksheet lint` flags PAGEORDER/NAVORDER.
+- **"Root" is KiCad's placeholder name** for a converted single-root project.
+  Renaming a top-level sheet renames every local net under it (`/Root/Rails/5V_RAW`)
+  and any netclass pattern that uses the path.
+- **Stable 10.0 cannot open 10.99 files**, and a double-click may launch stable.
+  `kdrc.py FILE doctor` shows which app opens each type.
+
 ## Board
 
 - **Mid-placement, most of the BOM is parked in a pile beside the board.** Every

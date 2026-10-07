@@ -24,6 +24,10 @@ Query:
   knet.py FILE bom --sheet /Root/Rails/ ...same, scoped to one sheet and its children
   knet.py FILE sheets                   components grouped by hierarchical sheet
   knet.py FILE rails                    every power rail: source, loads, decoupling
+  knet.py FILE i2c                      each SDA/SCL bus: controller, targets with their
+                                         7-bit address from strap pins, pull-ups, dup ERROR
+  knet.py FILE powertree                sources -> links/FETs/regulators -> rails -> loads,
+                                         with FB-divider Vout and table ILIM (knet.json)
   knet.py FILE divider U5.OVLO          2-resistor: nominal + worst-case trip voltage
                                          from resistor tolerance, computed directly.
                                          3-resistor UVLO/OVLO string: pass --vth (and
@@ -74,10 +78,10 @@ after a big rewire.
 Exit codes: 0 clean, 1 not found, 2 `check` found an ERROR (or `draw` produced a
 diagram that fails its own layout/netlist verification), 3 bad file/spec.
 """
-import sys, os, re, json, math, argparse
-from collections import defaultdict, deque
+import sys, os, re, json, math, argparse, signal
+from collections import Counter, defaultdict, deque
 
-from kcommon import (GND_RE, Netlist, eng, fp_pads, natkey, parse_value, prefix,
+from kcommon import (GND_RE, Netlist, eng, fp_pads, natkey, parse_args, parse_value, prefix,
                      print_findings, refrange, smart_re, suppressed, sym_geometry, trunc,
                      tvs_standoff, unesc_disp, _fkey)
 
@@ -88,13 +92,19 @@ def c_notes(nl, a):
     if not s.notes:
         print("no text notes in the schematic"); return
     bysheet = defaultdict(list)
-    for path, x, y, text in s.notes:
-        bysheet[path].append((y, x, text))
+    for path, x, y, text, fs, box in s.notes:
+        bysheet[path].append((y, x, text, fs, box))
+    small = Counter()
     for path in sorted(bysheet):
         print(f"\n=== {path}")
-        for y, x, text in sorted(bysheet[path]):
+        for y, x, text, fs, box in sorted(bysheet[path]):
+            small[path] += fs < 1.27
+            tag = f"{'box ' if box else ''}{fs:g} mm{'  SMALL' if fs < 1.27 else ''}"
             body = text.replace('\n', '\n      ')
-            print(f"  ({x:.0f},{y:.0f})  {body}")
+            print(f"  ({x:.0f},{y:.0f})  [{tag}]  {body}")
+    if +small:
+        print("\nnotes under 1.27 mm text (KiCad's default, hard to read printed): "
+              + ', '.join(f"{p} {n}" for p, n in sorted(small.items()) if n))
 
 # ---------------- basic commands ----------------
 
@@ -303,8 +313,7 @@ def sources_of(nl, net):
         pfx = nl.comps.get(ref, {}).get('prefix')
         if t in ('power_out', 'output') or pfx in ('BT',):
             out.append((ref, nd['pin'], nd['fn'] or nl.pinname(ref, nd['pin']), t or 'source'))
-        elif pfx in ('L', 'FB', 'F', 'FL', 'JP') or (
-                pfx == 'R' and (parse_value(nl.value(ref), 'R') or 1e9) <= 10):
+        elif pfx in ('L', 'FB', 'F', 'FL', 'JP') or (pfx == 'R' and _ohms_le(nl.value(ref), 10)):
             if nl.no_dnp and nl.comps.get(ref, {}).get('dnp'):
                 continue
             if len(nl.conn_pins(ref)) != 2:
@@ -321,23 +330,422 @@ def sources_of(nl, net):
                 out.append((nd['ref'], nd['pin'], nm, 'passive pin, likely the source'))
     return out
 
+# ---------------- power tree ----------------
+
+_PWR_CLASS = re.compile(r'PWR|POWER|SUPPLY', re.I)
+_SW_PIN = re.compile(r'^(SW|LX|PH|BOOT|BST|CB)\d*$', re.I)
+_SRC_NAME = re.compile(r'VBUS|SOLAR|VIN|VBAT|BATT?\b|PWR_IN|DC_?IN', re.I)
+_IN_PIN = re.compile(r'^(P?VIN\d*|IN\d*|VBUS\w*|VAC\d+|BAT)$', re.I)
+_OUT_PIN = re.compile(r'^(P?VOUT\d*|OUT\d*|SYS|SW\d*|LX\d*|PPHV|LDO_?\w*|BAT|PMID|REGN|VREG\w*)$', re.I)
+_LOAD_PFX = ('U', 'IC', 'J', 'P', 'CN', 'Y', 'X', 'DS', 'M', 'BZ', 'LS', 'K')
+
+def _ohms_le(value, lim):
+    """value parses to <= lim ohms. `(parse_value(v) or 1e9) <= 10` read a 0 R
+    (0.0, falsy) as 1e9, so 0 R links were never followed."""
+    v = parse_value(value, 'R')
+    return v is not None and v <= lim
+
+def power_nets(nl):
+    """{net: volts or None}: rails by name (+ --rail/knet.json), nets in a power
+    netclass, and nets a power_out pin drives other than a switch node. GND out.
+    Names alone missed VSYS, PPHV, CHG_VBUS and +PACK."""
+    out = {n: v for n, v in nl.railv.items() if not nl.is_gnd(n)}
+    for n, c in nl.netclass.items():
+        if any(_PWR_CLASS.search(x) for x in str(c).split(',')) and not nl.is_gnd(n):
+            out.setdefault(n, None)
+    for ref, pins in nl.cpins.items():
+        for p, n in pins.items():
+            if (nl.pintype(ref, p) == 'power_out' and not _SW_PIN.match(nl.pinname(ref, p) or '')
+                    and not nl.is_gnd(n) and not n.startswith('unconnected-')):
+                out.setdefault(n, None)
+    return out
+
+def power_edges(nl):
+    """{net: [(to_net, ref)]}: what power can flow through. Links (L, FB, F, R <= 10
+    ohm, a closed solder jumper) and FET channels both ways; an IC from each
+    input-named pin's net to each output-named pin's net (pin types are mostly
+    `unspecified` on imported symbols, so names decide). GND is never a node."""
+    E = defaultdict(list)
+    ok = lambda n: n and not nl.is_gnd(n) and not n.startswith('unconnected-')
+    for ref, c in sorted(nl.comps.items(), key=lambda kv: natkey(kv[0])):
+        if nl.no_dnp and c['dnp']:
+            continue
+        pins, pfx = nl.cpins.get(ref, {}), c['prefix']
+        nm = {p: (nl.pinname(ref, p) or p) for p in pins}
+        part = (c.get('part') or '').lower()
+        if pfx in ('U', 'IC'):
+            ins = {pins[p] for p in pins if _IN_PIN.match(nm[p]) and ok(pins[p])}
+            pout = {pins[p] for p in pins if ok(pins[p]) and nl.pintype(ref, p) == 'power_out'
+                    and not _SW_PIN.match(nm[p])}
+            outs = pout | {pins[p] for p in pins if ok(pins[p]) and _OUT_PIN.match(nm[p])}
+            for x in sorted(ins):
+                E[x] += [(y, ref) for y in sorted(outs - {x})]
+            # a load's own supply pin feeds only a typed power_out (NEO VCC -> VCC_RF)
+            for x in sorted({pins[p] for p in pins if ok(pins[p]) and re.match(r'^(VCC|VDD)', nm[p], re.I)} - ins):
+                E[x] += [(y, ref) for y in sorted(pout - {x})]
+            continue
+        if pfx == 'Q':
+            d = {pins[p] for p in pins if nm[p].upper().startswith('D')}
+            s = {pins[p] for p in pins if nm[p].upper().startswith('S')}
+            ends = (d | s) if len(d) == len(s) == 1 else set()
+        elif pfx == 'JP' and 'bridged12' in part:
+            ends = {pins.get('1'), pins.get('2')}
+        elif pfx in ('L', 'FB', 'F', 'JP') or (pfx == 'R' and _ohms_le(c['value'], 10)):
+            ends = set(pins.values()) if len(pins) == 2 and 'open' not in part else set()
+        else:
+            continue
+        if len(ends) == 2 and all(ok(n) for n in ends):
+            x, y = sorted(ends)
+            E[x].append((y, ref)); E[y].append((x, ref))
+    return E
+
+def power_sources(nl):
+    """[(net, label)]: the top of each cell stack, then connector pins named like a
+    supply input (VBUS, SOLAR, VIN, BAT) or on a net so named."""
+    out, plus, minus = [], {}, set()
+    for ref, c in nl.comps.items():
+        if c['prefix'] == 'BT' and not (nl.no_dnp and c['dnp']):
+            for p, n in nl.cpins[ref].items():
+                (plus.__setitem__(n, ref) if nl.pinname(ref, p) == '+' else minus.add(n))
+    bt = {r: {nl.pinname(r, p): n for p, n in nl.cpins[r].items()} for r in plus.values()}
+    for top in sorted(set(plus) - minus, key=natkey):
+        stack, n = [], top
+        while n in plus and plus[n] not in stack:
+            stack.append(plus[n]); n = bt[plus[n]].get('-')
+        out.append((top, f"cells {'+'.join(stack)}"))
+    seen = {n for n, _ in out}
+    for ref, c in sorted(nl.comps.items(), key=lambda kv: natkey(kv[0])):
+        if c['prefix'] not in ('J', 'P', 'CN') or (nl.no_dnp and c['dnp']):
+            continue
+        for p, n in nl.cpins[ref].items():
+            pn = nl.pinname(ref, p) or ''
+            if (n not in seen and not nl.is_gnd(n) and not n.startswith('unconnected-')
+                    and (_SRC_NAME.search(pn) or _SRC_NAME.search(n.rsplit('/', 1)[-1]))):
+                seen.add(n); out.append((n, f"{ref} {pn or p}"))
+    return out
+
+def power_tree(nl):
+    """One BFS per source, cells first: (sources, parent {net: (from, ref)},
+    also {net: [(from, ref)]}). A net belongs to the first source that reaches it,
+    so the system rails hang off the battery and USB/solar show up as "also fed"
+    (a level-synchronous BFS over all sources let solar claim the charger)."""
+    E, src = power_edges(nl), power_sources(nl)
+    roots = {n for n, _ in src}
+    parent, also = {}, defaultdict(list)
+    for root, _ in src:
+        q, mine = deque([root]), {root}
+        while q:
+            n = q.popleft()
+            for m, ref in E.get(n, []):
+                if m == n or parent.get(n) == (m, ref) or m in roots:
+                    continue              # walked back, or into where power enters
+                if m not in parent:
+                    parent[m] = (n, ref); mine.add(m); q.append(m)
+                elif m not in mine and parent[m] != (n, ref) and (n, ref) not in also[m]:
+                    also[m].append((n, ref))      # a second source's way in
+    return src, parent, also
+
+def _conv_note(nl, ref, cfg):
+    """' [FB 402k/101k: Vout = 4.98 V]' / ' [ILIM 5.40/6.07/6.60 A (R128 549)]'.
+    VFB and ILIM tables come from knet.json ("vref", "ilim"), keyed by a
+    substring of the part value - never guessed."""
+    bits, val_ = [], nl.value(ref).upper()
+    for p, n in nl.cpins.get(ref, {}).items():
+        pn = nl.pinname(ref, p) or ''
+        if re.fullmatch(r'V?FB\d*|ADJ', pn, re.I):
+            legs = divider_legs(nl, n)
+            top = [l for l in legs if l[1] != 'gnd' and l[4]]
+            bot = [l for l in legs if l[1] == 'gnd' and l[4]]
+            if len(top) == 1 and len(bot) == 1:
+                k = (top[0][4] + bot[0][4]) / bot[0][4]
+                vref = next((float(v) for key, v in (cfg.get('vref') or {}).items() if key.upper() in val_), None)
+                bits.append(f"FB {eng(top[0][4])}/{eng(bot[0][4])}: Vout = "
+                            + (f"{vref * k:.3f} V" if vref else f"{k:.3f} x VFB (knet.json vref)"))
+        tab = next((t for key, t in (cfg.get('ilim') or {}).items() if key.upper() in val_), None)
+        if tab and re.search(r'IL|ISET|IMAX|ICL', pn, re.I):
+            for r, kind, _f, _v, ohms in divider_legs(nl, n):
+                hit = next((v for k, v in tab.items()
+                            if kind == 'gnd' and ohms and abs(parse_value(k, 'R') / ohms - 1) < .005), None)
+                if hit:
+                    bits.append(f"ILIM {hit} ({r} {eng(ohms)})")
+    return f"  [{'; '.join(bits)}]" if bits else ''
+
+def c_powertree(nl, a):
+    P = power_nets(nl)
+    src, parent, also = power_tree(nl)
+    if not src:
+        print("no power source found (no BT cells, no connector pin named VBUS/SOLAR/VIN/BAT)"); return 1
+    kids_ = defaultdict(list)
+    for m, (n, ref) in parent.items():
+        kids_[n].append((m, ref))
+    edge_refs = defaultdict(set)          # not loads: what feeds a net, what it feeds on
+    for m, (n, ref) in parent.items():
+        edge_refs[m].add(ref)
+        if not any(re.match(r'^(VCC|VDD)', nl.pinname(ref, p) or '', re.I)
+                   for p, x in nl.cpins[ref].items() if x == n):
+            edge_refs[n].add(ref)         # ...but a part's own supply pin is a load
+    label = dict(src)
+    def loads(n):
+        own = edge_refs[n] | {label.get(n, '').split(' ')[0]}
+        return sorted({nd['ref'] for nd in nl.nets.get(n, []) if nd['ref'] not in own
+                       and nl.comps[nd['ref']]['prefix'] in _LOAD_PFX
+                       and not (nl.no_dnp and nl.comps[nd['ref']]['dnp'])}, key=natkey)
+    keep = {}
+    def kept(n):
+        if n not in keep:
+            keep[n] = False
+            keep[n] = n in P or bool(loads(n)) or any([kept(m) for m, _ in kids_[n]])
+        return keep[n]
+    def net_line(n):
+        v = P.get(n, nl.railv.get(n))
+        ld = loads(n)
+        via = parent.get(n, (None, None))[1]       # the feeding IC's other inputs go on its hop
+        al = '; '.join(f"{f} via {r}" for f, r in [x for x in also[n] if x[1] != via][:3])
+        return (f"{n}{f'  {v:g} V' if v is not None else ''}"
+                + (f"  loads {refrange(ld)}" if ld else '')
+                + (f"  (also fed from {al})" if al else ''))
+    told = set()
+    def hop(ref, m):
+        other = sorted({f for f, r in also[m] if r == ref} - {parent[m][0]}, key=natkey)
+        tail = f" (also from {', '.join(other)})" if other and ref not in told else ''
+        told.update([ref] if other else [])
+        return f"{ref} {trunc(nl.value(ref), 18)}{_conv_note(nl, ref, a.cfg)}{tail}"
+    def show(n, ind):
+        for m, ref in sorted(kids_[n], key=lambda t: natkey(t[0])):
+            if not kept(m):
+                continue
+            chain = [hop(ref, m)]
+            while m not in P and not loads(m) and not also[m]:
+                nxt = [k for k in kids_[m] if kept(k[0])]
+                if len(nxt) != 1:
+                    break
+                m, r2 = nxt[0]
+                chain.append(hop(r2, m))
+            print(f"{ind}-> {' -> '.join(chain)} -> {net_line(m)}")
+            show(m, ind + '   ')
+    print(f"power tree from {len(src)} source(s); volts are name-derived (--rail/knet.json), "
+          f"Vout/ILIM from knet.json vref/ilim tables")
+    for n, lab in src:
+        print(f"\n{lab}: {net_line(n)}")
+        show(n, '  ')
+    mids = {n for r, c in nl.comps.items() if c['prefix'] == 'BT'
+            for p, n in nl.cpins[r].items() if nl.pinname(r, p) == '-'}   # cell interconnects
+    lost = sorted((n for n in P if n not in parent and n not in label and n not in mids), key=natkey)
+    if lost:
+        print(f"\nnot reached from any source: {', '.join(lost)}")
+
+# ---------------- I2C buses and addresses ----------------
+
+# 7-bit address per part (a substring of the value), from each datasheet: a fixed
+# list, or a base plus strap pins LSB first (pin-name regex). knet.json "i2c" adds
+# or overrides: {"PART": {"base": "0x48", "straps": ["A0", "A1"]}} or {"addr": ["0x42"]}.
+I2C_PARTS = {
+    'BQ25798': {'addr': [0x6B]},                                    # 7.3.14.5, fixed
+    'MAX17320': {'addr': [0x36, 0x0B]},                             # 8-bit 6Ch / 16h
+    'QMC6309': {'addr': [0x7C]},                                    # 5.4, one address
+    'TCAL9539': {'base': 0x74, 'straps': ['A0', 'A1']},             # 1110 1 A1 A0
+    'LSM6DSV16X': {'base': 0x6A, 'straps': [r'(SDO/)?SA0']},        # 110101 SA0
+    'M24512': {'base': 0x50, 'straps': ['E0', 'E1', 'E2']},         # 1010 E2 E1 E0
+    'TPS25751': {'tps25751': True},                                 # ADCIN1/2, tables 8-2/8-6
+}
+# TPS25751 Table 8-2 (ADCINx decoded value from RDOWN/(RUP+RDOWN) of LDO_3V3) and
+# Table 8-6 ((ADCIN1, ADCIN2) -> I2C address index #1..#4 = 0x20..0x23, Table 8-5)
+_ADCIN_MAX = (0.0228, 0.0722, 0.1425, 0.2372, 0.3671, 0.7064, 0.9060, 1.0)
+_ADCIN_IDX = {(7, 5): 1, (5, 5): 2, (2, 0): 3, (1, 7): 4, (7, 3): 1, (3, 3): 2, (4, 0): 3,
+              (3, 7): 4, (7, 0): 1, (0, 0): 2, (6, 0): 3, (5, 7): 4}
+
+def _link_end(nl, net, P, seen=None):
+    """Follow 0-10 R resistors and closed jumpers from net: ('GND', ref|None),
+    ('rail', 'NAME via JP4'), or (None, net) when it leads nowhere fixed."""
+    seen = seen or {net}
+    if nl.is_gnd(net):
+        return 'GND', net
+    if net in P or (nl.railv.get(net) or 0) > 0:
+        return 'rail', net
+    for nd in nl.nets.get(net, []):
+        r, c = nd['ref'], nl.comps.get(nd['ref'], {})
+        link = ((c.get('prefix') == 'R' and _ohms_le(c.get('value'), 10))
+                or (c.get('prefix') == 'JP' and 'open' not in (c.get('part') or '').lower()))
+        if not link or (nl.no_dnp and c.get('dnp')) or len(nl.cpins.get(r, {})) != 2:
+            continue
+        far = nl.cpins[r].get(nl.other_pin(r, nd['pin']))
+        if far and far not in seen:
+            seen.add(far)
+            k, n = _link_end(nl, far, P, seen)
+            if k:
+                return k, f"{n} via {r}"
+    return None, net
+
+def _res_legs(nl, net):
+    """[(ref, ohms, far net)]: 2-pin resistors and resistor-array elements on net
+    (an array element's other end: the pin named Rk.x's partner, else pin N+1-n)."""
+    out = []
+    for nd in nl.nets.get(net, []):
+        r, c = nd['ref'], nl.comps.get(nd['ref'], {})
+        if c.get('prefix') not in ('R', 'RN') or (nl.no_dnp and c.get('dnp')):
+            continue
+        pins = nl.cpins.get(r, {})
+        if c['prefix'] == 'R' and len(pins) == 2:
+            op = nl.other_pin(r, nd['pin'])
+        elif c['prefix'] == 'RN':
+            m = re.fullmatch(r'R(\d+)\.([12])', nl.pinname(r, nd['pin']) or '')
+            op = next((p for p in pins if m and nl.pinname(r, p) == f"R{m[1]}.{3 - int(m[2])}"),
+                      str(len(pins) + 1 - int(nd['pin'])) if nd['pin'].isdigit() else None)
+        else:
+            continue
+        if op in pins:
+            out.append((r, parse_value(c['value'], 'R'), pins[op]))
+    return out
+
+def strap_level(nl, net, P):
+    """(level, why): 0, 1, a divider ratio (float in 0..1) or None, for an address pin."""
+    k, n = _link_end(nl, net, P)
+    if k:
+        return (0 if k == 'GND' else 1), n
+    up, dn = [], []
+    for r, ohms, far in _res_legs(nl, net):
+        kk, nn = _link_end(nl, far, P)
+        (dn if kk == 'GND' else up if kk == 'rail' else [None]).append((r, ohms, nn))
+    if up and dn and len(up) == len(dn) == 1 and up[0][1] and dn[0][1]:
+        ratio = dn[0][1] / (up[0][1] + dn[0][1])
+        return ratio, f"{up[0][0]} {eng(up[0][1])} to {up[0][2]} / {dn[0][0]} {eng(dn[0][1])} to GND = {ratio:.3f}"
+    if dn and not up:
+        return 0, f"{dn[0][0]} {eng(dn[0][1]) if dn[0][1] else ''} to GND"
+    if up and not dn:
+        return 1, f"{up[0][0]} {eng(up[0][1]) if up[0][1] else ''} to {up[0][2]}"
+    drv = [f"{nd['ref']}.{nd['pin']}" for nd in nl.nets.get(net, [])
+           if nl.comps.get(nd['ref'], {}).get('prefix') in ('U', 'IC')]
+    return None, (f"driven by {' '.join(drv)}" if len(drv) > 1 else 'floating? no strap found')
+
+def i2c_address(nl, ref, P, table):
+    """([7-bit addresses], [(pin, why)]) for ref, or (None, []) if the table lacks it."""
+    v = nl.value(ref).upper()
+    ent = next((e for k, e in table.items() if k.upper() in v), None)
+    if not ent:
+        return None, []
+    pins = {(nl.pinname(ref, p) or p): n for p, n in nl.cpins.get(ref, {}).items()}
+    if ent.get('tps25751'):
+        idx, why = [], []
+        for nm in ('ADCIN1', 'ADCIN2'):
+            lv, w = strap_level(nl, pins.get(nm, ''), P)
+            d = (None if lv is None else 7 if lv == 1 and not isinstance(lv, float)
+                 else next(i for i, mx in enumerate(_ADCIN_MAX) if lv <= mx))
+            idx.append(d); why.append((nm, f"{w} -> {d}"))
+        i = _ADCIN_IDX.get(tuple(idx))
+        return ([0x1F + i] if i else []), why + [('index', f"#{i}" if i else f"{tuple(idx)} not in Table 8-6")]
+    if 'addr' in ent:
+        return [int(x, 0) if isinstance(x, str) else x for x in ent['addr']], []
+    base, why, ok = int(str(ent['base']), 0), [], True
+    for bit, rx in enumerate(ent.get('straps', [])):
+        pin = next((p for p in pins if re.fullmatch(rx, p, re.I)), None)
+        lv, w = strap_level(nl, pins[pin], P) if pin else (None, 'no such pin')
+        why.append((pin or rx, w))
+        if lv in (0, 1) and not isinstance(lv, float):
+            base |= lv << bit
+        else:
+            ok = False
+    return ([base] if ok else []), why
+
+def i2c_buses(nl):
+    """[(sda_nets, scl_nets)]: each SDA-named net merged with what 0-10 R links and
+    closed jumpers join it to, paired with the SCL net by name or by the devices' SCL pins."""
+    def group(net):
+        g, todo = {net}, [net]
+        while todo:
+            n = todo.pop()
+            for nd in nl.nets.get(n, []):
+                c = nl.comps.get(nd['ref'], {})
+                if ((c.get('prefix') == 'R' and _ohms_le(c.get('value'), 10)) or
+                        (c.get('prefix') == 'JP' and 'open' not in (c.get('part') or '').lower())) \
+                        and len(nl.cpins[nd['ref']]) == 2 and not (nl.no_dnp and c.get('dnp')):
+                    far = nl.cpins[nd['ref']].get(nl.other_pin(nd['ref'], nd['pin']))
+                    if far and far not in g and not nl.is_gnd(far) and far not in nl.railv:
+                        g.add(far); todo.append(far)
+        return g
+    out, done = [], set()
+    for n in sorted(nl.nets, key=natkey):
+        if n in done or 'SDA' not in n.rsplit('/', 1)[-1].upper():
+            continue
+        sda = group(n); done |= sda
+        scl_name = n.replace('SDA', 'SCL').replace('sda', 'scl')
+        scl = next((nl.cpins[nd['ref']][p] for x in sda for nd in nl.nets[x]
+                    for p in nl.cpins[nd['ref']] if 'SCL' in (nl.pinname(nd['ref'], p) or '').upper()
+                    and nl.comps[nd['ref']]['prefix'] in ('U', 'IC')), scl_name if scl_name in nl.nets else None)
+        out.append((sda, group(scl) if scl else set()))
+    return out
+
+def c_i2c(nl, a):
+    P = power_nets(nl)
+    table = dict(I2C_PARTS)
+    table.update((a.cfg.get('i2c') or {}))
+    dup = 0
+    buses = i2c_buses(nl)
+    if not buses:
+        print("no net named like SDA"); return 1
+    for sda, scl in buses:
+        name = ' + '.join(sorted(sda, key=natkey))
+        nodes = [(nd['ref'], nd['pin']) for x in sda for nd in nl.nets[x]]
+        pulls = []
+        for x in sorted(sda | scl, key=natkey):
+            for r, ohms, far in _res_legs(nl, x):
+                k, n = _link_end(nl, far, P)
+                if k == 'rail' and not _ohms_le(nl.value(r), 10):
+                    pulls.append(f"{r} {eng(ohms) if ohms else nl.value(r)} ({x.rsplit('/', 1)[-1]}) to {n}")
+        print(f"\n=== {name}  /  {' + '.join(sorted(scl, key=natkey)) or 'no SCL found'}")
+        print(f"  pull-ups : {'; '.join(pulls) or 'NONE'}")
+        seen, ctrl, conn, other = defaultdict(list), [], [], []
+        for ref in sorted({r for r, _ in nodes}, key=natkey):
+            c = nl.comps[ref]
+            if nl.no_dnp and c['dnp']:
+                continue
+            pn = ' '.join(nl.pinname(ref, p) or p for r, p in nodes if r == ref)
+            if c['prefix'] in ('J', 'P', 'CN', 'TP'):
+                conn.append(ref); continue
+            if c['prefix'] not in ('U', 'IC'):
+                if c['prefix'] not in ('R', 'C', 'JP'):
+                    other.append(ref)
+                continue
+            if re.search(r'I2Cc|MASTER|^G?P?IO\d+', pn, re.I):
+                ctrl.append(f"{ref} {trunc(c['value'], 22)} ({pn})"); continue
+            addrs, why = i2c_address(nl, ref, P, table)
+            for ad in addrs or []:
+                seen[ad].append(ref)
+            at = ('?    ' if addrs is None else '  '.join(f"0x{x:02X}" for x in addrs) if addrs else 'UNRESOLVED')
+            print((f"  target   : {ref:<5} {trunc(c['value'], 20):<20} {at:<10}"
+                   + ('  ' + '; '.join(f"{p}: {w}" for p, w in why) if why else '')
+                   + ("  (not in the address table: knet.json \"i2c\")" if addrs is None else '')).rstrip())
+        print(f"  controller: {'; '.join(ctrl) or 'NONE on this bus'}")
+        if conn:
+            print(f"  connectors: {refrange(conn)}")
+        if other:
+            print(f"  also      : {refrange(other)}")
+        for ad, refs in sorted(seen.items()):
+            if len(refs) > 1:
+                dup += 1
+                print(f"  ERROR address 0x{ad:02X} used by {' '.join(refs)}")
+    return 2 if dup else 0
+
 def c_rails(nl, a):
     rows = []
-    for net in sorted(nl.railv, key=lambda n: (-nl.railv[n], n)):
-        if nl.is_gnd(net):
-            continue
+    P = power_nets(nl)
+    _src, parent, _also = power_tree(nl)
+    for net in sorted(P, key=lambda n: (P[n] is None, -(P[n] or 0), natkey(n))):
         cs = caps_on(nl, net)
         tot = sum(v for _, v, d in cs if v and not d)
         loads = sorted({nd['ref'] for nd in nl.nets[net]
                         if nl.comps.get(nd['ref'], {}).get('prefix') not in ('C',)}, key=natkey)
-        rows.append({'net': net, 'volts': nl.railv[net], 'nodes': len(nl.nets[net]),
-                     'caps': [(r, v, d) for r, v, d in cs], 'total_C': tot,
-                     'sources': sources_of(nl, net), 'loads': loads})
+        fed = dict(_src).get(net) or (f"{parent[net][1]} [{nl.value(parent[net][1])}] from {parent[net][0]}"
+                                      if net in parent else '')
+        rows.append({'net': net, 'volts': P[net], 'nodes': len(nl.nets[net]),
+                     'caps': [(r, v, d) for r, v, d in cs], 'total_C': tot, 'fed': fed,
+                     'sources': [] if fed else sources_of(nl, net), 'loads': loads})
     if a.json:
         print(json.dumps(rows, indent=1)); return
     for r in rows:
-        print(f"\n=== {r['net']}   {r['volts']} V   {r['nodes']} nodes")
-        if r['sources']:
+        print(f"\n=== {r['net']}   {'?' if r['volts'] is None else r['volts']} V   {r['nodes']} nodes")
+        if r['fed']:
+            print(f"  source : {r['fed']}  (powertree)")
+        elif r['sources']:
             for ref, pin, fn, t in r['sources']:
                 print(f"  source : {ref}.{pin} {fn} ({t}) [{nl.value(ref)}]")
         else:
@@ -975,11 +1383,20 @@ def gen_findings(nl, a):
             add('ERROR', 'GNDISLAND', f"{net}: {len(pins)} GND-named pin(s) ({names}) "
                 f"wired together but not on the main GND net - likely needs a ground merge", refs)
 
-    # SOLO
+    # SOLO. A lone net whose short name lives on another sheet is half of a split
+    # label: a local label on a parent and on its subsheet never connect.
+    short = defaultdict(list)
+    for n in nl.nets:
+        short[n.rsplit('/', 1)[-1]].append(n)
     for n, nodes in nl.nets.items():
         if len(nodes) == 1 and not n.startswith('unconnected-'):
             nd = nodes[0]
-            add('ERROR', 'SOLO', f"net {n} has only {nd['ref']}.{nd['pin']} on it", [nd['ref']])
+            twin = [m for m in short[n.rsplit('/', 1)[-1]] if m != n]
+            hint = ''.join(f"; {m} ({', '.join(x['ref'] + '.' + x['pin'] for x in nl.nets[m][:4])}) has the "
+                           f"same name on another sheet: local labels never cross sheets, use a "
+                           f"hierarchical label + sheet pin or a global label" for m in twin[:2])
+            add('ERROR', 'SOLO', f"net {n} has only {nd['ref']}.{nd['pin']} on it{hint}",
+                [nd['ref']] + sorted({x['ref'] for m in twin[:2] for x in nl.nets[m]}, key=natkey))
 
     # CONTEND
     for n, nodes in nl.nets.items():
@@ -1398,11 +1815,6 @@ def _q(s):
 
 def _leaf(n):
     return unesc_disp((n or '').split('/')[-1])
-
-
-def _mkbranch_pins(nl, ref, pin):
-    op = nl.other_pin(ref, pin)
-    return pin, op
 
 
 def _sym_for(ref):
@@ -2254,7 +2666,7 @@ def c_revpol(nl, a):
 CMDS = {'around': c_around, 'notes': c_notes, 'draw': c_draw, 'summary': c_summary, 'comp': c_comp, 'net': c_net, 'pin': c_pin, 'find': c_find,
         'unconnected': c_unconnected, 'bom': c_bom, 'sheets': c_sheets, 'rails': c_rails,
         'walk': c_walk, 'path': c_path, 'check': c_check, 'diff': c_diff, 'divider': c_divider,
-        'revpol': c_revpol}
+        'revpol': c_revpol, 'powertree': c_powertree, 'i2c': c_i2c}
 
 def main():
     ap = argparse.ArgumentParser(add_help=False)
@@ -2295,7 +2707,7 @@ def main():
     ap.add_argument('--no-suppress', action='store_true',
                     help="for `check`: ignore knet.json's suppress list")
     ap.add_argument('-h', '--help', action='store_true')
-    a = ap.parse_args()
+    a = parse_args(ap)
     if a.help:
         print(__doc__); return
     # project config: knet.json next to the netlist. CLI flags win over config.
@@ -2323,6 +2735,7 @@ def main():
                 ov[k.strip()] = float(v)
             except ValueError:
                 pass
+    a.cfg = cfg
     a.suppress = {}
     if not a.no_suppress:
         for entry in cfg.get('suppress') or []:
@@ -2334,11 +2747,7 @@ def main():
         print(f"no such netlist: {a.file}", file=sys.stderr); return 3
     return CMDS[a.cmd](nl, a) or 0
 
-try:                      # piping to `head` should not print a traceback
-    import signal
-    signal.signal(signal.SIGPIPE, signal.SIG_DFL)
-except Exception:
-    pass
-
 if __name__ == '__main__':
+    if hasattr(signal, 'SIGPIPE'):                  # piping to `head`: no traceback
+        signal.signal(signal.SIGPIPE, signal.SIG_DFL)
     sys.exit(main() or 0)

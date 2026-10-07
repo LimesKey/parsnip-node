@@ -25,23 +25,34 @@ lint rules (all readability - the netlist is not wrong, the drawing misleads):
             between them (reads as one line: a bypassed part)
   PINJOG    a net runs one step off its pin's row and jogs at the pin
   CROWD     other objects crowd an IC's pin ends (--crowd MM, 2.54)
+  SHUNTBUS  2+ horizontal 2-pin parts whose GND pin runs into one vertical GND
+            wire: they read as series parts (draw each vertical, own GND symbol)
+  TEXTOVER  a field or pin name overlaps another (KiCad stroke-font widths)
+  PAGEORDER page numbers not depth-first (top-level sheets by page, each followed
+            by its children), so `sch export pdf` prints pages out of order
+  NAVORDER  .kicad_pro top_level_sheets order (the navigator) != page order
 
 `view` plots every sheet once per schematic save (cached in
 ~/.cache/kicad-review/svg), crops the viewBox (mm) and rasterises with
 rsvg-convert. Exit: 0 ok, 1 not found, 2 lint found a WARN, 3 tool failure.
 """
-import sys, os, re, math, glob, hashlib, subprocess, argparse
+import sys, os, re, math, glob, hashlib, subprocess, argparse, signal
 from collections import Counter, defaultdict
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from kcommon import (Netlist, kid, kids, val, load_sexp, sym_geometry, natkey,  # noqa: E402
-                     print_findings, kicad_cli, sch_files, CACHE)
+                     print_findings, kicad_cli, sch_files, CACHE, cache_prune, parse_args,
+                     top_level_sheets, _xf)
 
 RULES = {
     'WIREBODY': 'a wire runs through a symbol body',
     'GAPLINE': 'different nets end-to-end on one line with an empty gap',
     'PINJOG': 'net runs off its pin row and jogs at the pin',
     'CROWD': "other objects crowd an IC's pin ends",
+    'SHUNTBUS': 'horizontal 2-pin shunts feeding one vertical GND wire read as series parts',
+    'TEXTOVER': 'fields or pin names overlap each other',
+    'PAGEORDER': 'page numbers are not depth-first, so the PDF is out of order',
+    'NAVORDER': "the navigator's top-level order differs from page order",
 }
 F = lambda x: float(x)                                      # noqa: E731
 
@@ -74,6 +85,96 @@ def inside(p, s):
     if abs(y0 - y1) < 1e-3 and abs(y - y0) < 1e-3:
         return min(x0, x1) + 1e-3 < x < max(x0, x1) - 1e-3
     return False
+
+
+def _tw(txt, size):
+    """KiCad stroke-font width estimate, markup (~{overbar}, _{sub}, ^{sup}) removed"""
+    txt = re.sub(r'[~_^]\{([^}]*)\}', r'\1', txt).replace('~', '')
+    return size * sum(.9 if c.isupper() or c.isdigit() else .45 if c in ' .,:;il|!()-/' else .75
+                      for c in txt)
+
+
+def text_box(x, y, txt, size, d, up, hj='', vj=''):
+    """sheet-mm box of a text anchored at x,y reading along unit vector d with glyph
+    tops toward `up`, justified like KiCad. KiCad flips text that would read
+    backwards and swaps its justification, which covers the same region."""
+    w = _tw(txt, size)
+    a0, a1 = {'left': (0, w), 'right': (-w, 0)}.get(hj, (-w / 2, w / 2))
+    b0, b1 = {'top': (-size, 0), 'bottom': (0, size)}.get(vj, (-size / 2, size / 2))
+    pts = [(x + a * d[0] + b * up[0], y + a * d[1] + b * up[1]) for a in (a0, a1) for b in (b0, b1)]
+    return (min(p[0] for p in pts), min(p[1] for p in pts), max(p[0] for p in pts), max(p[1] for p in pts))
+
+
+def _hidden(node):
+    e = kid(node, 'effects') or []
+    return 'hide' in node or 'hide' in e or val(node, 'hide') == 'yes' or val(e, 'hide') == 'yes'
+
+
+def _font(node, default=1.27):
+    sz = kid(kid(kid(node, 'effects') or [], 'font') or [], 'size')
+    return F(sz[1]) if sz else default
+
+
+def sym_texts(inst, libsym, unit, sx, sy, rot, mir):
+    """[(kind, text, box)]: an instance's visible fields and its lib symbol's visible
+    pin names, in sheet mm. Field (at) is absolute, its angle relative to the symbol."""
+    out = []
+    for p in kids(inst, 'property'):
+        at = kid(p, 'at')
+        if len(p) < 3 or not p[2] or not at or _hidden(p) or str(p[1]).startswith('ki_'):
+            continue
+        ang = F(at[3]) if len(at) > 3 else 0
+        lx, ly = (1, 0) if ang % 180 == 0 else (0, 1)
+        d, up = _xf(lx, ly, rot, mir), _xf(-ly, lx, rot, mir)
+        j = kid(kid(p, 'effects') or [], 'justify') or []
+        out.append((p[1].lower(), p[2], text_box(F(at[1]), F(at[2]), p[2], _font(p), d, up,
+                                                 next((x for x in j if x in ('left', 'right')), ''),
+                                                 next((x for x in j if x in ('top', 'bottom')), ''))))
+    pn, pnum = kid(libsym, 'pin_names'), kid(libsym, 'pin_numbers')
+    names = not (pn is not None and ('hide' in pn or val(pn, 'hide') == 'yes'))
+    nums = not (pnum is not None and ('hide' in pnum or val(pnum, 'hide') == 'yes'))
+    off = F(val(pn, 'offset')) if pn is not None and val(pn, 'offset') else 0.508
+    for sub in kids(libsym, 'symbol'):
+        bits = sub[1].rsplit('_', 2)
+        try:
+            u, st = int(bits[1]), int(bits[2])
+        except (IndexError, ValueError):
+            u, st = 0, 1
+        if u not in (0, unit) or st not in (0, 1):
+            continue
+        for p in kids(sub, 'pin'):
+            nm, at, no = kid(p, 'name'), kid(p, 'at'), kid(p, 'number')
+            if _hidden(p):
+                continue
+            # placement happens on the sheet, as drawn: KiCad puts numbers (and names
+            # when the offset is 0) above a horizontal pin / left of a vertical one,
+            # whatever the mirror; names with an offset start inside the body
+            ang, ln = (F(at[3]) if len(at) > 3 else 0), F(val(p, 'length') or 0)
+            ex, ey = _xf(F(at[1]), F(at[2]), rot, mir)
+            dx, dy = (round(v) for v in _xf(math.cos(math.radians(ang)), math.sin(math.radians(ang)), rot, mir))
+            ex, ey = sx + ex, sy + ey
+            mx, my = ex + dx * ln / 2, ey + dy * ln / 2
+            def beside(txt, size, below):
+                w, g = _tw(txt, size), .3
+                if dy == 0:
+                    y0 = my + g if below else my - g - size
+                    return (mx - w / 2, y0, mx + w / 2, y0 + size)
+                x0 = mx + g if below else mx - g - size
+                return (x0, my - w / 2, x0 + size, my + w / 2)
+            if nums and no and len(no) > 1 and no[1] and not _hidden(no):
+                out.append(('pin number ' + no[1], no[1], beside(no[1], _font(no), names and off == 0)))
+            if not names or not nm or len(nm) < 2 or nm[1] in ('', '~') or _hidden(nm):
+                continue
+            if off > 0:
+                w, h = _tw(nm[1], _font(nm)), _font(nm)
+                x0, y0 = ex + dx * (ln + off), ey + dy * (ln + off)
+                x1, y1 = x0 + dx * w, y0 + dy * w
+                out.append(('pin ' + val(p, 'number'), nm[1],
+                            (min(x0, x1) - abs(dy) * h / 2, min(y0, y1) - abs(dx) * h / 2,
+                             max(x0, x1) + abs(dy) * h / 2, max(y0, y1) + abs(dx) * h / 2)))
+            else:
+                out.append(('pin ' + val(p, 'number'), nm[1], beside(nm[1], _font(nm), False)))
+    return out
 
 
 def box_dist(a, b):
@@ -113,6 +214,7 @@ class Sheet:
                                            'power': ref.startswith('#') or bool(kid(lib[lid], 'power'))})
             s['pins'].update(pins)
             s['units'].append(unit)
+            s.setdefault('texts', []).extend(sym_texts(inst, lib[lid], unit, F(at[1]), F(at[2]), rot, mir))
             if body:
                 s['bodies'].append(body)
         self.wires = []
@@ -295,7 +397,7 @@ def lint_sheet(sh, crowd=2.54, box=None):
     pinat = {K(p[0], p[1]): s['ref'] for s in real for p in s['pins'].values()}
     for (o, c), segs in lines.items():
         segs.sort(key=lambda z: z[0])
-        for (lo0, hi0, w0), (lo1, hi1, w1) in zip(segs, segs[1:]):
+        for (_, hi0, w0), (lo1, _, w1) in zip(segs, segs[1:]):
             gap = lo1 - hi0
             if not 0.01 < gap <= 2.55 or sh.net(w0[0]) == sh.net(w1[0]):      # <= 2 x 50 mil
                 continue
@@ -327,6 +429,53 @@ def lint_sheet(sh, crowd=2.54, box=None):
                     f('PINJOG', f"{s['ref']}.{num} ({nm or '~'}) at {fmt((x, y))}: {sh.net((x, y))} "
                                 f"runs {math.hypot(dx, dy):.2f} mm off the pin's row and jogs at "
                                 f"the pin", [s['ref']])
+    # SHUNTBUS: horizontal 2-pin shunts whose GND pins run into one vertical GND wire.
+    # A ladder with a GND symbol on it reads as parallel parts; it misleads when no GND
+    # symbol sits within 3 grid steps of the column (the wire reads as a signal: the
+    # 10-02 charger's C78-C85, 15 mm away), or when two meet it from opposite sides at
+    # one height: -||-+-||- reads as two parts in series.
+    vert = [w for w in sh.wires if abs(w[0][0] - w[1][0]) < .01]
+    gsym = [(sh.uf.find(K(px, py)), px, py) for o in sh.syms.values() if o['power'] and sh.nl.is_gnd(o['value'])
+            for px, py, _sd, _nm in o['pins'].values()]
+    col, bus = defaultdict(dict), defaultdict(dict)
+    for s in real:
+        if len(s['pins']) != 2:
+            continue
+        for x, y, side, _nm in s['pins'].values():
+            if side not in 'LR' or not sh.nl.is_gnd(sh.net((x, y)).rsplit('/', 1)[-1]):
+                continue
+            cands = [(x, y)] + [w[1] if K(*w[0]) == K(x, y) else w[0] for w in ends.get(K(x, y), [])]
+            for p in cands:
+                if abs(p[1] - y) > .01:
+                    continue                                   # only a horizontal run counts
+                if any(K(*p) in (K(*v[0]), K(*v[1])) or inside(p, v) for v in vert) and keep(p):
+                    bus[K(*p)]['L' if s['at'][0] < p[0] else 'R'] = s['ref']
+                    col[(round(p[0], 2), sh.uf.find(K(*p)))][s['ref']] = p
+    for (vx, root), refs in sorted(col.items()):
+        dmin = min((math.hypot(gx - p[0], gy - p[1]) for p in refs.values()
+                    for r, gx, gy in gsym if r == root), default=math.inf)
+        if len(refs) > 1 and dmin > 7.62:
+            rs = sorted(refs, key=natkey)
+            f('SHUNTBUS', f"{' '.join(rs)}: horizontal 2-pin shunts into one vertical GND wire at x={vx:g} "
+                          f"with no GND symbol within {'any distance' if dmin == math.inf else f'{dmin:.1f} mm'}"
+                          f" - the wire reads as a signal and the parts as series; put a GND symbol on "
+                          f"the column or draw each part vertical with its own", rs)
+    for k, sides in sorted(bus.items()):
+        if len(sides) == 2:
+            pair = sorted(sides.values(), key=natkey)
+            f('SHUNTBUS', f"{pair[0]} and {pair[1]} meet the vertical GND wire at {k[0]/100:g},{k[1]/100:g} "
+                          f"from opposite sides: -||-+-||- reads as two parts in series; offset one, or "
+                          f"draw both vertical with their own GND symbol", pair)
+    # TEXTOVER: visible fields and pin names whose boxes overlap (0.1 mm slack each)
+    tx = sorted(((b[0] + .1, b[1] + .1, b[2] - .1, b[3] - .1), sy['ref'], kind, t)
+                for sy in sh.syms.values() for kind, t, b in sy.get('texts', []))
+    for i, (b, r, kind, t) in enumerate(tx):
+        for b2, r2, kind2, t2 in tx[i + 1:]:
+            if b2[0] >= b[2]:
+                break
+            if b2[1] < b[3] and b[1] < b2[3] and (r, kind) != (r2, kind2) and keep(b[:2], b2[:2]):
+                f('TEXTOVER', f"{r} {kind} '{t}' overlaps {r2} {kind2} '{t2}' near {b[0]:.1f},{b[1]:.1f}",
+                  sorted({r, r2}, key=natkey))
     # CROWD: objects close to an IC's pin ends (not AT one). Another part's pin
     # always counts; a bend, junction or label only on a net other than the pin's
     # (its own label or strap is the normal way to draw it).
@@ -356,6 +505,48 @@ def lint_sheet(sh, crowd=2.54, box=None):
     return out
 
 
+def page_order(d):
+    """(findings, [(page, path)]) for the project in d: depth-first page numbers
+    (PAGEORDER) and the navigator's top-level order vs page order (NAVORDER)."""
+    out, tls = [], top_level_sheets(d)
+    def page_of_top(fn):
+        t = load_sexp(os.path.join(d, fn))
+        return next((val(p, 'page') for p in kids(kid(t, 'sheet_instances') or [], 'path')
+                     if len(p) > 1 and p[1] == '/'), '')
+    def children(fn, path):
+        kids_ = []
+        try:
+            t = load_sexp(os.path.join(d, fn))
+        except OSError:
+            return kids_
+        for sh in kids(t, 'sheet'):
+            props = {p[1]: p[2] for p in kids(sh, 'property') if len(p) > 2}
+            pg = next((val(q, 'page') for pr in kids(kid(sh, 'instances') or [], 'project')
+                       for q in kids(pr, 'path')), '')
+            kids_.append((pg, f"{path}{props.get('Sheetname', '?')}/", props.get('Sheetfile', '')))
+        return kids_
+    num = lambda pg: int(pg) if str(pg).isdigit() else 10**6
+    tops = [(page_of_top(fn), f"/{nm}/", fn) for fn, nm in tls]
+    seq = []
+    def walk(pg, path, fn):
+        seq.append((pg, path))
+        for c in sorted(children(fn, path), key=lambda z: num(z[0])):
+            walk(*c)
+    for t in sorted(tops, key=lambda z: num(z[0])):
+        walk(*t)
+    pages = [num(pg) for pg, _ in seq]
+    if pages != sorted(pages):
+        out.append({'severity': 'WARN', 'rule': 'PAGEORDER', 'refs': [],
+                    'msg': "page numbers are not depth-first; the PDF prints "
+                           + ' '.join(str(p) for p in sorted(pages)) + " but depth-first reads "
+                           + ', '.join(f"{pg} {path}" for pg, path in seq)})
+    if [t[1] for t in tops] != [t[1] for t in sorted(tops, key=lambda z: num(z[0]))]:
+        out.append({'severity': 'WARN', 'rule': 'NAVORDER', 'refs': [],
+                    'msg': "navigator lists " + ', '.join(f"{p} ({pg})" for pg, p, _ in tops)
+                           + ": reorder .kicad_pro schematic.top_level_sheets by page number"})
+    return out, seq
+
+
 def c_lint(nl, a):
     si = nl.sch()
     box = None
@@ -368,6 +559,8 @@ def c_lint(nl, a):
     else:
         sheets = [Sheet(nl, os.path.basename(b)) for b in si.files]
     F_ = [x for sh in sheets for x in lint_sheet(sh, a.crowd, box)]
+    if not a.around and not a.target:
+        F_ += page_order(os.path.dirname(os.path.abspath(nl.path)))[0]
     only = {r.strip().upper() for r in a.only.split(',') if r.strip()}
     skip = {r.strip().upper() for r in a.skip.split(',') if r.strip()}
     F_ = [x for x in F_ if (not only or x['rule'] in only) and x['rule'] not in skip]
@@ -386,15 +579,21 @@ def plots(nl):
     """kicad-cli's SVG of every sheet, re-plotted once per schematic save"""
     d = os.path.dirname(os.path.abspath(nl.path))
     files = sch_files(d)
-    tag = hashlib.sha1(('|'.join(f"{f}:{os.path.getmtime(f)}" for f in files)).encode()).hexdigest()[:12]
+    # the sheet named after the .kicad_pro: kicad-cli plots every top-level sheet from
+    # it, but only one from any other root (the netlist's source is the first
+    # top-level sheet, Overview, which plotted nothing else)
+    named = [p[:-len('.kicad_pro')] + '.kicad_sch' for p in sorted(glob.glob(os.path.join(d, '*.kicad_pro')))]
+    root = next((f for f in named if os.path.isfile(f)), None) \
+        or (nl.source if os.path.isfile(nl.source or '') else files[0])
+    tag = hashlib.sha1(('|'.join([root] + [f"{f}:{os.path.getmtime(f)}" for f in files])).encode()).hexdigest()[:12]
     out = os.path.join(CACHE, 'svg', tag)
     if not glob.glob(os.path.join(out, '*.svg')):
         os.makedirs(out, exist_ok=True)
-        root = nl.source if os.path.isfile(nl.source or '') else files[0]
         r = subprocess.run([kicad_cli(root), 'sch', 'export', 'svg', '-e', '-o', out, root],
                            capture_output=True, text=True)
         if r.returncode:
             sys.exit(f"kicad-cli sch export svg failed:\n{r.stdout}{r.stderr}")
+        cache_prune()
     return out
 
 
@@ -448,7 +647,7 @@ def main():
     ap.add_argument('--max', type=int, default=25)
     ap.add_argument('--only', default='', help='lint: comma list of rules to keep')
     ap.add_argument('--skip', default='', help='lint: comma list of rules to drop')
-    a = ap.parse_args()
+    a = parse_args(ap)
     a.r = a.r if a.r is not None else {'sch': 5.0}.get(a.cmd, 10.0)
     if a.cmd in ('sch', 'view') and not a.target:
         print(f"{a.cmd} needs a REF" + (" or SHEET --box" if a.cmd == 'view' else '')); return 1
@@ -457,9 +656,6 @@ def main():
 
 
 if __name__ == '__main__':
-    try:
-        import signal
+    if hasattr(signal, 'SIGPIPE'):                  # piping to `head`: no traceback
         signal.signal(signal.SIGPIPE, signal.SIG_DFL)
-    except Exception:
-        pass
     sys.exit(main() or 0)

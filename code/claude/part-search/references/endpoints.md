@@ -24,7 +24,11 @@ are not sold retail: LCSC detail returns no `result`, the JLC endpoint has the f
 record. `resolve`/`fpcheck`/`bom`/`check` fall back to it (`jlc_detail`) and label it.
 Its `dataManualUrl` (`www.lcsc.com/datasheet/lcsc_datasheet_..._C408408.pdf`) and the
 short `www.lcsc.com/datasheet/C<n>.pdf` serve an HTML viewer, not a PDF: never put
-either in a Datasheet field. Only `datasheet.lcsc.com/datasheet/pdf/<hash>` verifies.
+either in a Datasheet field. `datasheet.lcsc.com/datasheet/pdf/<hash>` verifies, and so
+does the viewer link's file on wmsc's upload path, same `<stamp>_<Mfr>-<MPN>_<C>.pdf`
+tail: `https://wmsc.lcsc.com/wmsc/upload/file/pdf/v2/lcsc/2310251550_Sunlord-MWSA0503S-2R2MT_C408408.pdf`
+(206 application/pdf, 2026-10-03). `ds` tries it right after each viewer link
+(`part_core.ds_candidates`).
 
 ## LCSC cannot filter or sort server-side. Do not go looking again.
 

@@ -32,14 +32,20 @@ print `A | B (?)` (a drawing KiCad reads differently from this model).
 | `GAPLINE` | two collinear wires of different nets, an empty gap <= 2.54 mm between them (not two pins of one part, no symbol or power symbol in the gap) | reads as one wire: a bypassed part |
 | `PINJOG` | the wire at a pin leaves sideways by one 50 mil step (<= 1.27 mm) and then runs parallel | a net drawn off its pin's row; a 2.54 mm sideways stub is the usual pin tie and does not fire |
 | `CROWD` (INFO) | on a part with >= 6 pins: another part's pin, or a junction/label/wire bend of a different net, within `--crowd` (2.54) mm of a pin end | too much in the pin's neighbourhood to read which wire is whose |
+| `SHUNTBUS` | 2+ horizontal 2-pin parts whose GND pin runs (straight or along a horizontal wire) into one vertical GND wire with no GND symbol within 7.62 mm of the column; or two of them meeting that wire at one height from opposite sides | the unmarked vertical wire reads as a signal and the parts as series (the 10-02 charger's C78-C85: 15 mm from any GND symbol); `-\|\|-+-\|\|-` reads as two parts in series. A ladder with its GND symbol on it reads as parallel and does not fire |
+| `TEXTOVER` | two visible texts overlapping: Reference/Value/other fields and pin names/numbers, any symbols (0.1 mm slack). Widths are a KiCad stroke-font estimate with `~{}`/`_{}`/`^{}` markup removed; pin text is placed as drawn (numbers above/left of the pin, below/right when the name sits outside) | a value over a pin number (ESDS314's `2`), a reference over a jumper's pin number |
+| `PAGEORDER` | (whole-project lint only) page numbers that are not depth-first: top-level sheets by page number, each followed by its children | `sch export pdf` prints by page number, so the PDF reads out of order |
+| `NAVORDER` | (whole-project lint only) `.kicad_pro` `top_level_sheets` order differs from page order | the hierarchy navigator lists top-level sheets in that order, not by page |
 
 `--only`/`--skip RULE,RULE`, `--max N` as in knet/kpcb. Exit 2 when a WARN fires.
 
 ## view
 
 Plots every sheet once per schematic save with `kicad-cli sch export svg -e`
-(the right CLI per file; nightly for 10.99 files), cached under
-`~/.cache/kicad-review/svg/<hash of sheet mtimes>`, rewrites the SVG viewBox to the
+from the sheet named after the `.kicad_pro` (exported from any other top-level
+sheet, kicad-cli plots only that one: Overview, the netlist's source, plotted
+nothing else), with the right CLI per file (nightly for 10.99 files), cached under
+`~/.cache/kicad-review/svg/<hash of root + sheet mtimes>`, rewrites the SVG viewBox to the
 crop (the plot is in mm, so no pixel arithmetic) and rasterises with
 `rsvg-convert` at `--px 20` pixels per mm. `-o x.svg` keeps the cropped SVG. The
 PNG path is printed; `Read` it to look. ~0.7 s cold, ~0.1 s cached.

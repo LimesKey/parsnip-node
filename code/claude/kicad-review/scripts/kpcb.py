@@ -86,12 +86,12 @@ accurate even when not every item is printed.
 
 Exit codes: 0 clean, 1 not found, 2 `check` found an ERROR, 3 bad file.
 """
-import sys, os, re, json, math, glob, argparse
-from collections import defaultdict
+import sys, os, re, json, math, glob, argparse, signal
+from collections import Counter, defaultdict
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 try:
-    from kcommon import refrange, natkey, trunc, prefix, unesc_disp, print_findings
+    from kcommon import refrange, natkey, trunc, prefix, unesc_disp, print_findings, parse_args
 except ImportError:                                     # pragma: no cover
     print("kpcb.py needs kcommon.py beside it (shared parser + finding formatter)",
           file=sys.stderr)
@@ -479,7 +479,6 @@ def sync_findings(b, netpath, a):
             add('WARN', 'SYNCDNP', f"{r} is DNP {'on the board' if f.dnp else 'in the '
                                    'netlist'} only", [r])
 
-    nmis = 0
     for r in sorted(bf & nf, key=natkey):
         for p in b.fps[r].pads:
             want = n.pinnet.get((r, p['num']))
@@ -489,7 +488,6 @@ def sync_findings(b, netpath, a):
                         f"{unesc_disp(p['net'])} but the netlist has no such pin", [r])
                 continue
             if _canon_net(p['net'] or '') != _canon_net(want):
-                nmis += 1
                 add('ERROR', 'SYNCNET', f"{r}.{p['num']} is on "
                     f"{unesc_disp(p['net']) or '(no net)'} on the board but "
                     f"{unesc_disp(want)} in the netlist", [r])
@@ -669,12 +667,47 @@ def c_net(b, a):
                   + '; '.join(what(q) for q in big[:3]))
     return rc
 
+def c_vias(b, a):
+    """`vias`: every via by size / drill / layer span, the nets on each, and the
+    worst drill aspect ratio - the via question scripts kept re-deriving by hand."""
+    if not b.vias:
+        print("no vias"); return 0
+    full = {b.copper[0], b.copper[-1]} if b.copper else set()
+    groups = defaultdict(list)
+    for v in b.vias:
+        span = 'through' if not v['layers'] or set(v['layers']) >= full else '-'.join(v['layers'])
+        groups[(v['size'], v['drill'], span)].append(v['net'])
+    thick = sum(t for _n, ty, t, _e in b.stack if ty and t)
+    print(f"{len(b.vias)} via(s), {len({v['net'] for v in b.vias})} net(s)"
+          + (f"; board {thick:.2f} mm, worst aspect {thick / min(v['drill'] for v in b.vias if v['drill']):.1f}:1"
+             if thick and any(v['drill'] for v in b.vias) else ''))
+    print(f"  {'size':>5} {'drill':>5} {'count':>6}  {'span':<8} nets")
+    for (sz, dr, span), nets in sorted(groups.items(), key=lambda kv: (-len(kv[1]), kv[0])):
+        top = Counter(nets).most_common(4)
+        more = len(set(nets)) - len(top)
+        print(f"  {sz:5.2f} {dr:5.2f} {len(nets):6d}  {span:<8} "
+              + ', '.join(f"{n or '(no net)'} {c}" for n, c in top) + (f", +{more} more net(s)" if more > 0 else ''))
+    return 0
+
 CMDS = {'summary': c_summary, 'check': c_check, 'where': c_where, 'map': c_map,
         'sheet': c_sheet, 'unplaced': c_unplaced, 'ic': c_ic, 'span': c_span,
         'zones': c_zones, 'sync': c_sync, 'review': c_review, 'ampacity': c_ampacity,
         'viapad': c_viapad, 'net': c_net, 'rf': c_rf, 'height': c_height, 'view': c_view,
         'silk': c_silk, 'movecheck': c_movecheck, 'freebox': c_freebox,
-        'tidy': c_tidy}
+        'tidy': c_tidy, 'vias': c_vias}
+
+LIMITS = (('edge', 0.5, 'courtyard-to-board-edge minimum, mm'),
+          ('hole', 1.5, 'keepout beyond a mounting hole pad radius, mm'),
+          ('conn', 10.0, 'max connector distance from an edge, mm'),
+          ('rf', 8.0, 'RF part to switching node, mm'),
+          ('therm', 8.0, 'heat source to heat-sensitive part, mm'),
+          ('bypass', 3.0, 'supply pin to its bypass cap, mm'),
+          ('clear', 0.0, 'extra margin on every courtyard test, mm'),
+          ('gap', 0.25, 'for `ic`: courtyard gap in a suggestion, mm'),
+          ('fb', 4.0, 'for `ic`: feedback part to switching node, mm'),
+          ('tol', 1.0, 'for `ic`: slop allowed before a placed part stops reading OK, mm'),
+          ('span', 0.0, 'NETSPAN threshold, mm (0 = half the board diagonal)'),
+          ('fanout', 8.0, 'a net with more nodes than this is a rail'))
 
 def main():
     ap = argparse.ArgumentParser(add_help=False)
@@ -690,19 +723,7 @@ def main():
     ap.add_argument('--origin', choices=('page', 'grid', 'aux'), default='page',
                     help="for `where`: read and print x,y relative to the board's grid or aux "
                          "(drill/place) origin, as KiCad's Properties dialog does (page)")
-    for name, dflt, hlp in (('edge', 0.5, 'courtyard-to-board-edge minimum, mm'),
-                            ('hole', 1.5, 'keepout beyond a mounting hole pad radius, mm'),
-                            ('conn', 10.0, 'max connector distance from an edge, mm'),
-                            ('rf', 8.0, 'RF part to switching node, mm'),
-                            ('therm', 8.0, 'heat source to heat-sensitive part, mm'),
-                            ('bypass', 3.0, 'supply pin to its bypass cap, mm'),
-                            ('clear', 0.0, 'extra margin on every courtyard test, mm'),
-                            ('gap', 0.25, 'for `ic`: courtyard gap in a suggestion, mm'),
-                            ('fb', 4.0, 'for `ic`: feedback part to switching node, mm'),
-                            ('tol', 1.0, 'for `ic`: slop allowed before a placed part '
-                                         'stops reading OK, mm'),
-                            ('span', 0.0, 'NETSPAN threshold, mm (0 = half the board diagonal)'),
-                            ('fanout', 8.0, 'a net with more nodes than this is a rail')):
+    for name, dflt, hlp in LIMITS:
         ap.add_argument('--' + name, type=float, default=None, help=hlp + f' ({dflt:g})')
     ap.add_argument('--anchor', default='',
                     help="for `ic`: hang the layout off this already-placed part "
@@ -755,7 +776,7 @@ def main():
     ap.add_argument('--no-suppress', action='store_true',
                     help="for `check`: ignore kpcb.json's suppress list")
     ap.add_argument('-h', '--help', action='store_true')
-    a = ap.parse_args()
+    a = parse_args(ap)
     if a.help:
         print(__doc__); return
     cfg = {}
@@ -765,9 +786,7 @@ def main():
             cfg = json.load(open(cp))
     except Exception as e:
         print(f"(ignoring malformed kpcb.json: {e})", file=sys.stderr)
-    for name, dflt in (('edge', 0.5), ('hole', 1.5), ('conn', 10.0), ('rf', 8.0),
-                       ('therm', 8.0), ('bypass', 3.0), ('clear', 0.0), ('gap', 0.25),
-                       ('fb', 4.0), ('tol', 1.0), ('span', 0.0), ('fanout', 8.0)):
+    for name, dflt, _ in LIMITS:                # the command line wins, then kpcb.json
         if getattr(a, name) is None:
             try:
                 setattr(a, name, float(cfg.get(name, dflt)))
@@ -790,11 +809,7 @@ def main():
         a.span = 0.5 * math.hypot(b.outline[2] - b.outline[0], b.outline[3] - b.outline[1])
     return CMDS[a.cmd](b, a) or 0
 
-try:
-    import signal
-    signal.signal(signal.SIGPIPE, signal.SIG_DFL)
-except Exception:
-    pass
-
 if __name__ == '__main__':
+    if hasattr(signal, 'SIGPIPE'):                  # piping to `head`: no traceback
+        signal.signal(signal.SIGPIPE, signal.SIG_DFL)
     sys.exit(main() or 0)

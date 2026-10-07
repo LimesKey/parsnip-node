@@ -23,12 +23,20 @@ The application sets the limits, so read them off the board first:
 | TVS/ESD | Vc at Ipp, capacitance on fast lines, Vrwm over the rail max | `vc`, `vrwm`, `--w 'Junction Capacitance=..'` |
 | buck/boost | Iq (sleep), switching frequency, EMI features (spread spectrum, sync) | `iq`, `freq` |
 | MLCC | effective C at the operating voltage (`kcap`), not nominal | `kcap.py` |
-| inductor | Isat, DCR, size | `isat`, `dcr` |
+| inductor | DCR first, then Isat at a stated % drop from the datasheet, size | `dcr`; `isat` only as a coarse filter |
 | GNSS/RF filter, LNA | NF, insertion loss in band, rejection at 915 MHz | datasheet only |
 
 LCSC/JLC list some of these (Iq, RDS(on) at one Vgs, Vc), DigiKey others (Qg, PSRR
 by frequency). NF, IL at band, PSRR at your frequency and RDS(on) at a 4.5 V drive
 are **datasheet only**: say so, and read them there.
+
+Inductor Isat is not one number across makers. Each rates it at its own inductance
+drop (Wurth 10% and 30%, Bourns SRP 30%, PSPMAA 35%, Coilank AAPS 40%), and LCSC's
+"Isat" attribute is sometimes the temperature-rise Irms: XGL5030-222MEC lists 12.9 A,
+its datasheet gives 4.2 / 6.8 / 9.4 A at 10 / 20 / 30% drop. Even DCR drifts (ABC
+AGA0630: 12.5 mOhm on LCSC, 14.5 on the maker's page). So filter loosely on `isat`,
+rank on `dcr`, then read Isat at one stated % drop off each finalist's curve; `pick`
+prints a caveat line whenever it filters or sorts on Isat.
 
 ## 3. Shortlist, both catalogs, one table
 

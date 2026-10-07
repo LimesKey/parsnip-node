@@ -214,11 +214,25 @@ def verify_pdf(url, timeout=20):
         return False, f"{status} but served HTML, probably a login/landing page"
     return False, f"HTTP {status or 'no response'} {ctype}"
 
+LCSC_PDF_V2 = 'https://wmsc.lcsc.com/wmsc/upload/file/pdf/v2/lcsc/{tail}'
+
+def ds_candidates(rec):
+    """rec's datasheet candidates, each lcsc.com viewer link followed by the same file
+    on wmsc's v2 upload path: www.lcsc.com/datasheet/lcsc_datasheet_<stamp>_<Mfr>-<MPN>_<C>.pdf
+    serves HTML, wmsc.lcsc.com/wmsc/upload/file/pdf/v2/lcsc/<stamp>_..._<C>.pdf the PDF (C408408)."""
+    out = []
+    for label, url in rec.get('datasheet_candidates', []):
+        out.append((label, url))
+        m = re.search(r'/lcsc_datasheet_(\d+_[^/?#]+\.pdf)', url or '')
+        if m:
+            out.append((label + ' (wmsc v2)', LCSC_PDF_V2.format(tail=m.group(1))))
+    return out
+
 def best_datasheet(rec, timeout=20):
     """Try every datasheet candidate until one verifies. Never returns a broken link
     without saying so."""
     tried = []
-    for label, url in rec.get('datasheet_candidates', []):
+    for label, url in ds_candidates(rec):
         if not url:
             continue
         ok, note = verify_pdf(url, timeout)

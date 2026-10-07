@@ -27,6 +27,7 @@ rsense  REF x,y [ORIENT] [value]     Kelvin shunt, KiCad R_Shunt pins (1/4 force
 nmos|pmos|npn|pnp  REF x,y [l] [value]
 wire  A.1 [x,y ...] B.2              orthogonal route through the points IN ORDER
 net   NAME [@x=N|@y=N] A.1 B.2 ...   named net; @x/@y gives it a trunk column/row
+                                     (an @y trunk's name sits left of its left end)
 gnd   A.2 [earth|gnda|NAME]          pwr  +3V3 A.1
 label NAME A.1     hlabel NAME A.1 [in|out]     glabel NAME A.1
 nc    U1.7         note x,y <text>              group x,y w,h <text>
@@ -38,13 +39,19 @@ nc    U1.7         note x,y <text>              group x,y w,h <text>
   T/B pin names sit inside the body (numbers beside the lead, outside), so with
   T pins the first L/R pin moves down below the longest T name, and `h=` (the L/R
   row span) grows by that and by the longest B name; `ic_margins()` gives the offset.
+  Ref and value never sit across leads: with T pins they go outside the body's
+  top-left corner, with only B pins both go above the body, else ref above and
+  value below. A 2-pin part with a side lead (a dual diode's COM) starts the field
+  on that side just right of the lead.
 - ORIENT: `v` (default, pin 1 top) `h` (pin 1 left) `vr` (pin 1 bottom) `hr` (pin 1
   right); a trailing `m` (`hm`, `hrm`, `vrm`) mirrors before rotating, so a dual
   diode's COM can point down in either direction. Transistors: gate/base left by default, `l` mirrors, anchor is the gate or
   base pin, drain/collector down-side of the channel; p-channel and PNP are drawn
   source/emitter up, the way they are actually used.
 - Address pins by number or name: `U8.6`, `U8.OUT`, `Q1.g`, `D1.k`, `R1.2`.
-- Junction dots, routing and text placement are automatic. A wire always leaves a
+- Junction dots, routing and text placement are automatic. Dots follow KiCad's
+  rule: 3+ distinct exits at a point, a pin end counting as one, so a wire laid
+  through a pin end gets a dot and two wires leaving a pin along one stub do not. A wire always leaves a
   pin the way the pin faces, so it never dives back through its own body.
 - `wire` visits its points in the order written: `wire U7.22 30,13 30,9 U7.24`, never
   `wire U7.22 U7.24 30,13 30,9` (that draws pin to pin, then doubles back). ksch
@@ -85,9 +92,16 @@ EOF
   session if you need a part you have not drawn before. `ksch.py help` prints the
   full language.
 - **`--net board.net` is the accuracy feature.** It fills IC pin names and values
-  from the netlist, so `ic U8 10,4 @` alone draws the whole part correctly, renumbers
+  from the netlist, and `ic U8 10,4 @` with no `L:/R:/T:/B:` draws the part **1:1
+  from its symbol on the sheet**: body rectangle, pin positions, lead lengths and
+  stacked pins (lib mm / 2.54 = grid units, so the pin pitch is 1 unit, not the
+  hand layout's 2). `r c cp l fb ntc fuse` take their library symbol's pin span
+  (Device:R/L are 3 units, the `_Small` symbols 2). A part with no sheet symbol falls
+  back to the automatic power-up / ground-down layout. It also renumbers
   diode/FET/BJT pins to the real part's by pin name (KiCad's `Device:D` is 1=K, so
-  `D1.1` is the cathode once `--net` is given; `D1.k` always is), and it
+  `D1.1` is the cathode once `--net` is given; `D1.k` always is; a multi-pin
+  protector such as the TVS2200, IN x3 and GND x4 + EP, drawn as `dz`/`d` maps its
+  GND/EP pins to the anode and the rest to the cathode), and it
   verifies every drawn connection against the real board: a wire the board does not
   have, a pin number the part does not have, or a label sitting on the wrong net all
   come back as errors. Use it for any diagram of a circuit that exists.
@@ -95,14 +109,20 @@ EOF
   to hand-written SVG.
 - The tool also warns about overlapping bodies, wires crossing a body, overlapping
   text (refs, values, pin names, notes, label names; widths estimated from DejaVu
-  Sans advances), and pins drawn but left unwired. A horizontal 2-pin part keeps
+  Sans advances), a ref/value/note/net name with a wire or lead running through it,
+  and pins drawn but left unwired. A horizontal 2-pin part keeps
   its ref within 0.95 above and its value within 1.2 below the pin line, so stacked
   parts at a 3-unit row pitch never touch. A `gnd`/`pwr` on a left- or right-facing
   pin sits on that pin's row (a gnd row over a pwr row in one column stays apart, and
   a named gnd off a left-facing pin puts its name on the left, away from the part).
 - Flags: `--theme kicad|mono|dark`, `--px N` (22), `--us` (zigzag resistors),
-  `--grid`, `--frame`, `--quiet`. Exit 3 = spec error, 2 = verify found an error.
+  `--grid`, `--frame`, `--quiet`, `--paper A4|A3` (draws the sheet's usable frame,
+  277 x 190 / 400 x 277 mm, and WARNs when the drawing is bigger; the `wrote` line
+  always gives the extent in mm). Exit 3 = spec error, 2 = verify found an error.
 - Layout habits that avoid rework: 5-6 units between columns, 3 between rows, inputs
-  left, outputs right, supplies up, grounds down. Put a `pwr`/`gnd` symbol on every
+  left, outputs right, supplies up, grounds down. Those habits and the 2-unit hand
+  `ic` pitch make a sheet layout ~2x KiCad's size: a Charger layout drawn that way
+  came out far over A4. For a layout meant to be reproduced in KiCad, use `--net` +
+  side-less `ic` lines (1:1 symbols) and `--paper A4`. Put a `pwr`/`gnd` symbol on every
   rail pin instead of running long wires, and use a `label` instead of dragging a
   wire across the sheet.

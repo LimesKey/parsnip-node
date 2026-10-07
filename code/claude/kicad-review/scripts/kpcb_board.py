@@ -1,6 +1,7 @@
 """Board model for kpcb.py: part classification, geometry helpers, IPC-2221 math, FP and Board."""
 import os, re, json, math, glob
 from collections import defaultdict
+from functools import cached_property
 from kcommon import (load_sexp, kids, kid, val, has, prefix, parse_value, unesc_disp,
                      rail_voltage)
 
@@ -93,9 +94,7 @@ def ctr(b):
 
 def box_dist(a, b):
     """Gap between two bboxes; 0 if they touch or overlap."""
-    dx = max(0.0, max(a[0] - b[2], b[0] - a[2]))
-    dy = max(0.0, max(a[1] - b[3], b[1] - a[3]))
-    return math.hypot(dx, dy)
+    return math.hypot(max(0.0, a[0] - b[2], b[0] - a[2]), max(0.0, a[1] - b[3], b[1] - a[3]))
 
 def pt_box_dist(p, b):
     dx = max(b[0] - p[0], 0.0, p[0] - b[2])
@@ -195,18 +194,22 @@ class PolyIndex:
     O(edges in one 0.5 mm row): an edge a horizontal ray at y can cross must
     span y, so bucketing edges by y is exact."""
     def __init__(self, pts, cell=0.5):
-        self.cell, self.rows, self.grid = cell, defaultdict(list), defaultdict(list)
+        self.pts, self.cell, self.rows = pts, cell, defaultdict(list)
         self.bbox = bbox(pts)
-        n = len(pts)
-        for i in range(n):
-            (x1, y1), (x2, y2) = pts[i], pts[(i + 1) % n]
-            for cx in range(math.floor(min(x1, x2) / cell), math.floor(max(x1, x2) / cell) + 1):
+        for (x1, y1), (x2, y2) in zip(pts, pts[1:] + pts[:1]):
+            if y1 != y2:
                 for k in range(math.floor(min(y1, y2) / cell), math.floor(max(y1, y2) / cell) + 1):
-                    self.grid[(cx, k)].append(((x1, y1), (x2, y2)))
-            if y1 == y2:
-                continue
-            for k in range(math.floor(min(y1, y2) / cell), math.floor(max(y1, y2) / cell) + 1):
-                self.rows[k].append((x1, y1, x2, y2))
+                    self.rows[k].append((x1, y1, x2, y2))
+
+    @cached_property
+    def grid(self):
+        """edges by (x, y) cell, for touches(): only fill-to-fill merging needs it"""
+        g, c = defaultdict(list), self.cell
+        for (x1, y1), (x2, y2) in zip(self.pts, self.pts[1:] + self.pts[:1]):
+            for cx in range(math.floor(min(x1, x2) / c), math.floor(max(x1, x2) / c) + 1):
+                for k in range(math.floor(min(y1, y2) / c), math.floor(max(y1, y2) / c) + 1):
+                    g[(cx, k)].append(((x1, y1), (x2, y2)))
+        return g
 
     def touches(self, p, tol=0.01):
         """inside, or within tol of the outline (a shared boundary reads either way)"""
@@ -369,7 +372,7 @@ class Board:
                        if isinstance(k, list) and len(k) > 1 and str(k[1]).endswith('.Cu')]
         self.fps, self.nets = {}, defaultdict(list)
         self.zones = []
-        self.fills = []                         # cached zone fills, per layer
+        self._fill_nodes = []
         edge = []
 
         self.teardrops = 0
@@ -380,13 +383,7 @@ class Board:
                 continue
             lays = kid(z, 'layers') or kid(z, 'layer') or []
             self.zones.append((net, [l for l in lays[1:] if isinstance(l, str)]))
-            for fp in kids(z, 'filled_polygon'):
-                pts = [(float(p[1]), float(p[2])) for p in (kid(fp, 'pts') or [])[1:]
-                       if isinstance(p, list) and p and p[0] == 'xy']
-                if len(pts) >= 3:
-                    self.fills.append({'net': net, 'layer': val(fp, 'layer'),
-                                       'pts': pts, 'area': poly_area(pts),
-                                       'bbox': bbox(pts)})
+            self._fill_nodes += [(net, fp) for fp in kids(z, 'filled_polygon')]
 
         # copper thickness per layer from the stackup (mm); outer = first+last Cu
         self.thick = {}
@@ -449,6 +446,19 @@ class Board:
         for f in self.fps.values():
             f.placed = self._placed(f)
             f._edge = (lambda f=f: self._edge_dist(f)) if self.edge_segs else None
+
+    @cached_property
+    def fills(self):
+        """the saved zone fills, per layer: most of the file, parsed on first use
+        because most commands never look at them"""
+        out = []
+        for net, fp in self._fill_nodes:
+            pts = [(float(p[1]), float(p[2])) for p in (kid(fp, 'pts') or [])[1:]
+                   if isinstance(p, list) and p and p[0] == 'xy']
+            if len(pts) >= 3:
+                out.append({'net': net, 'layer': val(fp, 'layer'), 'pts': pts,
+                            'area': poly_area(pts), 'bbox': bbox(pts)})
+        return out
 
     # -- parsing helpers -------------------------------------------------
     def _graphics(self, node, f, pfx):
@@ -731,9 +741,6 @@ class Board:
             return c[0] if isinstance(c, list) and c else str(c)
         import fnmatch
         return next((c for p, c in pats if fnmatch.fnmatchcase(net, p)), '')
-
-    def net_fps(self, net):
-        return [self.fps[r] for r, _ in self.nets.get(net, []) if r in self.fps]
 
     def is_hole(self, f):
         return bool(HOLE_FP.search(f.fp)) or \

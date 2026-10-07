@@ -7,6 +7,7 @@
 | `near A B` | pages where both patterns appear |
 | `page DOC N` | prints a path to the page image; then `view` it |
 | `text DOC N` | dump one page's text |
+| `-p 7` / `-p 15,18,22` / `-p 38-39` | only those pages: filters `grep` and `near`, picks pages for `text` and `page` |
 | `toc DOC` / `list` | heading per page / what is indexed |
 
 `page` and `text` also accept the doc via `-d`, the same way `grep` does, so
@@ -26,6 +27,10 @@ as `LM61460_Q1`, but `-d lm61460-q1`, `-d "lm61460 q1"`, `-d lm61460q1`,
 `-d lm61460-q1.pdf` and `-d docs/datasheets/rails/LM61460-Q1.pdf` all resolve to it (a path
 to a file that was never indexed indexes it on first use). Copy the name straight
 off the filename; don't hand-convert hyphens.
+
+Two files with one basename (two makers' `SI2308.pdf`) get two slots: the first
+indexed keeps `SI2308`, the next is `SI2308_<parent dir>` and `index` says so. A slot
+whose source file is gone (moved, renamed) is reused.
 
 Prefer plain strings over regex when grepping - the index is line-wrap normalised
 and a regex tuned to the raw layout will miss. A plain string (no regex syntax)

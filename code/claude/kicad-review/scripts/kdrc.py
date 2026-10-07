@@ -13,6 +13,9 @@ knet/kpcb so the output reads the same way.
   kdrc.py FILE.kicad_pcb erc       ERC only, every root schematic
   kdrc.py FILE.kicad_pcb flags     PWR_FLAG audit: each flag's net, and whether
                                    ERC needs it (LOAD-BEARING) or not (REDUNDANT)
+  kdrc.py FILE.kicad_pcb doctor    kicad-cli versions, the project's newest file
+                                   format, what a double-click opens (WARN if stable
+                                   would get a 10.99 file), KiCad running / locks
 
 DRC runs with --refill-zones so results reflect the current pours, but never
 with --save-board: the zones are refilled in memory only, the .kicad_pcb on
@@ -61,7 +64,7 @@ import sys, os, re, json, tempfile, subprocess
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 try:
     from kcommon import (print_findings, suppressed, trunc, kicad_cli,
-                         top_level_sheets, sch_files)
+                         top_level_sheets, sch_files, parse_args, doctor)
 except ImportError:                                     # pragma: no cover
     print("kdrc.py needs kcommon.py beside it (shared finding formatter)",
           file=sys.stderr)
@@ -496,7 +499,7 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('file')
-    ap.add_argument('cmd', nargs='?', default='both', choices=['both', 'drc', 'erc', 'flags'])
+    ap.add_argument('cmd', nargs='?', default='both', choices=['both', 'drc', 'erc', 'flags', 'doctor'])
     ap.add_argument('--max', type=int, default=None, help='cap lines per rule (default 25)')
     ap.add_argument('--only', default='', help='comma list of RULE names to keep')
     ap.add_argument('--skip', default='', help='comma list of RULE names to drop')
@@ -513,12 +516,16 @@ def main():
     ap.add_argument('--json', action='store_true')
     ap.add_argument('--selftest', action='store_true',
                     help='run the offline suppression-logic self-test and exit (no board needed)')
-    a = ap.parse_args()
+    a = parse_args(ap)
 
     if not os.path.exists(a.file):
         sys.stderr.write(f"no such file: {a.file}\n"); return 3
     if a.cmd == 'flags':
         return do_flags(a.file, a)
+    if a.cmd == 'doctor':
+        lines = doctor(os.path.dirname(os.path.abspath(a.file)))
+        print('\n'.join(lines))
+        return 2 if any('WARN' in x for x in lines) else 0
     cfg = load_cfg(a.file)
     if a.max is None:
         a.max = cfg.get('max', 25)

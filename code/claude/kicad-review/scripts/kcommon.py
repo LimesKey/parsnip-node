@@ -12,8 +12,8 @@ import sys, os, re, glob, json, math, shutil, hashlib, marshal, subprocess, time
 from collections import Counter, defaultdict
 
 __all__ = [
-    'GND_RE', 'KNOWN_RAILS', 'Netlist', 'SchInfo', 'eng', 'fp_lib_dirs', 'fp_pads',
-    'has', 'kicad_cli', 'sym_geometry',
+    'CACHE', 'GND_RE', 'KNOWN_RAILS', 'Netlist', 'SchInfo', 'cache_prune', 'cache_put', 'eng',
+    'fp_lib_dirs', 'fp_pads', 'doctor', 'has', 'kicad_cli', 'kicad_running', 'parse_args', 'sym_geometry',
     'kid', 'kids', 'load_sexp', 'natkey', 'netlist_warnings', 'parse_sexp', 'parse_value',
     'prefix', 'print_findings', 'rail_voltage', 'refrange', 'refresh_netlist', 'sch_files', 'smart_re',
     'suppressed', 'top_level_sheets', 'trunc', 'tvs_standoff', 'unesc_disp',
@@ -36,6 +36,63 @@ def kicad_cli(path=None):
     if gv.split('.')[1:2] == ['99'] and shutil.which('kicad-cli-nightly'):
         return 'kicad-cli-nightly'
     return 'kicad-cli'
+
+def kicad_running(d):
+    """Reasons a writer must not touch the project in d right now, [] when clear: a
+    KiCad GUI process (exact `ps -eo comm` names - a `pgrep -f` pattern matched its
+    own shell line and cried wolf), a `~*.lck` lock KiCad holds on an open file, or
+    an `_autosave-*` copy (an open editor, or a crash that left unsaved work)."""
+    out = []
+    try:
+        comm = subprocess.run(['ps', '-eo', 'comm='], capture_output=True, text=True).stdout.split()
+        live = sorted({c for c in comm if c in ('kicad', 'kicad-nightly', 'eeschema', 'pcbnew')})
+        if live:
+            out.append(f"KiCad is running ({', '.join(live)})")
+    except OSError:
+        pass
+    for pat, what in (('~*.lck', 'lock file'), ('_autosave-*', 'autosave copy')):
+        hits = sorted(os.path.basename(f) for f in glob.glob(os.path.join(d, pat)))
+        if hits:
+            out.append(f"{what}(s) in the project: {', '.join(hits[:4])}")
+    return out
+
+def _fmt_version(path):
+    """(version N, generator_version) of a KiCad file, from its first 4 kB."""
+    with open(path, encoding='utf-8', errors='replace') as fh:
+        head = fh.read(4000)
+    v = re.search(r'\(version (\d+)\)', head)
+    g = re.search(r'\(generator_version "([\d.]+)"\)', head)
+    return (int(v.group(1)) if v else 0), (g.group(1) if g else '?')
+
+def doctor(d):
+    """Install/project sanity lines for `kdrc.py FILE doctor`: each kicad-cli's
+    version, the newest file format in the project, what a double-click opens
+    (xdg-mime), and whether KiCad holds the project. 'WARN' marks a problem: stable
+    10.0 opening a 10.99 file fails with "created with a more recent version"."""
+    out = []
+    for cli in ('kicad-cli', 'kicad-cli-nightly'):
+        if not shutil.which(cli):
+            out.append(f"{cli:<18} not installed"); continue
+        r = subprocess.run([cli, '--version'], capture_output=True, text=True)
+        out.append(f"{cli:<18} {((r.stdout or r.stderr).strip().splitlines() or ['?'])[-1]}")
+    files = [f for e in ('kicad_sch', 'kicad_pcb') for f in glob.glob(os.path.join(d, f'*.{e}'))
+             if not os.path.basename(f).startswith(('_autosave-', '~'))]
+    newest = max((_fmt_version(f) + (os.path.basename(f),) for f in files), default=None)
+    nightly = bool(newest) and newest[1].split('.')[1:2] == ['99']
+    if newest:
+        out.append(f"newest format      {newest[0]} (generator {newest[1]}, {newest[2]})"
+                   + ("  -> needs kicad-nightly" if nightly else ""))
+    if shutil.which('xdg-mime'):
+        for ext, mime in (('kicad_sch', 'application/x-kicad-schematic'),
+                          ('kicad_pcb', 'application/x-kicad-pcb'), ('kicad_pro', 'application/x-kicad-project')):
+            app = subprocess.run(['xdg-mime', 'query', 'default', mime], capture_output=True,
+                                 text=True).stdout.strip() or '(none)'
+            bad = nightly and 'nightly' not in app
+            out.append(f"opens {'.' + ext:<13}{app}" + ("  WARN: stable KiCad cannot open 10.99 files; "
+                       f"xdg-mime default <app>-nightly.desktop {mime}" if bad else ""))
+    run = kicad_running(d)
+    out.append("KiCad              " + ('; '.join(run) if run else 'not running, no locks'))
+    return out
 
 def sch_files(d):
     """*.kicad_sch in d, minus KiCad's own _autosave-* / ~ backup copies (an open
@@ -110,6 +167,38 @@ def refresh_netlist(path):
                 f"{trunc(r.stderr or r.stdout, 160)}")
     return (f"({os.path.basename(path)} was older than {os.path.basename(max(newer, key=os.path.getmtime))}: "
             f"regenerated with kmerge in {time.time() - t0:.1f} s; KREVIEW_NO_REGEN=1 skips this)")
+
+# ---------------- command line ----------------
+
+_DASHVAL = re.compile(r'-[A-Z][A-Za-z0-9_+./{}~-]*$')
+_NUL = '\x00'
+
+def parse_args(ap, argv=None, known=False):
+    """ap.parse_args(), except a dash + uppercase token that is none of ap's options
+    (`-BATT`, `-VIN`) is read as a value: `knet net -BATT` and `kpcb ampacity --net
+    -BATT` used to print the whole usage block. `-40` was never a problem (argparse
+    takes it for a number); `--net=-BATT` and `-- -BATT` still work. Parsed
+    intermixed, so a positional after an option is not "unrecognized"."""
+    argv = list(sys.argv[1:] if argv is None else argv)
+    opts = ap._option_string_actions
+    stop = argv.index('--') if '--' in argv else len(argv)
+    argv = [_NUL + t if i < stop and _DASHVAL.match(t) and t not in opts and t[:2] not in opts else t
+            for i, t in enumerate(argv)]
+    try:                          # positionals may follow options: `net X --max 3 Y`
+        a, extra = ap.parse_known_intermixed_args(argv)
+    except TypeError:             # a parser feature intermixed parsing refuses
+        a, extra = ap.parse_known_args(argv)
+    def un(v):
+        if isinstance(v, str):
+            return v[1:] if v.startswith(_NUL) else v
+        return type(v)(map(un, v)) if isinstance(v, (list, tuple)) else v
+    for k, v in vars(a).items():
+        setattr(a, k, un(v))
+    if known:
+        return a, un(extra)
+    if extra:
+        ap.error(f"unrecognized arguments: {' '.join(un(extra))}")
+    return a
 
 # ---------------- footprint libraries ----------------
 
@@ -190,7 +279,10 @@ def fp_pads(fpid, projdir, count=False):
 
 _TOK = re.compile(r'''[()]|"(?:[^"\\]|\\.)*"|[^\s()"]+''')
 
-def parse_sexp(text):
+def parse_sexp(text, mark=None):
+    """Nested lists of string atoms. mark: keep every quoted string raw (still
+    escaped) behind that prefix, so a writer can re-emit it byte-exact and tell
+    "1" (a string) from 1 (a token) - kmerge's netlist round trip."""
     # one findall + dispatch on the first char: 30% faster than a match() loop
     # with capture groups on a 12 MB board (0.44 s vs 0.62 s), same tree
     stack, cur = [], []
@@ -205,12 +297,52 @@ def parse_sexp(text):
             done = cur; cur = pop(); cur.append(done)
         elif c == '"':
             q = tok[1:-1]
-            cur.append(q.replace('\\"', '"').replace('\\\\', '\\') if '\\' in q else q)
+            if mark is not None:
+                cur.append(mark + q)
+            else:
+                cur.append(q.replace('\\"', '"').replace('\\\\', '\\') if '\\' in q else q)
         else:
             cur.append(tok)
     return cur[0] if len(cur) == 1 else cur
 
 CACHE = os.environ.get('KREVIEW_CACHE', os.path.expanduser('~/.cache/kicad-review'))
+
+def cache_put(name, data, stale=None, dump=json.dump):
+    """Write data to CACHE/name atomically (a concurrent reader never sees half),
+    first dropping the older snapshots that match the glob `stale`. Best effort:
+    an unwritable cache only costs speed."""
+    try:
+        os.makedirs(CACHE, exist_ok=True)
+        for old in glob.glob(os.path.join(CACHE, stale)) if stale else ():
+            os.remove(old)
+        tmp = os.path.join(CACHE, f"{name}.{os.getpid()}")
+        with open(tmp, 'wb' if dump is marshal.dump else 'w') as f:
+            dump(data, f)
+        os.replace(tmp, os.path.join(CACHE, name))
+    except OSError:
+        pass
+    cache_prune()
+
+def cache_prune(cap=512 << 20):
+    """Delete the oldest-written cache entries past `cap` bytes. Snapshots are
+    keyed by path and plots by save, so every board save and every selftest temp
+    copy adds one (671 MB had piled up by 2026-10-05). A subdirectory's entries
+    (one sheet-plot set each) go whole, never half a set."""
+    try:
+        ents = []
+        for e in os.scandir(CACHE):
+            ents += os.scandir(e.path) if e.is_dir() else [e]
+        def size(e):
+            return sum(f.stat().st_size for f in os.scandir(e.path)) if e.is_dir() else e.stat().st_size
+        total = 0
+        for e in sorted(ents, key=lambda e: e.stat().st_mtime, reverse=True):
+            total += size(e)
+            if total > cap and e.is_dir():
+                shutil.rmtree(e.path)
+            elif total > cap:
+                os.remove(e.path)
+    except OSError:
+        pass
 
 def load_sexp(path, cache_over=100_000):
     """parse_sexp() of a file, memoised on disk (marshal) for files over
@@ -225,26 +357,16 @@ def load_sexp(path, cache_over=100_000):
         return parse()
     tag = hashlib.sha1(os.path.abspath(path).encode()).hexdigest()[:12]
     ver = hashlib.sha1(f"{st.st_size}|{st.st_mtime_ns}|{sys.version}".encode()).hexdigest()[:12]
-    cp = os.path.join(CACHE, f"sexp_{tag}_{ver}.marshal")
+    name = f"sexp_{tag}_{ver}.marshal"
     try:
-        with open(cp, 'rb') as f:
+        with open(os.path.join(CACHE, name), 'rb') as f:
             return marshal.loads(f.read())      # load(f) reads piecemeal: 5x slower
     except (OSError, EOFError, ValueError, TypeError):
         pass
     tree = parse()
     st2 = os.stat(path)
-    if (st2.st_size, st2.st_mtime_ns) != (st.st_size, st.st_mtime_ns):
-        return tree                  # saved mid-read (pcbnew open): never cache under the old key
-    try:
-        os.makedirs(CACHE, exist_ok=True)
-        for old in glob.glob(os.path.join(CACHE, f"sexp_{tag}_*.marshal")):
-            os.remove(old)
-        tmp = f"{cp}.{os.getpid()}"
-        with open(tmp, 'wb') as f:
-            marshal.dump(tree, f)
-        os.replace(tmp, cp)          # atomic: a concurrent reader never sees half
-    except OSError:
-        pass
+    if (st2.st_size, st2.st_mtime_ns) == (st.st_size, st.st_mtime_ns):    # saved mid-read: never
+        cache_put(name, tree, f"sexp_{tag}_*.marshal", marshal.dump)       # cache under the old key
     return tree
 
 def kids(node, tag):
@@ -513,10 +635,6 @@ class Netlist:
         here, so a ferrite/resistor filtering a rail was never seen as pass-through."""
         return dict(self.cpins.get(ref, {}))
 
-    def signal_pins(self, ref, fanout=8):
-        return [p for p, n in self.cpins.get(ref, {}).items()
-                if n not in self.railv and len(self.nets.get(n, [])) <= max(fanout, 20)]
-
     def is_passthrough(self, ref, classes, fanout=8):
         c = self.comps.get(ref)
         if not c or c['prefix'] not in classes:
@@ -572,15 +690,15 @@ class SchInfo:
     free-text design notes, and symbol positions in mm.
 
     Pin position transform was determined empirically (validated against every
-    no_connect marker + wire endpoints): lib coords, mirror applied about the
-    named axis first, then CCW rotation, then Y negated into schematic space.
+    no_connect marker + wire endpoints): lib coords, CCW rotation, then the mirror
+    about the named axis, then Y negated into schematic space (_xf).
     If KiCad changes the format, validation fails and everything degrades to
     "unknown" rather than lying: check `.valid` before trusting `.ncflag`."""
 
     def __init__(self):
         self.valid = False
         self.ncflag = set()      # {(ref, pin)} with an explicit no_connect marker
-        self.notes = []          # [(sheetpath, x, y, text)]
+        self.notes = []          # [(sheetpath, x, y, text, font mm, is text_box)]
         self.pos = {}            # ref -> [(sheetpath, x, y)]
         self.place = {}          # ref -> [(file, sheetpath, x, y, rot, mirror, unit, lib_id)]
         self.libsyms = {}        # file -> {lib_id: lib symbol node}
@@ -625,14 +743,8 @@ class SchInfo:
 
     @staticmethod
     def _pinpos(px, py, sx, sy, rot, mir):
-        x, y = px, py
-        if mir == 'x':
-            y = -y
-        elif mir == 'y':
-            x = -x
-        for _ in range(int(rot) // 90 % 4):
-            x, y = -y, x                       # +90 deg CCW in lib coords
-        return round(sx + x, 2), round(sy - y, 2)   # schematic Y grows down
+        x, y = _xf(px, py, rot, mir)
+        return round(sx + x, 2), round(sy + y, 2)
 
     @classmethod
     def load(cls, nl):
@@ -773,11 +885,13 @@ class SchInfo:
                         self.nc_matched += 1
                         self.ncflag.add(hits[0])
 
-                for tx in kids(tree, 'text'):
+                for tx in kids(tree, 'text') + kids(tree, 'text_box'):
                     at = kid(tx, 'at')
                     if isinstance(tx[1], str) and at:
+                        fs = kid(kid(kid(tx, 'effects') or [], 'font') or [], 'size')
                         self.notes.append((path, self._fnum(at[1]), self._fnum(at[2]),
-                                           tx[1].replace('\\n', '\n')))
+                                           tx[1].replace('\\n', '\n'),
+                                           self._fnum(fs[1]) if fs else 1.27, tx[0] == 'text_box'))
 
         self.valid = self.nc_total == 0 or self.nc_matched / self.nc_total >= 0.9
         if not self.valid:
@@ -788,14 +902,15 @@ class SchInfo:
 
 
 def _xf(x, y, rot, mir):
-    """lib vector -> sheet vector (Y down): mirror, CCW rotation, Y flip - the
-    transform SchInfo validates against every no_connect marker"""
+    """lib vector -> sheet vector (Y down): CCW rotation, then the mirror, then the Y
+    flip. Mirror-first only differs at 90/270 + mirror, and put Q8/Q9/Q11/Q15
+    (rot 270, mirror x) 180 deg off their wire ends; rotate-first lands all of them."""
+    for _ in range(int(rot) // 90 % 4):
+        x, y = -y, x
     if mir == 'x':
         y = -y
     elif mir == 'y':
         x = -x
-    for _ in range(int(rot) // 90 % 4):
-        x, y = -y, x
     return x, -y
 
 def sym_geometry(libsym, unit, sx, sy, rot, mir):

@@ -254,12 +254,26 @@ def _voids(b, a):
                     run -= 1
         return out2
 
-    def disc(m, x, y, rad, test=None):
-        for r in range(max(0, int((y - rad - y0) / P)), min(H, int((y + rad - y0) / P) + 2)):
-            for c in range(max(0, int((x - rad - x0) / P)), min(W, int((x + rad - x0) / P) + 2)):
-                cx, cy = x0 + (c + .5) * P, y0 + (r + .5) * P
-                if (test(cx, cy) if test else math.hypot(cx - x, cy - y) <= rad):
+    def paint(m, box, test):
+        """set the cells whose centre is in box (x0, y0, x1, y1) and passes test"""
+        for r in range(max(0, int((box[1] - y0) / P)), min(H, int((box[3] - y0) / P) + 2)):
+            cy = y0 + (r + .5) * P
+            for c in range(max(0, int((box[0] - x0) / P)), min(W, int((box[2] - x0) / P) + 2)):
+                if test(x0 + (c + .5) * P, cy):
                     m[r * W + c] = 1
+
+    def disc(m, x, y, rad, test=None):
+        paint(m, (x - rad, y - rad, x + rad, y + rad), test or (lambda cx, cy: math.hypot(cx - x, cy - y) <= rad))
+
+    def seg_box(A, B, r):
+        return min(A[0], B[0]) - r, min(A[1], B[1]) - r, max(A[0], B[0]) + r, max(A[1], B[1]) + r
+
+    def pad_box(p, hx, hy, d):
+        """bbox of the pad rectangle grown by d, at its rotation"""
+        t = math.radians(p['prot'])
+        c, s = abs(math.cos(t)), abs(math.sin(t))
+        ex, ey = c * (hx + d) + s * (hy + d), s * (hx + d) + c * (hy + d)
+        return p['x'] - ex, p['y'] - ey, p['x'] + ex, p['y'] + ey
 
     board = raster([PolyIndex(r) for r in b.rings]) if b.rings else bytearray(b'\x01' * (W * H))
     inner = bytearray(1 - v for v in dilate(bytearray(1 - v for v in board), 2))   # 0.5 mm off the edge
@@ -279,10 +293,10 @@ def _voids(b, a):
             if t['layer'] != ly:
                 continue
             A, B = t['a'], t['b']
-            disc(fm, *t['mid'], t['len'] / 2 + t['w'] / 2, lambda x, y: pt_seg_dist((x, y), A, B) <= t['w'] / 2)
+            paint(fm, seg_box(A, B, t['w'] / 2), lambda x, y: pt_seg_dist((x, y), A, B) <= t['w'] / 2)
             if t['net'] != plane:
                 d = t['w'] / 2 + vr + clr(plane, t['net'])
-                disc(bl, *t['mid'], t['len'] / 2 + d, lambda x, y: pt_seg_dist((x, y), A, B) <= d)
+                paint(bl, seg_box(A, B, d), lambda x, y: pt_seg_dist((x, y), A, B) <= d)
         for f, p in pads:
             if p['kind'] == 'np_thru_hole':
                 continue                             # no copper: `drills` covers the hole
@@ -292,10 +306,10 @@ def _voids(b, a):
                 def inpad(x, y, d, p=p, hx=hx, hy=hy):
                     u, v = _local(p, (x, y))
                     return abs(u) <= hx + d and abs(v) <= hy + d
-                disc(fm, p['x'], p['y'], math.hypot(hx, hy), lambda x, y: inpad(x, y, 0))
+                paint(fm, pad_box(p, hx, hy, 0), lambda x, y: inpad(x, y, 0))
                 if p['net'] != plane:
                     d = vr + clr(plane, p['net'])
-                    disc(bl, p['x'], p['y'], math.hypot(hx, hy) + d, lambda x, y, d=d: inpad(x, y, d))
+                    paint(bl, pad_box(p, hx, hy, d), lambda x, y, d=d: inpad(x, y, d))
         for v in b.vias:
             disc(fm, v['x'], v['y'], (v['size'] or .6) / 2)
             if v['net'] != plane:

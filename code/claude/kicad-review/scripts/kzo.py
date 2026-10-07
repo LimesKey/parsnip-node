@@ -22,7 +22,8 @@ against three references: stripline (exact, Cohn), CPW on a thick substrate
 
   python3 kzo.py W S H ER [T] [--mask TM ERM]     one CPWG number, mm
 """
-import math, sys
+import sys, os, json, math, hashlib
+import concurrent.futures as cf, multiprocessing as mp
 
 ETA0 = 376.730313668            # free-space impedance, ohm (= 1 / (c eps0))
 
@@ -57,11 +58,7 @@ def _axis(keys, dmin, dmax, g=1.5):
         out += lo + hi[::-1] + [b]
     return out
 
-try:
-    _dot = math.sumprod                         # 3.12+: C-speed dot product
-except AttributeError:                          # pragma: no cover
-    import operator
-    _dot = lambda a, b: sum(map(operator.mul, a, b))
+_dot = math.sumprod                             # C-speed dot product (3.12+, as the tools need)
 
 def _capacitance(xs, ys, eps, fixed):
     """Energy capacitance (units of eps0, half domain) with the V=1 conductor at
@@ -72,6 +69,8 @@ def _capacitance(xs, ys, eps, fixed):
     [xs[i], xs[i+1]] x [ys[j], ys[j+1]]; fixed(i, j) is the node's potential if it
     lies on a conductor, else None. Missing neighbours are Neumann (the x = 0
     symmetry plane, the far walls)."""
+    if len(ys) < len(xs):                # the band is one grid row: number along the short axis
+        return _capacitance(ys, xs, lambda i, j: eps(j, i), lambda i, j: fixed(j, i))
     nx, ny = len(xs), len(ys)
     dx = [xs[i + 1] - xs[i] for i in range(nx - 1)]
     dy = [ys[j + 1] - ys[j] for j in range(ny - 1)]
@@ -141,12 +140,10 @@ def _capacitance(xs, ys, eps, fixed):
     return sum(aE[i][j] * (V[j * nx + i] - V[j * nx + i + 1]) ** 2 for j in range(ny) for i in range(nx - 1)) \
         + sum(aN[i][j] * (V[j * nx + i] - V[(j + 1) * nx + i]) ** 2 for j in range(ny - 1) for i in range(nx))
 
-_MEMO = {}
-
-def _half_caps(w, h, er, t, s, mask, top, fill_er, res, grow):
-    """(C, C0) of HALF the cross-section, units of eps0: strip half-width w/2 at
-    x in [0, w/2], ground from w/2 + s outward (s None: none). Memoised; the air
-    solve C0 does not depend on er, mask or fill, so it is shared across them."""
+def _solve(w, h, er, t, s, mask, top, fill_er, res, grow, air):
+    """C of HALF the cross-section, units of eps0: strip half-width w/2 at x in
+    [0, w/2], ground from w/2 + s outward (s None: none). air: every dielectric
+    replaced by vacuum (C0)."""
     feat = min(x for x in (w, h, s or w, t or w) if x > 0)
     reach = 4 * (w + 2 * min(s or 9e9, 2 * h)) + 12 * h      # how far the field is modelled
     x_edge, x_gnd = w / 2, (w / 2 + s) if s else None
@@ -178,13 +175,42 @@ def _half_caps(w, h, er, t, s, mask, top, fill_er, res, grow):
             if s is not None and x >= x_gnd - 1e-9:
                 return 0.0
         return None
-    g = tuple(round(v, 6) if v else v for v in (w, h, t, s, top, res, grow)) + (tm,)
-    k0, k1 = g + ('air',), g + (er, mask, fill_er)
-    if k0 not in _MEMO:
-        _MEMO[k0] = _capacitance(xs, ys, lambda i, j: 1.0, fixed)
-    if k1 not in _MEMO:
-        _MEMO[k1] = _capacitance(xs, ys, eps, fixed)
-    return _MEMO[k1], _MEMO[k0]
+    return _capacitance(xs, ys, (lambda i, j: 1.0) if air else eps, fixed)
+
+_MEMO, _POOL = {}, None
+
+def _solve_all(jobs):
+    """{key: _solve args} into _MEMO, which persists in the kicad-review cache:
+    `rf` re-solves the same few geometries every run at ~0.2 s each. The file is
+    tagged with this source and the Python build, so an edited solver starts
+    clean. The misses of one call run in parallel."""
+    global _POOL
+    from kcommon import CACHE, cache_put
+    with open(__file__, 'rb') as f:
+        name = f"kzo_{hashlib.sha1(f.read() + sys.version.encode()).hexdigest()[:12]}.json"
+    if not _MEMO:
+        try:
+            with open(os.path.join(CACHE, name)) as f:
+                _MEMO.update(json.load(f))
+        except (OSError, ValueError):
+            pass
+    todo = {k: v for k, v in jobs.items() if k not in _MEMO}
+    if not todo:
+        return
+    if len(todo) > 1 and 'fork' in mp.get_all_start_methods():
+        _POOL = _POOL or cf.ProcessPoolExecutor(4, mp_context=mp.get_context('fork'))
+        _MEMO.update(zip(todo, _POOL.map(_solve, *zip(*todo.values()))))
+    else:
+        _MEMO.update((k, _solve(*v)) for k, v in todo.items())
+    cache_put(name, _MEMO, 'kzo_*.json')
+
+def _half_jobs(w, h, er, t, s, mask, top, fill_er, res, grow):
+    """((C key, C0 key), {key: _solve args}) of HALF the cross-section. The air
+    solve C0 does not depend on er, mask or fill, so its key is shared."""
+    g = tuple(round(v, 6) if v else v for v in (w, h, t, s, top, res, grow)) + (mask[0] if mask else 0.0,)
+    args = (w, h, er, t, s, mask, top, fill_er, res, grow)
+    kc, k0 = repr(g + (er, mask, fill_er)), repr(g + ('air',))
+    return (kc, k0), {kc: args + (False,), k0: args + (True,)}
 
 def field_zo(w, h, er, t=0.035, s=None, mask=None, top=None, fill_er=None, res=1.0, grow=1.5):
     """(Zo ohm, eeff) of a trace from the 2D field solution, all lengths mm.
@@ -205,10 +231,11 @@ def field_zo(w, h, er, t=0.035, s=None, mask=None, top=None, fill_er=None, res=1
       grow      grid growth per step away from an edge (1.3: ~2x the lines)"""
     t = max(t, 0.0)
     sl, sr = s if isinstance(s, (tuple, list)) else (s, s)
-    halves = [_half_caps(w, h, er, t, g, mask, top, fill_er, res, grow) for g in {sl: 0, sr: 0}]
+    halves = [_half_jobs(w, h, er, t, g, mask, top, fill_er, res, grow) for g in {sl: 0, sr: 0}]
+    _solve_all({k: v for _, jobs in halves for k, v in jobs.items()})
     if len(halves) == 1:
         halves *= 2
-    c, c0 = sum(x[0] for x in halves), sum(x[1] for x in halves)
+    c, c0 = (sum(_MEMO[keys[i]] for keys, _ in halves) for i in (0, 1))
     return ETA0 / math.sqrt(c * c0), c / c0
 
 def _K(k):

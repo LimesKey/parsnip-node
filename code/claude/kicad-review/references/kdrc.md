@@ -11,7 +11,15 @@ python3 $D parsnip.kicad_pcb            # DRC + ERC
 python3 $D parsnip.kicad_pcb drc        # DRC only
 python3 $D parsnip.kicad_pcb erc        # ERC only, every root schematic
 python3 $D parsnip.kicad_pcb flags      # PWR_FLAG audit (~9 s)
+python3 $D parsnip.kicad_pcb doctor     # install + project sanity, exit 2 on a WARN
 ```
+
+`doctor` prints each kicad-cli's version, the project's newest file format, what
+a double-click opens for .kicad_sch/.kicad_pcb/.kicad_pro (`xdg-mime`; WARN when a
+stable app would get a 10.99 file, with the `xdg-mime default` fix) and whether
+KiCad holds the project (`kcommon.kicad_running`: exact process names, `~*.lck`
+locks, `_autosave-*`). Any tool that writes project files refuses while that list
+is non-empty.
 
 ## What it does
 

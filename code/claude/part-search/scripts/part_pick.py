@@ -658,6 +658,14 @@ def _tag_clones(rows, a):
     with cf.ThreadPoolExecutor(max_workers=a.jobs) as ex:
         list(ex.map(one, [r for r in rows if re.fullmatch(r'C\d+', r.get('sku') or '')]))
 
+def isat_note(cons, sortattr):
+    """The caveat line when a pick filters or sorts on Isat, else ''."""
+    if 'isat' not in {c[0] for c in cons} | {str(sortattr or '').lower()}:
+        return ''
+    return ("  caveat: Isat is not comparable across makers (each rates it at its own L drop: 10, 20, 30, 35, "
+            "40%) and LCSC's 'Isat' is sometimes the temperature-rise Irms; rank on DCR, then read Isat at a "
+            "stated % drop in each datasheet (best.md)")
+
 def c_pick(a):
     if getattr(a, 'xcheck', False) and a.source != 'digikey':
         import argparse
@@ -772,6 +780,8 @@ def c_pick(a):
         print(f"  coverage: of {cov[0][4]:,} parts in the category, only "
               + ', '.join(f"~{100 * listed // tot}% list {pn}" for _n, pn, listed, _d, tot in cov)
               + "; the rest can't pass a limit on it and sort last")
+    if isat_note(cons, getattr(a, '_sortattr', None)):
+        print(isat_note(cons, getattr(a, '_sortattr', None)))
     res = {k: {v} for k, v in (getattr(a, '_resolved', None) or {}).items() if _norm(k) != _norm(v)}
     for r in (hits or recs[:40]):
         for name, _, _ in cons:
@@ -1038,6 +1048,8 @@ def _pick_selftest():
                   and clone_of({'sku': 'C5446', 'mpn': 'XC6206P332MR-G', 'mfr': 'TOREX'},
                                [{'sku': 'C9000000', 'mpn': 'XC6206P332MR', 'mfr': 'X'}]) is None
                   and clone_of({'sku': 'C9', 'mpn': 'BAT54S', 'mfr': 'A'}, [{'sku': 'C1', 'mpn': 'BAT54S', 'mfr': 'B'}]) is None)
+    checks.append(bool(isat_note([('isat', '>=8', None)], None)) and bool(isat_note([], 'Isat'))
+                  and not isat_note([('dcr', '<=0.05', None)], 'dcr'))
     bad = [i for i, ok in enumerate(checks, 1) if not ok]
     assert not bad, f"pick self-test failed check(s) {bad}"
     return f"{len(checks)}/{len(checks)}"

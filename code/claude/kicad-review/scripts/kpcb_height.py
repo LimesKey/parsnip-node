@@ -1,6 +1,6 @@
 """kpcb.py `height`: 3D part heights from KiCad's GLB export."""
-import sys, os, re, json
-from kcommon import refrange, natkey, trunc, prefix
+import sys, os, re, json, shutil, struct, hashlib, tempfile, subprocess
+from kcommon import CACHE, cache_put, kicad_cli, refrange, natkey, trunc, prefix
 from kpcb_board import _f, hit
 
 # ---------------- 3D height (Z) ----------------
@@ -29,9 +29,26 @@ def heights(b):
     From KiCad's own GLB export: OCCT meshes each STEP model and places it, so
     this is the real model geometry, not a package-name guess. glTF is Y-up in
     metres and each part's node origin sits on its board face. A part with no
-    loadable model is simply absent from the dict - never read that as 0 mm."""
-    import struct, subprocess, tempfile
-    from kcommon import kicad_cli
+    loadable model is simply absent from the dict - never read that as 0 mm.
+    The export takes ~13 s, so the answer is cached until the board, a
+    ${KIPRJMOD} model file or the kicad-cli build changes."""
+    d = os.path.dirname(os.path.abspath(b.path))
+    deps = [b.path, shutil.which(kicad_cli(b.path)) or ''] + sorted(
+        {m.replace('${KIPRJMOD}', d) for f in b.fps.values() for m in f.models if m.startswith('${KIPRJMOD}')})
+    sig = repr([(p, os.stat(p).st_mtime_ns) if os.path.isfile(p) else p for p in deps])
+    name = f"height_{hashlib.sha1(os.path.abspath(b.path).encode()).hexdigest()[:12]}.json"
+    try:
+        with open(os.path.join(CACHE, name)) as f:
+            c = json.load(f)
+        if c['sig'] == sig:
+            return c['heights'], c['missing']
+    except (OSError, ValueError, KeyError):
+        pass
+    out, missing = _glb_heights(b)
+    cache_put(name, {'sig': sig, 'heights': out, 'missing': missing})
+    return out, missing
+
+def _glb_heights(b):
     with tempfile.TemporaryDirectory() as td:
         out = os.path.join(td, 'b.glb')
         r = subprocess.run([kicad_cli(b.path), 'pcb', 'export', 'glb', '--no-board-body',

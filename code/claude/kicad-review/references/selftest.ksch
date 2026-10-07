@@ -7,21 +7,21 @@ pwr +5V U1.5
 gnd U1.8
 r R1 4,3 v 100k
 r R2 4,9 v 33k
-c C1 9,3 v 1uF
+c C1 12,-2 v 1uF
 pwr +5V R1.1
 gnd R2.2
 gnd C1.2
+pwr +5V C1.1
 wire R1.2 R2.1
-wire R1.2 U1.1
-wire C1.1 9,1 U1.5
+wire R1.2 7,5 U1.1
 label VOUT U1.6
 nc U1.2
 # discharge leg: FET, diode, inductor, and a DNP part
 nmos Q1 4,20 r BSS138
-r R3 2,16 v 10k
+r R3 0,20 h 10k
 gnd Q1.s
-gnd R3.2
-wire R3.1 Q1.g
+gnd R3.1
+wire R3.2 Q1.g
 l L1 14,20 h 4.7uH
 d D1 20,18 vr BAT54
 c C2 24,18 v 10uF dnp
