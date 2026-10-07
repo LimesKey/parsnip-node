@@ -3844,16 +3844,6 @@
 	)
 	(wire
 		(pts
-			(xy 134.62 85.09) (xy 134.62 88.9)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "6d57c8eb-6567-46d9-aee3-7d91bb41d217")
-	)
-	(wire
-		(pts
 			(xy 198.12 81.28) (xy 201.93 81.28)
 		)
 		(stroke
@@ -4281,16 +4271,6 @@
 			(type default)
 		)
 		(uuid "c965219e-b7f8-4fe9-bf2c-45b03c0b8ea1")
-	)
-	(wire
-		(pts
-			(xy 134.62 76.2) (xy 134.62 80.01)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "c97f9eaf-9777-4e0f-a5d3-d86baf52de58")
 	)
 	(wire
 		(pts
@@ -5326,142 +5306,6 @@
 			(project "parsnip"
 				(path "/fe9d4a31-2311-442f-997c-52ad8ca5cfe9/a8463f07-c31a-442f-966c-3f51ff19a9b1"
 					(reference "Q14")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "Device:R_Small")
-		(at 134.62 82.55 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "27892be2-c527-466a-b19b-bca87f6c4d85")
-		(property "Reference" "R97"
-			(at 130.556 80.518 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.016 1.016)
-				)
-				(justify left)
-			)
-		)
-		(property "Value" "10k"
-			(at 129.54 82.55 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Footprint" "Resistor_SMD:R_0402_1005Metric"
-			(at 134.62 82.55 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/68379ec060dbf46ca58f0ea52f41dfcd.pdf?productCode=C54951138"
-			(at 134.62 82.55 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "RES 10kΩ ±0.5% 62.5mW 0402 thick film"
-			(at 134.62 82.55 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "MPN" "FRH0402D1002TS"
-			(at 134.62 82.55 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Manufacturer" "FOJAN"
-			(at 134.62 82.55 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "LCSC Part" "C54951138"
-			(at 134.62 82.55 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Tolerance" "0.5%"
-			(at 134.62 82.55 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Power Rating" "62.5mW"
-			(at 134.62 82.55 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "22354ee8-c14c-4288-b8a2-f78d7ab3c0ae")
-		)
-		(pin "2"
-			(uuid "8e5d90bb-23d7-4454-82c1-0e0caa3ba4c0")
-		)
-		(instances
-			(project "parsnip"
-				(path "/fe9d4a31-2311-442f-997c-52ad8ca5cfe9/a8463f07-c31a-442f-966c-3f51ff19a9b1"
-					(reference "R97")
 					(unit 1)
 				)
 			)
@@ -7079,84 +6923,6 @@
 			(project "parsnip"
 				(path "/fe9d4a31-2311-442f-997c-52ad8ca5cfe9/a8463f07-c31a-442f-966c-3f51ff19a9b1"
 					(reference "#PWR0121")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "power:+3V3")
-		(at 134.62 76.2 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(fields_autoplaced yes)
-		(uuid "70ece960-ed5c-49b3-9156-3799745e9324")
-		(property "Reference" "#PWR0127"
-			(at 134.62 80.01 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "+3V3"
-			(at 134.62 71.12 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 134.62 76.2 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 134.62 76.2 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "Power symbol creates a global label with name \"+3V3\""
-			(at 134.62 76.2 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "db6ebc2e-3268-48c8-85a5-23f82af42af8")
-		)
-		(instances
-			(project "parsnip"
-				(path "/fe9d4a31-2311-442f-997c-52ad8ca5cfe9/a8463f07-c31a-442f-966c-3f51ff19a9b1"
-					(reference "#PWR0127")
 					(unit 1)
 				)
 			)

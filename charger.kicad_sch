@@ -4370,7 +4370,7 @@
 	)
 	(text "${TITLE}"
 		(exclude_from_sim no)
-		(at 274.828 -17.526 0)
+		(at 238.76 46.482 0)
 		(effects
 			(font
 				(size 2.794 2.794)
@@ -7583,7 +7583,7 @@
 				)
 			)
 		)
-		(property "Description" "RES 30.1kΩ ±0.1% 25ppm 100mW 0603 thin film"
+		(property "Description" "RES 32.4kΩ ±0.1% 100mW 0603"
 			(at 186.69 151.13 0)
 			(hide yes)
 			(show_name no)

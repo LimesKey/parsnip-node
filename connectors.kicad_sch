@@ -2959,6 +2959,122 @@
 			)
 			(embedded_fonts no)
 		)
+		(symbol "power:PWR_FLAG"
+			(power global)
+			(pin_numbers
+				(hide yes)
+			)
+			(pin_names
+				(offset 0)
+				(hide yes)
+			)
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(in_pos_files yes)
+			(duplicate_pin_numbers_are_jumpers no)
+			(property "Reference" "#FLG"
+				(at 0 1.905 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Value" "PWR_FLAG"
+				(at 0 3.81 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Footprint" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Datasheet" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Description" "Special symbol for telling ERC where power comes from"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_keywords" "flag power"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(symbol "PWR_FLAG_0_0"
+				(pin power_out line
+					(at 0 0 90)
+					(length 0)
+					(name ""
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+			(symbol "PWR_FLAG_0_1"
+				(polyline
+					(pts
+						(xy 0 0) (xy 0 1.27) (xy -1.016 1.905) (xy 0 2.54) (xy 1.016 1.905) (xy 0 1.27)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+			)
+			(symbol "PWR_FLAG_1_1")
+			(embedded_fonts no)
+		)
 	)
 	(rectangle
 		(start 106.68 15.24)
@@ -3022,7 +3138,7 @@
 	)
 	(rectangle
 		(start 19.05 63.5)
-		(end 101.6 104.14)
+		(end 101.6 106.68)
 		(stroke
 			(width 0)
 			(type default)
@@ -3366,7 +3482,17 @@
 	)
 	(wire
 		(pts
-			(xy 48.26 87.63) (xy 50.8 87.63)
+			(xy 40.64 100.33) (xy 43.18 100.33)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "07924c5c-7f55-4cc5-bdc2-782ae85944a8")
+	)
+	(wire
+		(pts
+			(xy 46.99 87.63) (xy 50.8 87.63)
 		)
 		(stroke
 			(width 0)
@@ -3403,6 +3529,16 @@
 			(type default)
 		)
 		(uuid "0ba2557c-9820-47b4-b71b-21f73d341c56")
+	)
+	(wire
+		(pts
+			(xy 115.57 36.83) (xy 129.54 36.83)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "0d5b535d-86f4-4383-a859-e8cd8baa465f")
 	)
 	(wire
 		(pts
@@ -3536,7 +3672,17 @@
 	)
 	(wire
 		(pts
-			(xy 48.26 90.17) (xy 50.8 90.17)
+			(xy 53.34 100.33) (xy 48.26 100.33)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "27e55e1a-3d35-4972-9236-be2122e43b87")
+	)
+	(wire
+		(pts
+			(xy 46.99 90.17) (xy 50.8 90.17)
 		)
 		(stroke
 			(width 0)
@@ -3566,7 +3712,7 @@
 	)
 	(wire
 		(pts
-			(xy 93.98 87.63) (xy 93.98 92.71)
+			(xy 95.25 87.63) (xy 95.25 92.71)
 		)
 		(stroke
 			(width 0)
@@ -3653,6 +3799,16 @@
 			(type default)
 		)
 		(uuid "528354ae-d0e2-4c27-9571-4f6cb66ff8e2")
+	)
+	(wire
+		(pts
+			(xy 115.57 34.29) (xy 115.57 36.83)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "52a9527e-c22f-4adf-ac68-3f0a6d60990e")
 	)
 	(wire
 		(pts
@@ -3743,16 +3899,6 @@
 			(type default)
 		)
 		(uuid "72e09a73-0e9f-43df-8006-c72a277b60f0")
-	)
-	(wire
-		(pts
-			(xy 41.91 87.63) (xy 43.18 87.63)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "73f81385-def6-4498-99f0-3cf120a29c02")
 	)
 	(wire
 		(pts
@@ -4076,7 +4222,7 @@
 	)
 	(wire
 		(pts
-			(xy 88.9 87.63) (xy 93.98 87.63)
+			(xy 90.17 87.63) (xy 95.25 87.63)
 		)
 		(stroke
 			(width 0)
@@ -4166,6 +4312,16 @@
 	)
 	(wire
 		(pts
+			(xy 53.34 102.87) (xy 48.26 102.87)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "e252532d-bcc2-43fa-9cd2-c0d2a9f2bbcb")
+	)
+	(wire
+		(pts
 			(xy 40.64 120.65) (xy 40.64 124.46)
 		)
 		(stroke
@@ -4216,6 +4372,16 @@
 	)
 	(wire
 		(pts
+			(xy 40.64 102.87) (xy 43.18 102.87)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "ef41fb4d-ab2e-4293-9750-250bb2b567d0")
+	)
+	(wire
+		(pts
 			(xy 130.81 76.2) (xy 130.81 82.55)
 		)
 		(stroke
@@ -4233,16 +4399,6 @@
 			(type default)
 		)
 		(uuid "f372912e-3a4e-4735-ab93-700b7acaf421")
-	)
-	(wire
-		(pts
-			(xy 41.91 90.17) (xy 43.18 90.17)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "f3c7f7a4-b62f-446e-9fd5-efc9ea1f19ae")
 	)
 	(wire
 		(pts
@@ -4344,15 +4500,35 @@
 		)
 		(uuid "17f71181-9988-4024-bf70-51b4caacc1a3")
 	)
-	(label "UART0_TX_RAW"
-		(at 250.19 104.14 0)
+	(label "I2C_HOST_SDA_RAW"
+		(at 80.01 90.17 180)
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
-			(justify left bottom)
+			(justify right bottom)
 		)
-		(uuid "45cc9910-cf84-40b7-8942-8593a9913f2d")
+		(uuid "405f1e1e-6cb6-42d4-84ac-88512c2671be")
+	)
+	(label "I2C_HOST_SDA_RAW"
+		(at 80.01 85.09 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "45a60671-775b-4b7a-bdf2-c9d9991d9ce8")
+	)
+	(label "I2C_HOST_SCL_RAW"
+		(at 80.01 80.01 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "463cac61-f0ad-4756-b2aa-6d92973b7b74")
 	)
 	(label "UART0_TX_RAW"
 		(at 257.81 77.47 180)
@@ -4363,16 +4539,6 @@
 			(justify right bottom)
 		)
 		(uuid "55fcb818-fb61-4b70-9e96-aaaa9aa7e7a6")
-	)
-	(label "UART0_RX_RAW"
-		(at 250.19 101.6 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left bottom)
-		)
-		(uuid "6a9e4e10-0380-4f37-9df0-226e4dbd69d9")
 	)
 	(label "UART0_RX_RAW"
 		(at 257.81 87.63 180)
@@ -4444,6 +4610,16 @@
 		)
 		(uuid "98a12105-2aa7-40c8-85b9-512ebbbb5892")
 	)
+	(label "I2C_HOST_SDA_RAW"
+		(at 53.34 100.33 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "a63b9216-b591-4d69-8378-5f71031d5c82")
+	)
 	(label "UART0_TX_RAW"
 		(at 232.41 86.36 180)
 		(effects
@@ -4464,6 +4640,36 @@
 		)
 		(uuid "b513e262-bd6d-4489-8704-8c1015dbbd74")
 	)
+	(label "I2C_HOST_SDA_RAW"
+		(at 46.99 87.63 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "bb5f41b8-38c2-4b9d-a14a-ec1ee668d0b5")
+	)
+	(label "UART0_RX_RAW"
+		(at 250.19 104.14 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "bbc0f45d-4c56-436e-b860-687115511ab3")
+	)
+	(label "UART0_TX_RAW"
+		(at 250.19 101.6 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "d042e2b8-263e-47ea-9b29-80ed3fafcb96")
+	)
 	(label "SCK_RAW"
 		(at 57.15 179.07 0)
 		(effects
@@ -4473,6 +4679,36 @@
 			(justify left bottom)
 		)
 		(uuid "d2c49c07-e237-4270-8be8-24a5c03065d3")
+	)
+	(label "I2C_HOST_SCL_RAW"
+		(at 53.34 102.87 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "dca632c3-ef43-40e9-a04b-7e15fa91592a")
+	)
+	(label "I2C_HOST_SCL_RAW"
+		(at 80.01 95.25 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "e2ae7f25-d696-4956-88b0-6af16369f45d")
+	)
+	(label "I2C_HOST_SCL_RAW"
+		(at 46.99 90.17 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "e49b60a6-ac83-4a96-81c0-6ff0e5e22da7")
 	)
 	(label "MISO_RAW"
 		(at 76.2 163.83 180)
@@ -4586,30 +4822,6 @@
 			)
 		)
 	)
-	(global_label "I2C_HOST_SDA"
-		(shape bidirectional)
-		(at 41.91 87.63 180)
-		(fields_autoplaced yes)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right)
-		)
-		(uuid "08fdb929-f0fc-4948-a960-a98c5a8b8c0f")
-		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 24.3878 87.63 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify right)
-			)
-		)
-	)
 	(global_label "I2C_HOST_SCL"
 		(shape bidirectional)
 		(at 49.53 132.08 180)
@@ -4634,30 +4846,6 @@
 			)
 		)
 	)
-	(global_label "I2C_HOST_SDA"
-		(shape bidirectional)
-		(at 78.74 85.09 180)
-		(fields_autoplaced yes)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right)
-		)
-		(uuid "16d4e8db-43f1-4db4-b9b1-ed1cd1db2a22")
-		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 61.2178 85.09 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify right)
-			)
-		)
-	)
 	(global_label "MOSI"
 		(shape output)
 		(at 151.13 168.91 180)
@@ -4671,30 +4859,6 @@
 		(uuid "1edad5f6-11ed-4a0c-bb56-230c5e2c92e0")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
 			(at 143.5486 168.91 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify right)
-			)
-		)
-	)
-	(global_label "I2C_HOST_SDA"
-		(shape bidirectional)
-		(at 78.74 90.17 180)
-		(fields_autoplaced yes)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right)
-		)
-		(uuid "2c741abb-626a-452b-a885-63a59a67edd7")
-		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 61.2178 90.17 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -4743,6 +4907,30 @@
 		(uuid "3c92109d-8277-4c1a-a1e8-db901676f231")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
 			(at 120.9078 120.65 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+	)
+	(global_label "I2C_HOST_SDA"
+		(shape bidirectional)
+		(at 40.64 100.33 180)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "49b16131-aef4-4e58-9bd6-dee4ba5184a2")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 23.1178 100.33 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -4815,6 +5003,30 @@
 		(uuid "5fae8e70-df5c-4d36-ba7a-7f328701fcd5")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
 			(at 156.5283 107.95 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+	)
+	(global_label "I2C_HOST_SCL"
+		(shape bidirectional)
+		(at 40.64 102.87 180)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "8d4a6df5-a6a1-4e27-a3f6-56f19af664d5")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 23.1783 102.87 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -4924,30 +5136,6 @@
 	)
 	(global_label "I2C_HOST_SCL"
 		(shape bidirectional)
-		(at 41.91 90.17 180)
-		(fields_autoplaced yes)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right)
-		)
-		(uuid "b5054354-46dc-4392-99e8-2500c58b1abc")
-		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 24.4483 90.17 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify right)
-			)
-		)
-	)
-	(global_label "I2C_HOST_SCL"
-		(shape bidirectional)
 		(at 173.99 92.71 180)
 		(fields_autoplaced yes)
 		(effects
@@ -4983,30 +5171,6 @@
 		(uuid "c5e31135-6bb1-47ed-8773-7d5b06109535")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
 			(at 156.4678 87.63 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify right)
-			)
-		)
-	)
-	(global_label "I2C_HOST_SCL"
-		(shape bidirectional)
-		(at 78.74 95.25 180)
-		(fields_autoplaced yes)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right)
-		)
-		(uuid "c8eb995c-6f05-4b0d-9aeb-3af7cfab5c06")
-		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 61.2783 95.25 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -5103,30 +5267,6 @@
 		(uuid "d832e409-7fa6-4daf-9b43-2f556b7a18de")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
 			(at 33.0586 181.61 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify right)
-			)
-		)
-	)
-	(global_label "I2C_HOST_SCL"
-		(shape bidirectional)
-		(at 78.74 80.01 180)
-		(fields_autoplaced yes)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right)
-		)
-		(uuid "dc76cce0-e9df-4e9b-a688-ee925a593533")
-		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 61.2783 80.01 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -5300,7 +5440,7 @@
 	)
 	(symbol
 		(lib_id "power:GND")
-		(at 93.98 92.71 0)
+		(at 95.25 92.71 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -5310,7 +5450,7 @@
 		(dnp no)
 		(uuid "01519ad6-5838-4d9b-bae7-118cbed69ec9")
 		(property "Reference" "#PWR064"
-			(at 93.98 99.06 0)
+			(at 95.25 99.06 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -5321,7 +5461,7 @@
 			)
 		)
 		(property "Value" "GND"
-			(at 93.98 96.774 0)
+			(at 95.25 96.774 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -5331,7 +5471,7 @@
 			)
 		)
 		(property "Footprint" ""
-			(at 93.98 92.71 0)
+			(at 95.25 92.71 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -5342,7 +5482,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 93.98 92.71 0)
+			(at 95.25 92.71 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -5353,7 +5493,7 @@
 			)
 		)
 		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
-			(at 93.98 92.71 0)
+			(at 95.25 92.71 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -6092,7 +6232,7 @@
 	)
 	(symbol
 		(lib_id "easyeda2kicad:ESDS314DBVR-TP")
-		(at 83.82 87.63 90)
+		(at 85.09 87.63 90)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -6102,7 +6242,7 @@
 		(dnp no)
 		(uuid "0b0488a0-25e5-4e7b-adc6-c5a224c36928")
 		(property "Reference" "D26"
-			(at 81.28 76.708 90)
+			(at 82.55 76.708 90)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -6113,7 +6253,7 @@
 			)
 		)
 		(property "Value" "ESDS314DBVR"
-			(at 77.47 99.06 90)
+			(at 78.74 99.06 90)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -6124,7 +6264,7 @@
 			)
 		)
 		(property "Footprint" "Package_TO_SOT_SMD:SOT-23-5"
-			(at 96.52 87.63 0)
+			(at 97.79 87.63 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -6135,7 +6275,7 @@
 			)
 		)
 		(property "Datasheet" "https://www.ti.com/lit/ds/symlink/esds314.pdf"
-			(at 99.06 87.63 0)
+			(at 100.33 87.63 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -6146,7 +6286,7 @@
 			)
 		)
 		(property "Description" "TVS ESD 4-ch 3.6V Vrwm, 6.5V clamp, 25A 8/20us, SOT-23-5"
-			(at 83.82 87.63 0)
+			(at 85.09 87.63 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -6157,7 +6297,7 @@
 			)
 		)
 		(property "MPN" "ESDS314DBVR"
-			(at 104.14 87.63 0)
+			(at 105.41 87.63 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -6168,7 +6308,7 @@
 			)
 		)
 		(property "Manufacturer" "Texas Instruments"
-			(at 101.6 87.63 0)
+			(at 102.87 87.63 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -6179,7 +6319,7 @@
 			)
 		)
 		(property "LCSC Part" "C1847859"
-			(at 106.68 87.63 0)
+			(at 107.95 87.63 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -6285,140 +6425,6 @@
 			(project "parsnip"
 				(path "/fe9d4a31-2311-442f-997c-52ad8ca5cfe9/193ac050-1d5d-437b-a08a-b87a60c08c00"
 					(reference "#PWR0245")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "Device:R_Small")
-		(at 45.72 90.17 90)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "15f12ab6-886d-49a9-82f7-03926370dc78")
-		(property "Reference" "R60"
-			(at 45.72 91.948 90)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.016 1.016)
-				)
-			)
-		)
-		(property "Value" "33"
-			(at 49.784 91.44 90)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" "Resistor_SMD:R_0402_1005Metric_Pad0.72x0.64mm_HandSolder"
-			(at 45.72 90.17 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/dd253c5a1bb01d93e2ee5935d91e0850.pdf?productCode=C54530835"
-			(at 45.72 90.17 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "RES 33Ω ±1% 62.5mW 0402 thick film"
-			(at 45.72 90.17 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "MPN" "1RC0402F3309"
-			(at 45.72 90.17 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Manufacturer" "SAE"
-			(at 45.72 90.17 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "LCSC Part" "C54530835"
-			(at 45.72 90.17 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Tolerance" "1%"
-			(at 45.72 90.17 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Power Rating" "62.5mW"
-			(at 45.72 90.17 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "f81281cf-6337-4947-a172-3c6c5d484b95")
-		)
-		(pin "2"
-			(uuid "99f42eb6-7412-4a01-8d0c-028d08d5ec37")
-		)
-		(instances
-			(project "parsnip"
-				(path "/fe9d4a31-2311-442f-997c-52ad8ca5cfe9/193ac050-1d5d-437b-a08a-b87a60c08c00"
-					(reference "R60")
 					(unit 1)
 				)
 			)
@@ -7363,6 +7369,274 @@
 			(project "parsnip"
 				(path "/fe9d4a31-2311-442f-997c-52ad8ca5cfe9/193ac050-1d5d-437b-a08a-b87a60c08c00"
 					(reference "#PWR074")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Device:R_Small")
+		(at 45.72 102.87 90)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "2d964331-c2b7-4133-a268-acda64a35e2c")
+		(property "Reference" "R60"
+			(at 45.72 104.648 90)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.016 1.016)
+				)
+			)
+		)
+		(property "Value" "33"
+			(at 49.784 104.14 90)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Resistor_SMD:R_0402_1005Metric_Pad0.72x0.64mm_HandSolder"
+			(at 45.72 102.87 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/dd253c5a1bb01d93e2ee5935d91e0850.pdf?productCode=C54530835"
+			(at 45.72 102.87 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "RES 33Ω ±1% 62.5mW 0402 thick film"
+			(at 45.72 102.87 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "1RC0402F3309"
+			(at 45.72 102.87 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "SAE"
+			(at 45.72 102.87 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC Part" "C54530835"
+			(at 45.72 102.87 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Tolerance" "1%"
+			(at 45.72 102.87 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Power Rating" "62.5mW"
+			(at 45.72 102.87 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "d1122b54-5b98-4d7d-930c-ceb458a1f2ee")
+		)
+		(pin "2"
+			(uuid "e9054bbe-51e9-46c1-a138-a454e658fdd4")
+		)
+		(instances
+			(project "parsnip"
+				(path "/fe9d4a31-2311-442f-997c-52ad8ca5cfe9/193ac050-1d5d-437b-a08a-b87a60c08c00"
+					(reference "R60")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Device:R_Small")
+		(at 45.72 100.33 90)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "2e37c4fc-fb41-4523-a262-47d11b328859")
+		(property "Reference" "R23"
+			(at 45.72 98.806 90)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.016 1.016)
+				)
+			)
+		)
+		(property "Value" "33"
+			(at 50.038 99.06 90)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Resistor_SMD:R_0402_1005Metric_Pad0.72x0.64mm_HandSolder"
+			(at 45.72 100.33 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/dd253c5a1bb01d93e2ee5935d91e0850.pdf?productCode=C54530835"
+			(at 45.72 100.33 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "RES 33Ω ±1% 62.5mW 0402 thick film"
+			(at 45.72 100.33 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "1RC0402F3309"
+			(at 45.72 100.33 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "SAE"
+			(at 45.72 100.33 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC Part" "C54530835"
+			(at 45.72 100.33 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Tolerance" "1%"
+			(at 45.72 100.33 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Power Rating" "62.5mW"
+			(at 45.72 100.33 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "5f6b79c6-6645-424b-9aa4-6e638b21e7ef")
+		)
+		(pin "2"
+			(uuid "b0118024-6cd7-45ac-9fd8-4a218cc7f5f9")
+		)
+		(instances
+			(project "parsnip"
+				(path "/fe9d4a31-2311-442f-997c-52ad8ca5cfe9/193ac050-1d5d-437b-a08a-b87a60c08c00"
+					(reference "R23")
 					(unit 1)
 				)
 			)
@@ -10213,140 +10487,6 @@
 		)
 	)
 	(symbol
-		(lib_id "Device:R_Small")
-		(at 45.72 87.63 90)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "898b10cb-a4b6-4f9a-bd2f-1c7bf0a8c8a7")
-		(property "Reference" "R23"
-			(at 45.72 86.106 90)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.016 1.016)
-				)
-			)
-		)
-		(property "Value" "33"
-			(at 50.038 86.36 90)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" "Resistor_SMD:R_0402_1005Metric_Pad0.72x0.64mm_HandSolder"
-			(at 45.72 87.63 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/dd253c5a1bb01d93e2ee5935d91e0850.pdf?productCode=C54530835"
-			(at 45.72 87.63 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "RES 33Ω ±1% 62.5mW 0402 thick film"
-			(at 45.72 87.63 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "MPN" "1RC0402F3309"
-			(at 45.72 87.63 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Manufacturer" "SAE"
-			(at 45.72 87.63 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "LCSC Part" "C54530835"
-			(at 45.72 87.63 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Tolerance" "1%"
-			(at 45.72 87.63 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Power Rating" "62.5mW"
-			(at 45.72 87.63 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "4edc33bd-ca8e-4a4f-973b-af66b22975ba")
-		)
-		(pin "2"
-			(uuid "ff63ef98-c0a9-4109-9cf0-b2119ede0f12")
-		)
-		(instances
-			(project "parsnip"
-				(path "/fe9d4a31-2311-442f-997c-52ad8ca5cfe9/193ac050-1d5d-437b-a08a-b87a60c08c00"
-					(reference "R23")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
 		(lib_id "power:GND")
 		(at 27.94 134.62 0)
 		(unit 1)
@@ -10842,6 +10982,84 @@
 			(project "parsnip"
 				(path "/fe9d4a31-2311-442f-997c-52ad8ca5cfe9/193ac050-1d5d-437b-a08a-b87a60c08c00"
 					(reference "#PWR024")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "power:PWR_FLAG")
+		(at 115.57 34.29 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "a12503b3-4993-43a0-b006-a6c0a31b4d85")
+		(property "Reference" "#FLG03"
+			(at 115.57 32.385 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "PWR_FLAG"
+			(at 115.57 29.21 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 115.57 34.29 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 115.57 34.29 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Special symbol for telling ERC where power comes from"
+			(at 115.57 34.29 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "702900dc-efe7-45e5-a971-774f0648c448")
+		)
+		(instances
+			(project "parsnip"
+				(path "/fe9d4a31-2311-442f-997c-52ad8ca5cfe9/193ac050-1d5d-437b-a08a-b87a60c08c00"
+					(reference "#FLG03")
 					(unit 1)
 				)
 			)

@@ -18775,7 +18775,7 @@
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
-		(in_bom yes)
+		(in_bom no)
 		(on_board yes)
 		(in_pos_files no)
 		(dnp no)
@@ -18978,7 +18978,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://www.lcsc.com/datasheet/C510088.pdf"
 			(at 44.45 171.45 0)
 			(hide yes)
 			(show_name no)
@@ -18989,7 +18989,7 @@
 				)
 			)
 		)
-		(property "Description" ""
+		(property "Description" "RES 10Ω ±1% 250mW 0603"
 			(at 44.45 171.45 0)
 			(hide yes)
 			(show_name no)
@@ -19000,7 +19000,7 @@
 				)
 			)
 		)
-		(property "MPN" ""
+		(property "MPN" "ESR03EZPF10R0"
 			(at 44.45 173.228 90)
 			(hide yes)
 			(show_name no)
@@ -19011,7 +19011,7 @@
 				)
 			)
 		)
-		(property "Manufacturer" ""
+		(property "Manufacturer" "ROHM"
 			(at 44.45 173.228 90)
 			(hide yes)
 			(show_name no)
@@ -19022,7 +19022,7 @@
 				)
 			)
 		)
-		(property "LCSC Part" ""
+		(property "LCSC Part" "C510088"
 			(at 44.45 171.45 0)
 			(hide yes)
 			(show_name no)
