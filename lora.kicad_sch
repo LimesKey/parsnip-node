@@ -4482,6 +4482,46 @@
 		)
 		(uuid "fda68e01-1334-4e9c-81fe-f1e320f3dfa6")
 	)
+	(label "LORA_SMA"
+		(at 66.04 156.21 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "897021f9-3593-4337-b520-d06e2991a5b7")
+	)
+	(label "LORA_LPF_OUT"
+		(at 77.47 162.56 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "44ce65c7-3148-4336-854d-d011aad700ae")
+	)
+	(label "LORA_LPF_IN"
+		(at 120.65 156.21 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "ccddbf38-e2bd-442e-b3f6-fbd471b4f9e3")
+	)
+	(label "LORA_5V"
+		(at 185.42 83.82 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "ad7a591d-6ce7-4361-ab63-fcab298c20c7")
+	)
 	(label "ANT_DETECT"
 		(at 43.18 172.72 180)
 		(effects

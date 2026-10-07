@@ -722,11 +722,11 @@
         "pcb_color": "rgba(0, 0, 0, 0.000)",
         "priority": 2,
         "schematic_color": "rgba(0, 0, 0, 0.000)",
-        "track_width": 0.3,
+        "track_width": 0.34,
         "tuning_profile": ""
       },
       {
-        "clearance": 0.2,
+        "clearance": 0.15,
         "diff_pair_gap": 0.15,
         "diff_pair_width": 0.25,
         "name": "USB_DIFF",
@@ -753,7 +753,55 @@
       },
       {
         "netclass": "RF_50OHM",
-        "pattern": "/Root/LoRa/LORA_ANT"
+        "pattern": "*/LoRa/LORA_ANT"
+      },
+      {
+        "netclass": "RF_50OHM",
+        "pattern": "*/LoRa/LORA_LPF_IN"
+      },
+      {
+        "netclass": "RF_50OHM",
+        "pattern": "*/LoRa/LORA_LPF_OUT"
+      },
+      {
+        "netclass": "RF_50OHM",
+        "pattern": "*/LoRa/LORA_SMA"
+      },
+      {
+        "netclass": "RF_50OHM",
+        "pattern": "*/GNSS/GNSS_SMA"
+      },
+      {
+        "netclass": "RF_50OHM",
+        "pattern": "*/GNSS/GNSS_BIAS"
+      },
+      {
+        "netclass": "RF_50OHM",
+        "pattern": "Net-(C95-Pad1)"
+      },
+      {
+        "netclass": "RF_50OHM",
+        "pattern": "*/GNSS/GNSS_DCB_OUT"
+      },
+      {
+        "netclass": "RF_50OHM",
+        "pattern": "Net-(C97-Pad1)"
+      },
+      {
+        "netclass": "RF_50OHM",
+        "pattern": "*/GNSS/GNSS_SAW_IN"
+      },
+      {
+        "netclass": "RF_50OHM",
+        "pattern": "Net-(FL1-Pad4)"
+      },
+      {
+        "netclass": "RF_50OHM",
+        "pattern": "*/GNSS/GNSS_SAW_OUT"
+      },
+      {
+        "netclass": "RF_50OHM_MS",
+        "pattern": "*/GNSS/GNSS_UFL"
       },
       {
         "netclass": "PWR_HIGH",
@@ -780,6 +828,54 @@
         "pattern": "VBUS"
       },
       {
+        "netclass": "PWR_HIGH",
+        "pattern": "CHG_VBUS"
+      },
+      {
+        "netclass": "PWR_HIGH",
+        "pattern": "/Charger/PMID"
+      },
+      {
+        "netclass": "PWR_HIGH",
+        "pattern": "/Charger/CHG_BAT"
+      },
+      {
+        "netclass": "PWR_HIGH",
+        "pattern": "/Charger/SW1"
+      },
+      {
+        "netclass": "PWR_HIGH",
+        "pattern": "/Charger/SW2"
+      },
+      {
+        "netclass": "PWR_HIGH",
+        "pattern": "/Charger/VAC1_MID"
+      },
+      {
+        "netclass": "PWR_HIGH",
+        "pattern": "/BMS/CELL_TOP"
+      },
+      {
+        "netclass": "PWR_HIGH",
+        "pattern": "Net-(BT1--)"
+      },
+      {
+        "netclass": "PWR_HIGH",
+        "pattern": "/BMS/CELL_MID"
+      },
+      {
+        "netclass": "PWR_HIGH",
+        "pattern": "/BMS/CELL_BOT"
+      },
+      {
+        "netclass": "PWR_HIGH",
+        "pattern": "Net-(Q5-D-Pad5)"
+      },
+      {
+        "netclass": "PWR_HIGH",
+        "pattern": "/BMS/BMS_FET_MID"
+      },
+      {
         "netclass": "PWR_RAIL",
         "pattern": "+5V"
       },
@@ -796,56 +892,68 @@
         "pattern": "PD_LDO_3V3"
       },
       {
-        "netclass": "PWR_HIGH",
-        "pattern": "/Charger/PMID"
+        "netclass": "PWR_RAIL",
+        "pattern": "*/Rails/5V_RAW"
       },
       {
         "netclass": "PWR_RAIL",
-        "pattern": "/Root/Rails/5V_RAW"
+        "pattern": "Net-(U14-SW)"
       },
       {
-        "netclass": "PWR_HIGH",
-        "pattern": "Net-(BT1--)"
+        "netclass": "PWR_RAIL",
+        "pattern": "*/Rails/SW_5V"
       },
       {
-        "netclass": "PWR_HIGH",
-        "pattern": "Net-(BT1-+)"
+        "netclass": "PWR_RAIL",
+        "pattern": "Net-(U13-SW)"
       },
       {
-        "netclass": "RF_50OHM",
-        "pattern": "Net-(D18-A2)"
+        "netclass": "PWR_RAIL",
+        "pattern": "*/Rails/SW_3V3"
       },
       {
-        "netclass": "RF_50OHM",
-        "pattern": "Net-(JP14-A)"
+        "netclass": "PWR_RAIL",
+        "pattern": "*/LoRa/LORA_5V"
       },
       {
-        "netclass": "RF_50OHM",
-        "pattern": "Net-(JP14-B)"
+        "netclass": "PWR_RAIL",
+        "pattern": "SOLAR"
       },
       {
-        "netclass": "RF_50OHM",
-        "pattern": "Net-(D10-A2)"
+        "netclass": "PWR_RAIL",
+        "pattern": "/Charger/VAC2_MID"
       },
       {
-        "netclass": "RF_50OHM",
-        "pattern": "Net-(C95-Pad1)"
+        "netclass": "PWR_RAIL",
+        "pattern": "Net-(J15-Pin_1)"
       },
       {
-        "netclass": "RF_50OHM",
-        "pattern": "Net-(C95-Pad2)"
+        "netclass": "PWR_RAIL",
+        "pattern": "*/Peripherals/LED_5V"
       },
       {
-        "netclass": "RF_50OHM",
-        "pattern": "Net-(C97-Pad1)"
+        "netclass": "USB_DIFF",
+        "pattern": "C_USB_T_P"
       },
       {
-        "netclass": "RF_50OHM",
-        "pattern": "Net-(FL1-Pad4)"
+        "netclass": "USB_DIFF",
+        "pattern": "C_USB_T_N"
       },
       {
-        "netclass": "RF_50OHM_MS",
-        "pattern": "Net-(D13-A1)"
+        "netclass": "USB_DIFF",
+        "pattern": "C_USB_B_P"
+      },
+      {
+        "netclass": "USB_DIFF",
+        "pattern": "C_USB_B_N"
+      },
+      {
+        "netclass": "USB_DIFF",
+        "pattern": "USB D+"
+      },
+      {
+        "netclass": "USB_DIFF",
+        "pattern": "USB D-"
       }
     ]
   },

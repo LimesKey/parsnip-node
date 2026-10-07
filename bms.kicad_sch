@@ -6845,6 +6845,26 @@
 		)
 		(uuid "fdd53357-0855-4313-983b-8656681cabab")
 	)
+	(label "CELL_BOT"
+		(at 66.04 110.49 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "031852ad-6d20-4ebf-a7ec-292ae5ed49e2")
+	)
+	(label "CELL_TOP"
+		(at 71.12 67.31 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "04ef5674-2f0a-41c8-b2a1-eb9c239316a5")
+	)
 	(label "BMS_IN"
 		(at 95.25 107.95 180)
 		(effects

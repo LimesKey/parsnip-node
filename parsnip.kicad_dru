@@ -61,8 +61,8 @@
 # rules turn that into a hard error.
 
 # Charge / PD path: never neck below 1.0mm (PWR_HIGH class target is 1.5mm; this
-# is the floor, route the trunks at 1.5mm). Covers VSYS, VBUS, +PACK, +BATT,
-# -BATT, PPHV per the netclass_patterns in parsnip.kicad_pro.
+# is the floor, route the trunks at 1.5mm). Covers every PWR_HIGH net in the
+# netclass_patterns of parsnip.kicad_pro (cells, pack, charger, input path).
 (rule "pwr_min_width"
     (constraint track_width (min 1.0mm))
     (condition "A.NetClass == 'PWR_HIGH'"))
@@ -216,10 +216,10 @@
 #     (0.4mm min IC pitch). It needs JLC *Standard* assembly or PCBWay (0.35mm).
 
 # ================= UNFUSED PACK POSITIVE (2026-09-24) =========================
-# Net-(BT1-+) is the cell stack + upstream of F5. A short from it to pack negative
-# (-BATT, GND through the 5 mOhm shunt, or the raw cell minus Net-(BT2--)) is an
+# /BMS/CELL_TOP is the cell stack + upstream of F5. A short from it to pack negative
+# (-BATT, GND through the 5 mOhm shunt, or the raw cell minus /BMS/CELL_BOT) is an
 # unfused dead short of both cells that bypasses F5, Q5/Q6 and R41. Keep those nets
 # 0.4 mm away, pour fills included. Placed last so it is evaluated first.
 (rule "unfused_pack_plus"
     (constraint clearance (min 0.4mm))
-    (condition "A.NetName == 'Net-(BT1-+)' && (B.NetName == '-BATT' || B.NetName == 'GND' || B.NetName == 'Net-(BT2--)')"))
+    (condition "A.NetName == '/BMS/CELL_TOP' && (B.NetName == '-BATT' || B.NetName == 'GND' || B.NetName == '/BMS/CELL_BOT')"))
