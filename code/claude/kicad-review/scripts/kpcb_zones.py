@@ -173,8 +173,9 @@ def _clearance_fn(b):
     return clr, (via.get('via_diameter') or 0.6), (via.get('via_drill') or 0.3)
 
 
-def _keepouts(b):
-    """[(layers, PolyIndex, vias_blocked, pour_blocked)] from board and footprint rule areas"""
+def _keepouts(b, tracks=False):
+    """[(layers, PolyIndex, vias_blocked, pour_blocked)] from board and footprint rule areas,
+    plus tracks_blocked as a 5th item when `tracks` (the router asks)"""
     out = []
     root = load_sexp(b.path)
     def add(z, T):
@@ -185,7 +186,8 @@ def _keepouts(b):
             lays = [l for l in (kid(z, 'layers') or kid(z, 'layer') or [])[1:] if isinstance(l, str)]
             rule = {k[0]: k[1] for k in ko[1:] if isinstance(k, list) and len(k) > 1}
             out.append((set(lays) if '*.Cu' not in lays else set(b.copper), PolyIndex(pts),
-                        rule.get('vias') == 'not_allowed', rule.get('copperpour') == 'not_allowed'))
+                        rule.get('vias') == 'not_allowed', rule.get('copperpour') == 'not_allowed')
+                       + ((rule.get('tracks') == 'not_allowed',) if tracks else ()))
     for z in kids(root, 'zone'):
         add(z, lambda x, y: (x, y))
     for node in kids(root, 'footprint'):

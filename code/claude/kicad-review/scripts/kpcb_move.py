@@ -44,6 +44,31 @@ class World:
         self.tracks = [t for i, t in enumerate(b.tracks) if i not in own]
         self.vias = [v for v in b.vias if v is not via]
         self.parts = [g for g in b.placed() if g is not f and not b.is_hole(g)]
+        # 2 mm buckets, so a hit test reads only the copper around it
+        self.vl = {id(v): via_layers(v, cu) for v in self.vias}
+        self.grid = {}
+        def put(kind, obj, bb):
+            for cx in range(math.floor(bb[0] / 2), math.floor(bb[2] / 2) + 1):
+                for cy in range(math.floor(bb[1] / 2), math.floor(bb[3] / 2) + 1):
+                    self.grid.setdefault((cx, cy), []).append((kind, obj))
+        for pd in self.pads:
+            put('p', pd, pd[4])
+        for t in self.tracks:
+            put('t', t, (min(t['a'][0], t['b'][0]) - t['w'], min(t['a'][1], t['b'][1]) - t['w'],
+                         max(t['a'][0], t['b'][0]) + t['w'], max(t['a'][1], t['b'][1]) + t['w']))
+        for v in self.vias:
+            put('v', v, (v['x'] - v['size'], v['y'] - v['size'], v['x'] + v['size'], v['y'] + v['size']))
+
+    def near(self, zone):
+        """the pads, tracks and vias whose bucket meets the zone box, each once"""
+        seen, out = set(), {'p': [], 't': [], 'v': []}
+        for cx in range(math.floor(zone[0] / 2), math.floor(zone[2] / 2) + 1):
+            for cy in range(math.floor(zone[1] / 2), math.floor(zone[3] / 2) + 1):
+                for kind, obj in self.grid.get((cx, cy), ()):
+                    if id(obj) not in seen:
+                        seen.add(id(obj))
+                        out[kind].append(obj)
+        return out
 
     def hits(self, items, outline=None, back=False):
         """{key: message} for items [(name, net, layers, box)] and an optional moved
@@ -52,15 +77,16 @@ class World:
         if not items:
             return out
         zone = grow(bbox([q for *_x, bb in items for q in (bb[:2], bb[2:])]), 2.0)
+        near = self.near(zone)
         for name, net, L, bb in items:
-            for ref, num, n2, L2, b2 in self.pads:
+            for ref, num, n2, L2, b2 in near['p']:
                 if (net and n2 == net) or not (L & L2) or not hit(zone, b2):
                     continue
                 need, gap = self.clr(net, n2), _box_gap(bb, b2)
                 if gap < need - 1e-6:
                     out[('pad', ref, num, name)] = (f"{name} {gap:.2f} mm from {ref}.{num} "
                                                      f"({unesc_disp(n2) or 'no net'}), needs {need:.2f}")
-            for t in self.tracks:
+            for t in near['t']:
                 if (net and t['net'] == net) or t['layer'] not in L or \
                         not hit(zone, (min(t['a'][0], t['b'][0]) - t['w'], min(t['a'][1], t['b'][1]) - t['w'],
                                        max(t['a'][0], t['b'][0]) + t['w'], max(t['a'][1], t['b'][1]) + t['w'])):
@@ -70,8 +96,8 @@ class World:
                     out[('trk', id(t), name)] = (f"{name} {max(gap, 0):.2f} mm from a {unesc_disp(t['net'])} "
                                                  f"track on {t['layer']} @{t['mid'][0]:.2f},{t['mid'][1]:.2f}, "
                                                  f"needs {need:.2f}")
-            for v in self.vias:
-                if (net and v['net'] == net) or not (L & via_layers(v, self.b.copper)) or \
+            for v in near['v']:
+                if (net and v['net'] == net) or not (L & self.vl[id(v)]) or \
                         not hit(zone, grow((v['x'], v['y'], v['x'], v['y']), v['size'])):
                     continue
                 need, gap = self.clr(net, v['net']), pt_box_dist((v['x'], v['y']), bb) - v['size'] / 2

@@ -198,7 +198,8 @@ def _solve_all(jobs):
     if not todo:
         return
     if len(todo) > 1 and 'fork' in mp.get_all_start_methods():
-        _POOL = _POOL or cf.ProcessPoolExecutor(4, mp_context=mp.get_context('fork'))
+        _POOL = _POOL or cf.ProcessPoolExecutor(min(len(todo), os.cpu_count() or 4),
+                                                 mp_context=mp.get_context('fork'))
         _MEMO.update(zip(todo, _POOL.map(_solve, *zip(*todo.values()))))
     else:
         _MEMO.update((k, _solve(*v)) for k, v in todo.items())
@@ -229,14 +230,23 @@ def field_zo(w, h, er, t=0.035, s=None, mask=None, top=None, fill_er=None, res=1
                 res 1 reads ~1% LOW on a real trace (vs res 4, growth 1.15), in
                 ~0.1 s per solve; a zero-thickness strip needs res ~8
       grow      grid growth per step away from an edge (1.3: ~2x the lines)"""
-    t = max(t, 0.0)
-    sl, sr = s if isinstance(s, (tuple, list)) else (s, s)
-    halves = [_half_jobs(w, h, er, t, g, mask, top, fill_er, res, grow) for g in {sl: 0, sr: 0}]
+    halves = _halves(w, h, er, t, s, mask, top, fill_er, res, grow)
     _solve_all({k: v for _, jobs in halves for k, v in jobs.items()})
     if len(halves) == 1:
         halves *= 2
     c, c0 = (sum(_MEMO[keys[i]] for keys, _ in halves) for i in (0, 1))
     return ETA0 / math.sqrt(c * c0), c / c0
+
+def _halves(w, h, er, t=0.035, s=None, mask=None, top=None, fill_er=None, res=1.0, grow=1.5):
+    t = max(t, 0.0)
+    sl, sr = s if isinstance(s, (tuple, list)) else (s, s)
+    return [_half_jobs(w, h, er, t, g, mask, top, fill_er, res, grow) for g in {sl: 0, sr: 0}]
+
+def prefetch(calls):
+    """Solve every field_zo((args, kwargs)) in `calls` in ONE parallel batch, so the
+    field_zo calls that follow are memo hits. One pool.map over all of `rf`'s half-
+    solves instead of a map per call, each waiting on its slowest."""
+    _solve_all({k: v for ar, kw in calls for _, jobs in _halves(*ar, **kw) for k, v in jobs.items()})
 
 def _K(k):
     """Complete elliptic integral of the first kind, modulus k (AGM)."""

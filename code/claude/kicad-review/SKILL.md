@@ -1,7 +1,7 @@
 ---
 name: kicad-review
 description: >-
-  Query and review KiCad netlists (.net), schematics (.kicad_sch), board placement (.kicad_pcb) and datasheets, and draw schematics: knet.py, kpcb.py, ksheet.py, ksch.py, kdoc.py. Use for any question touching a KiCad schematic, netlist, ERC, BOM, footprint, pin, net, connectivity, decoupling or power rail ("what does U2 pin 9 connect to"), and for board layout, placement, floorplan, footprint position, courtyard, edge clearance, mounting hole or keepout ("is U8 too close to the antenna"), and schematic-sheet geometry or readability ("where is U7 on the sheet", "is this drawing misleading", "show me that part of the schematic"). `kpcb.py FILE ic U13` also RECOMMENDS where a regulator's caps, inductor and feedback divider go, with a diagram: use it for "where do these go", "lay out this buck/LDO", "minimise the switching loop". Never answer connectivity or geometry from memory or by eyeballing a schematic or board image; exports go stale within a session. Use it too for ANY request to draw or show a circuit, even one not on the board yet: ksch.py draws real symbols from a text spec and hand-written SVG is never right.
+  Query and review KiCad netlists (.net), schematics (.kicad_sch), board placement (.kicad_pcb) and datasheets, and draw schematics: knet.py, kpcb.py, ksheet.py, ksch.py, kdoc.py. Use for any question touching a KiCad schematic, netlist, ERC, BOM, footprint, pin, net, connectivity, decoupling or power rail ("what does U2 pin 9 connect to"), and for board layout, placement, floorplan, footprint position, courtyard, edge clearance, mounting hole or keepout ("is U8 too close to the antenna"), and schematic-sheet geometry or readability ("where is U7 on the sheet", "is this drawing misleading", "show me that part of the schematic"). `kpcb.py FILE ic U13` also RECOMMENDS where a regulator's caps, inductor and feedback divider go, with a diagram: use it for "where do these go", "lay out this buck/LDO", "minimise the switching loop". It also places and routes on a scratch copy: `place REF` (where an unplaced part fits, ranked by ratsnest), `airwires` (what is left to route), `route NET` / `route --pending` (grid A* router with vias), `ripup` (clear shorts/dangling copper KiCad flagged), each writing a copy verified with `kdrc.py --baseline` - use them for "place the remaining parts", "route the remaining traces", "what is unrouted". Never answer connectivity or geometry from memory or by eyeballing a schematic or board image; exports go stale within a session. Use it too for ANY request to draw or show a circuit, even one not on the board yet: ksch.py draws real symbols from a text spec and hand-written SVG is never right.
 ---
 
 # KiCad netlist review, placement review and schematic drawing
@@ -50,7 +50,9 @@ makes every loader re-run kmerge first (~3 s, `KREVIEW_NO_REGEN=1` opts out), an
 "10.99"`), else `kicad-cli`; `$KICAD_CLI` overrides. For a multi-root project,
 `kmerge.py OUT.net ROOT.kicad_sch` builds the whole-board netlist (other top-level
 sheets come from the `.kicad_pro`; a nightly export that already has them passes
-through verbatim).
+through verbatim). The project's own root (`<name>.kicad_sch` beside `<name>.kicad_pro`)
+is exported first whatever ROOT is named, and the auto-regen uses it too: a
+front-matter page listed first in the navigator exports empty.
 
 ## Order of operations
 
@@ -86,6 +88,15 @@ scrambled. The plot only tells you which sheet a symbol lives on.
 | is the schematic drawing misleading (wire through a body, bypass-looking gaps) | `ksheet.py FILE.net lint [--around REF]` |
 | picture of a schematic region | `ksheet.py FILE.net view REF` -> PNG path |
 | can I nudge X here / where along this line is clear / can this via move | `kpcb.py FILE movecheck REF X Y [ROT]`, `REF --scan x=X y=A..B`, `via X,Y NX,NY` - new hits only, read-only |
+| what is left to route | `kpcb.py FILE airwires [NET]` - per net, each missing link between copper pieces, nearest copper of each, gap |
+| where a copper layer still has room for routes | `kpcb.py FILE map --layers In2.Cu` - track/pad/via density, pour-only and free cells |
+| where does this unplaced part fit | `kpcb.py FILE place REF [--near IC]` - both sides, 4 rotations, ranked by ratsnest, copper-checked; `-o OUT` writes it |
+| route a net / everything left | `kpcb.py FILE route NET... \| --pending -o OUT` - grid A* through clearance-inflated copper, vias, all layers; rips up and re-queues its own routes that box a pin in |
+| diff pair skew / coupling / gap | `kpcb.py FILE pairs [NET]` - per pair leg lengths, skew, coupled length, edge gap vs the netclass |
+| place and route on a scratch copy, prove each step | the loop in [recipes](references/recipes.md) "Place the rest": `kdrc.py COPY drc --refill-save --baseline r0.json` reads `0 new` when a step is clean |
+| tracks with no net / stale routes bridging two nets | `kpcb.py FILE renet [--drop] -o OUT` |
+| clear the shorts and dangling copper KiCad found | `kpcb.py FILE ripup --drc REPORT.json -o OUT` (report from `kdrc.py --report`) |
+| silk/courtyard lines drawn at the page origin, absurd courtyards | `kpcb.py FILE fixlines -o OUT` - the 10.99 fp_line frame bug (kpcb already reads it corrected) |
 | what is almost-but-not-quite aligned (tidy placement pass) | `kpcb.py FILE tidy` - REF now -> new, each pre-checked with movecheck; the whole pass is a recipe in [recipes](references/recipes.md) |
 | where does a W x H logo/label fit on the silk | `kpcb.py FILE freebox f 8 4` - best centre per free region |
 | are the logos visible / what hides them / do they run over pads | `kpcb.py FILE silk` |
@@ -127,6 +138,9 @@ Netlist, load_sexp) - never re-implement paren matching in an inline script.
   each rule stops after `--max`. The counts in the tails stay accurate even when
   not every item is printed: `+90 more OVERLAP line(s) (102 total)` means 102 real
   findings. Widen deliberately with `--only RULE` or `--max`, never by default.
+- **The writers (`move`, `place`, `route`, `ripup`, `renet`, `fixlines`) write a
+  copy, `-o OUT`, and refuse their input.** Work on a scratch copy of the project and
+  hand back the result; the real board is edited only when the user asks.
 - **Mid-placement, most of the BOM is parked beside the board.** Every kpcb check
   ignores anything outside the outline. `placed 135 of 439` is progress, not an
   error, and a part "not found" by `where` may not exist on the board yet.

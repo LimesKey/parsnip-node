@@ -13,7 +13,9 @@ skipped, and a complete export is written through verbatim.
 
 The other top-level sheets listed in the .kicad_pro (KiCad 10
 schematic.top_level_sheets) are added automatically, and NAME defaults to the
-name recorded there, so `kmerge.py OUT.net parsnip.kicad_sch` is enough.
+name recorded there, so `kmerge.py OUT.net parsnip.kicad_sch` is enough. The
+project's own root (<name>.kicad_sch beside <name>.kicad_pro) is always exported
+first, whichever root is named: a front-matter page exports empty.
 The kicad-cli binary is picked per file (kcommon.kicad_cli, $KICAD_CLI wins).
 
 Net scoping follows what kicad-cli already encodes in the name:
@@ -37,7 +39,7 @@ import sys
 import tempfile
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from kcommon import kicad_cli, kid, kids, parse_sexp, sch_files, top_level_sheets  # noqa: E402
+from kcommon import kicad_cli, kid, kids, parse_sexp, project_root, sch_files, top_level_sheets  # noqa: E402
 
 # ---------------------------------------------------------------- s-expressions
 # Quoted strings are parsed raw behind a \0 marker (parse_sexp mark=), so dump()
@@ -217,6 +219,9 @@ def main():
                       or ("" if i == 0 else os.path.splitext(base)[0]), path))
     given = {os.path.basename(p) for _, p in roots}
     roots += [(nm, os.path.join(d, fn)) for fn, nm in tls.items() if fn not in given]
+    if tls:     # the project's own root first: its nightly export already holds the rest
+        pr = project_root(d)
+        roots.sort(key=lambda r: os.path.basename(r[1]) != pr)
 
     if a.if_stale and os.path.exists(a.out):
         t = os.path.getmtime(a.out)

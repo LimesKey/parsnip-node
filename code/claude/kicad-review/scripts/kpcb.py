@@ -49,6 +49,22 @@ Commands:
                                       from the stackup, same-layer GND gap, reference
                                       plane under it, GND via fence vs lambda/20
 
+Writers (always to a new file, -o OUT; verify the copy with kdrc.py):
+  kpcb.py FILE fixlines -o OUT        undo the 10.99 fp_line frame bug (KiCad draws the
+                                      silk/courtyard/fab lines near the page origin)
+  kpcb.py FILE renet -o OUT           netless tracks/vias take the one net their ends touch
+  kpcb.py FILE move REF X Y [ROT] -o OUT   re-place a footprint (--flip: to the other side)
+  kpcb.py FILE ripup NET.. | --drc R.json -o OUT   delete tracks/vias (KiCad-flagged or by net,
+                                      --box), prune what dangles, drop their teardrops
+  kpcb.py FILE airwires [NET...]      what is left to route: per net, each missing link
+                                      between copper pieces, nearest copper, gap
+  kpcb.py FILE route NET... [-o OUT]  grid A* router (8 directions, through vias) through
+                                      clearance-inflated foreign copper; dry run without -o
+  kpcb.py FILE place REF [--near REF] [-o OUT]  where a part fits (both sides, 4 rotations),
+                                      ranked by ratsnest length, copper-checked
+  kpcb.py FILE pairs [NET...]         diff pairs (X+/X-, XP/XN): leg lengths, skew, vias,
+                                      coupled length and edge gap vs the netclass
+
 `ic` is the one command that suggests rather than judges. It reads the IC's own
 pad coordinates - there is no per-part template - classifies its pins by name,
 finds its passives, and places each one by the rule that actually governs it:
@@ -112,6 +128,9 @@ from kpcb_silk import c_silk
 from kpcb_move import c_movecheck
 from kpcb_freebox import c_freebox
 from kpcb_tidy import c_tidy
+from kpcb_edit import c_fixlines, c_renet, c_move, c_ripup
+from kpcb_route import c_airwires, c_pairs, c_route
+from kpcb_place import c_place
 
 
 def c_summary(b, a):
@@ -341,6 +360,8 @@ def c_map(b, a):
     nothing."""
     if not b.outline:
         print("no board outline"); return 1
+    if a.layers:
+        return _cu_map(b, a)
     o = b.outline
     cols = max(20, a.cols)
     cw = (o[2] - o[0]) / cols
@@ -387,6 +408,79 @@ def c_map(b, a):
     print(f"     {other} placed part(s) on the other side are not shown "
           f"(`map --side {'b' if want == 'f' else 'f'}`); "
           f"{len(b.fps)-len(b.placed())} unplaced (`unplaced`)")
+
+def _cu_map(b, a):
+    """`map --layers L`: copper occupancy of one copper layer - where a route can still
+    go. Tracks, pads and vias are hard copper; a pour is passable (a route cuts it)."""
+    from kpcb_route import _iv, _pad_shape
+    from kpcb_board import PolyIndex, pad_box
+    from kpcb_move import cu_layers, via_layers
+    ly = a.layers.split(',')[0]
+    if ly not in b.copper:
+        print(f"--layers {ly}: not a copper layer ({' '.join(b.copper)})"); return 1
+    o, res = b.outline, 0.2
+    W, H = int((o[2] - o[0]) / res) + 1, int((o[3] - o[1]) / res) + 1
+    hard, soft = bytearray(W * H), bytearray(W * H)
+    def paint(ras, sh, R=0.0):
+        y0, y1, f = _iv(sh, R)
+        for j in range(max(0, math.ceil((y0 - o[1]) / res)), min(H - 1, math.floor((y1 - o[1]) / res)) + 1):
+            iv = f(o[1] + j * res)
+            if iv:
+                i0, i1 = max(0, math.ceil((iv[0] - o[0]) / res)), min(W - 1, math.floor((iv[1] - o[0]) / res))
+                if i0 <= i1:
+                    ras[j * W + i0:j * W + i1 + 1] = b'\x01' * (i1 - i0 + 1)
+    for f in b.placed():
+        for p in f.pads:
+            if p['kind'] != 'np_thru_hole' and (p['drill'] or ly in cu_layers(p['layers'], b.copper)):
+                paint(hard, _pad_shape(p, pad_box(p)))
+    for t in b.tracks:
+        if t['layer'] == ly:
+            paint(hard, ('cap', t['a'], t['b'], t['w'] / 2))
+    for v in b.vias:
+        if ly in via_layers(v, b.copper):
+            paint(hard, ('disk', v['x'], v['y'], v['size'] / 2))
+    for fl in b.fills:
+        if fl['layer'] == ly:
+            idx = PolyIndex(fl['pts'])
+            for j in range(H):
+                y = o[1] + j * res
+                xs = sorted(x1 + (y - y1) * (x2 - x1) / (y2 - y1) for x1, y1, x2, y2 in
+                            idx.rows.get(math.floor(y / idx.cell), ()) if (y1 > y) != (y2 > y))
+                for a0, a1 in zip(xs[::2], xs[1::2]):
+                    i0, i1 = max(0, math.ceil((a0 - o[0]) / res)), min(W - 1, math.floor((a1 - o[0]) / res))
+                    if i0 <= i1:
+                        soft[j * W + i0:j * W + i1 + 1] = b'\x01' * (i1 - i0 + 1)
+    cols = max(20, a.cols)
+    cw = (o[2] - o[0]) / cols
+    ch = cw * 2.0
+    rows = max(4, int(math.ceil((o[3] - o[1]) / ch)))
+    print(f"{b.path}  {ly} copper   {o[2]-o[0]:.1f} x {o[3]-o[1]:.1f} mm   1 cell = {cw:.2f} x {ch:.2f} mm")
+    print("      +" + "-" * cols + "+")
+    tot = [0, 0]
+    for gy in range(rows):
+        line = ''
+        for gx in range(cols):
+            i0, i1 = int(gx * cw / res), min(W, int((gx + 1) * cw / res))
+            j0, j1 = int(gy * ch / res), min(H, int((gy + 1) * ch / res))
+            n = max(1, (i1 - i0) * (j1 - j0))
+            hc = sum(sum(hard[j * W + i0:j * W + i1]) for j in range(j0, j1)) / n
+            sc = sum(sum(soft[j * W + i0:j * W + i1]) for j in range(j0, j1)) / n
+            cx, cy = o[0] + (gx + .5) * cw, o[1] + (gy + .5) * ch
+            if b.rings and not inside((cx, cy), b.rings):
+                line += ' '
+                continue
+            tot[0] += hc
+            tot[1] += 1
+            line += '#' if hc >= .6 else '+' if hc >= .3 else ':' if hc >= .12 else \
+                    ('~' if sc >= .5 else '.' if hc == 0 else ',')
+        print(f"{o[1]+gy*ch:>6.0f}|{line}|")
+    print("      +" + "-" * cols + "+")
+    print(f"      {o[0]:<.0f}" + " " * max(0, cols - 8) + f"{o[2]:.0f}")
+    print(f"\nkey: # >=60% of the cell is track/pad/via copper, + >=30%, : >=12%, , some,\n"
+          f"     ~ pour only (passable: a route cuts it, the refill flows round), . free\n"
+          f"     {100 * tot[0] / max(1, tot[1]):.0f}% of {ly} inside the outline is hard copper; "
+          f"`map --layers L` for another layer, `airwires` for what still needs a path")
+    return 0
 
 def c_span(b, a):
     rows = net_spans(b, a)
@@ -570,6 +664,15 @@ def c_review(b, a):
     print("### placement"); c_summary(b, a)
     print("\n### findings"); rc = c_check(b, a)
     print("\n### longest nets"); old, a.max = a.max, min(a.max, 6); c_span(b, a); a.max = old
+    from kpcb_route import links
+    todo = {}
+    for net in sorted({p['net'] for f in b.placed() for p in f.pads if p['net'] and not p['net'].startswith('unconnected-')}):
+        L = links(b, net)[1]
+        if L:
+            todo[net] = L
+    print(f"\n### routing\n{sum(len(v) for v in todo.values())} unrouted link(s) on {len(todo)} net(s)"
+          + (f", e.g. {', '.join(unesc_disp(n) for n in sorted(todo, key=lambda n: -len(todo[n]))[:5])}"
+             if todo else ' - every net is one piece of copper (from the saved fill)'))
 
     # what to do next, worked out from the findings rather than left to the reader
     F, _ = gen_findings(b, a)
@@ -590,6 +693,12 @@ def c_review(b, a):
                    f"   # in the most ERROR findings")
     if sum(1 for f in b.fps.values() if not f.placed) > 20:
         nxt.append(f"kpcb.py {b.path} map   # where the free space is, before placing more")
+    un = sorted((f for f in b.fps.values() if not f.placed and f.pads), key=lambda f: -f.area)
+    if un:
+        nxt.append(f"kpcb.py {b.path} place {un[0].ref}   # where the biggest unplaced part fits (scratch copy: -o)")
+    if todo:
+        nxt.append(f"kpcb.py {b.path} airwires   # each unrouted link; on a scratch copy `route --pending -o OUT`")
+        nxt.append(f"kpcb.py {b.path} map --layers In2.Cu   # where a layer still has room for routes")
     if netpath:
         nxt.append(f"knet.py {netpath} check   # the electrical half; placement cannot see it")
     if b.zones:
@@ -694,7 +803,8 @@ CMDS = {'summary': c_summary, 'check': c_check, 'where': c_where, 'map': c_map,
         'zones': c_zones, 'sync': c_sync, 'review': c_review, 'ampacity': c_ampacity,
         'viapad': c_viapad, 'net': c_net, 'rf': c_rf, 'height': c_height, 'view': c_view,
         'silk': c_silk, 'movecheck': c_movecheck, 'freebox': c_freebox,
-        'tidy': c_tidy, 'vias': c_vias}
+        'tidy': c_tidy, 'vias': c_vias, 'fixlines': c_fixlines, 'renet': c_renet, 'move': c_move, 'ripup': c_ripup,
+        'airwires': c_airwires, 'route': c_route, 'place': c_place, 'pairs': c_pairs}
 
 LIMITS = (('edge', 0.5, 'courtyard-to-board-edge minimum, mm'),
           ('hole', 1.5, 'keepout beyond a mounting hole pad radius, mm'),
@@ -719,7 +829,10 @@ def main():
     ap.add_argument('--max', type=int, default=12,
                     help='max lines per rule / per neighbour list before a +N tail (12)')
     ap.add_argument('--cols', type=int, default=48, help='for `map`: grid width (48)')
-    ap.add_argument('--side', default='f', help='for `map`: f (front, default) or b (back)')
+    ap.add_argument('--side', default=None, help='for `map`: f (front, default) or b; for `place`: f, b or both (default)')
+    ap.add_argument('--near', default='', help='for `place`: the part (or X,Y) this one serves, e.g. the IC a cap decouples')
+    ap.add_argument('--rots', default='', help='for `place`: rotations to try (0,90,180,270)')
+    ap.add_argument('--pick', type=int, default=1, help='for `place -o`: write the Nth clear spot (1)')
     ap.add_argument('--origin', choices=('page', 'grid', 'aux'), default='page',
                     help="for `where`: read and print x,y relative to the board's grid or aux "
                          "(drill/place) origin, as KiCad's Properties dialog does (page)")
@@ -762,13 +875,52 @@ def main():
     ap.add_argument('--min', dest='min_vias', type=int, default=1,
                     help='for `viapad`: only pads holding >= N vias, e.g. 4 for thermal pads (1)')
     ap.add_argument('--layers', default='',
-                    help="for `view`: comma list of layers (default: the part's side Cu/SilkS/Fab/CrtYd + Edge.Cuts)")
+                    help="for `view`: comma list of layers (default: the part's side Cu/SilkS/Fab/CrtYd + Edge.Cuts); "
+                         "for `map`: one copper layer -> its copper occupancy (where routes can go); "
+                         "for `route`: the layers it may use")
     ap.add_argument('--box', default='', help='for `view`: X0,Y0,X1,Y1 board mm instead of refs')
     ap.add_argument('--px', type=float, default=20, help='for `view`: pixels per mm (20)')
-    ap.add_argument('-o', '--out', default='', help='for `view`: output .png (or .svg)')
+    ap.add_argument('-o', '--out', default='',
+                    help='for `view`: output .png (or .svg); for the writers: the new board file')
     ap.add_argument('--scan', nargs='+', default=None, metavar='AXIS=V',
                     help='for `movecheck`: slide REF along x=X y=Y0..Y1 (or y=Y x=X0..X1), print clear stretches')
     ap.add_argument('--step', type=float, default=0.05, help='for `movecheck --scan`: step, mm (0.05)')
+    ap.add_argument('--grid', type=float, default=0.05, help='for `route`: grid pitch, mm (0.05)')
+    ap.add_argument('--margin', type=float, default=3.0,
+                    help='for `route`: window around the gap, mm (3; widened x2.5 then x6 on failure)')
+    ap.add_argument('--width', type=float, default=None,
+                    help='for `route`: track width, mm (default: netclass, then 0.2, then 0.15)')
+    ap.add_argument('--via', default='', help='for `route`: via SIZE/DRILL, mm (default: netclass, or 0.5/0.2)')
+    ap.add_argument('--via-cost', type=float, default=1.5, help='for `route`: a via costs this many mm (1.5)')
+    ap.add_argument('--turn', type=float, default=0.3, help='for `route`: a bend costs this many grid cells (0.3)')
+    ap.add_argument('--pour-cost', type=float, default=0.6,
+                    help='for `route`: extra cost per mm through a foreign pour (0.6 = 1.6x)')
+    ap.add_argument('--inner-cost', type=float, default=1.25, help='for `route`: inner-layer cost factor (1.25)')
+    ap.add_argument('--ref-cost', type=float, default=2.0,
+                    help="for `route`: x the inner cost on the layer under an outer layer's RF traces "
+                         "(their reference plane, In1 on parsnip) (2)")
+    ap.add_argument('--rips', type=int, default=10,
+                    help="for `route`: rip-up budget - a failed link may cross this run's own routes of "
+                         "other nets, which are ripped and routed again at once (all undone if one cannot), "
+                         "this many times per run (10; 0 = off)")
+    ap.add_argument('--rip-cost', type=float, default=10.0,
+                    help='for `route`: cost per mm through a route it would rip (10: a 10 mm detour wins)')
+    ap.add_argument('--pour', type=float, default=0.0, metavar='W',
+                    help='for `route`: a link no track width fits is found at this probe width (0.3) and laid '
+                         'as same-net zones, a netclass-width band round it that the refill fits (0 = off)')
+    ap.add_argument('--force', action='store_true', help='for `route`: route an RF-class net anyway')
+    ap.add_argument('--pending', action='store_true', help='for `route`: every net `airwires` lists, shortest first')
+    ap.add_argument('--since', default='', help='for `airwires`: an earlier refilled copy: which nets a later pass split, and the tracks that did it')
+    ap.add_argument('--report', default='', help='for `airwires --since`: write the culprit uuids as JSON for `ripup --drc`')
+    ap.add_argument('--cut-islands', action='store_true',
+                    help='for `route`: let a route cross a power-island pour at 4x the plane cost (check the '
+                         'refill: it may split the island) instead of treating it as copper')
+    ap.add_argument('--flip', action='store_true', help='for `move`: flip REF to the other side first')
+    ap.add_argument('--drc', default='', help='for `ripup`: a kicad-cli DRC JSON (`kdrc.py --report`): rip up the items it flags')
+    ap.add_argument('--types', default='', help='for `ripup --drc`: violation types to act on (shorts, clearances, dangling)')
+    ap.add_argument('--drop', action='store_true',
+                    help='for `renet`: delete netless clusters that touch 2+ nets or none (stale routes)')
+    ap.add_argument('-v', '--verbose', action='store_true', help='for `route`: print every segment and via')
     ap.add_argument('--only', default='')
     ap.add_argument('--skip', default='')
     ap.add_argument('--json', action='store_true')

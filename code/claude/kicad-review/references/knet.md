@@ -15,9 +15,9 @@ pin, so a long name never runs into the IC's pin number. Dual diodes (BAT54S/A/C
 | `notes` | schematic text notes and text boxes by sheet, each with its font size (`SMALL` under 1.27 mm, totals per sheet) - designer intent that exists nowhere in the netlist. |
 | `rails` | each power net: what feeds it (from `powertree`), total decoupling, loads. Power nets = name-derived rails + power netclasses (`PWR_HIGH`) + nets a `power_out` pin drives (switch nodes excluded); `? V` when no name or knet.json gives a voltage. |
 | `i2c` | each bus (SDA net + what 0 R links and closed jumpers join, paired with its SCL): pull-ups and their rail, the controller (an MCU GPIO or an `I2Cc` pin), each target's 7-bit address resolved from its strap pins (GND / rail / R to X / divider ratio), connectors. Two targets on one address = ERROR, exit 2. Built-in table: BQ25798, MAX17320, QMC6309, TCAL9539, LSM6DSV16X, M24512, TPS25751 (ADCIN1/2 per its tables 8-2/8-6); others via knet.json `"i2c": {"PART": {"base": "0x48", "straps": ["A0", "A1"]}}` or `{"addr": ["0x42"]}`. |
-| `powertree` | sources (top of each cell stack, then connector pins named VBUS/SOLAR/VIN/BAT) -> links (L, FB, F, R <= 10 R, closed jumpers), FET channels and regulators -> rails -> loads, as an indented tree. Each buck's Vout from its FB divider, an eFuse ILIM from a table (knet.json `vref`/`ilim`); a second way in prints as `also fed from`. The input a power-tree page needs. |
+| `powertree` | sources (top of each cell stack, then connector pins named VBUS/SOLAR/VIN/BAT) -> links (L, FB, F, R <= 10 R, closed jumpers; a 2-pin series diode one way, anode -> cathode, when the cathode is a named rail or a regulator/switch IN, printed with `[-Vf ...]`), FET channels and regulators -> rails -> loads, as an indented tree. Each buck's Vout from its FB divider, an eFuse ILIM from a table (knet.json `vref`/`ilim`); a second way in prints as `also fed from`. The input a power-tree page needs. |
 | `divider REF.PIN\|NET` | resistor-divider trip voltage from netlist resistor values, worst case from tolerance if stated. See below. |
-| `diff old.net` | what changed vs an earlier export (rename-safe: compares neighbour sets). |
+| `diff OLD.net` | what changed OLD -> FILE (rename-safe: compares neighbour sets). FILE is the NEW side: `knet.py NEW.net diff OLD.net`, not unix `diff OLD NEW` order; a note says so when OLD's export date is the later one. Neither side is auto-regenerated (nor a `check --since` baseline). |
 | `comp REF...` | pin table with net, node count, supply rail. |
 | `net PATTERN` | exact name, then sheet-local name, then regex. |
 | `pin U2.9` | net at a pin plus everything else on it. |
@@ -143,7 +143,7 @@ carries an explicit NC flag.
 - **Rails** come from names: a whole-name voltage (`+3V3`, `12V`), `KNOWN_RAILS`,
   one voltage token inside a longer name (`PD_LDO_3V3`, `3V3_GNSS`, `5V_RAW`) unless
   another token is a signal word (`5V_EN`, `PG_3V3`), and `--rail`/knet.json.
-  OCNOPULL also accepts an LED + resistor to a rail (a status pin sinking an LED);
+  OCNOPULL also accepts an LED + resistor to a rail, in either order (a status pin sinking an LED);
   I2CPULL reads a dual I2C/SPI name (`SCL/SPI_CLK`) with no pull-up as INFO.
 - **`CLAMPRATING`** parses a TVS's standoff voltage from a recognised part-number
   series (SMF/SMAJ/SMBJ/SMCJ/SM6T/SM8S/P6KE/1.5KE/P4KE) and flags it against the

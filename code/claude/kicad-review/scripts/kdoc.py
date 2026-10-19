@@ -127,6 +127,9 @@ def extract(path, force=False, ocr=False):
     if os.path.basename(out) != slug(path) and not os.path.isdir(out):
         print(f"  ({os.path.basename(path)}: slot {slug(path)} already holds {_held(slug(path))}; "
               f"cached as {os.path.basename(out)})", file=sys.stderr)
+    # everything in a slot is derived: a replaced PDF with fewer pages used to keep
+    # the old extra page files, so `index` showed the old count and grep hit them
+    shutil.rmtree(out, ignore_errors=True)
     os.makedirs(out, exist_ok=True)
     if ext == '.xlsx':
         _xlsx(path, out)

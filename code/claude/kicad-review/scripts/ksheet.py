@@ -13,6 +13,8 @@ nets come from the netlist, so a drawing is always named the way the board is.
   ksheet.py FILE.net view REF [-r MM] [-o OUT.png]
   ksheet.py FILE.net view SHEET --box X0,Y0,X1,Y1 [-o OUT.png]
                                            crop of kicad-cli's own SVG plot -> PNG
+  ksheet.py FILE.net labelspot NET [NAME]  where a local label NAME fits on NET's
+                                           wire: at / angle / justify, ranked
 
 SHEET is a file (bms.kicad_sch) or a sheet name (BMS, /Root/GNSS/). Coordinates
 are sheet mm, +y down, as KiCad shows them in the status bar. `side` is where the
@@ -177,6 +179,33 @@ def sym_texts(inst, libsym, unit, sx, sy, rot, mir):
     return out
 
 
+def _label_box(node, flag=False):
+    """sheet-mm box of a label's or a note's text as KiCad draws it (a global or
+    hierarchical label adds its flag shape, ~one text height)"""
+    at, txt = kid(node, 'at'), str(node[1]).replace('\\n', '\n')
+    x, y, ang = F(at[1]), F(at[2]), (F(at[3]) if len(at) > 3 else 0)
+    j = kid(kid(node, 'effects') or [], 'justify') or []
+    size, lines = _font(node), txt.split('\n')
+    w = max(_tw(ln, size) for ln in lines) + (size if flag else 0)
+    h = size * (1.6 * len(lines) - .6)
+    if node[0] == 'text':
+        hj = next((v for v in j if v in ('left', 'right')), '')
+        vj = next((v for v in j if v in ('top', 'bottom')), '')
+        a0, a1 = {'left': (0, w), 'right': (-w, 0)}.get(hj, (-w / 2, w / 2))
+        b0, b1 = {'top': (0, h), 'bottom': (-h, 0)}.get(vj, (-h / 2, h / 2))
+        return (x + a0, y + b0, x + a1, y + b1) if ang % 180 == 0 else (x + b0, y - a1, x + b1, y - a0)
+    return _lbl(x, y, ang, w, size)
+
+
+def _lbl(x, y, ang, w, size, off=.2):
+    """box of a local label's text at x,y: 0 reads right above the wire, 180 left;
+    90 reads up from the point and 270 down, both left of a vertical wire"""
+    ang %= 360
+    if ang in (0, 180):
+        return (x if ang == 0 else x - w, y - off - size, x + w if ang == 0 else x, y - off)
+    return (x - off - size, y - w if ang == 90 else y, x - off, y if ang == 90 else y + w)
+
+
 def box_dist(a, b):
     return math.hypot(max(0, a[0] - b[2], b[0] - a[2]), max(0, a[1] - b[3], b[1] - a[3]))
 
@@ -210,7 +239,7 @@ class Sheet:
             pins, body = sym_geometry(lib[lid], unit, F(at[1]), F(at[2]), rot, mir)
             s = self.syms.setdefault(ref, {'ref': ref, 'value': value, 'lib': lid, 'pins': {},
                                            'bodies': [], 'at': (F(at[1]), F(at[2])), 'rot': rot,
-                                           'mir': mir, 'units': [],
+                                           'mir': mir, 'units': [], 'dnp': val(inst, 'dnp') == 'yes',
                                            'power': ref.startswith('#') or bool(kid(lib[lid], 'power'))})
             s['pins'].update(pins)
             s['units'].append(unit)
@@ -224,6 +253,8 @@ class Sheet:
         self.labels = [(t, lb[1], F(kid(lb, 'at')[1]), F(kid(lb, 'at')[2]))
                        for t in ('label', 'global_label', 'hierarchical_label')
                        for lb in kids(tree, t)]
+        self.textboxes = [_label_box(lb, t != 'label') for t in ('label', 'global_label', 'hierarchical_label')
+                          for lb in kids(tree, t)] + [_label_box(tx) for tx in kids(tree, 'text')]
         for sh in kids(tree, 'sheet'):                        # sheet pins act as labels
             self.labels += [('sheet_pin', p[1], F(kid(p, 'at')[1]), F(kid(p, 'at')[2]))
                             for p in kids(sh, 'pin')]
@@ -573,6 +604,74 @@ def c_lint(nl, a):
     return 2 if n['WARN'] else 0
 
 
+# ---------------------------------------------------------------- labelspot
+
+def labelspots(sh, net, name, size=1.27, step=1.27):
+    """[(score, x, y, angle, clearance, box)] for a local label `name` on `net`'s wires
+    in sheet `sh`, best first. A point on a 1.27 mm grid along the wire, not on a pin
+    end, junction or label; the text box (KiCad renders ~7% wider than _tw, so +10%)
+    must clear bodies (+1 mm for a DNP cross), fields, pin names and numbers, labels,
+    notes and other nets' wires and pins by 0.25 mm. Text along its wire ranks ahead
+    of text across it, then more clearance, then the wire middle."""
+    w = _tw(name, size) * 1.1
+    mine = [x for x in sh.wires if sh.net(x[0]) == net]
+    obst = [(b[0] - 1, b[1] - 1, b[2] + 1, b[3] + 1) if o.get('dnp') else b
+            for o in sh.syms.values() for b in o['bodies']]
+    obst += [b for o in sh.syms.values() for _k, _t, b in o.get('texts', [])] + sh.textboxes
+    obst += [seg_box(x) for x in sh.wires if sh.net(x[0]) != net]
+    obst += [(p[0] - .3, p[1] - .3, p[0] + .3, p[1] + .3) for o in sh.syms.values()
+             for p in o['pins'].values() if sh.net(p[:2]) != net]
+    taken = {K(p[0], p[1]) for o in sh.syms.values() for p in o['pins'].values()}
+    taken |= {K(*p) for p in sh.junctions} | {K(x, y) for _t, _n, x, y in sh.labels}
+    out, seen = [], set()
+    for (x0, y0), (x1, y1) in mine:
+        horiz = abs(y0 - y1) < .01
+        if not horiz and abs(x0 - x1) > .01:
+            continue                                          # a diagonal wire: no grid along it
+        lo, hi = sorted((x0, x1) if horiz else (y0, y1))
+        for i in range(math.ceil(lo / step - 1e-6), math.floor(hi / step + 1e-6) + 1):
+            u = round(i * step, 4)                            # the sheet's own 1.27 mm grid
+            x, y = (u, y0) if horiz else (x0, u)
+            if K(x, y) in taken or K(x, y) in seen:
+                continue
+            seen.add(K(x, y))
+            mid = abs(u - (lo + hi) / 2)
+            for ang, along in ((0, horiz), (180, horiz), (90, not horiz), (270, not horiz)):
+                b = _lbl(x, y, ang, w, size)
+                c = min((box_dist(b, o) for o in obst if box_dist(b, o) < 2.54), default=2.54)
+                if c >= .25:
+                    out.append(((not along, -round(c, 2), mid), x, y, ang, c, b))
+    return sorted(out, key=lambda r: r[0])
+
+
+def c_labelspot(nl, a):
+    net = a.target
+    if net not in nl.nets:
+        cands = sorted(n for n in nl.nets if n.rsplit('/', 1)[-1] == net.rsplit('/', 1)[-1])
+        if len(cands) != 1:
+            print(f"no net {net!r}" + (f"; did you mean {' | '.join(cands)}" if cands else '')); return 1
+        net = cands[0]
+    name = a.name or net.rsplit('/', 1)[-1]
+    si, rows = nl.sch(), []
+    for b in si.files:
+        for path, _u in si.inst_list(os.path.basename(b)):
+            sh = Sheet(nl, os.path.basename(b), path)
+            if any(sh.net(x[0]) == net for x in sh.wires):
+                rows += [(r, sh) for r in labelspots(sh, net, name)]
+    if not rows:
+        print(f"{net}: no wire of it on any sheet clears a {name!r} label (or it is drawn with no wire)"); return 1
+    rows.sort(key=lambda r: r[0][0])
+    print(f"label {name!r} on {net}: {len(rows)} spot(s), best first (sheet mm)")
+    for (sc, x, y, ang, c, b), sh in rows[:a.max if a.max != 25 else 5]:
+        just = 'left bottom' if ang in (0, 90) else 'right bottom'
+        print(f"  {sh.base:<20} at {x:g} {y:g} {ang:<3}  justify {just:<12}  clear {c:.2f} mm"
+              f"{'' if not sc[0] else '  (text across its wire)'}  text {b[0]:.2f},{b[1]:.2f} - {b[2]:.2f},{b[3]:.2f}")
+    (sc, x, y, ang, c, b), sh = rows[0]
+    print(f"\npaste into {sh.base}:\n  (label \"{name}\" (at {x:g} {y:g} {ang}) (effects (font (size 1.27 1.27)) "
+          f"(justify {'left' if ang in (0, 90) else 'right'} bottom)) (uuid \"<new>\"))")
+    return 0
+
+
 # ---------------------------------------------------------------- view
 
 def plots(nl):
@@ -636,8 +735,9 @@ def c_view(nl, a):
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('file')
-    ap.add_argument('cmd', choices=['sch', 'lint', 'view'])
+    ap.add_argument('cmd', choices=['sch', 'lint', 'view', 'labelspot'])
     ap.add_argument('target', nargs='?', default='')
+    ap.add_argument('name', nargs='?', default='', help='labelspot: label text (default: the net base name)')
     ap.add_argument('-r', type=float, default=None, help='radius mm (sch 5, lint --around 10, view 10)')
     ap.add_argument('--around', default='', help='lint: only the region around this REF')
     ap.add_argument('--crowd', type=float, default=2.54, help='lint CROWD distance, mm')
@@ -649,10 +749,10 @@ def main():
     ap.add_argument('--skip', default='', help='lint: comma list of rules to drop')
     a = parse_args(ap)
     a.r = a.r if a.r is not None else {'sch': 5.0}.get(a.cmd, 10.0)
-    if a.cmd in ('sch', 'view') and not a.target:
-        print(f"{a.cmd} needs a REF" + (" or SHEET --box" if a.cmd == 'view' else '')); return 1
+    if a.cmd in ('sch', 'view', 'labelspot') and not a.target:
+        print(f"{a.cmd} needs a " + {'view': 'REF or SHEET --box', 'labelspot': 'NET'}.get(a.cmd, 'REF')); return 1
     nl = Netlist(a.file)
-    return {'sch': c_sch, 'lint': c_lint, 'view': c_view}[a.cmd](nl, a)
+    return {'sch': c_sch, 'lint': c_lint, 'view': c_view, 'labelspot': c_labelspot}[a.cmd](nl, a)
 
 
 if __name__ == '__main__':

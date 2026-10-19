@@ -10,6 +10,7 @@ regexing a `.kicad_sch` by hand, and instead of eyeballing a plot.
 | `lint [SHEET] [--around REF] [-r MM]` | readability findings ERC never raises, for one sheet, the region around a part, or every sheet. |
 | `view REF [-r MM] [-o x.png]` | PNG crop of kicad-cli's own plot around a part (10 mm margin). |
 | `view SHEET --box X0,Y0,X1,Y1` | PNG crop of any region, sheet mm. |
+| `labelspot NET [NAME]` | where a local label NAME (default: the net's base name) fits on NET's wire, best 5 (`--max N`) plus the `(label ...)` to paste: a point on the sheet's 1.27 mm grid along the wire, not on a pin end, junction or label, whose text box clears bodies (+1 mm for a DNP cross), fields, pin names/numbers, labels, notes and other nets' wires and pins by 0.25 mm. Text along its wire first, then across it; then clearance, then the wire middle. Widths +10% over the TEXTOVER estimate (KiCad renders ~7% wider). |
 
 SHEET is a file (`bms.kicad_sch`) or a sheet name (`BMS`, `/Root/GNSS/`).
 Coordinates are sheet mm, +y down, as KiCad's status bar shows them.

@@ -45,6 +45,13 @@ is non-empty.
   Clearance/width messages lead with the number: `actual 0.1 < 0.127 mm (rule)`.
 - Output: findings grouped by rule, capped per rule with a `+N more` tail,
   suppressible via `kdrc.json`, exit 0/2/3 like `kpcb`.
+- kicad-cli reports at most 199 violations per type; the header names each type
+  that hit it. For TRACK_WIDTH kdrc counts the real number on the board (the last
+  matching `.kicad_dru` track_width rule, else the `.kicad_pro` minimum; a rule
+  whose condition is more than `A.Type/NetClass/NetName == '..'` terms is named as
+  skipped): parsnip 456 where the CLI shows 199.
+- Refs come from the item text minus its `[net]`: `Pad 2 [Net-(U8-SW2)] of U8`
+  gives U8, not `U8 SW2`, so labelling a net does not change a finding.
 
 ## `flags` - which PWR_FLAGs ERC actually needs
 
@@ -93,13 +100,16 @@ fab may reject. `--all` checks them at full severity.
 | `--max N` | cap lines per rule (default 25, or `max` in kdrc.json) |
 | `--only R1,R2` / `--skip R` | keep or drop rules by name (e.g. `DRC:CLEARANCE`) |
 | `--unconnected` | include the DRC `unconnected_items` (unrouted nets; hidden by default because mid-layout there are hundreds) |
-| `--parity` | add DRC schematic-parity. Noisy: it uses the single project root, so it will flag all of /Charger/ and /USB Interface/. |
+| `--parity` | add DRC schematic-parity. The CLI's parity reads one hierarchy and names Root nets `/X` where the board has `/Root/X`: those NET_CONFLICTs, and EXTRA_FOOTPRINTs whose ref a sheet beside the board places, are dropped and counted in a header note (parsnip: 199 + 168). What is left is real. |
 | `--all` | pass `--severity-all` to kicad-cli: every rule at full severity. kicad-cli HONOURS the `.kicad_pro` severities (an `ignore` rule is absent from its report), so without this a demoted rule is silent; the header names them. |
 | `--no-suppress` | ignore kdrc.json |
 | `--rules` | print the rule legend |
 | `--json` | machine-readable findings |
 | `--selftest` | run the offline suppression-logic self-test and exit (no board or kicad-cli needed) |
 | `--no-stale-check` | skip the saved-fill DRC pass |
+| `--refill-save` | save the refilled board (what `kpcb airwires` reads). Scratch copies only: refused for a git-tracked file. Skips the stale-fill pass (the saved fill is the refill). |
+| `--report FILE` | write kicad-cli's raw DRC JSON (for `--baseline`, and `kpcb ripup --drc`, which deletes the items it names by uuid) |
+| `--baseline FILE` | an earlier `--report`: list only violations and unconnected items it lacks (multiset on type + descriptions, positions ignored), with `N new, M gone` counts. The check after every scratch-copy edit. |
 
 ## kdrc.json (beside the board)
 

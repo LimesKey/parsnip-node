@@ -70,3 +70,20 @@ Read this once per session before any traversal or coordinate work.
 - **The zone fill on disk can be stale** (teardrops or tracks moved after the last
   fill). kicad-cli's DRC with `--refill-zones` hides that; `export gerbers` does
   not refill. `kdrc.py` reports it as DRC:STALE_FILL.
+- **KiCad 10.99 can write footprint `fp_line`s in the wrong frame** (build ~4975,
+  the 2026-10-08 parsnip save): KiCad then draws silk/courtyard/fab lines near the
+  page origin. kpcb reads them corrected and WARNs once; `kpcb.py FILE fixlines -o
+  OUT` repairs a copy. A file version number does not tell you which frame you got.
+- **kicad-cli pairs a board with `<its stem>.kicad_pro`.** A copy named `base.kicad_pcb`
+  beside `parsnip.kicad_pro` silently runs KiCad's default rules (clearance 0.2, min
+  hole 0.3, edge 0.5: 499 fake clearance errors on parsnip). A scratch copy keeps the
+  project's stem; keep snapshots under other names and copy back before a DRC.
+- **Angles are written in two ranges**: footprint `(rotate)` in (-180, 180], pad and
+  text `(at x y a)` in [0, 360), and a pad omits a 0 angle while a field never does.
+- **kicad-cli's DRC JSON names every item by uuid**, so a violation maps straight back
+  to the track or via to delete (`kpcb.py ripup --drc`).
+- **Netless tracks that still touch pads** are routes whose net was renamed or deleted
+  under them on an Update PCB. One that bridges two nets is a stale route from before
+  a schematic change (a series resistor inserted, an ESD channel reassigned), not a
+  short to "fix": `kpcb.py renet --drop` rips it up for re-routing.
+

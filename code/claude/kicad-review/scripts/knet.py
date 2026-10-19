@@ -48,7 +48,7 @@ Review:
                                          which IC pins go below GND (series R)
   knet.py FILE check --only DOMAIN,DECOUPLE
   knet.py FILE check --since old.net    only NEW findings vs an older export
-  knet.py FILE diff old.net             what changed vs another export (rename-safe)
+  knet.py NEW.net diff OLD.net          what changed OLD -> NEW (rename-safe; never regenerates either)
 
 Flags:
   --through R,L,FB,F,FL,JP  ref prefixes treated as pass-through (add C, D as needed)
@@ -384,6 +384,18 @@ def power_edges(nl):
             for x in sorted({pins[p] for p in pins if ok(pins[p]) and re.match(r'^(VCC|VDD)', nm[p], re.I)} - ins):
                 E[x] += [(y, ref) for y in sorted(pout - {x})]
             continue
+        if pfx == 'D':
+            # a series power diode, anode -> cathode only: +3V3 -> D27 -> U23 VIN. Only
+            # into a named rail or a regulator/switch IN, so a clamp or LED is no branch
+            ak = {nm[p].upper(): pins[p] for p in pins}
+            an, ca = ak.get('A'), ak.get('K')
+            if (len(pins) == 2 and ok(an) and ok(ca) and an != ca
+                    and not re.search(r'LED|ZENER|TVS', f"{part} {c['value']}", re.I)
+                    and (ca in nl.railv or any(_IN_PIN.match(nl.pinname(x['ref'], x['pin']) or '')
+                                               and nl.comps[x['ref']]['prefix'] in ('U', 'IC')
+                                               for x in nl.nets.get(ca, [])))):
+                E[an].append((ca, ref))
+            continue
         if pfx == 'Q':
             d = {pins[p] for p in pins if nm[p].upper().startswith('D')}
             s = {pins[p] for p in pins if nm[p].upper().startswith('S')}
@@ -470,6 +482,15 @@ def _conv_note(nl, ref, cfg):
                     bits.append(f"ILIM {hit} ({r} {eng(ohms)})")
     return f"  [{'; '.join(bits)}]" if bits else ''
 
+def _vf_note(nl, ref):
+    """' [-Vf 350mV]' on a series diode hop: the rail below it sits a drop lower."""
+    c = nl.comps[ref]
+    if c['prefix'] != 'D':
+        return ''
+    t = f"{c.get('description', '')} {c.get('part', '')} {c['value']}"
+    m = re.search(r'Vf\s*([\d.]+\s*m?V)', t, re.I)
+    return f"  [-Vf {m.group(1) if m else '~0.3-0.5 V' if re.search('schottky', t, re.I) else '~0.7 V'}]"
+
 def c_powertree(nl, a):
     P = power_nets(nl)
     src, parent, also = power_tree(nl)
@@ -509,7 +530,7 @@ def c_powertree(nl, a):
         other = sorted({f for f, r in also[m] if r == ref} - {parent[m][0]}, key=natkey)
         tail = f" (also from {', '.join(other)})" if other and ref not in told else ''
         told.update([ref] if other else [])
-        return f"{ref} {trunc(nl.value(ref), 18)}{_conv_note(nl, ref, a.cfg)}{tail}"
+        return f"{ref} {trunc(nl.value(ref), 18)}{_conv_note(nl, ref, a.cfg)}{_vf_note(nl, ref)}{tail}"
     def show(n, ind):
         for m, ref in sorted(kids_[n], key=lambda t: natkey(t[0])):
             if not kept(m):
@@ -1210,16 +1231,23 @@ def find_pull(nl, net, fanout):
             out.append((r, far, nl.railv[far]))
     return out
 
-def led_pull(nl, net, fanout):
+def led_pull(nl, net, fanout, via_r=True):
     """An LED from `net` whose far side is a rail or pulled to one: an open-drain
-    status pin sinking an indicator (BQ25798 STAT -> LED -> 3k -> rail)."""
+    status pin sinking an indicator (STAT -> LED -> 3k -> rail), or the same with
+    the resistor first (STAT -> 3k -> LED -> rail, parsnip's U8 STAT / R66 / D8)."""
     for nd in nl.nets.get(net, []):
         c = nl.comps.get(nd['ref'], {})
-        if c.get('prefix') != 'D' or not re.search(r'LED', f"{c.get('part')} {c.get('value')}", re.I):
-            continue
         op = nl.other_pin(nd['ref'], nd['pin'])
         far = nl.cpins[nd['ref']].get(op) if op else None
-        if far and ((far in nl.railv and nl.railv[far] > 0) or find_pull(nl, far, fanout)):
+        if not far or far == net:
+            continue
+        if c.get('prefix') == 'R' and via_r and len(nl.conn_pins(nd['ref'])) == 2:
+            if led_pull(nl, far, fanout, via_r=False):
+                return True
+            continue
+        if c.get('prefix') != 'D' or not re.search(r'LED', f"{c.get('part')} {c.get('value')}", re.I):
+            continue
+        if (far in nl.railv and nl.railv[far] > 0) or (via_r and find_pull(nl, far, fanout)):
             return True
     return False
 
@@ -1597,7 +1625,7 @@ def c_check(nl, a):
     F, supp_n = gen_findings(nl, a)
     if a.since:
         try:
-            old = Netlist(a.since, no_dnp=nl.no_dnp)
+            old = Netlist(a.since, no_dnp=nl.no_dnp, refresh=False)
         except FileNotFoundError:
             print(f"no such netlist: {a.since}", file=sys.stderr); return 3
         Fo, _ = gen_findings(old, a)
@@ -1644,8 +1672,12 @@ def neighbours(nl, ref, pin):
     return frozenset(f"{x['ref']}.{x['pin']}" for x in nl.nets[n] if (x['ref'], x['pin']) != (ref, pin))
 
 def c_diff(nl, a):
-    old = Netlist(a.args[0], no_dnp=nl.no_dnp)
+    old = Netlist(a.args[0], no_dnp=nl.no_dnp, refresh=False)
     new = nl
+    if old.date and new.date and old.date > new.date:
+        print(f"note: the OLD side {old.path} ({old.date}) was exported after the NEW side "
+              f"{new.path} ({new.date}). The order is `knet.py NEW.net diff OLD.net`; "
+              f"swap the two files if you meant the reverse.", file=sys.stderr)
     rep = {'added': [], 'removed': [], 'changed': [], 'rewired': [], 'gained': [],
            'nets_added': [], 'nets_removed': []}
     for ref in sorted(set(new.comps) - set(old.comps), key=natkey):
@@ -1678,8 +1710,8 @@ def c_diff(nl, a):
     rep['nets_removed'] = sorted(onames - nnames, key=natkey)
     if a.json:
         print(json.dumps(rep, indent=1)); return
-    print(f"old: {old.path}  ({old.date})")
-    print(f"new: {new.path}  ({new.date})")
+    print(f"old: {old.path}  ({old.date})  [the diff argument]")
+    print(f"new: {new.path}  ({new.date})  [FILE]")
     for title, key in (('components added', 'added'), ('components removed', 'removed'),
                        ('component fields changed', 'changed'),
                        ('REWIRED - pin lost a connection', 'rewired'),
@@ -2742,7 +2774,7 @@ def main():
             rule, _, tok = str(entry).partition(':')
             a.suppress.setdefault(rule.strip().upper(), set()).add(tok.strip())
     try:
-        nl = Netlist(a.file, rail_overrides=ov, no_dnp=not a.as_drawn)
+        nl = Netlist(a.file, rail_overrides=ov, no_dnp=not a.as_drawn, refresh=a.cmd != 'diff')
     except FileNotFoundError:
         print(f"no such netlist: {a.file}", file=sys.stderr); return 3
     return CMDS[a.cmd](nl, a) or 0

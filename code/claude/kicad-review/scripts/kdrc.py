@@ -90,6 +90,20 @@ LEGEND = {
     'DRC:ANNULAR_WIDTH': 'via/pad annular ring too thin',
     'DRC:COPPER_EDGE_CLEARANCE': 'copper too close to the board edge',
     'DRC:STARVED_THERMAL': 'thermal relief spokes cannot carry current',
+    'DRC:ITEMS_NOT_ALLOWED': 'item inside a keepout / rule area that forbids it',
+    'DRC:MALFORMED_COURTYARD': 'courtyard is not one closed outline',
+    'DRC:MISSING_COURTYARD': 'footprint has no courtyard',
+    'DRC:NPTH_INSIDE_COURTYARD': "NPTH hole inside another footprint's courtyard",
+    'DRC:PTH_INSIDE_COURTYARD': "plated hole inside another footprint's courtyard",
+    'DRC:ISOLATED_COPPER': 'zone fill island tied to no pad (dead copper)',
+    'DRC:LIB_FOOTPRINT_MISMATCH': 'footprint differs from its library copy',
+    'DRC:FOOTPRINT_FILTERS_MISMATCH': "footprint not in the symbol's footprint filters",
+    'DRC:SILK_EDGE_CLEARANCE': 'silkscreen too close to the board edge',
+    'DRC:NET_CONFLICT': "pad net differs from the schematic's",
+    'DRC:EXTRA_FOOTPRINT': 'footprint with no schematic symbol',
+    'DRC:MISSING_FOOTPRINT': 'schematic symbol with no footprint on the board',
+    'DRC:TRACK_DANGLING': 'track end connected to nothing',
+    'DRC:VIA_DANGLING': 'via connected on fewer than two layers',
     'ERC:POWER_PIN_NOT_DRIVEN': 'power input pin sees no power output driving it',
     'ERC:PIN_NOT_DRIVEN': 'input pin sees no output driving it (per-root ERC: may be cross-root)',
     'ERC:PIN_TO_PIN': 'two pins whose types conflict (per-root ERC: may be cross-root)',
@@ -107,10 +121,12 @@ ZERO_CLEAR_RE = re.compile(r'actual\s+0(?:\.0+)?\s*mm', re.I)
 
 def refs_of(items):
     """Pull refdes tokens out of a violation's item descriptions, in order,
-    de-duped. Net tokens like Net-(Q6-G) legitimately name Q6, so we keep them."""
+    de-duped. The [net] in "Pad 2 [Net-(U8-SW2)] of U8" is skipped: it read as
+    "U8 SW2" (a pin name for a ref), and labelling the net changed the refs, so a
+    rename looked like a new finding. The "of U8" still names the part."""
     out = []
     for it in items or []:
-        for m in REF.findall(it.get('description', '')):
+        for m in REF.findall(re.sub(r'\[[^\]]*\]', '', it.get('description', ''))):
             if m not in out:
                 out.append(m)
     return out
@@ -205,16 +221,66 @@ def _vkey(v):
             tuple(i.get('description') for i in v.get('items', [])))
 
 
+def _tracked(path):
+    """is this file under git (the real board)? --refill-save refuses those"""
+    r = subprocess.run(['git', '-C', os.path.dirname(os.path.abspath(path)), 'ls-files',
+                        '--error-unmatch', os.path.abspath(path)], capture_output=True)
+    return r.returncode == 0
+
+
+def _against(d, a):
+    """keep only what the --baseline report lacks (a multiset on type + descriptions,
+    positions ignored), and say what changed"""
+    from collections import Counter
+    old = json.load(open(a.baseline))
+    out = {}
+    for key in ('violations', 'unconnected_items'):
+        have = Counter(_vkey(v) for v in old.get(key, []))
+        new = []
+        for v in d.get(key, []):
+            if have[_vkey(v)] > 0:
+                have[_vkey(v)] -= 1
+            else:
+                new.append(v)
+        out[key] = (new, sum(have.values()), len(old.get(key, [])))
+    (nv, gv, ov), (nu, gu, ou) = out['violations'], out['unconnected_items']
+    a.base_note = (f"vs {os.path.basename(a.baseline)}: violations {ov} -> {len(d.get('violations', []))} "
+                   f"({len(nv)} new, {gv} gone); unconnected {ou} -> {len(d.get('unconnected_items', []))} "
+                   f"({len(nu)} new, {gu} gone). Only the NEW ones are listed.")
+    return dict(d, violations=nv, unconnected_items=nu)
+
+
 def do_drc(board, a):
     args = [kicad_cli(board), 'pcb', 'drc', '--format', 'json', '--units', 'mm']
     if a.all:
         args.append('--severity-all')
     if a.parity:
         args.append('--schematic-parity')
-    d = run_cli(args + ['--refill-zones', board], 'DRC')
+    if a.refill_save and _tracked(board):
+        sys.stderr.write(f"--refill-save writes {board}, which git tracks (the real board): refused. "
+                         f"Use it on a scratch copy.\n")
+        sys.exit(3)
+    d = run_cli(args + ['--refill-zones'] + (['--save-board'] if a.refill_save else []) + [board], 'DRC')
+    if a.report:
+        with open(a.report, 'w') as fh:
+            json.dump(d, fh)
+    from collections import Counter
+    every = d.get('violations', []) + (d.get('schematic_parity', []) if a.parity else [])
+    capped = sorted(t for t, c in Counter(v.get('type') for v in every).items() if c >= 199)
+    a.cap_note = (f"!! kicad-cli stops at 199 violations per type: {', '.join(capped)} hit it, so the real "
+                  f"count is higher") if capped else ''
+    if 'track_width' in capped:
+        n, approx = track_width_count(board)
+        a.cap_note += (f"; track_width counted on the board: {n} segment(s) under their rule"
+                       + (f" (approx: skipped rule(s) {', '.join(approx)} with conditions it cannot evaluate)"
+                          if approx else ''))
+    if a.parity:
+        d = dict(d, schematic_parity=_parity_real(d.get('schematic_parity', []), board, a))
+    if a.baseline:
+        d = _against(d, a)
     F = [vio_finding(v, 'DRC') for v in d.get('violations', [])]
     # the fill on disk is what gerbers export; anything only it has is stale
-    if not a.no_stale_check:
+    if not a.no_stale_check and not a.refill_save and not a.baseline:
         have = {_vkey(v) for v in d.get('violations', [])}
         for v in run_cli(args + [board], 'DRC (saved fill)').get('violations', []):
             if _vkey(v) not in have:
@@ -234,6 +300,88 @@ def do_drc(board, a):
     if a.parity:
         F += [vio_finding(v, 'DRC') for v in d.get('schematic_parity', [])]
     return F, len(unconn)
+
+
+def _parity_real(vs, board, a):
+    """Drop the NET_CONFLICTs that are only kicad-cli's naming: its schematic side
+    names a Root-hierarchy net /Rails/X where the GUI-written board has /Root/Rails/X
+    (~178 on parsnip). Real conflicts stay."""
+    d = os.path.dirname(os.path.abspath(board)) or '.'
+    roots = {n for _, n in top_level_sheets(d) if n}
+    drawn = set()                                 # every refdes some sheet beside the board places
+    for f in sch_files(d):
+        drawn |= set(re.findall(r'\(reference "([^"]+)"\)', open(f, encoding='utf-8', errors='replace').read()))
+    keep, gone, extra = [], 0, 0
+    for v in vs:
+        m = re.match(r"Pad net \((.*)\) doesn't match net given by schematic \((.*)\)$", v.get('description', ''))
+        if v.get('type') == 'net_conflict' and m:
+            pad, sch = m[1].split('/'), m[2]
+            if len(pad) > 2 and pad[0] == '' and pad[1] in roots and '/' + '/'.join(pad[2:]) == sch:
+                gone += 1
+                continue
+        fp = re.match(r'Footprint (\S+)', (v.get('items') or [{}])[0].get('description', ''))
+        if v.get('type') == 'extra_footprint' and fp and fp[1] in drawn:
+            extra += 1                            # on another top-level sheet the CLI did not read
+            continue
+        keep.append(v)
+    if gone or extra:
+        a.cap_note = (a.cap_note + '\n' if a.cap_note else '') + \
+            (f"parity: dropped {gone} NET_CONFLICT(s) (/<root>/X on the board vs /X from kicad-cli, the "
+             f"same net) and {extra} EXTRA_FOOTPRINT(s) whose ref a sheet beside the board places "
+             f"(the CLI's parity reads one hierarchy) - CLI artifacts")
+    return keep
+
+
+def track_width_count(board):
+    """(n, skipped rules): track segments narrower than their track_width minimum,
+    counted on the board - kicad-cli reports 199 per type at most. The minimum is the
+    last matching .kicad_dru track_width rule (KiCad evaluates last-first; `layer`
+    inner/outer/<name>, condition terms A.Type / A.NetClass / A.NetName == '...'
+    joined by &&), else the .kicad_pro min_track_width. A rule with any other term
+    is skipped and named."""
+    from kpcb_board import Board
+    d = os.path.dirname(os.path.abspath(board)) or '.'
+    floor = 0.0
+    for pro in sorted(f for f in os.listdir(d) if f.endswith('.kicad_pro')):
+        try:
+            floor = float(json.load(open(os.path.join(d, pro)))['board']['design_settings']['rules']['min_track_width'])
+        except (OSError, ValueError, KeyError, TypeError):
+            pass
+        break
+    rules, skipped = [], []
+    for dru in sorted(f for f in os.listdir(d) if f.endswith('.kicad_dru')):
+        txt = re.sub(r'(?m)^\s*#.*$', '', open(os.path.join(d, dru), encoding='utf-8', errors='replace').read())
+        for blk in re.split(r'\(rule\s+', txt)[1:]:
+            mn = re.search(r'\(constraint\s+track_width[^()]*(?:\((?!min)[^()]*\)[^()]*)*\(min\s+([\d.]+)\s*mm\)', blk)
+            if not mn:
+                continue
+            name = (re.match(r'"([^"]*)"|(\S+)', blk) or [None, '?'])
+            name = name[1] or name[2]
+            lay = re.search(r'\(layer\s+"?([\w.]+)"?\)', blk)
+            cond = re.search(r'\(condition\s+"((?:\\.|[^"\\])*)"\)', blk)
+            terms = []
+            for t in (cond[1].split('&&') if cond else []):
+                tm = re.fullmatch(r"\s*A\.(Type|NetClass|NetName)\s*==\s*'([^']*)'\s*", t)
+                if not tm or '||' in t:
+                    terms = None
+                    break
+                terms.append((tm[1], tm[2]))
+            if terms is None:
+                skipped.append(name)
+                continue
+            rules.append((float(mn[1]), lay[1] if lay else '', terms))
+    b = Board(board)
+
+    def need(t):
+        for mn, lay, terms in reversed(rules):
+            outer = t['layer'] in ('F.Cu', 'B.Cu')
+            if lay and not (lay == 'outer' and outer or lay == 'inner' and not outer or lay == t['layer']):
+                continue
+            if all(v == {'Type': 'Track', 'NetClass': b.netclass(t['net'] or ''), 'NetName': t['net']}[k]
+                   for k, v in terms):
+                return mn
+        return floor
+    return sum(1 for t in b.tracks if t['w'] and t['w'] < need(t) - 1e-6), skipped
 
 
 def do_erc(board, a, raw=None):
@@ -320,6 +468,41 @@ def _selftest():
                    and '"FLG01"' in t and '"#FLG' not in t
                    and refs == {'#FLG01': 'PWR_FLAG', '#PWR01': '+3V3', '#PWR02': '+3V3'},
                    f"flags: PWR_FLAG not made inert, or power refs wrong: {refs}"))
+    checks.append((refs_of([{'description': 'Pad 2 [Net-(U8-SW2)] of U8 on F.Cu'},
+                            {'description': 'Track [/Charger/SW2] on F.Cu'}]) == ['U8'],
+                   "refs read out of a [net] name"))
+    import argparse, shutil
+    td = tempfile.mkdtemp(prefix='kdrc_st_')
+    try:
+        open(os.path.join(td, 't.kicad_pro'), 'w').write(
+            '{"schematic": {"top_level_sheets": [{"filename": "t.kicad_sch", "name": "Root"}]},'
+            ' "board": {"design_settings": {"rules": {"min_track_width": 0.1}}},'
+            ' "net_settings": {"netclass_patterns": [{"pattern": "P*", "netclass": "PWR"}]}}')
+        open(os.path.join(td, 't.kicad_sch'), 'w').write('(kicad_sch (symbol (instances (project "t" (path "/x" (reference "C9"))))))')
+        open(os.path.join(td, 't.kicad_dru'), 'w').write(
+            '(version 1)\n# (rule "commented" (constraint track_width (min 9mm)))\n'
+            '(rule "outer" (layer outer) (constraint track_width (min 0.127mm)) (condition "A.Type == \'Track\'"))\n'
+            '(rule "pwr" (constraint track_width (min 1.0mm)) (condition "A.NetClass == \'PWR\'"))\n'
+            '(rule "odd" (constraint track_width (min 5mm)) (condition "A.insideArea(\'x\')"))\n')
+        seg = lambda net, lay, w: f'(segment (start 0 0) (end 1 0) (width {w}) (layer "{lay}") (net "{net}") (uuid "u{net}{w}"))'
+        open(os.path.join(td, 't.kicad_pcb'), 'w').write(
+            '(kicad_pcb (version 20240108) (generator "pcbnew") (layers (0 "F.Cu" signal) (1 "In1.Cu" signal)'
+            ' (2 "B.Cu" signal) (25 "Edge.Cuts" user)) (gr_rect (start -5 -5) (end 5 5) (layer "Edge.Cuts")) '
+            + ' '.join((seg('P1', 'F.Cu', .8), seg('P1', 'In1.Cu', 1.2), seg('S', 'F.Cu', .12),
+                        seg('S', 'In1.Cu', .12), seg('S', 'B.Cu', .2))) + ')')
+        n, skipped = track_width_count(os.path.join(td, 't.kicad_pcb'))
+        checks.append(((n, skipped) == (2, ['odd']), f"track_width count {n} {skipped} != 2 ['odd']"))
+        a = argparse.Namespace(cap_note='')
+        pv = _parity_real([{'type': 'net_conflict', 'description': "Pad net (/Root/A/X) doesn't match net given by schematic (/A/X)"},
+                           {'type': 'net_conflict', 'description': "Pad net (/Root/X) doesn't match net given by schematic (/Y)"},
+                           {'type': 'extra_footprint', 'items': [{'description': 'Footprint C9'}]},
+                           {'type': 'extra_footprint', 'items': [{'description': 'Footprint C8'}]}],
+                          os.path.join(td, 't.kicad_pcb'), a)
+        checks.append(([v.get('description') or v['items'][0]['description'] for v in pv]
+                       == ["Pad net (/Root/X) doesn't match net given by schematic (/Y)", 'Footprint C8'],
+                       "parity: /Root naming artifact or other-sheet extra footprint kept, or a real one dropped"))
+    finally:
+        shutil.rmtree(td, ignore_errors=True)
     fails = [msg for ok, msg in checks if not ok]
     for msg in fails:
         print(f"FAIL  {msg}")
@@ -506,12 +689,18 @@ def main():
     ap.add_argument('--all', action='store_true',
                     help='pass --severity-all to kicad-cli (ignores .kicad_pro severities)')
     ap.add_argument('--parity', action='store_true',
-                    help='add DRC schematic-parity (noisy: uses the single project root)')
+                    help='add DRC schematic-parity (the CLI reads one hierarchy: its /Root naming '
+                         'NET_CONFLICTs and other-sheet EXTRA_FOOTPRINTs are dropped, counted in a note)')
     ap.add_argument('--unconnected', action='store_true',
                     help='include DRC unconnected_items (mid-layout unrouted noise)')
     ap.add_argument('--no-suppress', action='store_true', help='ignore kdrc.json suppress list')
     ap.add_argument('--no-stale-check', action='store_true',
                     help='skip the second DRC pass on the saved zone fill')
+    ap.add_argument('--refill-save', action='store_true',
+                    help='save the refilled board (scratch copies only: refused for a git-tracked file)')
+    ap.add_argument('--report', default='', help='write the raw kicad-cli DRC JSON here (a later --baseline)')
+    ap.add_argument('--baseline', default='',
+                    help='an earlier --report: list only violations/unconnected items it does not have')
     ap.add_argument('--rules', action='store_true', help='print the rule legend')
     ap.add_argument('--json', action='store_true')
     ap.add_argument('--selftest', action='store_true',
@@ -572,6 +761,10 @@ def main():
     if roots:
         hdr += (f"\nERC roots ({len(roots)}): " + ', '.join(os.path.basename(r) for r in roots)
                 + ("  (one report covers every top-level sheet)" if whole else ""))
+    if getattr(a, 'base_note', ''):
+        hdr += '\nDRC ' + a.base_note
+    if getattr(a, 'cap_note', ''):
+        hdr += '\n' + a.cap_note
     if a.cmd in ('both', 'drc') and not a.unconnected:
         hdr += f"\nDRC: {unconn} unconnected_items hidden (unrouted, mid-layout) - `--unconnected` to show"
     if not a.all:

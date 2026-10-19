@@ -16,7 +16,7 @@ __all__ = [
     'fp_lib_dirs', 'fp_pads', 'doctor', 'has', 'kicad_cli', 'kicad_running', 'parse_args', 'sym_geometry',
     'kid', 'kids', 'load_sexp', 'natkey', 'netlist_warnings', 'parse_sexp', 'parse_value',
     'prefix', 'print_findings', 'rail_voltage', 'refrange', 'refresh_netlist', 'sch_files', 'smart_re',
-    'suppressed', 'top_level_sheets', 'trunc', 'tvs_standoff', 'unesc_disp',
+    'suppressed', 'top_level_sheets', 'project_root', 'trunc', 'tvs_standoff', 'unesc_disp',
     'val', '_fkey',
 ]
 
@@ -112,13 +112,24 @@ def top_level_sheets(d):
             return [(t.get('filename', ''), t.get('name', '')) for t in tl]
     return []
 
+def project_root(d):
+    """The schematic KiCad opens as the root: <name>.kicad_sch beside <name>.kicad_pro.
+    Not top_level_sheets[0] - that is navigator order, and a front-matter page listed
+    first exports empty (nightly exports every top-level sheet only from this one).
+    Falls back to top_level_sheets[0], else ''."""
+    for pro in sorted(glob.glob(os.path.join(d, '*.kicad_pro'))):
+        if os.path.isfile(pro[:-4] + '_sch'):
+            return os.path.basename(pro[:-4] + '_sch')
+    tls = top_level_sheets(d)
+    return tls[0][0] if tls else ''
+
 def netlist_warnings(path, source='', sheets=()):
     """Reasons not to trust a .net: a .kicad_sch beside it was saved after it,
     or the project has top-level sheets the export does not contain (a stable
     kicad-cli single-root export silently drops them)."""
     d = os.path.dirname(os.path.abspath(path))
     tls = top_level_sheets(d)
-    regen = f"kmerge.py {path} {tls[0][0] if tls else os.path.basename(source or 'ROOT.kicad_sch')}"
+    regen = f"kmerge.py {path} {project_root(d) or os.path.basename(source or 'ROOT.kicad_sch')}"
     out = []
     sch = [(os.path.getmtime(f), f) for f in sch_files(d)]
     if sch:
@@ -150,8 +161,7 @@ def refresh_netlist(path):
     newer = [f for f in sch_files(d) if os.path.getmtime(f) > t + 1]
     if not newer:
         return None
-    tls = top_level_sheets(d)
-    root = tls[0][0] if tls else ''
+    root = project_root(d)
     if not root:
         with open(path, encoding='utf-8', errors='replace') as fh:
             m = re.search(r'\(source "([^"]+)"\)', fh.read(4000))
@@ -518,10 +528,12 @@ _SIGNAL_WORDS = {'EN', 'ENABLE', 'PG', 'PGOOD', 'GOOD', 'OK', 'FB', 'SENSE', 'SN
 # ---------------- index build ----------------
 
 class Netlist:
-    def __init__(self, path, rail_overrides=None, no_dnp=False):
+    def __init__(self, path, rail_overrides=None, no_dnp=False, refresh=True):
         self.path = path
         self.no_dnp = no_dnp
-        note = refresh_netlist(path)
+        # refresh=False for a deliberate snapshot (a diff / --since baseline): one
+        # saved beside the sheets was regenerated into the current schematic
+        note = refresh_netlist(path) if refresh else None
         if note:
             print(note if note.startswith('(') else f"WARNING: {note}", file=sys.stderr)
         tree = load_sexp(path)
@@ -1021,7 +1033,7 @@ def print_findings(F, header, rules=None, cap=0):
     for sev, rule, _sortmsg, kind, payload in rows:
         if (sev, rule) != cur:
             cur, shown = (sev, rule), 0
-            print(f"\n[{sev}] {rule}  - {rules.get(rule,'')}")
+            print(f"\n[{sev}] {rule}" + (f"  - {rules[rule]}" if rules.get(rule) else ''))
         shown += 1
         if cap and shown > cap:
             if shown == cap + 1:

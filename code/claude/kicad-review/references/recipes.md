@@ -44,7 +44,20 @@ For a silk box or logo of a given size: `kpcb.py FILE freebox f W H`.
    `via X,Y NX,NY` for a stitching via in the way).
 Then hand the list to the user: they Drag (D) each part in KiCad (its tracks follow)
 or type the position in Properties, refill zones (B), save, and re-run `check`. The
-skill never writes the board.
+skill writes only copies (`-o OUT`), never the board itself.
+
+**"Place the rest / route what is left"** - on a scratch copy only, never the real
+board (the loop and each writer's model are in [kpcb](kpcb.md) "Writers"):
+1. `kdrc.py COPY drc --refill-save --report r0.json` - fresh fill + the baseline.
+2. `kpcb.py COPY renet --drop` if `summary`-time loads warned of netless copper, then
+   `ripup --drc r0.json` to clear shorts, clearance hits and dangling copper.
+3. `place REF` (decoupling caps: `--near IC`) one part at a time, writing each before
+   the next so it sees the last; `airwires` for what is left.
+4. `route --pending` (or `route NET...`), then `kdrc.py COPY drc --refill-save
+   --baseline r0.json`: a clean step reads `0 new`. Hand-route RF nets (refused) and
+   check power nets with `ampacity`.
+5. `airwires --since <the copy before step 4>` (both refilled): a net in more pieces
+   than before means a route cut a plane region off; `pairs` for diff-pair skew/gap.
 
 **"Where do I put the caps around U13 / how do I lay out this buck?"**
 `kpcb.py FILE ic U13`. One call gives positions, rotations, the reason for each and
@@ -102,7 +115,7 @@ and MPN-named footprints clear automatically; divergent nomenclature -> REVIEW.
 # Self-test after editing a tool
 
 ```bash
-python3 references/selftest.py     # 91 checks, asserts, exit 0 = all pass (~15 s)
+python3 references/selftest.py     # 100 checks, asserts, exit 0 = all pass (~15 s)
 ```
 
 Before a refactor, record the real board's outputs, then check after - a pure
@@ -131,7 +144,10 @@ tee (`tee_board`), PAD-NECK (`neck_board`), STUB-CHECK (`stub_board`), EDGEREF (
 multi-pin symbols. Newer ones: `power_net` (powertree + rails, with a knet.json),
 `i2c_net` (a resistor strap and a duplicate address), `lint2_project` (SHUNTBUS,
 TEXTOVER, and a `pages/` project for PAGEORDER/NAVORDER), `kproj_project` (all
-four kproj commands, then a lock refusal), `front_project` (kfront check/pages). Static fixtures beside this file: `selftest_cross.kicad_pcb`
+four kproj commands, then a lock refusal), `front_project` (kfront check/pages),
+`writer_board` (in KiCad's own tab layout, which the writers need: the fp_line frame
+bug, fixlines, airwires, route, renet, place, ripup, then the flip / move round trips
+and the router's plane-vs-island pour rule). Static fixtures beside this file: `selftest_cross.kicad_pcb`
 (tracks crossing mid-span) and `selftest_repeat/` (one sheet file used twice). `kdrc`, `kmerge` and `height` need
 kicad-cli, so they are verified against the real board, not in selftest. `sync` on a real board+net that *match* prints IN SYNC in two lines;
 the two fixtures here are deliberately different circuits, so `sync` is the

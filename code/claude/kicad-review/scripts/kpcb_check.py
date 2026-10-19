@@ -55,6 +55,7 @@ RULES = {
     'NOCRTYD':  'footprint has no courtyard - overlap was checked on pads+fab instead',
     'NETSPAN':  'a fully placed non-rail net whose pads are more than --span apart',
     'UNPLACED': 'footprint still parked off the board outline',
+    'FABFLAGS': 'DNP / exclude-from-BOM / exclude-from-position attrs that misbuild at a fab',
 }
 
 def _drill_in(f, g):
@@ -85,6 +86,26 @@ def gen_findings(b, a):
     for s in sorted(bys, key=natkey):
         add('INFO', 'UNPLACED', f"{trunc(s,24)}: {len(bys[s])} off the board - "
                                 f"{trunc(refrange(bys[s]), 90)}")
+
+    # --- FABFLAGS: the footprint attrs are what a fab BOM/CPL export reads ----
+    bom_cpl = []
+    for f in sorted(b.fps.values(), key=lambda f: natkey(f.ref)):
+        if 'board_only' in f.attr or f.ref.startswith(('#', 'REF**')):
+            continue
+        inbom, incpl = 'exclude_from_bom' not in f.attr, 'exclude_from_pos_files' not in f.attr
+        if f.dnp and inbom and f.lcsc:
+            add('WARN', 'FABFLAGS', f"{f.ref} is DNP but in the BOM with LCSC {f.lcsc}: JLC ignores a DNP "
+                                    f"column and places it - tick Exclude from BOM", [f.ref])
+        elif not f.dnp and not inbom and f.lcsc:
+            add('WARN', 'FABFLAGS', f"{f.ref} has LCSC {f.lcsc} but is excluded from the BOM: it will not "
+                                    f"be bought or placed - clear Exclude from BOM, or mark it DNP", [f.ref])
+        if not inbom and incpl and not f.dnp and not f.lcsc:     # an LCSC one is WARNed above
+            bom_cpl.append(f.ref)
+    if bom_cpl:
+        add('INFO', 'FABFLAGS', f"{len(bom_cpl)} part(s) excluded from the BOM but in the CPL: "
+                                f"{trunc(refrange(bom_cpl), 90)} - Update PCB copies the symbol's 'Exclude "
+                                f"from position files' (default no) over the library's; set it on the symbols",
+            bom_cpl)
 
     # --- NOCRTYD -------------------------------------------------------
     for f in P:

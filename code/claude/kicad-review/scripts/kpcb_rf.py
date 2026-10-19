@@ -1,7 +1,8 @@
 """kpcb.py `rf`: controlled-impedance RF traces, reference plane and via fence."""
 import sys, re, math
 from collections import defaultdict
-from kzo import microstrip, field_zo
+import contextlib, io
+from kzo import microstrip, field_zo, prefetch
 from kcommon import natkey, unesc_disp, GND_RE
 from kpcb_board import _resolve_net, point_in_poly, pt_seg_dist, thick_of
 
@@ -73,7 +74,16 @@ def c_rf(b, a):
     """`rf [NET...]`: one-call review of a 50-ohm trace. With no net, every net
     whose netclass names RF/50 ohm. Per net: routed width uniformity (necks),
     microstrip Zo from the stackup plus the same-layer GND gap (coplanar
-    coupling), reference-plane coverage under the trace, and the GND via fence."""
+    coupling), reference-plane coverage under the trace, and the GND via fence.
+    A silent first pass records every field solve, kzo runs them as one parallel
+    batch, then the printing pass reads the memo (cold 2.4 -> ~1 s on parsnip)."""
+    calls, gaps = [], {}
+    with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+        _rf(b, a, lambda *ar, **kw: calls.append((ar, kw)) or (50.0, 3.0), gaps, rec=True)
+    prefetch(calls)
+    return _rf(b, a, field_zo, gaps)
+
+def _rf(b, a, field_zo, gaps, rec=False):
     names = list(a.args) + list(a.net or [])
     if not names:
         names = sorted({n for n in set(b.nets) | {t['net'] for t in b.tracks}
@@ -120,13 +130,16 @@ def c_rf(b, a):
             rly, h, er = ref
             z, eeff = microstrip(dom, h, er, thick_of(b, ly))
             eeff_net = eeff_net or eeff
-            gnd_same = [fl for fl in b.fills if fl['layer'] == ly and GND_RE.match(fl['net'].split('/')[-1] or '')]
-            gl, gr = [], []
-            for t in ss:
-                if t['len'] >= 0.2:
-                    l_, r_ = _side_gap(t, gnd_same, t['w'])
-                    if l_ is not None: gl.append(l_)
-                    if r_ is not None: gr.append(r_)
+            if (net, ly) not in gaps:                 # the record pass fills it for the print pass
+                gnd_same = [fl for fl in b.fills if fl['layer'] == ly and GND_RE.match(fl['net'].split('/')[-1] or '')]
+                gl, gr = [], []
+                for t in ss:
+                    if t['len'] >= 0.2:
+                        l_, r_ = _side_gap(t, gnd_same, t['w'])
+                        if l_ is not None: gl.append(l_)
+                        if r_ is not None: gr.append(r_)
+                gaps[net, ly] = gl, gr
+            gl, gr = gaps[net, ly]
             med = lambda v: sorted(v)[len(v) // 2] if v else None
             fmt2 = lambda x: '-' if x is None else f"{x:.2f}"
             print(f"    Zo {z:.1f} ohm microstrip ({dom:.3f} mm over {rly}, h {h:.3f} er {er:.2f}, "
@@ -141,14 +154,16 @@ def c_rf(b, a):
                       + ("" if near else "  -> >= 5h away: the microstrip figure holds"))
                 if near:
                     # 0.01 mm steps (~0.1 ohm): nets and sides then share solves
-                    gaps = tuple(round(x, 2) if x is not None and x < 5 * h else None for x in (sl, sr))
+                    gp = tuple(round(x, 2) if x is not None and x < 5 * h else None for x in (sl, sr))
                     mask = _mask_on(b, ly)
-                    zc, ee = field_zo(dom, h, er, thick_of(b, ly), s=gaps, mask=mask)
-                    zu = field_zo(dom, h, er, thick_of(b, ly), s=gaps)[0] if mask else None
+                    zc, ee = field_zo(dom, h, er, thick_of(b, ly), s=gp, mask=mask)
+                    zu = field_zo(dom, h, er, thick_of(b, ly), s=gp)[0] if mask else None
                     eeff_net = ee
                     print(f"    Zo {zc:.1f} ohm CPWG, field-solved"
                           + (f" with {ly[0]}.Mask {mask[0] * 1000:.0f} um er {mask[1]:g}"
                              f" ({zu:.1f} uncoated)" if mask else ', uncoated'))
+            if rec:
+                continue                              # the record pass only wants the solves
             # reference plane continuity under the trace
             rfills = [fl for fl in b.fills if fl['layer'] == rly]
             samp = [q for t in ss for q in (t['a'], t['mid'], t['b'])]
@@ -163,6 +178,8 @@ def c_rf(b, a):
             print(f"    reference {rly} under the trace: {desc}"
                   + ("   <-- BROKEN/NON-GND RETURN PATH" if bad else ''))
             rc = rc or (2 if bad else 0)
+        if rec:
+            continue
         # GND via fence: vias within `fence` mm of the trace edge, per side
         side_v = ([], [])
         for v in b.vias:

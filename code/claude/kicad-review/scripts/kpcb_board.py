@@ -1,5 +1,5 @@
 """Board model for kpcb.py: part classification, geometry helpers, IPC-2221 math, FP and Board."""
-import os, re, json, math, glob
+import os, re, sys, json, math, glob
 from collections import defaultdict
 from functools import cached_property
 from kcommon import (load_sexp, kids, kid, val, has, prefix, parse_value, unesc_disp,
@@ -325,7 +325,7 @@ def ipc_width(need_a, thick_mm, external, dt):
 class FP:
     __slots__ = ('ref', 'value', 'fp', 'layer', 'x', 'y', 'rot', 'sheet', 'attr',
                  'dnp', 'pads', 'crtyd', 'crtyd_real', 'cpoly', 'body', 'placed', '_edge', 'models', 'art',
-                 'fab', 'scale', 'edgeref', 'arts', 'texts')
+                 'fab', 'scale', 'edgeref', 'arts', 'texts', 'uuid', 'badlines', 'lcsc')
 
     @property
     def outline(self):
@@ -407,23 +407,28 @@ class Board:
             p0, p1 = self._xy(s, 'start'), self._xy(s, 'end')
             self.tracks.append({'net': val(s, 'net'), 'layer': val(s, 'layer'),
                                 'w': _f(val(s, 'width')), 'len': math.dist(p0, p1),
-                                'a': p0, 'b': p1,
+                                'a': p0, 'b': p1, 'uuid': val(s, 'uuid'),
                                 'mid': ((p0[0] + p1[0]) / 2, (p0[1] + p1[1]) / 2)})
         for s in kids(root, 'arc'):
             p0, pm, p1 = self._xy(s, 'start'), self._xy(s, 'mid'), self._xy(s, 'end')
             pts = arc_pts(p0, pm, p1, 24)
-            self.tracks.append({'net': val(s, 'net'), 'layer': val(s, 'layer'),
+            self.tracks.append({'net': val(s, 'net'), 'layer': val(s, 'layer'), 'uuid': val(s, 'uuid'),
                                 'w': _f(val(s, 'width')), 'mid': pm, 'a': p0, 'b': p1,
                                 'len': sum(math.dist(pts[i], pts[i + 1])
                                            for i in range(len(pts) - 1))})
         for v in kids(root, 'via'):
             vx, vy = self._xy(v, 'at')
             lys = kid(v, 'layers') or []
-            self.vias.append({'net': val(v, 'net'), 'drill': _f(val(v, 'drill')),
+            self.vias.append({'net': val(v, 'net'), 'drill': _f(val(v, 'drill')), 'uuid': val(v, 'uuid'),
                               'size': _f(val(v, 'size')), 'x': vx, 'y': vy,
                               'layers': [l for l in lys[1:] if isinstance(l, str)]})
 
         edge += self._graphics(root, None, 'gr_')
+        # copper drawn as graphics (a GND rectangle, a SW poly): [(net, layer, ring, stroke, filled)]
+        self.cushapes = []
+        for g in root[1:]:
+            if isinstance(g, list) and g and str(g[0]).startswith('gr_') and val(g, 'layer').endswith('.Cu'):
+                self.cushapes += self._cushape(g, val(g, 'net'), lambda q: q)
         # board-level silk (pasted art, text): [(layer, bbox)]; text boxes are estimated
         self.silk = []
         for g in root[1:]:
@@ -439,6 +444,20 @@ class Board:
             f = self._footprint(node)
             self.fps[f.ref] = f
             edge += self._graphics(node, f, 'fp_')
+            for g in node[1:]:                       # footprint copper: the net of a pad it lies on
+                if isinstance(g, list) and g and str(g[0]).startswith('fp_') and val(g, 'layer').endswith('.Cu'):
+                    for net, ly, ring, w, fill in self._cushape(g, '', lambda q, f=f: xf(q[0] * f.scale[0], q[1] * f.scale[1], f.x, f.y, f.rot)):
+                        bb = bbox(ring)
+                        net = next((p['net'] for p in f.pads if p['net'] and
+                                    pad_box(p)[0] <= (bb[0] + bb[2]) / 2 <= pad_box(p)[2] and
+                                    pad_box(p)[1] <= (bb[1] + bb[3]) / 2 <= pad_box(p)[3]), '')
+                        self.cushapes.append((net, ly, ring, w, fill))
+        bad = [f.ref for f in self.fps.values() if f.badlines]
+        if bad:
+            print(f"WARNING: {len(bad)} footprint(s) have fp_line graphics stored in the wrong frame "
+                  f"(a KiCad 10.99 nightly save bug: KiCad draws them near the page origin). Read "
+                  f"corrected here; repair a copy with `kpcb.py {os.path.basename(path)} fixlines -o OUT`.",
+                  file=sys.stderr)
 
         self.edge_segs = [(s[i], s[i + 1]) for s in edge for i in range(len(s) - 1)]
         self.rings = rings(edge)
@@ -494,6 +513,30 @@ class Board:
                         out.append([T(p) for p in pts + [pts[0]]])
         return out
 
+    @classmethod
+    def _cushape(cls, g, net, T):
+        """one copper graphic as [(net, layer, closed ring, stroke width, filled)]"""
+        t = str(g[0])[3:]
+        w = _f(val(kid(g, 'stroke') or [], 'width'))
+        fill = (kid(g, 'fill') or ['', 'no'])[1] in ('yes', 'solid')
+        if t == 'rect':
+            (x0, y0), (x1, y1) = cls._xy(g, 'start'), cls._xy(g, 'end')
+            pts = [(x0, y0), (x1, y0), (x1, y1), (x0, y1)]
+        elif t == 'poly':
+            pts = cls._pts(g)
+        elif t == 'circle':
+            c, e = cls._xy(g, 'center'), cls._xy(g, 'end')
+            r = math.hypot(e[0] - c[0], e[1] - c[1])
+            pts = [(c[0] + r * math.cos(k * math.pi / 8), c[1] + r * math.sin(k * math.pi / 8)) for k in range(16)]
+        elif t == 'arc':
+            pts, fill = arc_pts(cls._xy(g, 'start'), cls._xy(g, 'mid'), cls._xy(g, 'end')), False
+        elif t == 'line':
+            pts, fill = [cls._xy(g, 'start'), cls._xy(g, 'end')], False
+        else:
+            return []
+        pts = [T(q) for q in pts]
+        return [(net, val(g, 'layer'), pts, w, fill and len(pts) >= 3)] if len(pts) >= 2 else []
+
     @staticmethod
     def _pad_prims(p):
         """A custom pad's (primitives ...) as polygons in the pad-local frame
@@ -546,17 +589,21 @@ class Board:
         f.x, f.y = (float(at[1]), float(at[2])) if at else (0.0, 0.0)
         f.rot = float(at[3]) if at and len(at) > 3 else 0.0
         f.layer = val(node, 'layer', 'F.Cu')
+        f.uuid = val(node, 'uuid')
+        f.badlines = self._fix_lines(node, f)
         f.models = [m[1] for m in kids(node, 'model') if len(m) > 1 and not has(m, 'hide')]
         f.sheet = val(node, 'sheetname', '')
         a = kid(node, 'attr') or []
         f.attr = set(x for x in a[1:] if isinstance(x, str))
         f.dnp = 'dnp' in f.attr
-        f.ref, f.value = '?', ''
+        f.ref, f.value, f.lcsc = '?', '', ''
         for p in kids(node, 'property'):
             if len(p) > 2 and p[1] == 'Reference':
                 f.ref = p[2]
             elif len(p) > 2 and p[1] == 'Value':
                 f.value = p[2]
+            elif len(p) > 2 and p[1] in ('LCSC Part', 'LCSC') and isinstance(p[2], str):
+                f.lcsc = p[2].strip()
         # visible silk text (refdes, values, fp_text): (at) is footprint-local, its angle absolute
         f.texts = []
         for t in kids(node, 'property') + kids(node, 'fp_text'):
@@ -652,6 +699,31 @@ class Board:
         return f
 
     @classmethod
+    def _fix_lines(cls, node, f):
+        """KiCad 10.99 nightly (build ~4975, the 2026-10-08 parsnip save) wrote every
+        fp_line through the board->footprint transform a second time: stored =
+        T^-1(local), so KiCad and a plain reader draw them near the page origin while
+        the pads and other graphics are right. Sound local lines are small and land
+        far out (at the footprint) once transformed; corrupt ones are the reverse.
+        A footprint near the page origin reads ~1:1 and is left alone. The node's
+        start/end are rewritten in place to the true local values. Returns how many
+        fp_lines were fixed (0 for a sound footprint)."""
+        L = kids(node, 'fp_line')
+        if not L:
+            return 0
+        kx, ky = f.scale
+        T = lambda p: xf(p[0] * kx, p[1] * ky, f.x, f.y, f.rot)          # noqa: E731
+        raw = [cls._xy(g, e) for g in L for e in ('start', 'end')]
+        med = lambda P: sorted(math.hypot(*p) for p in P)[len(P) // 2]   # noqa: E731
+        if med(raw) < 10 or med(raw) < 1.5 * med([T(p) for p in raw]):
+            return 0
+        for g in L:
+            for e in ('start', 'end'):
+                k = kid(g, e)
+                k[1], k[2] = (f"{v:.6f}" for v in T((float(k[1]), float(k[2]))))
+        return len(L)
+
+    @classmethod
     def _gpts(cls, g, tag):
         """a graphic's defining points in its own frame (a circle: its bbox corners)"""
         t = tag[3:]
@@ -735,12 +807,17 @@ class Board:
                             [(p.get('pattern', ''), p.get('netclass', ''))
                              for p in ns.get('netclass_patterns') or []])
                 break
+        memo = self.__dict__.setdefault('_ncmemo', {})
+        if net in memo:
+            return memo[net]
         direct, pats = self._nc
         if net in direct:
             c = direct[net]
-            return c[0] if isinstance(c, list) and c else str(c)
+            memo[net] = c[0] if isinstance(c, list) and c else str(c)
+            return memo[net]
         import fnmatch
-        return next((c for p, c in pats if fnmatch.fnmatchcase(net, p)), '')
+        memo[net] = next((c for p, c in pats if fnmatch.fnmatchcase(net, p)), '')
+        return memo[net]
 
     def is_hole(self, f):
         return bool(HOLE_FP.search(f.fp)) or \
