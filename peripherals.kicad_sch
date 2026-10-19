@@ -4904,7 +4904,7 @@
 		)
 		(uuid "607b429d-4bd9-413b-b7ab-9dbc863ccfef")
 	)
-	(label "P15"
+	(label "P05"
 		(at 250.19 86.36 0)
 		(effects
 			(font
@@ -4954,7 +4954,7 @@
 		)
 		(uuid "6f4b48cc-ae61-4109-922c-21f50faf9c09")
 	)
-	(label "P05"
+	(label "P15"
 		(at 121.92 119.38 180)
 		(effects
 			(font
