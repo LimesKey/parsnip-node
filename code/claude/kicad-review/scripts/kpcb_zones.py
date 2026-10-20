@@ -145,10 +145,35 @@ def _zones_under(b, a):
 
 # ---------------------------------------------------------------- voids
 
+def _type_rules(d):
+    """[(layer scope, {type, type}, min)] in file order: .kicad_dru clearance rules whose
+    condition is only `A.Type == 'X' && B.Type == 'Y'` ("Pad to Track", "Min Trace Spacing
+    (outer)"), scope '' / 'outer' / 'inner' / a layer name. Other conditions are skipped."""
+    out = []
+    for dru in sorted(glob.glob(os.path.join(d, '*.kicad_dru'))):
+        txt = re.sub(r'(?m)^\s*#.*$', '', open(dru, encoding='utf-8', errors='replace').read())
+        for blk in re.split(r'\(rule\s+', txt)[1:]:
+            mn = re.search(r'\(constraint\s+clearance\s+\(min\s+([\d.]+)\s*mm\)\)', blk)
+            cond = re.search(r'\(condition\s+"((?:\\.|[^"\\])*)"\)', blk)
+            if not mn or not cond:
+                continue
+            terms = [re.fullmatch(r"\s*([AB])\.Type\s*==\s*'(\w+)'\s*", t) for t in cond[1].split('&&')]
+            if len(terms) != 2 or not all(terms) or {t[1] for t in terms} != {'A', 'B'} or '||' in cond[1]:
+                continue
+            lay = re.search(r'\(layer\s+"?([\w.?]+)"?\)', blk)
+            out.append((lay[1] if lay else '', frozenset(t[2].lower() for t in terms), float(mn[1])))
+    return out
+
+
 def _clearance_fn(b):
-    """clr(net_a, net_b): the larger netclass clearance, raised by any .kicad_dru
-    rule that names the pair with A.NetName/B.NetName (the unfused-pack rule)"""
+    """clr(net_a, net_b, kind_a=None, kind_b=None, layer=None): the larger netclass
+    clearance, raised by any .kicad_dru rule that names the pair with A.NetName/B.NetName
+    (the unfused-pack rule). Given both item kinds ('track', 'pad', 'via') and the layer,
+    the last matching .kicad_dru type rule replaces it, as KiCad's DRC does ("Pad to Track"
+    0.1, track to track 0.127 outer / 0.1 inner), but never relaxes a raised netclass (RF)
+    or a pair rule. Warns once when no project rules sit beside the board."""
     d = os.path.dirname(os.path.abspath(b.path))
+    b.warn_rules()
     cls = {}
     for pro in glob.glob(os.path.join(d, '*.kicad_pro')):
         try:
@@ -165,10 +190,20 @@ def _clearance_fn(b):
             for x in A:
                 for y in B:
                     pair[frozenset((x, y))] = max(pair.get(frozenset((x, y)), 0), float(m[1]))
+    typed = _type_rules(d)[::-1]                        # last in the file wins
+    outer = b.outer
     dflt = (cls.get('Default') or {}).get('clearance') or 0.2
-    def clr(n1, n2):
-        c = [(cls.get(b.netclass(n) or 'Default') or {}).get('clearance') or dflt for n in (n1, n2)]
-        return max(c + [pair.get(frozenset((n1, n2)), 0)])
+
+    def clr(n1, n2, k1=None, k2=None, ly=None):
+        c = max((cls.get(b.netclass(n) or 'Default') or {}).get('clearance') or dflt for n in (n1, n2))
+        pr = pair.get(frozenset((n1, n2)), 0)
+        if pr or not (k1 and k2 and ly):
+            return max(c, pr)
+        for scope, kinds, mn in typed:
+            if kinds == {k1, k2} and (not scope or scope == ly or
+                                       scope == 'outer' and ly in outer or scope == 'inner' and ly not in outer):
+                return mn if c <= dflt + 1e-9 else max(c, mn)
+        return c
     via = cls.get(b.netclass('GND') or 'Default') or {}
     return clr, (via.get('via_diameter') or 0.6), (via.get('via_drill') or 0.3)
 

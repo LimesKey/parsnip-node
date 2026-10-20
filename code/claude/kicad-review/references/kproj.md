@@ -62,7 +62,8 @@ One PASS/FAIL line each, both trees frozen into a temp dir (KiCad may be saving)
 
 ```bash
 kfront.py NET check [--all]     # refdes, "PART (REF)" pairs, I2C addresses on part-less sheets
-kfront.py NET pages             # the cover's PAGE/SHEET table vs the .kicad_pro hierarchy
+kfront.py NET pages [-o OUT]    # the cover's PAGE/SHEET table vs the .kicad_pro hierarchy; -o rebuilds it
+kfront.py NET draw powertree|i2c -o OUT.kicad_sch [--page N] [--title T]   # a generated page
 ```
 
 - `check` reads text, text boxes and table cells. ERROR on a refdes the netlist
@@ -73,12 +74,24 @@ kfront.py NET pages             # the cover's PAGE/SHEET table vs the .kicad_pro
   `--all` adds every sheet's notes.
 - `pages` finds the table whose header starts PAGE, SHEET and checks each row
   against the depth-first page list (`kproj renumber`'s numbering) and each row's
-  `#N` link; prints the true list when stale.
+  `#N` link; prints the true list when stale. `-o OUT` writes the cover with the
+  table rebuilt (KiCad's tab layout): page and sheet cells from the hierarchy, each
+  CONTENTS cell kept with its sheet's name, rows added below the last (its height,
+  new uuids) or dropped, `(href "#N")` updated. OUT must not be git-tracked: copy it
+  over the cover on a scratch project, then `pages` and `kverify.py DIR`.
+- `draw powertree` lays out `knet powertree` (`knet_power.powertree_rows`, the same
+  data the command prints): a boxed row per source, then one row per hop chain
+  indented by depth, an elbow from its parent rail, the chain boxed, an arrow to the
+  rail coloured by voltage (>= 7 V red, >= 4.5 purple, >= 3 blue, else green) with
+  its loads; columns wrap at the page foot. `draw i2c` draws each bus with a
+  controller box, the bus line, pull-ups, connectors and a box per target with its
+  resolved address (a duplicate red). A3, title block, header from the project's
+  root sheet; KiCad opens both (parsnip: 37 power rows, 3 buses). They are
+  generated starting points, not the hand-drawn pages: put one in place with kproj on
+  a scratch copy, `kverify.py`, `kfront check`.
 
-Still drawn by hand: the block diagram and power tree themselves. Their content
-comes from `knet.py NET i2c` and `knet.py NET powertree`; the 2026-10-03 generator
-is in `prototypes/gen_front_matter.py` (parsnip content hardcoded). KiCad details it
-learned: native `(table ...)` cells with `(href "#N")` page links; arrowheads as
+The hand-drawn parsnip pages came from `prototypes/gen_front_matter.py` (2026-10-03,
+content hardcoded). KiCad details it learned: native `(table ...)` cells with `(href "#N")` page links; arrowheads as
 filled polylines; run `kicad-cli sch upgrade --force` afterwards so the first GUI
 save does not reformat; the first top-level sheet keeps `(embedded_fonts no)`
 (re-add it, the CLI drops it).

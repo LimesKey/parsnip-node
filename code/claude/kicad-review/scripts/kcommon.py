@@ -92,7 +92,28 @@ def doctor(d):
                        f"xdg-mime default <app>-nightly.desktop {mime}" if bad else ""))
     run = kicad_running(d)
     out.append("KiCad              " + ('; '.join(run) if run else 'not running, no locks'))
+    out.append("design rules       " + (rules_warning(d) or 'the project carries its own (netclasses/patterns/.kicad_dru)'))
     return out
+
+def rules_warning(d, who='DRC checks'):
+    """'WARN: ...' when the project beside a board carries no rules of its own - only the
+    Default netclass, no netclass patterns, no .kicad_dru - which is what KiCad writes when a
+    copied .kicad_pcb is opened alone: DRC then checks KiCad's defaults (2026-10-18: a board
+    worked in ~/Downloads/temp was DRC'd that way for two sessions). '' when it has rules.
+    `who` names what falls back (kpcb's clearances do too)."""
+    pros = sorted(glob.glob(os.path.join(d, '*.kicad_pro')))
+    dru = glob.glob(os.path.join(d, '*.kicad_dru'))
+    copy = "copy the project's .kicad_pro and .kicad_dru beside it (`kdrc.py BOARD scratch DIR` does)"
+    if not pros:
+        return f"WARN: no .kicad_pro beside the board - {who} KiCad's default rules; {copy}"
+    try:
+        ns = json.load(open(pros[0])).get('net_settings', {})
+    except (OSError, ValueError):
+        return ''
+    if len(ns.get('classes') or []) <= 1 and not ns.get('netclass_patterns') and not dru:
+        return (f"WARN: {os.path.basename(pros[0])} has only the Default netclass, no patterns and no "
+                f".kicad_dru beside it - {who} KiCad's defaults, not the project's rules; {copy}")
+    return ''
 
 def sch_files(d):
     """*.kicad_sch in d, minus KiCad's own _autosave-* / ~ backup copies (an open
@@ -568,6 +589,9 @@ class Netlist:
                 'lib': val(ls, 'lib') if ls else '',
                 'part': val(ls, 'part') if ls else '',
                 'sheet': val(sp, 'names') if sp else '/',
+                # the board footprint's (path): sheet tstamps + symbol uuid
+                'path': ((val(sp, 'tstamps') if sp else '/') + val(c, 'tstamps')
+                         if val(c, 'tstamps') else ''),
                 'props': props,
                 'dnp': ('dnp' in flags) or has(c, 'dnp'),
                 'in_bom': 'exclude_from_bom' not in flags,

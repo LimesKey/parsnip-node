@@ -424,6 +424,176 @@ def _amp_footer():
           "BOUND, so a small bound is definitely fine; `--from PAD --to PAD` solves the real\n"
           "source-to-load path.")
 
+def _fill_solve(b, a, net, need):
+    """--fills: R between two pads through the REAL copper - the saved fills (pours with
+    their necks), tracks, pads and via/hole barrels - by a finite-difference grid solve
+    (--cell mm squares, Jacobi-PCG; numpy when present, else pure Python). Returns
+    (ohm, equivalent width at the densest current, where, cells) or a reason string."""
+    from kpcb_power import Raster
+    from kpcb_route import _pad_shape
+    from kpcb_move import cu_layers, via_layers
+    from kpcb_board import pad_box, bbox, grow
+    try:
+        import numpy as np
+    except ImportError:
+        np = None
+    h = a.cell or (0.1 if np else 0.2)
+    cu = b.copper
+    ends = []
+    for spec in (a.src, a.dst):
+        ref, _, num = spec.partition('.')
+        ends.append([p for p in b.fps[ref].pads if p['num'] == num])
+    fills = [fl for fl in b.fills if fl['net'] == net]
+    trk = [t for t in b.tracks if t['net'] == net]
+    vias = [v for v in b.vias if v['net'] == net]
+    pads = [p for f in b.placed() for p in f.pads if p['net'] == net]
+    pts = [q for fl in fills for q in fl['pts']] + [q for t in trk for q in (t['a'], t['b'])] + \
+          [(p['x'], p['y']) for p in pads] + [(v['x'], v['y']) for v in vias]
+    box = grow(bbox(pts), 1.0)
+    play = lambda p: set(cu) if p['drill'] else cu_layers(p['layers'], cu)       # noqa: E731
+    R, M = {}, {}                                           # M: pads and via surroundings, where
+    for ly in cu:                                          # current crowds by nature (not a neck)
+        r = R[ly] = Raster(box, h)
+        mk = M[ly] = Raster(box, h)
+        for p in pads:
+            if ly in play(p):
+                mk.paint(_pad_shape(p, pad_box(p)), h)
+        for v in vias:
+            mk.paint(('disk', v['x'], v['y'], v['size'] / 2), 2 * h)
+        for fl in fills:
+            if fl['layer'] == ly:
+                r.poly(fl['pts'])
+        for t in trk:
+            if t['layer'] == ly:
+                r.paint(('cap', t['a'], t['b'], 0.0), max(t['w'] / 2, h * 0.75))   # a thin track keeps a cell
+        for p in pads:
+            if ly in play(p):
+                r.paint(_pad_shape(p, pad_box(p)), 0.0)
+        for v in vias:
+            if ly in via_layers(v, cu):
+                r.paint(('disk', v['x'], v['y'], v['size'] / 2), 0.0)
+    W, H = R[cu[0]].W, R[cu[0]].H
+    node = {}
+    for li, ly in enumerate(cu):
+        d = R[ly].d
+        for k in range(W * H):
+            if d[k]:
+                node[(li, k)] = len(node)
+    N = len(node)
+    if not N:
+        return "no copper of the net on the grid"
+    gl = [thick_of(b, ly) / RHO_CU for ly in cu]            # S per square, any square size
+    gaps, z, last = [], 0.0, None                           # dielectric between copper layers
+    for name, typ, t_, _er in b.stack:
+        if typ == 'copper':
+            if last is not None:
+                gaps.append(max(z, 0.05))
+            z, last = 0.0, name
+        elif last is not None and t_:
+            z += t_
+    gaps += [0.2] * (len(cu) - 1 - len(gaps))
+    U, V, G = [], [], []
+    for (li, k), i in node.items():
+        x, y = k % W, k // W
+        for nk in ((k + 1) if x + 1 < W else -1, (k + W) if y + 1 < H else -1):
+            j = node.get((li, nk)) if nk >= 0 else None
+            if j is not None:
+                U.append(i); V.append(j); G.append(gl[li])
+    plate = a.plating / 1000.0
+    def barrel(x, y, drill, lys):
+        k = int(round((y - box[1]) / h)) * W + int(round((x - box[0]) / h))
+        idx = sorted(cu.index(ly) for ly in lys)
+        for l0, l1 in zip(idx, idx[1:]):
+            i, j = node.get((l0, k)), node.get((l1, k))
+            if i is not None and j is not None:
+                L = sum(gaps[l0:l1])
+                U.append(i); V.append(j); G.append(math.pi * drill * plate / (RHO_CU * L))
+    for v in vias:
+        barrel(v['x'], v['y'], v['drill'], via_layers(v, cu))
+    for p in pads:
+        if p['drill'] and p['kind'] != 'np_thru_hole':
+            barrel(p['x'], p['y'], p['drill'], cu)
+    fix = {}
+    for val, ps in ((1.0, ends[0]), (0.0, ends[1])):
+        for p in ps:
+            pr = Raster(grow(pad_box(p), 2 * h), h)          # the pad alone, mapped onto the grid
+            pr.paint(_pad_shape(p, pad_box(p)), 0.0)
+            for kk in range(pr.W * pr.H):
+                if pr.d[kk]:
+                    k = int(round((pr.y0 + (kk // pr.W) * h - box[1]) / h)) * W + \
+                        int(round((pr.x0 + (kk % pr.W) * h - box[0]) / h))
+                    for ly in play(p):
+                        i = node.get((cu.index(ly), k))
+                        if i is not None:
+                            fix[i] = val
+    if not any(v == 1.0 for v in fix.values()) or not any(v == 0.0 for v in fix.values()):
+        return "a pad is not on the grid (try a smaller --cell)"
+    free = [i for i in range(N) if i not in fix]
+    fi = {i: n for n, i in enumerate(free)}
+    nf = len(free)
+    diag, rhs = [0.0] * nf, [0.0] * nf
+    au, av, ag = [], [], []
+    for i, j, g in zip(U, V, G):
+        a_, b_ = fi.get(i), fi.get(j)
+        if a_ is not None:
+            diag[a_] += g
+            if b_ is None:
+                rhs[a_] += g * fix[j]
+        if b_ is not None:
+            diag[b_] += g
+            if a_ is None:
+                rhs[b_] += g * fix[i]
+        if a_ is not None and b_ is not None:
+            au.append(a_); av.append(b_); ag.append(g)
+    if np is not None:
+        au_, av_, ag_ = np.array(au, dtype=np.int64), np.array(av, dtype=np.int64), np.array(ag)
+        dg, rh = np.array(diag), np.array(rhs)
+        dg[dg == 0] = 1.0
+        def mv(x):
+            return dg * x - np.bincount(au_, ag_ * x[av_], nf) - np.bincount(av_, ag_ * x[au_], nf)
+        x = np.zeros(nf); r_ = rh - mv(x); zz = r_ / dg; p_ = zz.copy(); rz = r_ @ zz
+        nb = math.sqrt(rh @ rh) or 1.0
+        for _it in range(40000):
+            Ap = mv(p_); al = rz / (p_ @ Ap); x += al * p_; r_ -= al * Ap
+            if math.sqrt(r_ @ r_) < 1e-10 * nb:
+                break
+            zz = r_ / dg; rz2 = r_ @ zz; p_ = zz + (rz2 / rz) * p_; rz = rz2
+        xs = x.tolist()
+    else:
+        nbr = [[] for _ in range(nf)]
+        for i, j, g in zip(au, av, ag):
+            nbr[i].append((j, g)); nbr[j].append((i, g))
+        dg = [d or 1.0 for d in diag]
+        def mv(x):
+            return [dg[i] * x[i] - sum(g * x[j] for j, g in nbr[i]) for i in range(nf)]
+        x = [0.0] * nf; r_ = list(rhs); zz = [r_[i] / dg[i] for i in range(nf)]; p_ = list(zz)
+        rz = sum(u * v for u, v in zip(r_, zz)); nb = math.sqrt(sum(u * u for u in rhs)) or 1.0
+        for _it in range(40000):
+            Ap = mv(p_); al = rz / (sum(u * v for u, v in zip(p_, Ap)) or 1e-300)
+            x = [u + al * v for u, v in zip(x, p_)]; r_ = [u - al * v for u, v in zip(r_, Ap)]
+            if math.sqrt(sum(u * u for u in r_)) < 1e-10 * nb:
+                break
+            zz = [r_[i] / dg[i] for i in range(nf)]; rz2 = sum(u * v for u, v in zip(r_, zz))
+            p_ = [u + (rz2 / rz) * v for u, v in zip(zz, p_)]; rz = rz2
+        xs = x
+    Vn = [fix[i] if i in fix else xs[fi[i]] for i in range(N)]
+    I = sum(g * (Vn[i] - Vn[j]) * (1 if fix.get(i) == 1.0 else -1)
+            for i, j, g in zip(U, V, G) if (fix.get(i) == 1.0) != (fix.get(j) == 1.0))
+    if I <= 0:
+        return "no current flows: the two pads are not joined on the grid"
+    # densest current: a cell edge carrying the most, as the width a uniform track would need
+    inv = {i: key for key, i in node.items()}
+    best = (0.0, None, 0.0)
+    for i, j, g in zip(U, V, G):
+        li, k = inv[i]
+        if inv[j][0] == li and not M[cu[li]].d[k] and not M[cu[li]].d[inv[j][1]]:   # in-plane, off pads/vias
+            share = abs(g * (Vn[i] - Vn[j])) / I               # of the whole current, through one cell
+            if share / gl[li] > best[0]:                       # densest = hottest (per copper thickness)
+                best = (share / gl[li], (cu[li], box[0] + (k % W) * h, box[1] + (k // W) * h), share)
+    weq = h / best[2] if best[2] else 0.0                      # a band this wide carries it all as densely
+    return 1.0 / I, weq, best[1], N, h
+
+
 def _amp_path(b, a):
     """--from PAD --to PAD: nodal solve of the copper between two pads"""
     ends = [_find_pad(b, x) for x in (a.src, a.dst)]
@@ -481,11 +651,61 @@ def _amp_path(b, a):
         print(f"    !! {len(over)} element(s) over the {a.dt:g} C budget at {need:.2f} A")
     else:
         print(f"    OK: every track and via stays under {a.dt:g} C at {need:.2f} A")
+    if getattr(a, 'fills', False):
+        import time
+        t0 = time.time()
+        fr = _fill_solve(b, a, net, need)
+        if isinstance(fr, str):
+            print(f"    --fills: {fr}")
+        else:
+            fo, weq, (fly, fx, fy), nc, hh = fr
+            print(f"    THROUGH THE REAL FILLS (necks included): R {fo * 1000:.2f} mohm   Vdrop {need * fo * 1000:.1f} mV"
+                  f"   P {need * need * fo * 1000:.0f} mW   ({nc} cells of {hh:g} mm, {time.time() - t0:.0f} s)")
+            print(f"    densest current off the pads and vias at {fx:.1f},{fy:.1f} on {fly}: as dense as all {need:g} A in "
+                  f"a {weq:.2f} mm {fly} track (IPC-2221: {ipc_current(weq, thick_of(b, fly), fly in b.outer, a.dt):.2f} A) - "
+                  f"the neck to widen")
     print("\nCurrent splits by conductance (nodal solve). Pads and pours are ideal, so a pour\n"
           "neck is not seen: check it in KiCad. Rise per element is IPC-2221 (a long-trace\n"
           "fit, conservative inside the board); a track piece between two pads/pours also gets\n"
           "the end-sunk conduction bound, whichever is lower. Vias: IPC-2221 barrel strip.")
     return 2 if over else 0
+
+def _derived_budgets(b):
+    """{net: (amps, why)} from the protection parts on the board, for a scan with no
+    kpcb.json current{}: a fuse's rated (hold) current on both its nets, an eFuse's ILIM (the
+    max of knet.json's ilim row for its family and ILIM resistor) on its OUT net. Upper
+    bounds - what the protection lets through, not what the design draws."""
+    import os, re
+    out = {}
+    def put(net, amps, why):
+        if net and not net.startswith('unconnected-') and amps > out.get(net, (0, ''))[0]:
+            out[net] = (amps, why)
+    for f in b.placed():
+        if prefix(f.ref) == 'F':
+            m = re.search(r'(\d+(?:\.\d+)?)\s*(m?)A\b', f.value or '')
+            if m:
+                amps = float(m[1]) / (1000 if m[2] else 1)
+                for p in f.pads:
+                    put(p['net'], amps, f"{f.ref} {f.value}")
+    try:
+        ilim = json.load(open(os.path.join(os.path.dirname(os.path.abspath(b.path)), 'knet.json'))).get('ilim') or {}
+    except (OSError, ValueError):
+        ilim = {}
+    for f in b.placed():
+        fam = next((k for k in ilim if k.upper() in (f.value or '').upper()), None)
+        if not fam:
+            continue
+        lim = [p['net'] for p in f.pads if re.search(r'\bILI?M\b', (p['fn'] or '').upper()) and p['net']]   # TI: ILM
+        res = [g for g in b.placed() if prefix(g.ref) == 'R' and any(q['net'] in lim for q in g.pads)]
+        for g in res:
+            row = ilim[fam].get(g.value)
+            amps = max((float(x) for x in re.findall(r'\d+(?:\.\d+)?', row or '')), default=0.0)
+            if amps:
+                for p in f.pads:
+                    if (p['fn'] or '').upper().startswith('OUT'):
+                        put(p['net'], amps, f"{f.ref} ILIM max via {g.ref} {g.value}")
+    return out
+
 
 def c_ampacity(b, a):
     """Current-carrying check on the ROUTED copper (not the schematic).
@@ -527,6 +747,14 @@ def c_ampacity(b, a):
 
     # scan mode: verdict any budgeted net, then list the heaviest routed nets
     allnets = sorted({t['net'] for t in b.tracks if t['net']})
+    derived = {} if jbud else _derived_budgets(b)
+    if derived and not a.json:
+        print("No kpcb.json current{} - budgets derived from the protection parts (upper bounds: what\n"
+              "the fuse or eFuse lets through, not what the design draws; put real ones in kpcb.json):")
+        for n, (amps, why) in sorted(derived.items(), key=lambda kv: natkey(kv[0])):
+            print(f"  {n:<26} {amps:5.2f} A  ({why})")
+        print()
+        jbud = {n: amps for n, (amps, _w) in derived.items()}
     budg = [n for n in allnets if n in jbud]
     if a.json:
         src = budg or allnets
@@ -535,7 +763,7 @@ def c_ampacity(b, a):
         return 0
     print(f"{b.path}: trace ampacity scan  (IPC-2221, dT={a.dt:g} C)\n")
     if budg:
-        print("Budgeted nets (kpcb.json current{}):")
+        print("Budgeted nets (" + ("derived above" if derived else "kpcb.json current{}") + "):")
         for n in budg:
             fail += any(t in ('TRACE-THIN', 'VIA-FEW')
                         for t, _ in _print_amp(_amp_row(b, n, jbud[n], a, graph=True), a))

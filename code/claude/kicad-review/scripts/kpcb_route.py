@@ -15,11 +15,11 @@ cell, pads are their rectangle (a roundrect's corners are never assumed away).""
 import heapq, itertools, math, re
 from collections import defaultdict
 from kcommon import natkey, unesc_disp
-from kpcb_board import PolyIndex, bbox, grow, inside, pad_box, pt_seg_dist
+from kpcb_board import PolyIndex, bbox, grow, inside, pad_box, pt_seg_dist, seg_seg_dist as _segd
 from kpcb_copper import Copper, _local, _q
 from kpcb_move import cu_layers, via_layers
 from kpcb_zones import _clearance_fn, _keepouts
-from kpcb_edit import PcbText
+from kpcb_edit import PcbText, tear_edits
 
 DIRS = [(1, 0), (1, 1), (0, 1), (-1, 1), (-1, 0), (-1, -1), (0, -1), (1, -1)]
 
@@ -65,10 +65,10 @@ def _netclass(b, net):
 
 # ---------------------------------------------------------------- pieces
 
-def piece_parts(b, net):
+def piece_parts(b, net, strict=False):
     """the net's copper split into its pieces: [{'pads': [(f, p)], 'tracks': [...],
-    'vias': [...], 'fills': [...]}], the one holding the most pads first"""
-    C = Copper(b, net)
+    'vias': [...], 'fills': [...]}], the one holding the most pads first (strict: Copper's)"""
+    C = Copper(b, net, strict)
     F = C.piece.find
     P = defaultdict(lambda: {'pads': [], 'tracks': [], 'vias': [], 'fills': []})
     for i, fp in enumerate(C.pads):
@@ -401,7 +401,7 @@ class Grid:
     this pass laid whose `rid` is in `soft` go in sblk/svblk instead: passable at the
     rip-up cost"""
 
-    def __init__(self, b, net, box, res, w, vsz, vdr, layers, extra_clr=0.0, cut=False, soft=frozenset()):
+    def __init__(self, b, net, box, res, w, vsz, vdr, layers, extra_clr=0.0, cut=False, soft=frozenset(), ownpads=True):
         self.b, self.net, self.res, self.w = b, net, res, w
         self.x0, self.y0 = box[0], box[1]
         self.W = int((box[2] - box[0]) / res) + 1
@@ -414,6 +414,7 @@ class Grid:
         self.vpour = bytearray(N)                           # a via here sits in a power-island pour
         self.sblk = {ly: bytearray(N) for ly in layers} if soft else None
         self.svblk = bytearray(N) if soft else None
+        self.follow, self.follow_k = None, 4.0          # `route --pair`: per-layer deviation from the partner
         clr = _clearance_fn(b)[0]
         # a straight step of length s between two clear grid points dips at most
         # s^2/(8R) into a convex obstacle inflated by R (>= ~0.2 mm here): ~0.003 mm
@@ -447,7 +448,7 @@ class Grid:
             if (net2 == net and net) or not near(bbox(ring)):
                 continue
             c = clr(net, net2) + extra_clr
-            edges = list(zip(ring, ring[1:] + (ring[:1] if filled else [])))
+            edges = list(zip(ring, ring[1:]))           # closed shapes repeat their first point
             for ras, R in ((self.blk.get(ly), c + w / 2 + m), (self.vblk, c + vsz / 2 + m)):
                 if ras is None:
                     continue
@@ -464,27 +465,26 @@ class Grid:
                 holes.append((p['x'], p['y'], p['drill'] / 2))
             sh = _pad_shape(p, bb)
             same = p['net'] == net and net
-            c = clr(net, p['net']) + extra_clr
             for ly in lys:
                 if ly in self.blk and not same:
-                    paint(self.blk[ly], sh, c + w / 2 + m)
+                    paint(self.blk[ly], sh, clr(net, p['net'], 'track', 'pad', ly) + extra_clr + w / 2 + m)
             if same:                                     # no via in its own SMD pad
-                if not p['drill']:
+                if not p['drill'] and ownpads:           # (`stitch --in-pad` judges big pads itself)
                     paint(self.vblk, sh, vsz / 2 + m)
             else:
-                paint(self.vblk, sh, c + vsz / 2 + m)
+                c = max(clr(net, p['net'], 'via', 'pad', ly) for ly in lys) if lys else clr(net, p['net'])
+                paint(self.vblk, sh, c + extra_clr + vsz / 2 + m)
         for t in b.tracks:
             hw = t['w'] / 2
             bb = (min(t['a'][0], t['b'][0]) - hw, min(t['a'][1], t['b'][1]) - hw,
                   max(t['a'][0], t['b'][0]) + hw, max(t['a'][1], t['b'][1]) + hw)
             if (t['net'] == net and net) or not near(bb):
                 continue
-            c = clr(net, t['net']) + extra_clr
             sh = ('cap', t['a'], t['b'], hw)
             B, VB = (self.sblk, self.svblk) if t.get('rid') in soft else (self.blk, self.vblk)
             if t['layer'] in B:
-                paint(B[t['layer']], sh, c + w / 2 + m)
-            paint(VB, sh, c + vsz / 2 + m)
+                paint(B[t['layer']], sh, clr(net, t['net'], 'track', 'track', t['layer']) + extra_clr + w / 2 + m)
+            paint(VB, sh, clr(net, t['net'], 'via', 'track', t['layer']) + extra_clr + vsz / 2 + m)
         for v in b.vias:
             r0 = v['size'] / 2
             bb = (v['x'] - r0, v['y'] - r0, v['x'] + r0, v['y'] + r0)
@@ -494,12 +494,12 @@ class Grid:
             holes.append((v['x'], v['y'], v['drill'] / 2, VB))
             if v['net'] == net and net:
                 continue
-            c = clr(net, v['net']) + extra_clr
             sh = ('disk', v['x'], v['y'], r0)
-            for ly in via_layers(v, cu):
+            vl = via_layers(v, cu)
+            for ly in vl:
                 if ly in B:
-                    paint(B[ly], sh, c + w / 2 + m)
-            paint(VB, sh, c + vsz / 2 + m)
+                    paint(B[ly], sh, clr(net, v['net'], 'track', 'via', ly) + extra_clr + w / 2 + m)
+            paint(VB, sh, max(clr(net, v['net'], 'via', 'via', ly) for ly in vl) + extra_clr + vsz / 2 + m)
         for hx_, hy_, hr, *VB in holes:                      # hole to hole, any net
             paint(VB[0] if VB else self.vblk, ('disk', hx_, hy_, hr), vdr / 2 + 0.25 + m)
         # board edge (as capsule obstacles) and outside the outline (scanline)
@@ -542,7 +542,7 @@ class Grid:
                 if fl['layer'] in self.pour:                # --cut-islands: an island costs 4x more
                     self.fill_rows(_pidx(b, fl), self.pour[fl['layer']], 1 if (fl['net'], fl['layer']) in planes else 4)
                 continue
-            c = clr(net, fl['net']) + extra_clr
+            c = clr(net, fl['net'], 'track', 'zone', fl['layer']) + extra_clr
             ring = fl['pts']
             if fl['layer'] in self.blk:                     # a track would split the island...
                 self.fill_rows(_pidx(b, fl), self.blk[fl['layer']])
@@ -668,6 +668,7 @@ def astar(g, src, dst, lcost, via_cost, turn, pour_k, c0=None, c1=None, rip=0.0)
         x, y = k % W, k // W
         blk, pr, lc = g.blk[ly], g.pour[ly], lcost.get(ly, 1.0)
         sb = g.sblk[ly] if g.sblk else None
+        fo = g.follow.get(ly) if g.follow else None     # 0.05 mm units of |distance - pitch|
         for di, (dx, dy) in enumerate(DIRS):
             nx, ny = x + dx, y + dy
             if not (0 <= nx < W and 0 <= ny < g.H):
@@ -679,6 +680,8 @@ def astar(g, src, dst, lcost, via_cost, turn, pour_k, c0=None, c1=None, rip=0.0)
             c = gc + step * lc * (1 + pour_k * pr[nk]) + (turn * res if dr >= 0 and di != dr else 0)   # pr: 0/1/4
             if sb and sb[nk]:
                 c += rip * step
+            if fo is not None:
+                c += step * g.follow_k * fo[nk] * 0.05
             if c < best.get((ly, nk), 1e18) - 1e-9:
                 best[(ly, nk)] = c
                 came[(ly, nk)] = ((ly, k), di)
@@ -691,7 +694,114 @@ def astar(g, src, dst, lcost, via_cost, turn, pour_k, c0=None, c1=None, rip=0.0)
                         best[(l2, k)] = c
                         came[(l2, k)] = ((ly, k), -1)
                         heapq.heappush(heap, (c + h(k), c, l2, k, -1))
+    g.seen = best                                       # what a failure could reach: `_blockers` walls it
     return None
+
+
+def _follow(g, segs, pitch, tol=0.02):
+    """`route --pair`: per layer, how far each grid point sits from `pitch` away from the
+    partner leg's tracks on that layer (segs [(layer, a, b)]), in 0.05 mm units capped at
+    255 - astar charges it per mm, so the second leg runs alongside the first"""
+    out = {}
+    for ly in g.layers:
+        ss = [(p0, p1) for l, p0, p1 in segs if l == ly]
+        f = bytearray(b'\xff' * (g.W * g.H))
+        if ss:
+            bb = grow(bbox([q for s_ in ss for q in s_]), 3 * pitch)
+            for j in range(max(0, int((bb[1] - g.y0) / g.res)), min(g.H, int((bb[3] - g.y0) / g.res) + 2)):
+                y = g.y0 + j * g.res
+                for i in range(max(0, int((bb[0] - g.x0) / g.res)), min(g.W, int((bb[2] - g.x0) / g.res) + 2)):
+                    x = g.x0 + i * g.res
+                    d = min(pt_seg_dist((x, y), p0, p1) for p0, p1 in ss)
+                    f[j * g.W + i] = min(255, int(max(0.0, abs(d - pitch) - tol) / 0.05))
+        out[ly] = f
+    return out
+
+
+def _escape(gn, gw, starts, c0, maxlen, goal=frozenset()):
+    """neck-down: from `starts` ({layer: cells} on the pad, gn = the narrow grid) walk the
+    narrow free cells of the same layer, at most `maxlen` mm, to the first cells where the
+    wide grid gw is free too. ({(layer, cell): cost}, parent map, goal cell or None) - the
+    cost is the start's anchor cost + 2x the neck length, so a short neck wins; reaching a
+    `goal` cell (the far copper itself) ends it: the whole link is one short neck"""
+    W, res = gn.W, gn.res
+    dist, par, heap, out = {}, {}, [], {}
+    for ly, ks in starts.items():
+        for k in ks:
+            dist[(ly, k)], par[(ly, k)] = 0.0, None
+            heapq.heappush(heap, (0.0, ly, k))
+    while heap:
+        L, ly, k = heapq.heappop(heap)
+        if L > dist[(ly, k)] + 1e-9:
+            continue
+        if (ly, k) in goal and par[(ly, k)] is not None:
+            return out, par, (ly, k)
+        if not gw.blk[ly][k]:
+            st = k
+            while par[(ly, st)] is not None:
+                st = par[(ly, st)][1]
+            out[(ly, k)] = c0.get((ly, st), 0.0) + 2 * L
+            continue
+        x, y = k % W, k // W
+        for dx, dy in DIRS:
+            nx, ny = x + dx, y + dy
+            if not (0 <= nx < W and 0 <= ny < gn.H):
+                continue
+            nk = ny * W + nx
+            nL = L + res * (SQ2 if dx and dy else 1.0)
+            if gn.blk[ly][nk] or nL > maxlen or nL >= dist.get((ly, nk), 1e18) - 1e-9:
+                continue
+            dist[(ly, nk)], par[(ly, nk)] = nL, (ly, k)
+            heapq.heappush(heap, (nL, ly, nk))
+    return out, par, None
+
+
+def _walk(par, s):
+    """the neck from its start on the pad to cell s, [(layer, cell)]"""
+    out = [s]
+    while par[out[-1]] is not None:
+        out.append(par[out[-1]])
+    return out[::-1]
+
+
+def _blockers(b, net, g, cells, n=5):
+    """the foreign items whose clearance-grown copper covers `cells` [(layer, cell)]: what
+    boxes a pin in. [(label, cells it covers)], most first"""
+    from collections import Counter
+    clr = _clearance_fn(b)[0]
+    cu = b.copper
+    pts = [(ly, g.xy(k)) for ly, k in cells]
+    if not pts:
+        return []
+    bb = grow(bbox([p for _ly, p in pts]), 1.5)
+    near = lambda q: bb[0] <= q[0] <= bb[2] and bb[1] <= q[1] <= bb[3]   # noqa: E731
+    cand = []
+    for f in b.placed():
+        for p in f.pads:
+            if p['net'] != net and p['kind'] != 'np_thru_hole' and near((p['x'], p['y'])):
+                lys = set(cu) if p['drill'] else cu_layers(p['layers'], cu)
+                sx, sy = p['sx'] / 2, p['sy'] / 2
+                cand.append((f"{f.ref}.{p['num']} pad ({unesc_disp(p['net']) or 'no net'})", lys, p['net'],
+                             lambda q, p=p, sx=sx, sy=sy: (lambda u, v: math.hypot(max(abs(u) - sx, 0), max(abs(v) - sy, 0)))(*_local(p, q))))
+    for t in b.tracks:
+        if t['net'] != net and (near(t['a']) or near(t['b']) or near(t['mid'])):
+            cand.append((f"{unesc_disp(t['net']) or 'netless'} track on {t['layer']}", {t['layer']}, t['net'],
+                         lambda q, t=t: pt_seg_dist(q, t['a'], t['b']) - t['w'] / 2))
+    for v in b.vias:
+        if v['net'] != net and near((v['x'], v['y'])):
+            cand.append((f"{unesc_disp(v['net']) or 'netless'} via @{v['x']:.2f},{v['y']:.2f}", set(cu), v['net'],
+                         lambda q, v=v: math.dist(q, (v['x'], v['y'])) - v['size'] / 2))
+    ec = b.edge_clearance()
+    c = Counter()
+    for ly, q in pts[::max(1, len(pts) // 600)]:
+        best = min(((d(q) - clr(net, n2), lab) for lab, lys, n2, d in cand if ly in lys), default=(9e9, ''))
+        de = min((pt_seg_dist(q, u, v) - ec for u, v in b.edge_segs), default=9e9)
+        if de <= g.w / 2 + 0.05 and de < best[0]:
+            c['the board edge'] += 1
+        else:
+            c[best[1] if best[0] <= g.w / 2 + 0.05 else 'a rule area or a power-island pour'] += 1
+    # copper first: an edge or a rule area bounds every search and says little about the plug
+    return sorted(c.items(), key=lambda kv: (kv[0] in ('the board edge', 'a rule area or a power-island pour'), -kv[1]))[:n]
 
 
 def to_copper(g, path):
@@ -759,7 +869,7 @@ def _ends(segs, g, path, src_q, dst_qs, w, cu):
 
 def _blob(segs, hw, res=0.1):
     """outline [(x, y)] of the band within hw of segs [(p0, p1)]: the outer boundary of the
-    union of res-squares, collinear corners dropped (a zone outline for `--pour`)"""
+    union of res-squares, its staircases fitted with straight edges (a zone outline for `--pour`)"""
     xs, ys = [p[0] for s in segs for p in s], [p[1] for s in segs for p in s]
     x0, y0 = min(xs) - hw - 2 * res, min(ys) - hw - 2 * res
     W, H = int((max(xs) + hw - x0) / res) + 3, int((max(ys) + hw - y0) / res) + 3
@@ -771,6 +881,19 @@ def _blob(segs, hw, res=0.1):
             if iv:
                 i0, i1 = max(0, math.ceil((iv[0] - x0) / res)), min(W - 1, math.floor((iv[1] - x0) / res))
                 on[j * W + i0:j * W + i1 + 1] = ONES[:max(0, i1 - i0 + 1)]
+    L = max(_trace(on, W, H), key=_area)
+    return [(round(x0 + (ci - 0.5) * res, 4), round(y0 + (cj - 0.5) * res, 4)) for ci, cj in L]
+
+
+def _area(L):
+    return abs(sum(L[k - 1][0] * L[k][1] - L[k][0] * L[k - 1][1] for k in range(len(L)))) / 2
+
+
+def _trace(on, W, H):
+    """boundary loops of the set cells of a W x H raster, in cell-corner coordinates (corner
+    (i, j) is the top-left of cell (i, j)), the set side on the left, corners where the edge
+    does not turn dropped and staircases fitted (`simplify`, 1.25 cells). A hole gives a loop
+    of its own (`fatten` slits holes open first)"""
     full = lambda i, j: 0 <= i < W and 0 <= j < H and on[j * W + i]   # noqa: E731
     nxt = {}                                         # corner -> next corner, the band on the left
     for j in range(H):
@@ -792,12 +915,37 @@ def _blob(segs, hw, res=0.1):
                 break
             loop.append(c2)
             c = c2
-        loops.append(loop)
-    area = lambda L: abs(sum(L[k - 1][0] * L[k][1] - L[k][0] * L[k - 1][1] for k in range(len(L)))) / 2   # noqa: E731
-    L = max(loops, key=area)
-    L = [L[k] for k in range(len(L))                 # a corner where the edge turns
-         if (L[k][0] - L[k - 1][0], L[k][1] - L[k - 1][1]) != (L[(k + 1) % len(L)][0] - L[k][0], L[(k + 1) % len(L)][1] - L[k][1])]
-    return [(round(x0 + (ci - 0.5) * res, 4), round(y0 + (cj - 0.5) * res, 4)) for ci, cj in L]
+        loops.append(simplify([loop[k] for k in range(len(loop))       # a corner where the edge turns
+                               if (loop[k][0] - loop[k - 1][0], loop[k][1] - loop[k - 1][1]) !=
+                               (loop[(k + 1) % len(loop)][0] - loop[k][0], loop[(k + 1) % len(loop)][1] - loop[k][1])],
+                              1.25))
+    return loops
+
+
+def simplify(L, eps):
+    """a closed ring with every corner within eps of the edge that replaces it dropped
+    (Douglas-Peucker): a raster staircase (1.25 cells holds any slope) becomes the straight
+    or diagonal edge it stands for, an arc a few chords. A ring the cut would make cross
+    itself tries eps/2, then stays as it was"""
+    n = len(L)
+    if n < 5:
+        return L
+    for e in (eps, eps / 2):
+        far = max(range(n), key=lambda k: math.dist(L[k], L[0]))
+        keep, stack = {0, far}, [(0, far), (far, n)]
+        while stack:
+            i, j = stack.pop()
+            a, b = L[i % n], L[j % n]
+            k, d = max(((k, pt_seg_dist(L[k], a, b)) for k in range(i + 1, j)), key=lambda kd: kd[1], default=(0, 0))
+            if d > e:
+                keep.add(k)
+                stack += [(i, k), (k, j)]
+        P = [L[k] for k in sorted(keep)]
+        E = list(zip(P, P[1:] + P[:1]))
+        if len(P) >= 3 and not any(_segd(*E[i], *E[j]) < 1e-9 for i in range(len(E))
+                                   for j in range(i + 2, len(E) - (i == 0))):
+            return P
+    return L
 
 
 def _runs(segs):
@@ -806,14 +954,6 @@ def _runs(segs):
     for s in segs[1:]:
         (runs[-1].append(s) if s[0] == runs[-1][-1][0] else runs.append([s]))
     return runs
-
-
-def _segd(p, q, r, s):
-    """distance between segments pq and rs"""
-    o = lambda a, b, c: (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0])   # noqa: E731
-    if o(r, s, p) * o(r, s, q) < 0 and o(p, q, r) * o(p, q, s) < 0:
-        return 0.0
-    return min(pt_seg_dist(p, r, s), pt_seg_dist(q, r, s), pt_seg_dist(r, p, q), pt_seg_dist(s, p, q))
 
 
 def _victims(b, net, segs, vias, vsz, vdr, laid, soft):
@@ -838,7 +978,7 @@ def _victims(b, net, segs, vias, vsz, vdr, laid, soft):
     return out
 
 
-def route_link(b, net, src_q, dst_qs, a, widths, vsz, vdr, layers, lcost, soft=frozenset()):
+def route_link(b, net, src_q, dst_qs, a, widths, vsz, vdr, layers, lcost, soft=frozenset(), follow=None):
     """one A* from piece src_q to any of dst_qs: per window (widened on failure) each
     width in turn, so a too-wide try only costs the small window. `soft`: rids of this
     pass's routes it may cross at --rip-cost (the caller rips what it crossed)"""
@@ -846,7 +986,7 @@ def route_link(b, net, src_q, dst_qs, a, widths, vsz, vdr, layers, lcost, soft=f
     dp = [(p[0], p[1]) for q in dst_qs for p in _points(q, b.copper)]
     s0, d0 = min(((s, d) for s in sp for d in dp), key=lambda sd: math.dist(*sd)) if len(sp) * len(dp) < 4e6 \
         else (sp[0], min(dp, key=lambda d: math.dist(d, sp[0])))
-    o, covered = b.outline, True
+    o, covered, last = b.outline, True, None
     for margin in (a.margin, a.margin * 2.5, a.margin * 6):
       for w in widths:
         box = bbox([s0, d0])
@@ -855,6 +995,8 @@ def route_link(b, net, src_q, dst_qs, a, widths, vsz, vdr, layers, lcost, soft=f
         box = (s0[0] - a.grid * math.floor((s0[0] - box[0]) / a.grid),       # a grid point on the
                s0[1] - a.grid * math.floor((s0[1] - box[1]) / a.grid), box[2], box[3])  # source pad
         g = Grid(b, net, box, a.grid, w, vsz, vdr, layers, cut=a.cut_islands, soft=soft)
+        if follow:
+            g.follow = _follow(g, *follow)
         src, c0 = g.cells_of(src_q)
         dst, c1 = defaultdict(set), {}
         for q in dst_qs:
@@ -864,6 +1006,7 @@ def route_link(b, net, src_q, dst_qs, a, widths, vsz, vdr, layers, lcost, soft=f
             for k, v in cc.items():
                 c1[k] = min(v, c1.get(k, 1e18))
         if not any(src.values()):
+            last = (g, w)
             continue
         covered = False
         path = astar(g, src, dst, lcost, a.via_cost, a.turn, a.pour_cost, c0, c1, a.rip_cost if soft else 0.0)
@@ -873,9 +1016,107 @@ def route_link(b, net, src_q, dst_qs, a, widths, vsz, vdr, layers, lcost, soft=f
             if not segs and not vias:
                 continue
             return (segs, vias, margin, w), ''
-    if covered:
-        return None, "foreign copper covers every cell of the source pad/copper (a stale track on it?)"
-    return None, f"no path within {a.margin * 6:g} mm of the gap at width {' / '.join(f'{w:g}' for w in widths)}"
+        last = (g, w)
+    # neck-down: a fine-pitch pad no class-width track can leave (a USB-C VBUS pin, a WSON
+    # TVS) leaves at a narrow width for at most --neck-len, then widens; same at the far end
+    neck_len = getattr(a, 'neck_len', 0.0) or 0.0
+    necks = [getattr(a, 'neck', 0.0)] if getattr(a, 'neck', 0.0) else [0.4, 0.3, 0.25, 0.2]
+    for w in widths if neck_len > 0 else ():
+        for wn in [x for x in necks if x < w - 1e-9]:
+            box = bbox([s0, d0])
+            box = (max(o[0], box[0] - a.margin), max(o[1], box[1] - a.margin),
+                   min(o[2], box[2] + a.margin), min(o[3], box[3] + a.margin))
+            box = (s0[0] - a.grid * math.floor((s0[0] - box[0]) / a.grid),
+                   s0[1] - a.grid * math.floor((s0[1] - box[1]) / a.grid), box[2], box[3])
+            gw = Grid(b, net, box, a.grid, w, vsz, vdr, layers, cut=a.cut_islands, soft=soft)
+            gn = Grid(b, net, box, a.grid, wn, vsz, vdr, layers, cut=a.cut_islands, soft=soft)
+            srcn, c0n = gn.cells_of(src_q)
+            if not any(srcn.values()):
+                continue
+            dst, c1 = defaultdict(set), {}
+            dstn, c1n = defaultdict(set), {}
+            for q in dst_qs:
+                for G, D, C in ((gw, dst, c1), (gn, dstn, c1n)):
+                    cells, cc = G.cells_of(q)
+                    for ly, ks in cells.items():
+                        D[ly] |= ks
+                    for k, v in cc.items():
+                        C[k] = min(v, C.get(k, 1e18))
+            es, pars, hit = _escape(gn, gw, srcn, c0n, neck_len, {(ly, k) for ly, ks in dstn.items() for k in ks})
+            if hit:                                      # the far copper is within one neck
+                head = _walk(pars, hit)
+                segs = [(ly, u, v, wn) for ly, u, v in to_copper(gn, head)[0]]
+                dq = {'pads': [x for q in dst_qs for x in q['pads']], 'vias': [x for q in dst_qs for x in q['vias']],
+                      'tracks': [x for q in dst_qs for x in q['tracks']]}
+                for at, qq, pos in ((head[0], src_q, 0), (head[-1], dq, len(segs) + 1)):
+                    an = _anchor(gn.xy(at[1]), at[0], qq, wn, b.copper)
+                    if an and math.dist(an[0], gn.xy(at[1])) > 1e-6:
+                        segs.insert(min(pos, len(segs)), (at[0], an[0], gn.xy(at[1]), an[1]) if pos == 0
+                                    else (at[0], gn.xy(at[1]), an[0], an[1]))
+                if segs:
+                    return (segs, [], a.margin, w), ''
+            ed, pard, _h = _escape(gn, gw, dstn, c1n, neck_len)
+            dstw = {(ly, k) for ly, ks in dst.items() for k in ks}       # reached at full width
+            for (ly, k), c in ed.items():
+                if c < c1.get((ly, k), 1e18):
+                    dst[ly].add(k)
+                    c1[(ly, k)] = c
+            src = defaultdict(set)
+            for (ly, k) in es:
+                src[ly].add(k)
+            if not any(src.values()) or not any(dst.values()):
+                continue
+            path = astar(gw, src, dst, lcost, a.via_cost, a.turn, a.pour_cost, es, c1, a.rip_cost if soft else 0.0)
+            if not path:
+                continue
+            head = _walk(pars, path[0])
+            tail = _walk(pard, path[-1])[::-1] if path[-1] in ed and path[-1] not in dstw else [path[-1]]
+            segs = [(ly, u, v, wn) for ly, u, v in (to_copper(gn, head)[0] if len(head) > 1 else [])]
+            msegs, vias = to_copper(gw, path)
+            segs += [(ly, u, v, w) for ly, u, v in msegs]
+            segs += [(ly, u, v, wn) for ly, u, v in (to_copper(gn, tail)[0] if len(tail) > 1 else [])]
+            (l0, k0), (l1, k1) = head[0], tail[-1]
+            p0, p1 = gn.xy(k0), gn.xy(k1)
+            dq = {'pads': [x for q in dst_qs for x in q['pads']], 'vias': [x for q in dst_qs for x in q['vias']],
+                  'tracks': [x for q in dst_qs for x in q['tracks']]}
+            pre = _anchor(p0, l0, src_q, wn if len(head) > 1 else w, b.copper)
+            post = _anchor(p1, l1, dq, wn if len(tail) > 1 else w, b.copper)
+            if pre and math.dist(pre[0], p0) > 1e-6:
+                segs.insert(0, (l0, pre[0], p0, pre[1]))
+            if post and math.dist(post[0], p1) > 1e-6:
+                segs.append((l1, p1, post[0], post[1]))
+            return (segs, vias, a.margin, w), ''
+    why = ("foreign copper covers every cell of the source pad/copper (a stale track on it?)" if covered else
+           f"no path within {a.margin * 6:g} mm of the gap at width {' / '.join(f'{w:g}' for w in widths)}")
+    if last:                                             # name what boxes the pin in
+        g, w = last
+        if covered:
+            cells = [(ly, k) for f, p in src_q['pads']
+                     for ly in (set(b.copper) if p['drill'] else cu_layers(p['layers'], b.copper)) if ly in g.blk
+                     for k in _pad_cells(g, p, ly)]
+        else:
+            cells = sorted({(ly, ny * g.W + nx) for (ly, k) in getattr(g, 'seen', {}) if ly
+                            for dx, dy in DIRS for nx, ny in [((k % g.W) + dx, (k // g.W) + dy)]
+                            if 0 <= nx < g.W and 0 <= ny < g.H and g.blk[ly][ny * g.W + nx]})
+        walls = _blockers(b, net, g, cells)
+        if walls:
+            why += f"; at {w:g} mm it is {'covered' if covered else 'boxed in'} by " + \
+                   ', '.join(f"{lab} ({c})" for lab, c in walls)
+    return None, why
+
+
+def _pad_cells(g, p, ly):
+    """grid cells inside pad p (cells_of skips blocked ones; a covered pad has only those)"""
+    hx, hy = p['sx'] / 2, p['sy'] / 2
+    bb = pad_box(p)
+    out = []
+    for j in range(max(0, int((bb[1] - g.y0) / g.res)), min(g.H, int((bb[3] - g.y0) / g.res) + 2)):
+        for i in range(max(0, int((bb[0] - g.x0) / g.res)), min(g.W, int((bb[2] - g.x0) / g.res) + 2)):
+            x, y = g.x0 + i * g.res, g.y0 + j * g.res
+            u, v = _local(p, (x, y))
+            if abs(u) <= hx and abs(v) <= hy:
+                out.append(j * g.W + i)
+    return out
 
 
 def c_route(b, a):
@@ -903,7 +1144,27 @@ def c_route(b, a):
     prio = 1 + max(map(int, re.findall(r'\(priority (\d+)\)', t.txt if t else open(b.path).read())),
                    default=0) if a.pour else 0             # a pour band fills ahead of every zone
     key = lambda q: ' '.join(f"{f.ref}.{p['num']}" for f, p in q['pads'][:3])   # noqa: E731
-    laid, rids = {}, itertools.count(1)            # this run's links by rid: what a rip-up may undo
+    laid, rids, torn = {}, itertools.count(1), {}  # this run's links by rid: what a rip-up may undo
+    if a.rip_board:                                 # --rip-board N: small unlocked signal nets already on
+        npads = defaultdict(int)                    # the board are rip-up units too (a whole net at a time)
+        for f in b.placed():
+            for p in f.pads:
+                npads[p['net']] += 1
+        filled = {fl['net'] for fl in b.fills}
+        units = defaultdict(list)
+        for x in b.tracks + b.vias:
+            units[x['net']].append(x)
+        for n, items in units.items():
+            nc = (b.netclass(n) or 'Default').upper()
+            if not n or n == 'GND' or n in filled or not 2 <= npads[n] <= a.rip_board or any(x.get('locked') for x in items) \
+                    or any(k in nc for k in ('PWR', 'RF', 'USB', 'DIFF')):
+                continue
+            r = next(rids)
+            for x in items:
+                x['rid'] = r
+            laid[r] = {'net': n, 'items': items, 'edits': [], 'board': True, 'nseg': 0, 'nzone': 0, 'nvia': 0, 'len': 0.0}
+        print(f"--rip-board {a.rip_board}: {sum(1 for m in laid.values() if m.get('board'))} small unlocked signal "
+              f"net(s) on the board may be ripped and re-routed (all of a net's tracks and vias at once)")
 
     def settings(net):
         """(netclass dict, widths to try, via size, via drill)"""
@@ -927,6 +1188,9 @@ def c_route(b, a):
             (b.tracks if 'layer' in x else b.vias).append(x)
         if t and edits:
             t.edits.extend(m['edits'])
+        for e in m.pop('dels', []):                     # a board unit put back: undo its deletion
+            t.edits.remove(e)
+        torn.pop(r, None)
 
     def lay(net, res, band, cls, vsz, vdr):
         """a link into the model (so the next one sees it) and the file; returns its rid"""
@@ -956,6 +1220,12 @@ def c_route(b, a):
         gone = {id(x) for x in m['items']}
         b.tracks[:] = [x for x in b.tracks if id(x) not in gone]
         b.vias[:] = [x for x in b.vias if id(x) not in gone]
+        if m.get('board'):                              # copper that was on the board: delete it
+            torn[r] = m
+            if t:
+                m['dels'] = [t.sub(x['uuid'], '') for x in m['items'] if x['uuid'] in t.span] + \
+                    tear_edits(t, [x for x in m['items'] if 'layer' in x])
+            return m
         for e in m['edits']:
             t.edits.remove(e)
         return m
@@ -965,6 +1235,12 @@ def c_route(b, a):
         L = sum(math.dist(p0, p1) for _ly, p0, p1, _w in segs)
         print(f"{ind}{unesc_disp(net)}: {label} -> rest   w {w:g}  {L:.2f} mm, {len(vias)} via(s), "
               f"layers {'/'.join(sorted({s[0].split('.')[0] for s in segs}))}  (window +{margin:g} mm){tail}")
+        nk = [(math.dist(p0, p1), sw) for _ly, p0, p1, sw in segs if sw < w - 1e-9]
+        if nk and sum(x for x, _ in nk) > 0.3:          # pad stubs are narrower by nature; a neck is longer
+            whole = all(sw < w - 1e-9 for *_x, sw in segs)
+            print(f"{ind}    NECK: {sum(x for x, _ in nk):.2f} mm at {min(sw for _, sw in nk):g} mm "
+                  + ("- the whole link, pad to the next copper" if whole else f"out of a fine-pitch pad, then {w:g} mm")
+                  + (" (under the PWR_HIGH floor: DRC TRACK_WIDTH flags it)" if (b.netclass(net) or '') == 'PWR_HIGH' else ''))
         if a.verbose:
             for ly, p0, p1, sw in segs:
                 print(f"      {ly:<7} {p0[0]:.3f},{p0[1]:.3f} -> {p1[0]:.3f},{p1[1]:.3f}"
@@ -1027,6 +1303,15 @@ def c_route(b, a):
             print(f"{unesc_disp(net)}: netclass {nc} - hand-route impedance-controlled nets "
                   f"(--force to route it anyway)"); rc = 1; continue
         cls, widths, vsz, vdr = settings(net)
+        follow = None
+        if a.pair:                                       # the other leg already routed: run alongside it
+            mate = next((q[1] if q[0] == net else q[0] for q in _legs(b) if net in q), None)
+            msegs = [(t['layer'], t['a'], t['b']) for t in b.tracks if mate and t['net'] == mate]
+            if msegs:
+                pw = cls.get('diff_pair_width') or cls.get('track_width') or 0.2
+                follow = (msegs, pw + (cls.get('diff_pair_gap') or cls.get('clearance') or 0.15))
+                widths = [a.width or pw]
+                print(f"{unesc_disp(net)}: following {unesc_disp(mate)} at a {follow[1]:g} mm pitch (width {widths[0]:g})")
         done, last, failed = 0, None, set()
         while True:
             Q = piece_parts(b, net)
@@ -1038,7 +1323,7 @@ def c_route(b, a):
             src = min(todo, key=lambda q: len(q['pads']))
             others = [q for q in Q if q is not src]
             label = key(src)
-            res, why = route_link(b, net, src, others, a, widths, vsz, vdr, layers, lcost)
+            res, why = route_link(b, net, src, others, a, widths, vsz, vdr, layers, lcost, follow=follow)
             ripped, band = None, 0.0
             if not res and rips < a.rips:
                 ripped, note = rip(net, src, others, cls, widths, vsz, vdr)
@@ -1071,6 +1356,19 @@ def c_route(b, a):
             done += 1
             if done > 60:
                 print(f"{unesc_disp(net)}: stopping after 60 links"); break
+        if follow and done:                              # how well it ran alongside
+            mate = next((q[1] if q[0] == net else q[0] for q in _legs(b) if net in q), None)
+            T0 = [t for t in b.tracks if t['net'] == mate]
+            T1 = [t for t in b.tracks if t['net'] == net and t.get('rid')]
+            c1, gaps = _coupling(T1, T0, 2 * follow[1])
+            L1 = sum(t['len'] for t in T1)
+            if L1:
+                gs = sorted(gaps)
+                print(f"    coupled {c1:.2f} of {L1:.2f} mm to {unesc_disp(mate)}"
+                      + (f", edge gap median {gs[len(gs) // 2]:.3f} mm" if gs else '') + "  (`pairs` for the skew)")
+    if torn:
+        print(f"ripped from the board: {', '.join(sorted({unesc_disp(m['net']) for m in torn.values()}, key=natkey))} "
+              f"({sum(len(m['items']) for m in torn.values())} track(s)/via(s), re-routed above)")
     nl, nv, nz = (sum(m[k] for m in laid.values()) for k in ('nseg', 'nvia', 'nzone'))
     what = f"{nl} segment(s), {nv} via(s), {sum(m['len'] for m in laid.values()):.1f} mm" + (f", {nz} zone(s)" if nz else '')
     if t and (nl or nz):

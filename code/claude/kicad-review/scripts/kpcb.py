@@ -36,8 +36,14 @@ Commands:
                                       export of the STEP models; no model = UNKNOWN
   kpcb.py FILE view REF.. [-r 5]      cropped PNG of the board layers around parts (or
                                       X,Y / --box X0,Y0,X1,Y1), from kicad-cli's plot
-  kpcb.py FILE silk                   padless graphic footprints (logos): art layer, scaled
-                                      extent, the part body hiding it, pads it crosses
+  kpcb.py FILE silk                   silkscreen review: designators/texts over pads, under
+                                      bodies, overlapping, off the edge, too small, ambiguous,
+                                      mirrored or upside down; logos (art layer, body hiding it)
+  kpcb.py FILE refdes [REF..] -o OUT  re-place designators beside their parts, clear of all
+                                      that (--all, --show hidden ones, --size H --thick T)
+  kpcb.py FILE pinlabels REF [NAME..] -o OUT   an aligned column of pin labels beside REF's
+                                      pads (names: NAMEs, else the nets through fuses/0R)
+  kpcb.py FILE label TEXT X,Y|--near REF -o OUT   TEXT at the nearest clear silk spot
   kpcb.py FILE movecheck REF X Y [ROT] what a move would newly break: foreign copper inside
                                       the clearance, copper to edge, courtyard overlap;
                                       `REF --scan x=X y=A..B`, `via X,Y NX,NY`. Read-only.
@@ -64,6 +70,21 @@ Writers (always to a new file, -o OUT; verify the copy with kdrc.py):
                                       ranked by ratsnest length, copper-checked
   kpcb.py FILE pairs [NET...]         diff pairs (X+/X-, XP/XN): leg lengths, skew, vias,
                                       coupled length and edge gap vs the netclass
+  kpcb.py FILE unhook REF... -o OUT   rip only the copper that served these parts (prune
+                                      with them absent; never a whole net)
+  kpcb.py FILE vscan NET X0,Y0,X1,Y1  the router's model of a box as ASCII: legal via spots,
+                                      free layers per cell (--width, --via, --layers)
+  kpcb.py FILE smooth [-o OUT]        pull track chains tight and octilinear (--overlaps,
+                                      --corners, --square, --pads, --jogs [--nudge]: one other
+                                      pass; --all: every pass but jogs until nothing changes)
+  kpcb.py FILE tracks [--view P.png]  trace-quality census: visible corners, off-45, width
+                                      steps, tiny segments, ends at a pad edge, lane jogs, and
+                                      why smooth left each
+  kpcb.py FILE widen [NET..] -o OUT   grow under-width tracks to their netclass width
+                                      (--uniform-power: a power run at its widest where clear)
+  kpcb.py FILE loops [NET..] [-o OUT] redundant track chains on signal nets (-o deletes)
+  kpcb.py FILE diff OLD.kicad_pcb     what changed since OLD: footprints, silk text, vias,
+                                      zones, teardrops, tracks (+ length, per-net series R)
 
 `ic` is the one command that suggests rather than judges. It reads the IC's own
 pad coordinates - there is no per-part template - classifies its pins by name,
@@ -114,7 +135,7 @@ except ImportError:                                     # pragma: no cover
     raise
 # The heavy commands live in kpcb_<cmd>.py beside this; the Board model in kpcb_board.py.
 from kpcb_board import (_find_pad, _resolve_net, bbox, Board, box_dist, ctr, hit, inside, poly_dist,
-                        pt_seg_dist, sheet_of)
+                        pad_box, pt_seg_dist, sheet_of)
 from kpcb_check import c_check, gen_findings, net_spans
 from kpcb_copper import Copper
 from kpcb_amp import c_ampacity
@@ -124,13 +145,18 @@ from kpcb_rf import c_rf
 from kpcb_height import c_height
 from kpcb_ic import c_ic, role_pads
 from kpcb_view import c_view
-from kpcb_silk import c_silk
+from kpcb_silk import c_silk, c_refdes
+from kpcb_label import c_pinlabels, c_label
 from kpcb_move import c_movecheck
 from kpcb_freebox import c_freebox
 from kpcb_tidy import c_tidy
-from kpcb_edit import c_fixlines, c_renet, c_move, c_ripup
-from kpcb_route import c_airwires, c_pairs, c_route
+from kpcb_edit import c_fixlines, c_renet, c_move, c_ripup, c_edit, c_unhook
+from kpcb_route import c_airwires, c_pairs, c_route, _segd
 from kpcb_place import c_place
+from kpcb_power import c_fatten, c_stitch, c_vscan
+from kpcb_smooth import c_smooth
+from kpcb_tracks import c_tracks, c_widen, c_loops
+from kpcb_diff import c_diff
 
 
 def c_summary(b, a):
@@ -554,6 +580,12 @@ def sync_findings(b, netpath, a):
     if art:
         add('INFO', 'SYNCART', f"padless graphic footprints, not components ({len(art)}): "
             f"{trunc(' '.join(sorted((r or '(blank)' for r in art), key=natkey)), 90)}")
+    # 'Not in schematic' (board_only): KiCad's own parity check skips these
+    bonly = {r for r in bf - nf - art if 'board_only' in b.fps[r].attr}
+    if bonly:
+        add('INFO', 'SYNCBOARD', f"board-only footprints (attr board_only, not in the "
+            f"schematic by design) ({len(bonly)}): {trunc(refrange(sorted(bonly, key=natkey)), 90)}")
+    art |= bonly
     if bf - nf - art:
         add('ERROR', 'SYNCPART', f"on the board but not in the netlist "
             f"({len(bf-nf-art)}): {trunc(refrange(sorted(bf-nf-art, key=natkey)), 90)}")
@@ -563,6 +595,14 @@ def sync_findings(b, netpath, a):
 
     for r in sorted(bf & nf, key=natkey):
         f, c = b.fps[r], n.comps[r]
+        # a refdes match is not a link: Update PCB pairs by symbol path, so an
+        # unlinked footprint gets deleted and re-added from the schematic
+        if c.get('path') and f.sympath != c['path']:
+            add('ERROR', 'SYNCLINK', f"{r} is not linked to its symbol: board path "
+                f"{f.sympath or '(none)'} / netlist {c['path']}", [r])
+        if 'board_only' in f.attr:
+            add('WARN', 'SYNCLINK', f"{r} has a schematic symbol but is marked board_only "
+                "('Not in schematic'); clear the flag", [r])
         if c['footprint'] and f.fp != c['footprint']:
             add('ERROR', 'SYNCFP', f"{r} footprint differs: board {trunc(f.fp,34)} / "
                                    f"netlist {trunc(c['footprint'],34)}", [r])
@@ -630,6 +670,8 @@ SYNC_RULES = {
     'SYNCDNP':  'DNP flag differs between board and netlist',
     'SYNCNET':  'a pad sits on a different net than the netlist says',
     'SYNCART':  'on the board only, but padless and unsynced: art, not a missing part',
+    'SYNCBOARD': 'on the board only, marked board_only (Not in schematic): by design',
+    'SYNCLINK': 'refdes matches but the footprint is not linked to that symbol (path)',
 }
 
 # ---------------- one-call review ----------------
@@ -710,6 +752,61 @@ def c_review(b, a):
     nxt.append(f"kpcb.py {b.path} sync   # re-run after any schematic change")
     print("\n### next\n" + '\n'.join('  ' + x for x in nxt))
     return rc
+
+def c_copper(b, a):
+    """Every track, arc, via, pad and zone touching a box (X0,Y0,X1,Y1, or X,Y with -r),
+    with the uuid prefix `edit` takes: the inventory a hand edit is written from."""
+    try:
+        v = [float(x) for x in a.args[0].split(',')]
+        box = tuple(v) if len(v) == 4 else (v[0] - a.radius, v[1] - a.radius, v[0] + a.radius, v[1] + a.radius)
+        assert len(v) in (2, 4)
+    except (IndexError, ValueError, AssertionError):
+        print("copper X0,Y0,X1,Y1 | X,Y [-r R]  [--layers L,..] [--net NET]"); return 1
+    lys = set(a.layers.split(',')) if a.layers else set(b.copper)
+    nets = set(a.net or [])
+    want = lambda n: not nets or n in nets                     # noqa: E731
+    def hit(bb):
+        return bb[2] >= box[0] and bb[0] <= box[2] and bb[3] >= box[1] and bb[1] <= box[3]
+    rows = []
+    for t in b.tracks:
+        hw = t['w'] / 2
+        bb = (min(t['a'][0], t['b'][0]) - hw, min(t['a'][1], t['b'][1]) - hw,
+              max(t['a'][0], t['b'][0]) + hw, max(t['a'][1], t['b'][1]) + hw)
+        inb = lambda q: box[0] <= q[0] <= box[2] and box[1] <= q[1] <= box[3]    # noqa: E731
+        edges = (((box[0], box[1]), (box[2], box[1])), ((box[2], box[1]), (box[2], box[3])),
+                 ((box[2], box[3]), (box[0], box[3])), ((box[0], box[3]), (box[0], box[1])))
+        if t['layer'] in lys and want(t['net']) and hit(bb) and (
+                inb(t['a']) or inb(t['b']) or min(_segd(t['a'], t['b'], e0, e1) for e0, e1 in edges) <= hw):
+            rows.append((t['layer'], 'T', f"{trunc(unesc_disp(t['net']) or '(no net)', 22):<22} w{t['w']:.2f}  "
+                         f"{t['a'][0]:.3f},{t['a'][1]:.3f} -> {t['b'][0]:.3f},{t['b'][1]:.3f}", t['uuid']))
+    for v in b.vias:
+        r0 = v['size'] / 2
+        if want(v['net']) and hit((v['x'] - r0, v['y'] - r0, v['x'] + r0, v['y'] + r0)) and lys & set(b.copper):
+            rows.append(('via', 'V', f"{trunc(unesc_disp(v['net']) or '(no net)', 22):<22} {v['size']:.2f}/{v['drill']:.2f}"
+                         f"  {v['x']:.3f},{v['y']:.3f}" + ('  free' if v.get('free') else ''), v['uuid']))
+    for f in b.placed():
+        for p in f.pads:
+            cl = [l for l in b.copper if l in p['layers'] or '*.Cu' in p['layers']]
+            if want(p['net']) and lys & set(cl) and hit(pad_box(p)):
+                rows.append(('/'.join(l.split('.')[0] for l in cl), 'P',
+                             f"{f.ref + '.' + p['num']:<10} {trunc(unesc_disp(p['net']) or '(no net)', 22):<22} "
+                             f"{p['x']:.3f},{p['y']:.3f}  {p['sx']:.2f}x{p['sy']:.2f}", ''))
+    for z in b.zones:
+        net, zl = z
+        if z.outline and want(net) and lys & set(zl if '*.Cu' not in zl else b.copper) and hit(bbox(z.outline)):
+            rows.append(('/'.join(l.split('.')[0] for l in zl), 'Z',
+                         f"{trunc(unesc_disp(net) or ('(rule area)' if z.keepout else '(no net)'), 22):<22} prio {z.priority:<3}"
+                         + (f" {z.name!r}" if z.name else ''), z.uuid or ''))
+    order = {ly: i for i, ly in enumerate(b.copper)}
+    rows.sort(key=lambda r: (r[1] != 'Z', order.get(r[0], -1), r[1], r[2]))
+    print(f"copper in {box[0]:.2f},{box[1]:.2f} .. {box[2]:.2f},{box[3]:.2f}: {len(rows)} item(s)"
+          + (f"  (nets: {', '.join(sorted(nets))})" if nets else ''))
+    for ly, k, txt, u in rows[:a.max * 20]:
+        print(f"  {k} {ly:<8} {txt}" + (f"  {u[:8]}" if u else ''))
+    if len(rows) > a.max * 20:
+        print(f"  ... +{len(rows) - a.max * 20} more - narrow the box, --layers or --net")
+    return 0
+
 
 def c_net(b, a):
     """Every pad on a net with its absolute position, plus the routed copper
@@ -804,7 +901,10 @@ CMDS = {'summary': c_summary, 'check': c_check, 'where': c_where, 'map': c_map,
         'viapad': c_viapad, 'net': c_net, 'rf': c_rf, 'height': c_height, 'view': c_view,
         'silk': c_silk, 'movecheck': c_movecheck, 'freebox': c_freebox,
         'tidy': c_tidy, 'vias': c_vias, 'fixlines': c_fixlines, 'renet': c_renet, 'move': c_move, 'ripup': c_ripup,
-        'airwires': c_airwires, 'route': c_route, 'place': c_place, 'pairs': c_pairs}
+        'airwires': c_airwires, 'route': c_route, 'place': c_place, 'pairs': c_pairs,
+        'edit': c_edit, 'copper': c_copper, 'fatten': c_fatten, 'stitch': c_stitch, 'unhook': c_unhook,
+        'vscan': c_vscan, 'smooth': c_smooth, 'tracks': c_tracks, 'widen': c_widen, 'loops': c_loops,
+        'diff': c_diff, 'refdes': c_refdes, 'pinlabels': c_pinlabels, 'label': c_label}
 
 LIMITS = (('edge', 0.5, 'courtyard-to-board-edge minimum, mm'),
           ('hole', 1.5, 'keepout beyond a mounting hole pad radius, mm'),
@@ -830,9 +930,13 @@ def main():
                     help='max lines per rule / per neighbour list before a +N tail (12)')
     ap.add_argument('--cols', type=int, default=48, help='for `map`: grid width (48)')
     ap.add_argument('--side', default=None, help='for `map`: f (front, default) or b; for `place`: f, b or both (default)')
-    ap.add_argument('--near', default='', help='for `place`: the part (or X,Y) this one serves, e.g. the IC a cap decouples')
+    ap.add_argument('--near', default='', help='for `place`: the part (or X,Y) this one serves, e.g. the IC a cap decouples; '
+                    'for `label`: the part whose designator spot the label takes')
     ap.add_argument('--rots', default='', help='for `place`: rotations to try (0,90,180,270)')
     ap.add_argument('--pick', type=int, default=1, help='for `place -o`: write the Nth clear spot (1)')
+    ap.add_argument('--shove', action='store_true',
+                    help='for `place`: also find spots that open up when ONE small placed part (<= 3 pads) moves '
+                         '<= 1.5 mm; -o writes shove #1 when no spot is clear as it stands')
     ap.add_argument('--origin', choices=('page', 'grid', 'aux'), default='page',
                     help="for `where`: read and print x,y relative to the board's grid or aux "
                          "(drill/place) origin, as KiCad's Properties dialog does (page)")
@@ -861,6 +965,11 @@ def main():
                     help='for `ampacity`: source pad REF.PIN; with --to, solve how the current '
                          'splits between the two pads (tracks + via barrels resistive, pours ideal)')
     ap.add_argument('--to', dest='dst', default='', help='for `ampacity`: sink pad REF.PIN')
+    ap.add_argument('--fills', action='store_true',
+                    help='for `ampacity --from/--to`: also solve R through the REAL saved fills (pour necks '
+                         'included) on a grid; numpy speeds it up when installed')
+    ap.add_argument('--cell', type=float, default=0.0,
+                    help='for `ampacity --fills`: grid cell, mm (0.1 with numpy, else 0.2)')
     ap.add_argument('--net', action='append', default=[],
                     help='for `ampacity`: net name, repeatable. For a name starting with '
                          '"-", use =, e.g. --net=-BATT (a space before the dash still '
@@ -875,11 +984,17 @@ def main():
     ap.add_argument('--min', dest='min_vias', type=int, default=1,
                     help='for `viapad`: only pads holding >= N vias, e.g. 4 for thermal pads (1)')
     ap.add_argument('--layers', default='',
-                    help="for `view`: comma list of layers (default: the part's side Cu/SilkS/Fab/CrtYd + Edge.Cuts); "
+                    help="for `view`: comma list of layers (default: the part's side Cu/SilkS/Fab/CrtYd + Edge.Cuts; "
+                         "'silk': that side's silkscreen drawn from the model, pads, bodies, outlines, texts, flagged ones red); "
                          "for `map`: one copper layer -> its copper occupancy (where routes can go); "
                          "for `route`: the layers it may use")
-    ap.add_argument('--box', default='', help='for `view`: X0,Y0,X1,Y1 board mm instead of refs')
-    ap.add_argument('--px', type=float, default=20, help='for `view`: pixels per mm (20)')
+    ap.add_argument('--box', default='', help='for `view`: X0,Y0,X1,Y1 board mm instead of refs; '
+                                              'for `fatten`/`stitch`: only tracks / vias in this box')
+    ap.add_argument('--px', type=float, default=20, help='for `view`: pixels per mm (20; 60 for --tracks, 120 for --sites)')
+    ap.add_argument('--tracks', action='store_true', help='for `view`: draw tracks/pads/vias from the board model, '
+                                                         'no pour fills, one colour per copper layer (--net highlights one)')
+    ap.add_argument('--mark', default='', help='for `view --tracks`: X,Y;X,Y points to ring')
+    ap.add_argument('--sites', default='', help='for `view`: LAYER:X,Y;... one panel per site (-r = half size, 0.8)')
     ap.add_argument('-o', '--out', default='',
                     help='for `view`: output .png (or .svg); for the writers: the new board file')
     ap.add_argument('--scan', nargs='+', default=None, metavar='AXIS=V',
@@ -889,8 +1004,11 @@ def main():
     ap.add_argument('--margin', type=float, default=3.0,
                     help='for `route`: window around the gap, mm (3; widened x2.5 then x6 on failure)')
     ap.add_argument('--width', type=float, default=None,
-                    help='for `route`: track width, mm (default: netclass, then 0.2, then 0.15)')
-    ap.add_argument('--via', default='', help='for `route`: via SIZE/DRILL, mm (default: netclass, or 0.5/0.2)')
+                    help='for `route`: track width, mm (default: netclass, then 0.2, then 0.15); '
+                         'for `fatten`: the band width (default: 2x the netclass width, >= 2 mm); '
+                         'for `vscan`: the track width a cell must clear (0.15); '
+                         'for `widen`: the target for signal nets (0.2)')
+    ap.add_argument('--via', default='', help='for `route`, `stitch` and `vscan`: via SIZE/DRILL, mm (default: netclass, or 0.5/0.2)')
     ap.add_argument('--via-cost', type=float, default=1.5, help='for `route`: a via costs this many mm (1.5)')
     ap.add_argument('--turn', type=float, default=0.3, help='for `route`: a bend costs this many grid cells (0.3)')
     ap.add_argument('--pour-cost', type=float, default=0.6,
@@ -903,11 +1021,28 @@ def main():
                     help="for `route`: rip-up budget - a failed link may cross this run's own routes of "
                          "other nets, which are ripped and routed again at once (all undone if one cannot), "
                          "this many times per run (10; 0 = off)")
+    ap.add_argument('--rip-board', type=int, default=0, metavar='N',
+                    help="for `route`: also rip unlocked signal nets ALREADY on the board with <= N pads (not GND, "
+                         "power, RF, USB or poured nets), a whole net at a time, re-routing them at once (0 = off)")
     ap.add_argument('--rip-cost', type=float, default=10.0,
                     help='for `route`: cost per mm through a route it would rip (10: a 10 mm detour wins)')
     ap.add_argument('--pour', type=float, default=0.0, metavar='W',
                     help='for `route`: a link no track width fits is found at this probe width (0.3) and laid '
                          'as same-net zones, a netclass-width band round it that the refill fits (0 = off)')
+    ap.add_argument('--neck', type=float, default=0.0, metavar='W',
+                    help='for `route`: neck-down width out of a fine-pitch pad no class-width track can leave '
+                         '(default: the widest of 0.4/0.3/0.25/0.2 that fits)')
+    ap.add_argument('--neck-len', type=float, default=1.5,
+                    help='for `route`: the longest a neck may run before the class width, mm (1.5; 0 = off)')
+    ap.add_argument('--minw', type=float, default=None,
+                    help='for `fatten`: only tracks at least this wide get a band (0.5: sense legs stay thin)')
+    ap.add_argument('--keep', default='', help='for `fatten`: X0,Y0,X1,Y1[;...] boxes the bands stay out of')
+    ap.add_argument('--n', type=int, default=0, help='for `stitch`: vias per anchor (3 near a point, 2 beside each via)')
+    ap.add_argument('--in-pad', action='store_true',
+                    help='for `stitch`: a via may sit wholly inside a same-net SMD pad of >= 3 mm2 (FET, fuse, inductor)')
+    ap.add_argument('--pair', action='store_true',
+                    help='for `route`: a diff-pair leg whose mate is already routed runs alongside it at the '
+                         'netclass pitch (diff_pair_width + diff_pair_gap): `route X_P X_N --pair`')
     ap.add_argument('--force', action='store_true', help='for `route`: route an RF-class net anyway')
     ap.add_argument('--pending', action='store_true', help='for `route`: every net `airwires` lists, shortest first')
     ap.add_argument('--since', default='', help='for `airwires`: an earlier refilled copy: which nets a later pass split, and the tracks that did it')
@@ -916,6 +1051,24 @@ def main():
                     help='for `route`: let a route cross a power-island pour at 4x the plane cost (check the '
                          'refill: it may split the island) instead of treating it as copper')
     ap.add_argument('--flip', action='store_true', help='for `move`: flip REF to the other side first')
+    ap.add_argument('--overlaps', action='store_true', help='for `smooth`: drop doubled same-net copper, trim hairpin tips')
+    ap.add_argument('--corners', action='store_true', help='for `smooth`: cut every visible corner >= 46 deg at a two-track node')
+    ap.add_argument('--square', action='store_true', help='for `smooth`: slide an off-45 segment\'s pad end onto a 45 inside the pad')
+    ap.add_argument('--pads', action='store_true', help='for `smooth`: run a dead-end trace that stops at a pad edge onto the pad centre')
+    ap.add_argument('--jogs', action='store_true', help='for `smooth`: collapse lane jogs, moving one blocking free GND via')
+    ap.add_argument('--nudge', action='store_true', help='for `smooth --jogs`: also drag one blocking signal via <= 0.3 mm')
+    ap.add_argument('--all', action='store_true', help='for `smooth -o`: chains, overlaps, corners, square, pads, repeated until a round '
+                                                      'changes nothing; for `tracks`: include RF/USB/diff-pair nets; '
+                                                      'for `refdes`: every visible designator, not only flagged ones')
+    ap.add_argument('--hidden', action='store_true', help='for `smooth --corners`: also corners hidden under same-net copper')
+    ap.add_argument('--uniform-power', action='store_true', help='for `widen`: per power run, also raise every '
+                    'segment to the run\'s widest where clear (never narrows); reports the width steps left')
+    ap.add_argument('--kind', default='', help='for `tracks`: only these rows: acute,90,off45,neck,stub,pad,jog')
+    ap.add_argument('--show', action='store_true', help='for `refdes`: also place (and unhide) hidden designators')
+    ap.add_argument('--size', type=float, default=None, help='for `refdes`: designator text height, mm (default: kept, >= the fab minimum); '
+                    'for `pinlabels`/`label`: text height (default 1, >= the fab minimum)')
+    ap.add_argument('--thick', type=float, default=None, help='for `refdes`: stroke thickness, mm (default: kept; 0.15 x --size)')
+    ap.add_argument('--view', default='', help='for `tracks`: also a PNG montage of the listed rows, one panel each')
     ap.add_argument('--drc', default='', help='for `ripup`: a kicad-cli DRC JSON (`kdrc.py --report`): rip up the items it flags')
     ap.add_argument('--types', default='', help='for `ripup --drc`: violation types to act on (shorts, clearances, dangling)')
     ap.add_argument('--drop', action='store_true',

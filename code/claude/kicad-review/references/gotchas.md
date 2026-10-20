@@ -66,7 +66,23 @@ Read this once per session before any traversal or coordinate work.
 - **Nightly writes placement as `(transform (translate X Y) (rotate R) (scale 1 1))`**,
   not `(at X Y R)`. Pad `(at)` is unchanged and its angle is still ABSOLUTE. A
   reader that only knows `(at)` parks every footprint at 0,0.
-- **Teardrops are zones** (`(attr (teardrop ...))`). Leave them out of any pour sum.
+- **Teardrops are zones** (`(attr (teardrop ...))`). Leave them out of any pour sum. A
+  deleted track's teardrop left behind reads "Missing connection ... Teardrop"; the
+  writers drop them, and a refill re-creates one only where the track is <= 0.9x the
+  pad/via.
+- **KiCad joins a track to a pad or via on its END CAP** (end within w/2 of the shape),
+  not its centreline end; a cap that grazes a pad edge by 0.01 mm is a connection. Never
+  cut or remove copper on the strength of such a graze (`loops` checks strict joins too).
+  A graze is a connection but looks like a trace stopping at the pad edge: never leave one
+  as the pad's only contact (`loops` keeps each pad's last centreline entry; `tracks` lists
+  them as `ends at a pad edge`, `smooth --pads` runs them onto the centre).
+- **A custom pad's `(size)` is only its anchor** (BQ25798: 0.15 mm, the copper a 0.65 mm
+  polygon). Join and hit tests use the primitive polygons, never their bounding box: the
+  box once kept U8.1 "connected" through a link that was deleted.
+- **`.kicad_dru` type rules override netclass clearance** in KiCad ("Pad to Track" 0.1
+  beats the 0.15 Default for every pad-track pair, last matching rule wins, `(layer
+  outer|inner)` scopes). kpcb applies them the same way except it never relaxes a raised
+  netclass (RF) or a NetName pair rule below its value.
 - **The zone fill on disk can be stale** (teardrops or tracks moved after the last
   fill). kicad-cli's DRC with `--refill-zones` hides that; `export gerbers` does
   not refill. `kdrc.py` reports it as DRC:STALE_FILL.
@@ -87,3 +103,7 @@ Read this once per session before any traversal or coordinate work.
   a schematic change (a series resistor inserted, an ESD channel reassigned), not a
   short to "fix": `kpcb.py renet --drop` rips it up for re-routing.
 
+**A trackless via written into a board must say `(free yes)`.** kicad-cli's `--save-board`
+(and KiCad on load) re-nets a via with no track from the copper it touches: a new GND via
+beside R41 came back `-BATT` (2026-10-19). `stitch` and `edit via` write it free; DRC then
+reports a real clash instead of hiding it behind a re-net.

@@ -1,5 +1,5 @@
 """kpcb.py `freebox`: where a W x H silk box fits on one side - clear of courtyards,
-through-hole pads and existing silk (logos, board art, refdes and other footprint text),
+through-hole pads, that side's SMD pads and existing silk (logos, board art, refdes and other footprint text),
 >= 1 mm inside the edge - best spot per
 free region."""
 import math
@@ -37,8 +37,8 @@ def occupancy(b, back, edge=1.0):
     for f in b.placed():
         if f.back == back and f.pads:
             mark(f.crtyd)
-        for p in f.pads:
-            if p['drill'] or any(l.startswith('*') for l in p['layers']):
+        for p in f.pads:                         # SMD pads too: a holder's contacts sit outside its courtyard
+            if p['drill'] or any(l.startswith('*') or l.startswith(side) for l in p['layers']):
                 mark(pad_box(p))
         for lay, bx in f.arts + f.texts:
             if lay.startswith(side):
@@ -98,7 +98,7 @@ def c_freebox(b, a):
         best = max(comp, key=lambda q: (margin(*q), -abs(q[0] - mx) - abs(q[1] - my)))   # ties: middle
         regions.append((margin(*best), best, len(comp)))
     regions.sort(key=lambda r: (-r[0], -r[2]))
-    print(f"freebox {side.upper()} {w:g} x {h:g} mm: clear of {side.upper()} courtyards, through-hole pads and "
+    print(f"freebox {side.upper()} {w:g} x {h:g} mm: clear of {side.upper()} courtyards and pads, through-hole pads and "
           f"{side.upper()} silk (logos, board art, footprint text), >= 1 mm inside the edge; {RES:g} mm raster")
     if not regions:
         print("  nowhere: no centre clears every obstacle. Try a smaller box or the other side.")

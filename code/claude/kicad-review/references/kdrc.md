@@ -12,7 +12,15 @@ python3 $D parsnip.kicad_pcb drc        # DRC only
 python3 $D parsnip.kicad_pcb erc        # ERC only, every root schematic
 python3 $D parsnip.kicad_pcb flags      # PWR_FLAG audit (~9 s)
 python3 $D parsnip.kicad_pcb doctor     # install + project sanity, exit 2 on a WARN
+python3 $D parsnip.kicad_pcb scratch DIR [--from OTHER.kicad_pcb]   # a project copy for the writers
 ```
+
+`scratch DIR` copies the project beside FILE (.kicad_pro, .kicad_dru, sheets, .net, k*.json,
+lib tables, a symlink per `${KIPRJMOD}` dir they name) into a new empty DIR, with FILE - or
+`--from` another board, e.g. one worked in ~/Downloads - under the project's stem, so DRC
+there checks the project's rules. A board opened alone gets a default .kicad_pro: every DRC
+header (and `doctor`) WARNs when the .kicad_pro beside a board has only the Default netclass,
+no patterns and no .kicad_dru.
 
 `doctor` prints each kicad-cli's version, the project's newest file format, what
 a double-click opens for .kicad_sch/.kicad_pcb/.kicad_pro (`xdg-mime`; WARN when a
@@ -109,7 +117,7 @@ fab may reject. `--all` checks them at full severity.
 | `--no-stale-check` | skip the saved-fill DRC pass |
 | `--refill-save` | save the refilled board (what `kpcb airwires` reads). Scratch copies only: refused for a git-tracked file. Skips the stale-fill pass (the saved fill is the refill). |
 | `--report FILE` | write kicad-cli's raw DRC JSON (for `--baseline`, and `kpcb ripup --drc`, which deletes the items it names by uuid) |
-| `--baseline FILE` | an earlier `--report`: list only violations and unconnected items it lacks (multiset on type + descriptions, positions ignored), with `N new, M gone` counts. The check after every scratch-copy edit. |
+| `--baseline FILE` | an earlier `--report`: list only violations and unconnected items it lacks (multiset on type + descriptions, positions ignored; a text item by its uuid, as its text can hold a date variable; a `track_width` by its track's uuid, so a widened or re-laid under-floor track reads `changed: actual 0.6 -> 0.7`, not new + gone), with `N new, M gone, K changed` counts. When a type hits kicad-cli's 199-per-type cap in either report it says so: that type's new/gone lists compare two arbitrary samples. The check after every scratch-copy edit. |
 
 ## kdrc.json (beside the board)
 

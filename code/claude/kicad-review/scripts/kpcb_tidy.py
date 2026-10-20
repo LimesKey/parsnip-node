@@ -1,8 +1,9 @@
-"""kpcb.py `tidy`: near-miss alignment, each suggestion pre-checked with movecheck.
+"""kpcb.py `tidy`: near-miss alignment, each suggestion pre-checked with movecheck
+(the tracks the nudge drags included).
 Read-only: it prints REF now -> new and never writes the board."""
 from collections import Counter, defaultdict
 from kcommon import natkey, prefix
-from kpcb_move import World, placed_as
+from kpcb_move import World
 
 NEAR = (0.005, 0.15)        # a near miss: off by more than this lo, at most this hi (mm)
 REACH = 6.0                 # same-package neighbours this close count as one row/column
@@ -118,9 +119,8 @@ def c_tidy(b, a):
         print(f"\n{kind}:")
         for _k, f, x, y, rot, why in sorted(rows, key=lambda s: natkey(s[1].ref))[:a.max]:
             w = worlds.get(f.ref) or worlds.setdefault(f.ref, World(b, ref=f.ref))
-            cur = w.hits(*placed_as(f, f.x, f.y, f.rot, b.copper), f.back)
-            items, rings = placed_as(f, x, y, rot, b.copper)
-            new = [m for k, m in w.hits(items, rings, f.back).items() if k not in cur]
+            cur = w.move_hits(f, None, None, None)
+            new = [m for k, m in w.move_hits(f, x, y, rot).items() if k not in cur]
             clear += not new
             print(f"  {f.ref:<6} {f.x:.3f},{f.y:.3f}" + (f" rot {f.rot:g}" if rot is not None else '')
                   + f" -> {x:.3f},{y:.3f}" + (f" rot {rot:g}" if rot is not None else '') + f"   {why}")

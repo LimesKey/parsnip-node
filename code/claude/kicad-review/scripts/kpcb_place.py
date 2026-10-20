@@ -18,7 +18,7 @@ from collections import defaultdict
 from kcommon import unesc_disp, rail_voltage
 from kpcb_board import PolyIndex, inside, pad_box, xf
 from kpcb_move import World, cu_layers
-from kpcb_edit import PcbText, flip_text, place_text, _flipped
+from kpcb_edit import PcbText, flip_text, place_text, _flipped, drag_tracks
 from kpcb_route import _iv, _pad_shape
 
 FLIPL = {'F.Cu': 'B.Cu', 'B.Cu': 'F.Cu'}
@@ -37,12 +37,13 @@ def as_placed(f, x, y, rot, flip, cu):
     for p in f.pads:
         if p['kind'] == 'np_thru_hole':
             continue
-        q = dict(p, prot=((180 - p['prot']) if flip else p['prot']) + dr)
+        q = dict(p, prot=((180 - p['prot']) if flip else p['prot']) + dr,
+                 layers=[FLIPL.get(l, l) for l in p['layers']] if flip else p['layers'])
         q['x'], q['y'] = T(p['x'], p['y'])
         L = set(cu) if p['drill'] else {FLIPL.get(l, l) if flip else l for l in cu_layers(p['layers'], cu)}
         if L:
             items.append((f"{f.ref}.{p['num']}", p['net'], L, pad_box(q)))
-        cent.append((p, q['x'], q['y'], L))
+        cent.append((p, q['x'], q['y'], L, q))
     rings = [[T(*pt) for pt in r] for r in f.outline]
     return items, rings, cent
 
@@ -51,9 +52,9 @@ class SideMap:
     """occupancy raster of one side + its summed-area table"""
 
     def __init__(self, b, back, skip, res, edge, nets=()):
-        o = b.outline
-        self.x0, self.y0, self.res = o[0], o[1], res
-        self.W, self.H = int((o[2] - o[0]) / res) + 2, int((o[3] - o[1]) / res) + 2
+        o, m = b.outline, edge + 2 * res                     # outside cells on EVERY side, so the
+        self.x0, self.y0, self.res = o[0] - m, o[1] - m, res  # --edge growth reaches the top/left edges too
+        self.W, self.H = int((o[2] - o[0] + 2 * m) / res) + 2, int((o[3] - o[1] + 2 * m) / res) + 2
         W, H = self.W, self.H
         occ = bytearray(W * H)
         ring = PolyIndex([q for r in b.rings for q in r[:-1]]) if len(b.rings) == 1 else None
@@ -188,6 +189,149 @@ def _bands(rings, res):
     return keep
 
 
+def _escapes(b, f, x, y, rot, back, reach=1.5):
+    """pads of f, placed at x,y,rot on that side, that can reach neither same-net copper (a
+    track, via or another pad - not a fill, which can be an island: parsnip's D28 GND pad sat
+    on one) nor a legal via spot, within `reach` mm of free board at 0.15 mm, with 0.5/0.2
+    vias: the route model's own Grid. ["REF.PAD (NET)"]"""
+    from kpcb_route import Grid, DIRS, SQ2
+    from kpcb_board import grow
+    import heapq
+    _i, _r, cent = as_placed(f, x, y, rot, back != f.back, b.copper)
+    saved = (f.pads, f.placed)
+    f.pads, f.placed = [c[4] for c in cent] + [p for p in f.pads if p['kind'] == 'np_thru_hole'], True
+    out = []
+    try:
+        for q in f.pads:
+            n = q['net']
+            lys = cu_layers(q['layers'], b.copper)
+            if not n or n.startswith('unconnected-') or q['drill'] or q['kind'] == 'np_thru_hole' or not lys:
+                continue
+            ly = sorted(lys)[0]
+            g = Grid(b, n, grow(pad_box(q), reach + 0.5), 0.05, 0.15, 0.5, 0.2, [ly])
+            src = g.cells_of({'pads': [(f, q)], 'vias': [], 'tracks': [], 'fills': []})[0].get(ly, set())
+            tgt = bytearray(g.W * g.H)                   # same-net copper the escape may end on
+            def paint(shape):
+                y_lo, y_hi, fn = _iv(shape, 0.0)
+                for j in range(max(0, math.ceil((y_lo - g.y0) / g.res)), min(g.H - 1, math.floor((y_hi - g.y0) / g.res)) + 1):
+                    iv = fn(g.y0 + j * g.res)
+                    if iv:
+                        for i in range(max(0, math.ceil((iv[0] - g.x0) / g.res)), min(g.W - 1, math.floor((iv[1] - g.x0) / g.res)) + 1):
+                            tgt[j * g.W + i] = 1
+            for t in b.tracks:
+                if t['net'] == n and t['layer'] == ly:
+                    paint(('cap', t['a'], t['b'], t['w'] / 2))
+            for v in b.vias:
+                if v['net'] == n:
+                    paint(('disk', v['x'], v['y'], v['size'] / 2))
+            for h in b.placed():
+                for p2 in h.pads:
+                    if p2['net'] == n and p2 is not q and (p2['drill'] or ly in cu_layers(p2['layers'], b.copper)):
+                        paint(_pad_shape(p2, pad_box(p2)))
+            dist = {k: 0.0 for k in src}
+            heap = [(0.0, k) for k in src]
+            found = False
+            while heap and not found:
+                d0, k = heapq.heappop(heap)
+                if d0 > dist[k] + 1e-9:
+                    continue
+                if (k not in src and not g.vblk[k]) or tgt[k]:
+                    found = True
+                    break
+                kx, ky = k % g.W, k // g.W
+                for dx, dy in DIRS:
+                    nx_, ny_ = kx + dx, ky + dy
+                    if 0 <= nx_ < g.W and 0 <= ny_ < g.H:
+                        nk = ny_ * g.W + nx_
+                        nd = d0 + g.res * (SQ2 if dx and dy else 1.0)
+                        if not g.blk[ly][nk] and nd <= reach and nd < dist.get(nk, 1e18) - 1e-9:
+                            dist[nk] = nd
+                            heapq.heappush(heap, (nd, nk))
+            if not found:
+                out.append(f"{f.ref}.{q['num']} ({unesc_disp(n)})")
+    finally:
+        f.pads, f.placed = saved
+    return out
+
+
+SHOVE_FIXED = ('U', 'J', 'BT', 'H', 'MH', 'SW', 'Y', 'X', 'NT')   # never nudged: ICs, connectors, holders
+
+
+def _shove(b, a, f, sides, rots, R, ax, ay, nets, pull, cu):
+    """`place --shove`: spots blocked by exactly ONE small placed part (<= 3 pads, courtyard <=
+    8 mm2, not an IC, connector, holder or hole) that open up when it moves <= 1.5 mm. Each
+    nudge is checked like movecheck (the small part against the board minus both parts, the
+    new part likewise, then the two against each other); the small part's tracks are dragged.
+    [(score, x, y, rot, back, (part, x', y'))], best first"""
+    from kpcb_move import placed_as, _box_gap
+    from kpcb_board import poly_dist
+    from kpcb_zones import _clearance_fn
+    import re as _re
+    clr = _clearance_fn(b)[0]
+    small = {g.ref for g in b.placed() if g is not f and g.ref != a.near and len(g.pads) <= 3 and not b.is_hole(g)
+             and (g.crtyd[2] - g.crtyd[0]) * (g.crtyd[3] - g.crtyd[1]) <= 8.0
+             and _re.match(r'[A-Z]+', g.ref)[0] not in SHOVE_FIXED}
+    res, cstep, out, seen = 0.1, 0.25, [], set()
+    for back in sides:
+        M = SideMap(b, back, {f.ref} | small, res, a.edge, nets)
+        flip = back != f.back
+        for rot in rots:
+            items0, rings, cent = as_placed(f, 0.0, 0.0, rot, flip, cu)
+            rbs = _bands(rings, res) if rings else []
+            for gy in range(-int(R / cstep), int(R / cstep) + 1):
+                for gx in range(-int(R / cstep), int(R / cstep) + 1):
+                    if gx * gx + gy * gy > (R / cstep) ** 2:
+                        continue
+                    x, y = round((ax + gx * cstep) / 0.05) * 0.05, round((ay + gy * cstep) / 0.05) * 0.05
+                    if all(M.free((rb[0] + x, rb[1] + y, rb[2] + x, rb[3] + y)) for rb in rbs):
+                        out.append((0.2 * math.hypot(x - ax, y - ay) + sum(
+                            min((math.hypot(px + x - qx, py + y - qy) for qx, qy, qn in pull if qn in (p['net'], None)),
+                                default=0.0) for p, px, py, _L, _q in cent if p['net'] in nets), x, y, rot, back))
+    out.sort()
+    worlds, plans = {}, []
+    W0 = World(b, ref=f.ref)
+    for sc, x, y, rot, back in out[:400]:
+        key = (round(x, 1), round(y, 1), rot, back)
+        if key in seen or len(plans) >= 5:
+            continue
+        seen.add(key)
+        items, rings, _c = as_placed(f, x, y, rot, back != f.back, cu)
+        hits = W0.hits(items, rings, back)
+        refs = {k[1] for k in hits if k[0] in ('crt', 'pad')}
+        if len(refs) != 1 or not refs <= small:
+            continue
+        g = b.fps[refs.pop()]
+        if g.ref not in worlds:
+            worlds[g.ref] = (World(b, ref=f.ref, skip=(g.ref,)), World(b, ref=g.ref, skip=(f.ref,)))
+        WF, WG = worlds[g.ref]
+        if WF.hits(items, rings, back):                  # something else blocks it too
+            continue
+        for d in (0.25, 0.5, 0.75, 1.0, 1.25, 1.5):
+            for ux, uy in ((1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (-1, 1), (1, -1), (-1, -1)):
+                gx2, gy2 = g.x + ux * d / math.hypot(ux, uy), g.y + uy * d / math.hypot(ux, uy)
+                gi, gr = placed_as(g, gx2, gy2, None, cu)
+                if WG.hits(gi, gr, g.back):
+                    continue
+                if any(L & L2 and n1 != n2 and _box_gap(b1, b2) < clr(n1, n2)
+                       for _a, n1, L, b1 in items for _b, n2, L2, b2 in gi):
+                    continue
+                if g.back == back and gr and rings and poly_dist(rings, gr)[1]:
+                    continue
+                plans.append((sc, x, y, rot, back, (g, round(gx2, 3), round(gy2, 3))))
+                break
+            else:
+                continue
+            break
+    if plans:
+        print(f"  shove: {len(plans)} spot(s) open up if one small part moves (its tracks dragged):")
+        for i, (sc, x, y, rot, back, (g, gx2, gy2)) in enumerate(plans, 1):
+            print(f"  S{i} {x:8.2f} {y:8.2f} {rot:4g}   {'B' if back else 'F'}  {sc:6.2f}   move {g.ref} "
+                  f"{gx2 - g.x:+.2f},{gy2 - g.y:+.2f} to {gx2:.2f},{gy2:.2f}")
+    elif a.shove:
+        print("  shove: no spot opens up by nudging one small part <= 1.5 mm")
+    return plans
+
+
 def _is_rail(b, net, fanout):
     return rail_voltage(net.split('/')[-1]) is not None or net == 'GND' or len(b.nets.get(net, ())) > fanout
 
@@ -275,7 +419,7 @@ def c_place(b, a):
                             not all(M.free((p[0] + x, p[1] + y, p[2] + x, p[3] + y), M.C.get(n, M.C[''])) for n, p in pbs):
                         continue
                     score, rat = 0.0, 0.0
-                    for p, px, py, L in cent:
+                    for p, px, py, L, _q in cent:
                         n = p['net']
                         if n not in nets:
                             continue
@@ -292,13 +436,17 @@ def c_place(b, a):
                     cands.append((score, x, y, rot, back, rat))
     if not cands:
         print(f"{f.ref}: no spot within {R:g} mm of {ax:.2f},{ay:.2f} on {'/'.join('B' if s else 'F' for s in sides)} "
-              f"fits its courtyard - widen -r or --side both"); return 2
+              f"fits its courtyard - widen -r or --side both" + ('' if a.shove else ', or --shove'))
+        if not a.shove:
+            return 2
     cands.sort(key=lambda c: c[0])
     w = World(b, ref=f.ref)
     shown, ok, seen = 0, [], set()
-    print(f"place {f.ref} ({f.value}, {f.fp.split(':')[-1]})  near {ax:.2f},{ay:.2f}"
-          f"{' (' + a.near + ')' if a.near else ''}   {len(cands)} fitting spot(s) within {R:g} mm, best first")
-    print(f"  {'#':>2} {'x':>8} {'y':>8} {'rot':>4} side  score  ratsnest  copper")
+    if cands:
+        print(f"place {f.ref} ({f.value}, {f.fp.split(':')[-1]})  near {ax:.2f},{ay:.2f}"
+              f"{' (' + a.near + ')' if a.near else ''}   {len(cands)} fitting spot(s) within {R:g} mm, best first")
+        print(f"  {'#':>2} {'x':>8} {'y':>8} {'rot':>4} side  score  ratsnest  copper")
+    boxed = 0
     for c in cands:
         score, x, y, rot, back, rat = c
         key = (round(x, 1), round(y, 1), rot, back)
@@ -307,16 +455,42 @@ def c_place(b, a):
         seen.add(key)
         items, rings, _c = as_placed(f, x, y, rot, back != f.back, cu)
         hits = w.hits(items, rings, back)
-        if not hits:
+        esc = [] if hits else _escapes(b, f, x, y, rot, back)     # a pad no track or via can leave
+        if not hits and not esc:
             ok.append(c)
+        boxed += bool(esc)
         if shown < a.max or (not ok and shown < 60):
-            msg = 'CLEAR' if not hits else sorted(hits.values())[0][:70]
-            print(f"  {len(ok) if not hits else '-':>2} {x:8.2f} {y:8.2f} {rot:4g}   {'B' if back else 'F'}  {score:6.2f}  {rat:7.2f}  {msg}")
+            msg = 'CLEAR' if not hits and not esc else \
+                (f"boxed in: {', '.join(esc[:2])}" + (f" +{len(esc) - 2}" if len(esc) > 2 else '') if esc
+                 else sorted(hits.values())[0][:70])
+            print(f"  {len(ok) if not hits and not esc else '-':>2} {x:8.2f} {y:8.2f} {rot:4g}   {'B' if back else 'F'}  {score:6.2f}  {rat:7.2f}  {msg}")
             shown += 1
         if len(ok) >= max(a.pick, 1) and shown >= a.max:
             break
-    if not ok:
-        print("  none of these is copper-clear; widen -r, try --side both, or clear the copper first"); return 2
+    if boxed:
+        print(f"  ({boxed} copper-clear spot(s) skipped: a pad there reaches neither its net's copper nor a "
+              f"legal via spot within 1.5 mm - unroutable)")
+    plan = _shove(b, a, f, sides, rots, R, ax, ay, nets, pull, cu) if a.shove and not ok else []
+    if not ok and not plan:
+        print("  none of these is copper-clear with every pad able to escape; widen -r, try --side both, --shove, "
+              "or clear the copper first"); return 2
+    if not ok:                                           # only a shove opens a spot: write that
+        if not a.out:
+            print("  (dry run; -o OUT writes shove #1: the nudge, its tracks dragged, then the part)"); return 0
+        _sc, x, y, rot, back, (g, gx, gy) = plan[0]
+        t = PcbText(b.path)
+        t.sub(g.uuid, place_text(t.text(g.uuid), g, gx, gy, None))
+        dragged, left, _v = drag_tracks(b, t, g, gx, gy, None)
+        s = t.text(f.uuid)
+        flip = back != f.back
+        if flip:
+            s = flip_text(s, f)
+        t.sub(f.uuid, place_text(s, _flipped(f) if flip else f, x, y, rot))
+        t.save(a.out)
+        print(f"  wrote {g.ref} -> {gx:.3f},{gy:.3f} ({dragged} track end(s) dragged{', ' + str(left) + ' left' if left else ''}),"
+              f" then {f.ref} -> {x:.3f},{y:.3f} rot {rot:g} {'B' if back else 'F'} -> {a.out}\n"
+              f"  verify: kdrc.py {a.out} drc --refill-save --baseline BEFORE.json (dragged ends turn diagonal)")
+        return 0
     if not a.out:
         print("  (dry run; -o OUT writes #1, --pick N another)"); return 0
     score, x, y, rot, back, rat = ok[min(a.pick, len(ok)) - 1]

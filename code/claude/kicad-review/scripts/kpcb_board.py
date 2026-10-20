@@ -3,7 +3,7 @@ import os, re, sys, json, math, glob
 from collections import defaultdict
 from functools import cached_property
 from kcommon import (load_sexp, kids, kid, val, has, prefix, parse_value, unesc_disp,
-                     rail_voltage)
+                     rail_voltage, rules_warning)
 
 # ---------------- part classification ----------------
 # Small and deliberately greppable: these are the knobs to turn when a check
@@ -109,6 +109,13 @@ def pt_seg_dist(p, a, b):
     t = max(0.0, min(1.0, ((p[0] - a[0]) * vx + (p[1] - a[1]) * vy) / L))
     return math.hypot(p[0] - a[0] - t * vx, p[1] - a[1] - t * vy)
 
+def seg_seg_dist(p, q, r, s):
+    """distance between segments pq and rs (0 when they cross)"""
+    o = lambda a, b, c: (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0])   # noqa: E731
+    if o(r, s, p) * o(r, s, q) < 0 and o(p, q, r) * o(p, q, s) < 0:
+        return 0.0
+    return min(pt_seg_dist(p, r, s), pt_seg_dist(q, r, s), pt_seg_dist(r, p, q), pt_seg_dist(s, p, q))
+
 def seg_closest(p, a, b):
     """the point of segment a-b nearest p"""
     dx, dy = b[0] - a[0], b[1] - a[1]
@@ -150,7 +157,16 @@ def text_box(x, y, ang, txt, node, k=1.0):
     left, right = ('right', 'left') if 'mirror' in js else ('left', 'right')
     x0 = 0.0 if left in js else -w if right in js else -w / 2
     y0 = 0.0 if 'top' in js else -h if 'bottom' in js else -h / 2
-    return bbox([xf(u, v, x, y, ang) for u in (x0, x0 + w) for v in (y0, y0 + h)])
+    est = bbox([xf(u, v, x, y, ang) for u in (x0, x0 + w) for v in (y0, y0 + h)])
+    # a TrueType text's render_cache is KiCad's own outline, in board coordinates: exact,
+    # unless a writer moved the text and left the cache stale (then it misses the estimate)
+    rc = kid(node, 'render_cache')
+    pts = [(float(q[1]), float(q[2])) for pg in kids(rc or [], 'polygon') for q in kids(kid(pg, 'pts') or [], 'xy')]
+    if pts:
+        cb = bbox(pts)
+        if cb[0] < est[2] + 1 and cb[2] > est[0] - 1 and cb[1] < est[3] + 1 and cb[3] > est[1] - 1:
+            return cb
+    return est
 
 def _ccw(a, b, c):
     return (c[1] - a[1]) * (b[0] - a[0]) > (b[1] - a[1]) * (c[0] - a[0])
@@ -325,7 +341,8 @@ def ipc_width(need_a, thick_mm, external, dt):
 class FP:
     __slots__ = ('ref', 'value', 'fp', 'layer', 'x', 'y', 'rot', 'sheet', 'attr',
                  'dnp', 'pads', 'crtyd', 'crtyd_real', 'cpoly', 'body', 'placed', '_edge', 'models', 'art',
-                 'fab', 'scale', 'edgeref', 'arts', 'texts', 'uuid', 'badlines', 'lcsc')
+                 'fab', 'scale', 'edgeref', 'arts', 'texts', 'uuid', 'badlines', 'lcsc', 'fields', 'silklines',
+                 'sympath')
 
     @property
     def outline(self):
@@ -358,6 +375,16 @@ class FP:
         return (b[2] - b[0]) * (b[3] - b[1])
 
 
+class Zone(tuple):
+    """a board-level zone: unpacks as (net, layers) like it always did, and carries
+    .outline [(x, y)], .priority, .keepout (a rule area), .uuid, .name"""
+
+    def __new__(cls, net, layers, **kw):
+        z = super().__new__(cls, (net, layers))
+        z.__dict__.update(kw)
+        return z
+
+
 class Board:
     def __init__(self, path):
         if not os.path.exists(path):
@@ -382,7 +409,12 @@ class Board:
                 self.teardrops += 1
                 continue
             lays = kid(z, 'layers') or kid(z, 'layer') or []
-            self.zones.append((net, [l for l in lays[1:] if isinstance(l, str)]))
+            pts = [(_f(q[1]), _f(q[2])) for q in (kid(kid(z, 'polygon') or [], 'pts') or [])[1:]
+                   if isinstance(q, list) and q and q[0] == 'xy']
+            pr = val(z, 'priority')
+            self.zones.append(Zone(net, [l for l in lays[1:] if isinstance(l, str)], outline=pts,
+                                   priority=int(_f(pr)) if pr else 0, keepout=kid(z, 'keepout') is not None,
+                                   uuid=val(z, 'uuid'), name=val(z, 'name')))
             self._fill_nodes += [(net, fp) for fp in kids(z, 'filled_polygon')]
 
         # copper thickness per layer from the stackup (mm); outer = first+last Cu
@@ -407,20 +439,21 @@ class Board:
             p0, p1 = self._xy(s, 'start'), self._xy(s, 'end')
             self.tracks.append({'net': val(s, 'net'), 'layer': val(s, 'layer'),
                                 'w': _f(val(s, 'width')), 'len': math.dist(p0, p1),
-                                'a': p0, 'b': p1, 'uuid': val(s, 'uuid'),
+                                'a': p0, 'b': p1, 'uuid': val(s, 'uuid'), 'locked': val(s, 'locked') == 'yes',
                                 'mid': ((p0[0] + p1[0]) / 2, (p0[1] + p1[1]) / 2)})
         for s in kids(root, 'arc'):
             p0, pm, p1 = self._xy(s, 'start'), self._xy(s, 'mid'), self._xy(s, 'end')
             pts = arc_pts(p0, pm, p1, 24)
             self.tracks.append({'net': val(s, 'net'), 'layer': val(s, 'layer'), 'uuid': val(s, 'uuid'),
-                                'w': _f(val(s, 'width')), 'mid': pm, 'a': p0, 'b': p1,
+                                'locked': val(s, 'locked') == 'yes', 'w': _f(val(s, 'width')), 'mid': pm, 'a': p0, 'b': p1,
                                 'len': sum(math.dist(pts[i], pts[i + 1])
                                            for i in range(len(pts) - 1))})
         for v in kids(root, 'via'):
             vx, vy = self._xy(v, 'at')
             lys = kid(v, 'layers') or []
             self.vias.append({'net': val(v, 'net'), 'drill': _f(val(v, 'drill')), 'uuid': val(v, 'uuid'),
-                              'size': _f(val(v, 'size')), 'x': vx, 'y': vy,
+                              'size': _f(val(v, 'size')), 'x': vx, 'y': vy, 'free': val(v, 'free') == 'yes',
+                              'locked': val(v, 'locked') == 'yes',
                               'layers': [l for l in lys[1:] if isinstance(l, str)]})
 
         edge += self._graphics(root, None, 'gr_')
@@ -430,16 +463,26 @@ class Board:
             if isinstance(g, list) and g and str(g[0]).startswith('gr_') and val(g, 'layer').endswith('.Cu'):
                 self.cushapes += self._cushape(g, val(g, 'net'), lambda q: q)
         # board-level silk (pasted art, text): [(layer, bbox)]; text boxes are estimated
-        self.silk = []
+        self.silk, self.silktexts = [], []      # silktexts: board gr_text with the detail `silk` judges
+        self.silkart = []                       # board silk graphics: (layer, bbox, None | [(a, b, w)] outline)
         for g in root[1:]:
             if not (isinstance(g, list) and g and str(g[0]).startswith('gr_') and val(g, 'layer').endswith('.SilkS')):
                 continue
             if g[0] == 'gr_text':
                 at = kid(g, 'at') or ['at', '0', '0']
-                self.silk.append((val(g, 'layer'), text_box(float(at[1]), float(at[2]), _f(at[3]) if len(at) > 3
-                                                            else 0.0, str(g[1]), g)))
+                ang = _f(at[3]) if len(at) > 3 else 0.0
+                bx = text_box(float(at[1]), float(at[2]), ang, str(g[1]), g)
+                self.silk.append((val(g, 'layer'), bx))
+                eff = kid(g, 'effects') or []
+                fnt = kid(eff, 'font') or []
+                sz, th = kid(fnt, 'size') or ['size', '1', '1'], kid(fnt, 'thickness')
+                self.silktexts.append({'kind': 'board', 'text': str(g[1]), 'layer': val(g, 'layer'), 'x': float(at[1]),
+                                       'y': float(at[2]), 'ang': ang, 'h': _f(sz[1], 1.0), 'thick': _f(th[1], 0.15) if th else 0.15,
+                                       'hidden': False, 'mirror': 'mirror' in (kid(eff, 'justify') or []),
+                                       'uuid': val(g, 'uuid'), 'box': bx, 'ttf': kid(fnt, 'face') is not None})
             elif self._gpts(g, g[0]):
                 self.silk.append((val(g, 'layer'), bbox(self._gpts(g, g[0]))))
+                self.silkart.append(self._art(g))
         for node in kids(root, 'footprint'):
             f = self._footprint(node)
             self.fps[f.ref] = f
@@ -535,6 +578,8 @@ class Board:
         else:
             return []
         pts = [T(q) for q in pts]
+        if t in ('rect', 'poly', 'circle') and len(pts) >= 3:
+            pts.append(pts[0])                      # a closed outline: its last side is copper too
         return [(net, val(g, 'layer'), pts, w, fill and len(pts) >= 3)] if len(pts) >= 2 else []
 
     @staticmethod
@@ -593,6 +638,7 @@ class Board:
         f.badlines = self._fix_lines(node, f)
         f.models = [m[1] for m in kids(node, 'model') if len(m) > 1 and not has(m, 'hide')]
         f.sheet = val(node, 'sheetname', '')
+        f.sympath = val(node, 'path', '')   # sheet tstamps + symbol uuid; '' = unlinked
         a = kid(node, 'attr') or []
         f.attr = set(x for x in a[1:] if isinstance(x, str))
         f.dnp = 'dnp' in f.attr
@@ -616,6 +662,25 @@ class Board:
             at = kid(t, 'at') or ['at', '0', '0']
             tx, ty = xf(float(at[1]) * kx, float(at[2]) * ky, f.x, f.y, f.rot)
             f.texts.append((lay, text_box(tx, ty, _f(at[3]) if len(at) > 3 else 0.0, txt, t, (kx + ky) / 2)))
+        # every designator, value and user text, hidden ones too: what `silk`/`refdes` judge and move
+        f.fields = []
+        for t in kids(node, 'property') + kids(node, 'fp_text'):
+            if len(t) < 3 or (t[0] == 'property' and t[1] not in ('Reference', 'Value')):
+                continue
+            kind = t[1] if t[0] == 'property' else {'reference': 'Reference', 'value': 'Value'}.get(t[1], 'user')
+            txt = str(t[2]).replace('${REFERENCE}', f.ref).replace('${VALUE}', f.value)
+            at = kid(t, 'at') or ['at', '0', '0']
+            eff = kid(t, 'effects') or []
+            fnt = kid(eff, 'font') or []
+            sz, th = kid(fnt, 'size') or ['size', '1', '1'], kid(fnt, 'thickness')
+            ang = _f(at[3]) if len(at) > 3 else 0.0
+            tx, ty = xf(float(at[1]) * kx, float(at[2]) * ky, f.x, f.y, f.rot)
+            f.fields.append({'kind': kind, 'text': txt, 'layer': val(t, 'layer'), 'x': tx, 'y': ty, 'ang': ang,
+                             'h': _f(sz[1], 1.0), 'w': _f(sz[2] if len(sz) > 2 else sz[1], 1.0),
+                             'thick': _f(th[1], 0.15) if th else 0.15 * _f(sz[1], 1.0),
+                             'hidden': 'hide' in t or (kid(t, 'hide') or ['', 'no'])[1:2] == ['yes'] or 'hide' in eff,
+                             'mirror': 'mirror' in (kid(eff, 'justify') or []), 'uuid': val(t, 'uuid'),
+                             'ttf': kid(fnt, 'face') is not None, 'box': text_box(tx, ty, ang, txt, t, (kx + ky) / 2)})
         if f.ref in self.fps:                     # KiCad allows it; keep every one visible
             n = 2
             while f"{f.ref}~dup{n}" in self.fps:
@@ -687,6 +752,17 @@ class Board:
                 if lay.endswith('.CrtYd'):
                     crt_pts += pts
                     crt_segs.append(self._crt_seg(g, tag, f))
+        f.silklines = []                        # its silkscreen outline: [(layer, a, b, stroke)]
+        if f.pads:
+            T = lambda q: xf(q[0] * kx, q[1] * ky, f.x, f.y, f.rot)       # noqa: E731
+            for tag in ('fp_line', 'fp_rect', 'fp_arc', 'fp_poly', 'fp_circle'):
+                for g in kids(node, tag):
+                    lay = val(g, 'layer')
+                    if not lay.endswith('.SilkS'):
+                        continue
+                    w = _f(val(kid(g, 'stroke') or [], 'width'), 0.12)
+                    seg = self._crt_seg(g, tag, f) if tag != 'fp_line' else [T(self._xy(g, 'start')), T(self._xy(g, 'end'))]
+                    f.silklines += [(lay, seg[i], seg[i + 1], w) for i in range(len(seg or []) - 1)]
         f.body = bbox(pad_pts + all_pts) if (pad_pts or all_pts) else (f.x, f.y, f.x, f.y)
         f.crtyd = bbox(crt_pts) if crt_pts else f.body
         f.crtyd_real = bool(crt_pts)
@@ -738,6 +814,26 @@ class Board:
             r = math.hypot(e[0] - c[0], e[1] - c[1])
             return [(c[0] - r, c[1] - r), (c[0] + r, c[1] + r)]
         return []
+
+    @classmethod
+    def _art(cls, g):
+        """(layer, bbox, segs): a filled shape is its bbox (segs None); an unfilled one or a line
+        is its stroke, so text inside a frame or ring is not under it"""
+        pts, t = cls._gpts(g, g[0]), g[0][3:]
+        f = kid(g, 'fill')
+        w = _f((kid(kid(g, 'stroke') or [], 'width') or ['', '0.1'])[1], 0.1)
+        if t in ('poly', 'rect', 'circle') and f and f[1] in ('yes', 'solid'):
+            return val(g, 'layer'), bbox(pts), None
+        if t == 'rect':
+            (x0, y0), (x1, y1) = pts
+            pts = [(x0, y0), (x1, y0), (x1, y1), (x0, y1), (x0, y0)]
+        elif t == 'circle':
+            (x0, y0), (x1, y1) = pts
+            c, r = ((x0 + x1) / 2, (y0 + y1) / 2), (x1 - x0) / 2
+            pts = [(c[0] + r * math.cos(k * math.pi / 12), c[1] + r * math.sin(k * math.pi / 12)) for k in range(25)]
+        elif t == 'poly':
+            pts = pts + pts[:1]
+        return val(g, 'layer'), grow(bbox(pts), w / 2), [(a, c, w) for a, c in zip(pts, pts[1:])]
 
     def _crt_seg(self, g, tag, f):
         """one courtyard primitive as a board-frame polyline, for rings()"""
@@ -793,10 +889,20 @@ class Board:
             self._ec = max(v) if v else 0.3
         return self._ec
 
+    def warn_rules(self):
+        """once per board, on stderr: with no project rules beside it, netclasses and
+        clearances silently fall back to defaults (every clearance 0.2, RF unprotected)"""
+        if '_warned' not in self.__dict__:
+            self._warned = rules_warning(os.path.dirname(os.path.abspath(self.path)) or '.',
+                                         "kpcb's netclasses and clearances use")
+            if self._warned:
+                print(self._warned, file=sys.stderr)
+
     def netclass(self, net):
         """Netclass of a net from the .kicad_pro beside the board (explicit
         assignment, else the first matching wildcard pattern), '' if none."""
         if not hasattr(self, '_nc'):
+            self.warn_rules()
             self._nc = ({}, [])
             for pro in glob.glob(os.path.join(os.path.dirname(os.path.abspath(self.path)), '*.kicad_pro')):
                 try:

@@ -47,7 +47,8 @@ or type the position in Properties, refill zones (B), save, and re-run `check`. 
 skill writes only copies (`-o OUT`), never the board itself.
 
 **"Place the rest / route what is left"** - on a scratch copy only, never the real
-board (the loop and each writer's model are in [kpcb](kpcb.md) "Writers"):
+board (the loop and each writer's model are in [kpcb-writers](kpcb-writers.md)):
+0. `kdrc.py BOARD scratch DIR` (`--from` a board kept elsewhere) - COPY = DIR/<stem>.kicad_pcb.
 1. `kdrc.py COPY drc --refill-save --report r0.json` - fresh fill + the baseline.
 2. `kpcb.py COPY renet --drop` if `summary`-time loads warned of netless copper, then
    `ripup --drc r0.json` to clear shorts, clearance hits and dangling copper.
@@ -58,6 +59,40 @@ board (the loop and each writer's model are in [kpcb](kpcb.md) "Writers"):
    check power nets with `ampacity`.
 5. `airwires --since <the copy before step 4>` (both refilled): a net in more pieces
    than before means a route cut a plane region off; `pairs` for diff-pair skew/gap.
+
+**"Make this power path carry X A" (after routing, on the scratch copy).** Budgets: kpcb.json
+`current{}`, else the `ampacity` scan's derived ones. Then per path:
+1. `ampacity --from SRC --to LOAD --amps X --fills` - R, Vdrop and the neck, through the real fills.
+2. `fatten NET [--layers ..] -o n.kicad_pcb` - bands round its tracks; refill (`kdrc --refill-save
+   --baseline`), `airwires --since` the copy before it (a band can cut a plane off).
+3. `stitch NET --box ..` at each layer change the solve showed crowding; `-o` writes free vias.
+4. `ampacity ... --fills` again; what is left needs a placement change, say so.
+A spot no via fits: `stitch NET X,Y -r 2` says so in one call; `copper BOX` + `edit` for the
+hand fix (a width, a stray stub, `solid REF.PAD` for a pad on spokes that must carry current).
+
+**"Clean up the routing" (after it is complete, on the scratch copy).** The writers are in
+[kpcb-writers](kpcb-writers.md); each step `kdrc.py COPY drc --refill-save --baseline r0.json`
+(0 new) and `kpcb.py COPY diff BEFORE.kicad_pcb` (no net/layer change on kept tracks):
+1. `kpcb.py COPY tracks --view census.png` - what a reviewer will see and why each was left.
+2. `smooth --all -o n.kicad_pcb` - chains tight and octilinear, doubled copper, corners, pad ends.
+3. `widen -o n.kicad_pcb` - under-width tracks to their class width (power per segment).
+4. `loops -o n.kicad_pcb` - redundant chains on signal nets.
+5. `tracks` again: the rest are anchors, width steps or boxed in at the real clearance.
+   `ends at a pad edge` rows left by steps 3-4: `smooth --pads -o n.kicad_pcb`.
+A pin `route` calls boxed in: `vscan NET BOX --layers L` shows the cells it saw. A part
+to re-place without its old routes: `unhook REF -o n.kicad_pcb`, then `place`/`route`.
+
+**"Clean up the silkscreen" (on the scratch copy; the real board only when asked).**
+1. `kpcb.py COPY silk` - every designator/text over pads, under bodies, overlapping,
+   off the edge, undersized, ambiguous, mirrored or upside down; logos; the size histogram.
+2. `refdes -o n.kicad_pcb` (`--size 1 --thick 0.15` to normalise, `--show` to bring hidden
+   designators back) - the flagged designators to clear spots beside their parts.
+3. `silk` on the copy: what is left prints "no clear spot". For each, `silk REF` (the
+   texts there), `view REF --layers silk` (flagged ones red), then `edit ref REF X,Y 0`,
+   `hide REF` or `textsize REF H T`; a board text: `edit text UUID X,Y ANG`; a logo:
+   `move REF X Y` (`freebox f W H` for room).
+4. `kpcb.py COPY diff BEFORE.kicad_pcb` - silk only, copper identical; `kdrc.py COPY drc
+   --refill-save --baseline r0.json` - 0 new (TEXT_HEIGHT/THICKNESS go down).
 
 **"Where do I put the caps around U13 / how do I lay out this buck?"**
 `kpcb.py FILE ic U13`. One call gives positions, rotations, the reason for each and
@@ -84,7 +119,8 @@ tolerances, instead of `pin`/`net`/`comp` calls plus doing the math by hand.
 `knet.py FILE draw X -d 2 -o out.svg`. Not on the board yet: hand-write a ksch spec,
 adding `--net FILE` if part of it exists. Then `present_files`.
 
-**"What changed?"** `diff old.net` for wiring, `check --since old.net` for findings.
+**"What changed?"** `diff old.net` for wiring, `check --since old.net` for findings;
+on the board `kpcb.py FILE diff OLD.kicad_pcb` (placement, silk, vias, zones, tracks, R).
 
 **"Is this RF trace right?"** `kpcb.py FILE rf` (every RF/50-ohm netclass net) or
 `rf NET`. Widths/necks, microstrip Zo, side-ground gap and field-solved CPWG Zo (with
@@ -115,7 +151,7 @@ and MPN-named footprints clear automatically; divergent nomenclature -> REVIEW.
 # Self-test after editing a tool
 
 ```bash
-python3 references/selftest.py     # 100 checks, asserts, exit 0 = all pass (~15 s)
+python3 references/selftest.py     # every check, asserts, exit 0 = all pass (~20 s)
 ```
 
 Before a refactor, record the real board's outputs, then check after - a pure
@@ -126,6 +162,9 @@ python3 references/selftest.py --golden /tmp/golden BOARD.kicad_pcb BOARD.net   
 python3 references/selftest.py --golden /tmp/golden BOARD.kicad_pcb BOARD.net   # later: diffs, exit 1 on change
 uvx pyflakes scripts/*.py        # must print nothing (exit 0)
 ```
+
+In the parsnip repo `code/claude/verify.sh` runs all of this, part-search's
+selftest and the goldens (HEAD vs the working tree on a frozen copy) in one go.
 
 `selftest.py` is the source of truth for the exact commands and expected counts -
 one `(label, argv, exit, substrings)` line per check, so covering a new rule is a

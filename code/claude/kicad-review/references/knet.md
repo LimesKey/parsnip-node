@@ -2,11 +2,17 @@
 
 `knet.py FILE <cmd>` - file first, then subcommand.
 
+Code map (to patch one command, open only its module): `knet.py` is the CLI plus the
+basic queries (`summary`, `around`, `comp`, `net`, `pin`, `find`, `walk`, `path`, `bom`,
+`sheets`, `notes`, `unconnected`, `diff`); `rails`, `powertree`, `i2c` and `divider` are
+`knet_power.py`; `check` and its RULES are `knet_check.py`; `draw` is `knet_draw.py`;
+`revpol` is `knet_revpol.py`. The netlist model itself is `kcommon.Netlist`.
+
 | command | use |
 | --- | --- |
 | `summary` | comps, sheets, rails, DNP list, largest nets. Run first on an unfamiliar board. |
 | `around REF...` | **highest value per call.** Pins, types, nets, position, every part one hop away. Use instead of `comp` + several `pin` calls. |
-| `check` | 17 rule-based findings, grouped ERROR/WARN/INFO. Exit 2 if any ERROR. Three or more findings sharing a message fold into one line, `tail [N]: refs` - `[49]` means 49 separate findings, not one. |
+| `check` | rule-based findings (`--rules` lists the rules), grouped ERROR/WARN/INFO. Exit 2 if any ERROR. Three or more findings sharing a message fold into one line, `tail [N]: refs` - `[49]` means 49 separate findings, not one. |
 | `check --since old.net` | only findings NEW vs an older export, plus a fixed/unchanged tally. |
 | `draw REF\|NET [-d N] [-o x.svg] [--spec]` | KiCad-style schematic from the netlist; `--spec` gives the editable ksch source. The focal part keeps its real pin sides and order (from the sheet's lib symbol), GND/rail pins get their glyph where they sit (`gnd PIN -BATT` for a non-GND return), a big or global net ends in a `glabel`, and a global net's other ICs are named on a note line of their own above the net name (`+ U1 U5`), not drawn as stubs. A part already drawn is a stub on its row ending in `to R1.2
 (drawn above)`, and a net drawn twice (a pin back on a net an earlier branch drew) is
@@ -152,7 +158,7 @@ carries an explicit NC flag.
   figure is name-derived or `--rail`/knet.json, not the regulator's true analog
   output, so a finding here can understate the real gap; it will not overstate it.
 - **`PINOUT`** compares a 3-pin SOT-23/323 part's real pinout (a small curated
-  table in knet.py: BAV99/BAV199/BAT54S series `AKC`, BAT54A `KKA`, BAT54C `AAK`,
+  table in knet_check.py: BAV99/BAV199/BAT54S series `AKC`, BAT54A `KKA`, BAT54C `AAK`,
   2N7002/SI2308/AO3400/AO3401/BSS138/BSS84 `GSD`) against the symbol's pin order,
   read from a generic symbol's name suffix (`D_Dual_Series_ACK`, `Q_NMOS_GSD`) or
   from G/S/D pin names. Stock DIODE pin names are never used: `Diode:BAV99`'s hidden

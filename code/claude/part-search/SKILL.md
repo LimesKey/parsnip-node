@@ -1,6 +1,6 @@
 ---
 name: part-search
-description: Look up and choose electronic components on LCSC, JLCPCB and DigiKey with part.py. Does parametric selection (e.g. a ceramic cap 4.7uF-100uF rated >=25V, cheapest first), finds cheaper drop-in alternates for a part on the board, reports JLCPCB Basic vs Extended and $3/line assembly fees, runs one-shot board sourcing triage, and returns pricing ladders, stock, MOQ and a verified datasheet URL. Use this whenever the user asks about a specific component, an LCSC C-number, an MPN, a distributor price, whether something is in stock, what a part costs at some quantity, what the datasheet link is, asks to compare two parts, asks to pick or find a part meeting electrical constraints, asks for the best or best-value part for an application (lowest Iq, RDS(on), noise), asks whether a part is JLC Basic, or asks to price or source a whole board. Use it instead of web search for anything part-shaped, and never hand-write a scraping script for LCSC - the working endpoints are already recorded here and the obvious ones are blocked.
+description: Look up and choose electronic components on LCSC, JLCPCB and DigiKey with part.py. Does parametric selection (e.g. a ceramic cap 4.7uF-100uF rated >=25V, cheapest first), finds cheaper drop-in alternates for a part on the board, reports JLCPCB Basic vs Extended and $3/line assembly fees, runs one-shot board sourcing triage, and returns pricing ladders, stock, MOQ and a verified datasheet URL. Use this whenever the user asks about a specific component, an LCSC C-number, an MPN, a distributor price, whether something is in stock, what a part costs at some quantity, what the datasheet link is, asks to compare two parts, asks to pick or find a part meeting electrical constraints, asks for the best or best-value part for an application (lowest Iq, RDS(on), noise), or asks to price or source a whole board. Use it instead of web search for anything part-shaped, and never hand-write a scraping script for LCSC - the working endpoints are already recorded here and the obvious ones are blocked.
 ---
 
 # Distributor part search and selection
@@ -122,7 +122,7 @@ change.
 ## Run selftest first in a new session
 
 (`selftest --offline` is the no-network logic check to run after editing part.py;
-`selftest --golden DIR board.net` records 18 real outputs on its first run and diffs
+`selftest --golden DIR board.net` records its real outputs on the first run and diffs
 them after, with every cached reply frozen - a refactor must leave them unchanged.)
 
 LCSC has no public API. `part.py` uses undocumented endpoints that can start

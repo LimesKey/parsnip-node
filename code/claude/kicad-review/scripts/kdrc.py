@@ -59,12 +59,12 @@ kicad-cli needed).
 Exit: 0 clean, 2 an ERROR-severity finding survived suppression, 3 bad input /
 kicad-cli failure.
 """
-import sys, os, re, json, tempfile, subprocess
+import sys, os, re, json, glob, tempfile, subprocess
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 try:
     from kcommon import (print_findings, suppressed, trunc, kicad_cli,
-                         top_level_sheets, sch_files, parse_args, doctor)
+                         top_level_sheets, sch_files, parse_args, doctor, rules_warning)
 except ImportError:                                     # pragma: no cover
     print("kdrc.py needs kcommon.py beside it (shared finding formatter)",
           file=sys.stderr)
@@ -216,9 +216,21 @@ def discover_roots(board):
     return [s for s in schs if os.path.normpath(s) not in included]
 
 
+def _ikey(i):
+    """an item's identity for --baseline: its description, except a text item's, which can
+    hold a variable (${CURRENT_DATE} turned 2 new + 2 gone at midnight): its uuid"""
+    d = i.get('description', '')
+    return ('text', i.get('uuid')) if re.match(r"(PCB|Footprint) text '|Text box '", d) and i.get('uuid') else d
+
+
+BY_UUID = {'track_width'}       # the item's own measure is the violation: a widened track is the same one
+
+
 def _vkey(v):
+    if v.get('type') in BY_UUID and all(i.get('uuid') for i in v.get('items', [])):
+        return (v.get('type'), tuple(i['uuid'] for i in v.get('items', [])))
     return (v.get('type'), v.get('description'),
-            tuple(i.get('description') for i in v.get('items', [])))
+            tuple(_ikey(i) for i in v.get('items', [])))
 
 
 def _tracked(path):
@@ -233,20 +245,34 @@ def _against(d, a):
     positions ignored), and say what changed"""
     from collections import Counter
     old = json.load(open(a.baseline))
-    out = {}
+    out, changed = {}, []
     for key in ('violations', 'unconnected_items'):
         have = Counter(_vkey(v) for v in old.get(key, []))
+        was = {_vkey(v): v.get('description', '') for v in old.get(key, [])}
         new = []
         for v in d.get(key, []):
             if have[_vkey(v)] > 0:
                 have[_vkey(v)] -= 1
+                if v.get('type') in BY_UUID and was[_vkey(v)] != v.get('description', ''):
+                    changed.append((was[_vkey(v)], v))
             else:
                 new.append(v)
         out[key] = (new, sum(have.values()), len(old.get(key, [])))
     (nv, gv, ov), (nu, gu, ou) = out['violations'], out['unconnected_items']
     a.base_note = (f"vs {os.path.basename(a.baseline)}: violations {ov} -> {len(d.get('violations', []))} "
-                   f"({len(nv)} new, {gv} gone); unconnected {ou} -> {len(d.get('unconnected_items', []))} "
+                   f"({len(nv)} new, {gv} gone" + (f", {len(changed)} changed" if changed else '')
+                   + f"); unconnected {ou} -> {len(d.get('unconnected_items', []))} "
                    f"({len(nu)} new, {gu} gone). Only the NEW ones are listed.")
+    for w, v in changed[:6]:
+        it = (v.get('items') or [{}])[0].get('description', '')
+        a.base_note += f"\n  changed {v['type']}: {w} -> {v.get('description', '')}  ({it[:50]})"
+    if len(changed) > 6:
+        a.base_note += f"\n  ... +{len(changed) - 6} more changed (same item uuid, new measure)"
+    capped = sorted({t for rep in (old, d) for t, c in Counter(v.get('type') for v in rep.get('violations', [])).items()
+                     if c >= 199})
+    if capped:
+        a.base_note += (f"\n!! {', '.join(capped)} hit kicad-cli's 199-per-type cap in this or the baseline report: "
+                        f"its new/gone lists compare two arbitrary samples of 199, not the board")
     return dict(d, violations=nv, unconnected_items=nu)
 
 
@@ -503,6 +529,27 @@ def _selftest():
                        "parity: /Root naming artifact or other-sheet extra footprint kept, or a real one dropped"))
     finally:
         shutil.rmtree(td, ignore_errors=True)
+    tx = lambda txt: {'type': 'text_height', 'description': 'Text height', 'items':          # noqa: E731
+                      [{'description': f"PCB text '{txt}' on F.Silkscreen", 'uuid': 'u1'}]}
+    tw = lambda w: {'type': 'track_width', 'description': f'actual {w} < 1 mm', 'items':     # noqa: E731
+                    [{'description': 'Track [A] on F.Cu, length 2 mm', 'uuid': 't1'}]}
+    a2 = argparse.Namespace(baseline=os.path.join(tempfile.gettempdir(), 'kdrc_tw_base.json'))
+    json.dump({'violations': [tw(0.5)]}, open(a2.baseline, 'w'))
+    r2 = _against({'violations': [tw(0.7)]}, a2)
+    checks.append((not r2['violations'] and '1 changed' in a2.base_note and '0.5 < 1 mm -> actual 0.7' in a2.base_note,
+                   "baseline: a widened under-floor track (same uuid) read as new + gone, not changed"))
+    checks.append((_vkey(tx('v2 2026-10-18')) == _vkey(tx('v2 2026-10-19'))
+                   and _ikey({'description': 'Track [A] on F.Cu', 'uuid': 'x'}) == 'Track [A] on F.Cu',
+                   "baseline: a text item's changed text made it a new violation (key it by uuid)"))
+    td = tempfile.mkdtemp()
+    try:
+        json.dump({'net_settings': {'classes': [{'name': 'Default'}]}}, open(os.path.join(td, 'p.kicad_pro'), 'w'))
+        w1 = rules_warning(td)
+        open(os.path.join(td, 'p.kicad_dru'), 'w').write('(version 1)')
+        checks.append((w1.startswith('WARN') and rules_warning(td) == '',
+                       "rules_warning: a default-only project not flagged, or one with a .kicad_dru flagged"))
+    finally:
+        shutil.rmtree(td, ignore_errors=True)
     fails = [msg for ok, msg in checks if not ok]
     for msg in fails:
         print(f"FAIL  {msg}")
@@ -667,6 +714,49 @@ def demoted(board):
     return out
 
 
+def do_scratch(board, a):
+    """`scratch DIR [--from OTHER.kicad_pcb]`: a working copy of the project for the kpcb
+    writers - the board under the project's own stem (or kicad-cli runs default rules), the
+    .kicad_pro, .kicad_dru, sheets, netlists, tool configs and lib tables, and a symlink for
+    every directory the lib tables name under ${KIPRJMOD} - so DRC there checks the real rules."""
+    import shutil
+    src = os.path.dirname(os.path.abspath(board))
+    if not a.dest:
+        print("scratch DIR [--from OTHER.kicad_pcb]"); return 1
+    dest = os.path.abspath(a.dest)
+    if os.path.isdir(dest) and os.listdir(dest):
+        sys.stderr.write(f"{dest} is not empty: refused (a scratch copy starts clean)\n"); return 3
+    if dest == src:
+        sys.stderr.write("DIR is the project itself: refused\n"); return 3
+    pros = sorted(glob.glob(os.path.join(src, '*.kicad_pro')))
+    stem = os.path.basename(pros[0])[:-len('.kicad_pro')] if pros else os.path.splitext(os.path.basename(board))[0]
+    os.makedirs(dest, exist_ok=True)
+    got = []
+    for pat in ('*.kicad_pro', '*.kicad_dru', '*.kicad_sch', '*.net', 'k*.json', 'fp-lib-table', 'sym-lib-table'):
+        for f in sorted(glob.glob(os.path.join(src, pat))):
+            if os.path.basename(f).startswith(('_autosave-', '~')):
+                continue
+            shutil.copy2(f, dest)
+            got.append(os.path.basename(f))
+    pcb = a.from_board or board
+    shutil.copy2(pcb, os.path.join(dest, stem + '.kicad_pcb'))
+    links = set()
+    for tab in ('fp-lib-table', 'sym-lib-table'):
+        p = os.path.join(src, tab)
+        if os.path.exists(p):
+            links |= set(re.findall(r'\$\{KIPRJMOD\}/([^/")]+)', open(p).read()))
+    for d in sorted(links):
+        if os.path.isdir(os.path.join(src, d)):
+            os.symlink(os.path.join(src, d), os.path.join(dest, d))
+    print(f"scratch copy of {src} -> {dest}\n  board: {stem}.kicad_pcb (from {os.path.abspath(pcb)})\n"
+          f"  copied: {', '.join(got)}\n  linked: {', '.join(sorted(links)) or '-'}")
+    rw = rules_warning(dest)
+    if rw:
+        print('  !! ' + rw)
+    print(f"  next: kdrc.py {os.path.join(dest, stem + '.kicad_pcb')} drc --refill-save --report {os.path.join(dest, 'r0.json')}")
+    return 0
+
+
 def load_cfg(board):
     cp = os.path.join(os.path.dirname(os.path.abspath(board)), 'kdrc.json')
     try:
@@ -682,7 +772,10 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('file')
-    ap.add_argument('cmd', nargs='?', default='both', choices=['both', 'drc', 'erc', 'flags', 'doctor'])
+    ap.add_argument('cmd', nargs='?', default='both', choices=['both', 'drc', 'erc', 'flags', 'doctor', 'scratch'])
+    ap.add_argument('dest', nargs='?', default='', help='for `scratch`: the new directory')
+    ap.add_argument('--from', dest='from_board', default='',
+                    help='for `scratch`: put this board (e.g. one worked elsewhere) in the copy instead of FILE')
     ap.add_argument('--max', type=int, default=None, help='cap lines per rule (default 25)')
     ap.add_argument('--only', default='', help='comma list of RULE names to keep')
     ap.add_argument('--skip', default='', help='comma list of RULE names to drop')
@@ -711,6 +804,8 @@ def main():
         sys.stderr.write(f"no such file: {a.file}\n"); return 3
     if a.cmd == 'flags':
         return do_flags(a.file, a)
+    if a.cmd == 'scratch':
+        return do_scratch(a.file, a)
     if a.cmd == 'doctor':
         lines = doctor(os.path.dirname(os.path.abspath(a.file)))
         print('\n'.join(lines))
@@ -770,6 +865,9 @@ def main():
     if not a.all:
         hdr += ''.join('\n' + ln for ln in demoted(a.file)
                        if a.cmd == 'both' or ln.startswith(a.cmd.upper()))
+    rw = rules_warning(os.path.dirname(os.path.abspath(a.file))) if a.cmd in ('both', 'drc') else ''
+    if rw:
+        hdr += '\n!! ' + rw
     print_findings(F, hdr + '\n', rules=LEGEND, cap=a.max)
     if not F:
         print("no findings")

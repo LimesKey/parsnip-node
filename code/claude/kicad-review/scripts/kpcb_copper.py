@@ -44,6 +44,23 @@ def _reach(p):
     return hx, hy
 
 
+def pad_dist(p, pt):
+    """signed distance from pt to pad p's copper (< 0 inside): the anchor shape and, for a
+    custom pad, each primitive polygon itself - not their bounding box"""
+    from kpcb_board import point_in_poly
+    u, v = _local(p, pt)
+    hx, hy = p['sx'] / 2, p['sy'] / 2
+    if p['shape'] == 'circle':
+        d = math.hypot(u, v) - hx
+    else:
+        dx, dy = abs(u) - hx, abs(v) - hy
+        d = math.hypot(max(dx, 0), max(dy, 0)) + min(max(dx, dy), 0)
+    for poly in p['prims']:
+        e = min(pt_seg_dist((u, v), poly[i], poly[(i + 1) % len(poly)]) for i in range(len(poly)))
+        d = min(d, -e if point_in_poly((u, v), poly) else e)
+    return d
+
+
 def _around(x, y, r, frame=None):
     """centre + 8 points just outside radius r: where thermal spokes land"""
     pts = [(x, y)]
@@ -61,7 +78,10 @@ class Copper:
     pour); `edges` are the track pieces and `vedges` the barrel halves, each a
     resistive series element."""
 
-    def __init__(self, b, net):
+    def __init__(self, b, net, strict=False):
+        """strict: join only where KiCad's join is robust - a track end whose whole cap is
+        inside a pad or via, on another track's centreline end or body, a via/pad anchor on a
+        track's body (`loops` judges removals so, never leaning on a cap that grazes a pad)"""
         self.b, self.net = b, net
         cu = b.copper
         self.pads = [(f, p) for f in b.fps.values() for p in f.pads if p['net'] == net]
@@ -115,23 +135,28 @@ class Copper:
             return ('pt', t['layer'], *_q(e))
         splits = defaultdict(list)                   # track -> [(param, key)] tee points
         for n, t in enumerate(self.tracks):
-            hw, ly = t['w'] / 2, t['layer']
+            hw, ly = (-t['w'] / 2 if strict else t['w'] / 2), t['layer']
             for e in (t['a'], t['b']):
                 ke = ekey(t, e)
                 U.find(ke)
                 for kind, i in set(near(ly, e)):
                     if kind == 'pad':
-                        u, v = _local(self.pads[i][1], e)
-                        hx, hy = self.pads[i][1]['_reach']
-                        if abs(u) <= hx + hw and abs(v) <= hy + hw:
+                        pd = self.pads[i][1]
+                        if pd['prims']:                  # a custom pad: its real polygons
+                            if pad_dist(pd, e) <= min(hw, -1e-3):
+                                U.union(ke, ('pad', i))
+                            continue
+                        u, v = _local(pd, e)
+                        hx, hy = pd['_reach']
+                        if abs(u) <= max(hx + hw, 1e-3) and abs(v) <= max(hy + hw, 1e-3):
                             U.union(ke, ('pad', i))
                     elif kind == 'via':
                         v = self.vias[i]
-                        if math.hypot(v['x'] - e[0], v['y'] - e[1]) <= (v['size'] or v['drill']) / 2 + hw:
+                        if math.hypot(v['x'] - e[0], v['y'] - e[1]) <= max((v['size'] or v['drill']) / 2 + hw, 1e-3):
                             U.union(ke, ('vl', i, ly))
                     elif i != n:
                         o = self.tracks[i]
-                        lim = hw + o['w'] / 2
+                        lim = hw + o['w'] / 2 if not strict else min(t['w'], o['w']) / 2
                         if pt_seg_dist(e, o['a'], o['b']) > lim:
                             continue
                         end = next((q for q in (o['a'], o['b']) if math.dist(q, e) <= lim), None)
@@ -200,16 +225,17 @@ class Copper:
                     if min(u for u, _ in c) < hx - 1e-3 and max(u for u, _ in c) > -hx + 1e-3 and \
                             min(v for _, v in c) < hy - 1e-3 and max(v for _, v in c) > -hy + 1e-3:
                         U.union(('pad', i), ('pad', j))
-        for k, v in enumerate(self.vias):
-            tee_into(lambda ly, k=k: ('vl', k, ly), v['x'], v['y'], (v['size'] or v['drill']) / 2, self.vlay[k])
+        for k, v in enumerate(self.vias):           # strict: the anchor itself on the track's body
+            tee_into(lambda ly, k=k: ('vl', k, ly), v['x'], v['y'], 0 if strict else (v['size'] or v['drill']) / 2, self.vlay[k])
         for i, (f, p) in enumerate(self.pads):
-            tee_into(lambda ly, i=i: ('pad', i), p['x'], p['y'], min(p['_reach']), self.play[i])
+            tee_into(lambda ly, i=i: ('pad', i), p['x'], p['y'], 0 if strict else min(p['_reach']), self.play[i])
         for k, v in enumerate(self.vias):            # a via landing in a pad
             for kind, i in set(x for ly in self.vlay[k] for x in near(ly, (v['x'], v['y']))):
                 if kind == 'pad' and self.play[i] & self.vlay[k]:
-                    u, w = _local(self.pads[i][1], (v['x'], v['y']))
-                    hx, hy = self.pads[i][1]['_reach']
-                    if abs(u) <= hx and abs(w) <= hy:
+                    pd = self.pads[i][1]
+                    u, w = _local(pd, (v['x'], v['y']))
+                    hx, hy = pd['_reach']
+                    if pad_dist(pd, (v['x'], v['y'])) <= 0 if pd['prims'] else abs(u) <= hx and abs(w) <= hy:
                         for ly in self.play[i] & self.vlay[k]:
                             U.union(('vl', k, ly), ('pad', i))
         # pours: a fill joins the pads, vias and tracks of its net that touch it,

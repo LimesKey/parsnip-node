@@ -5,15 +5,19 @@ is asserted - and leaves the verdict to KiCad: `kdrc.py OUT --unconnected` on th
 
   fixlines -o OUT              undo the 10.99 fp_line frame bug (Board._fix_lines)
   renet -o OUT                 netless tracks/vias whose ends touch one net take it
-  move REF X Y [ROT] -o OUT    re-place a footprint (same side; pads/text turn with it)
+  move REF X Y [ROT] -o OUT    re-place a footprint (pads/text turn with it, segment ends
+                               on its pads are dragged along; --flip for the other side)
+  edit OP... -o OUT            scripted hand edits: width, del, seg, via (free), mvvia, vcenter,
+                               solid, simplify, and the silk ops (ref, value, text, sizes)
+  unhook REF... -o OUT         rip the copper that only served these parts
 
 `route` and `place` (kpcb_route.py, kpcb_place.py) write through PcbText too."""
 import math, os, re, uuid
 from collections import defaultdict
 from kcommon import unesc_disp
-from kpcb_board import xf, pad_box, pt_seg_dist
-from kpcb_copper import UF, _local, _reach, _around
-from kpcb_move import cu_layers, via_layers
+from kpcb_board import PolyIndex, xf, pad_box, pt_seg_dist, seg_seg_dist
+from kpcb_copper import UF, _local, _reach, _around, pad_dist
+from kpcb_move import cu_layers, via_layers, drag_plan, drag_set
 
 
 def num(v):
@@ -35,7 +39,7 @@ def norm_ang(a):
 class PcbText:
     """The board as text, edited by span. A top-level item opens on a `\\n\\t(` line and
     closes on the next `\\n\\t)` line (KiCad's formatter; nothing deeper sits at one
-    tab), so footprints, tracks and vias are found by uuid without re-serialising
+    tab), so footprints, tracks, vias and zones are found by uuid without re-serialising
     anything that was not edited. New tracks/vias go in before the first zone."""
 
     def __init__(self, path):
@@ -43,7 +47,7 @@ class PcbText:
         with open(path, encoding='utf-8') as fh:
             self.txt = fh.read()
         self.span, self.edits = {}, []
-        for m in re.finditer(r'\n\t\((footprint|segment|arc|via)\b', self.txt):
+        for m in re.finditer(r'\n\t\((footprint|segment|arc|via|gr_text|zone)\b', self.txt):
             s = m.start() + 1
             e = self.txt.index('\n\t)', s) + 3
             u = re.search(r'\(uuid "([^"]+)"\)', self.txt[s:e])     # first uuid = the item's own
@@ -77,10 +81,12 @@ class PcbText:
         return self.txt[s:e]
 
     def sub(self, uid, new):
+        """replace (or with '' delete) an item; returns the edit, so it can be withdrawn"""
         s, e = self.span[uid]
         if not new and self.txt[e:e + 1] == '\n':            # a deletion takes its line break too
             e += 1
         self.edits.append((s, e, new))
+        return self.edits[-1]
 
     def add(self, item):
         """queue a new item; returns the edit, so `edits.remove` can withdraw it (a rip-up)"""
@@ -92,16 +98,18 @@ class PcbText:
                  f"\t\t(width {num(w)})\n\t\t(layer {qs(layer)})\n\t\t(net {qs(net)})\n"
                  f"\t\t(uuid \"{uuid.uuid4()}\")\n\t)\n")
 
-    def via(self, net, x, y, size, drill, layers):
+    def via(self, net, x, y, size, drill, layers, free=False):
+        """free: a stitching via with no track. KiCad re-nets a trackless via from the copper it
+        touches on load/save unless it is marked free (a GND via came back -BATT, 2026-10-19)"""
         return self.add(f"\t(via\n\t\t(at {num(x)} {num(y)})\n\t\t(size {num(size)})\n\t\t(drill {num(drill)})\n"
-                 f"\t\t(layers {' '.join(qs(l) for l in layers)})\n\t\t(net {qs(net)})\n"
-                 f"\t\t(uuid \"{uuid.uuid4()}\")\n\t)\n")
+                 f"\t\t(layers {' '.join(qs(l) for l in layers)})\n" + ("\t\t(free yes)\n" if free else '')
+                 + f"\t\t(net {qs(net)})\n\t\t(uuid \"{uuid.uuid4()}\")\n\t)\n")
 
-    def zone(self, net, layer, pts, priority, clearance=0.2, min_w=0.25):
+    def zone(self, net, layer, pts, priority, clearance=0.2, min_w=0.25, name=None):
         """an unfilled solid-connect zone (the refill draws its copper)"""
         xy = ''.join(f"\t\t\t\t(xy {num(x)} {num(y)})\n" for x, y in pts)
         return self.add(f"\t(zone\n\t\t(net {qs(net)})\n\t\t(layer {qs(layer)})\n\t\t(uuid \"{uuid.uuid4()}\")\n"
-                        f"\t\t(name {qs('route ' + net)})\n\t\t(hatch edge 0.5)\n\t\t(priority {priority})\n"
+                        f"\t\t(name {qs(name or 'route ' + net)})\n\t\t(hatch edge 0.5)\n\t\t(priority {priority})\n"
                         f"\t\t(connect_pads yes\n\t\t\t(clearance {num(clearance)})\n\t\t)\n\t\t(min_thickness {num(min_w)})\n"
                         f"\t\t(fill yes\n\t\t\t(thermal_gap 0.5)\n\t\t\t(thermal_bridge_width 0.5)\n"
                         f"\t\t\t(island_removal_mode 0)\n\t\t)\n\t\t(polygon\n\t\t\t(pts\n{xy}\t\t\t)\n\t\t)\n\t)\n")
@@ -183,10 +191,12 @@ def _touch(A, B):
         hw = x['w'] / 2
         for e in (x['a'], x['b']):
             u, v = _local(p, e)
-            if abs(u) <= hx + hw and abs(v) <= hy + hw:
-                return True
+            if (pad_dist(p, e) <= hw) if p['prims'] else (abs(u) <= hx + hw and abs(v) <= hy + hw):
+                return True                                  # a custom pad: its real polygons
         return pt_seg_dist((p['x'], p['y']), x['a'], x['b']) <= min(hx, hy) + hw
-    u, v = _local(p, (x['x'], x['y']))                       # a via in a pad
+    if p['prims']:                                           # a via in a pad
+        return pad_dist(p, (x['x'], x['y'])) <= 0
+    u, v = _local(p, (x['x'], x['y']))
     return abs(u) <= hx and abs(v) <= hy
 
 
@@ -293,11 +303,10 @@ def c_renet(b, a):
 def c_ripup(b, a):
     """Delete tracks and vias so the router can redo them: those KiCad's DRC flagged
     (--drc REPORT.json from `kdrc.py --report`, violation --types), and/or every track
-    and via of the named nets (inside --box). Then prune what that leaves dangling on
-    the affected nets - a track end touching nothing of its net, a via joining fewer
-    than two things, repeated until stable - and the teardrops on removed copper."""
+    and via of the named nets (inside --box). Then prune what that leaves dangling - a
+    track end touching nothing of its net, a via joining fewer than two layers - spreading
+    only from removed copper, repeated until stable, and the teardrops on removed copper."""
     import json
-    from kpcb_board import PolyIndex
     sel = set()
     if a.drc:
         types = set((a.types or 'shorting_items,clearance,hole_clearance,hole_to_hole,'
@@ -320,8 +329,74 @@ def c_ripup(b, a):
         print("ripup NET... [--box X0,Y0,X1,Y1] | --drc REPORT.json [--types T,T] [-o OUT]"); return 1
     kill = {id(t) for t in b.tracks if (t['uuid'] in sel or t['net'] in names) and inbox([t['a'], t['b']])}
     kill |= {id(v) for v in b.vias if (v['uuid'] in sel or v['net'] in names) and inbox([(v['x'], v['y'])])}
+    return _rip_out(b, a, kill, 'ripup')
+
+
+def c_unhook(b, a):
+    """`unhook REF... -o OUT`: rip only the copper that served these parts - the track ends
+    on their pads (on a pad's layers) that sit on nothing else of the net (no via, no other
+    part's pad), then the prune with the parts treated as absent: a stub that only fed them
+    goes, a via in their pads goes only if it then joins fewer than two layers, and a shared
+    trunk stays. Unlike `ripup --box` it never takes a whole net."""
+    refs = [r for r in a.args if r in b.fps]
+    if not refs or len(refs) != len(a.args):
+        print(f"unhook REF... -o OUT   (not on the board: {' '.join(r for r in a.args if r not in b.fps) or '-'})")
+        return 1
+    cu, absent = b.copper, set(refs)
+    mine = [p for r in refs for p in b.fps[r].pads if p['net']]
+    def on(p, t, st):
+        return p['net'] == t['net'] and (p['drill'] or t['layer'] in cu_layers(p['layers'], cu)) and _touch(st, ('p', p))
+    kill = set()
+    for t in b.tracks:
+        for e in (t['a'], t['b']) if t['net'] else ():
+            st = ('t', {'layer': t['layer'], 'w': t['w'], 'a': e, 'b': e})
+            if any(on(p, t, st) for p in mine) and \
+                    not any(v['net'] == t['net'] and t['layer'] in via_layers(v, cu) and _touch(st, ('v', v)) for v in b.vias) and \
+                    not any(on(p, t, st) for f in b.fps.values() if f.ref not in absent for p in f.pads):
+                kill.add(id(t))
+                break
+    return _rip_out(b, a, kill, 'unhook', absent=absent)
+
+
+def _rip_out(b, a, kill, cmd, absent=frozenset()):
+    """delete `kill` (ids of tracks/vias), prune what that leaves dangling (pads of `absent`
+    parts anchor nothing), drop their teardrops, report, write -o"""
     first = len(kill)
-    nets = {o['net'] for o in b.tracks + b.vias if id(o) in kill}
+    kill = prune(b, kill, absent)
+    gone = [o for o in b.tracks + b.vias if id(o) in kill]
+    t = PcbText(b.path)
+    for o in gone:
+        if o['uuid'] in t.span:
+            t.sub(o['uuid'], '')
+    tear = len(tear_edits(t, [o for o in gone if 'layer' in o and 'a' in o]))
+    per = defaultdict(lambda: [0, 0])
+    for o in gone:
+        per[o['net']][0 if 'layer' in o and 'a' in o else 1] += 1
+    print(f"{cmd}: {first} item(s) selected, {len(gone) - first} more pruned as dangling, "
+          f"{tear} teardrop(s) with them: {sum(x[0] for x in per.values())} track(s) + "
+          f"{sum(x[1] for x in per.values())} via(s) on {len(per)} net(s)")
+    for net, (k, v) in sorted(per.items(), key=lambda kv: -sum(kv[1]))[:a.max]:
+        print(f"  {unesc_disp(net) or '(no net)':<34} {k:>3} trk {v:>2} via")
+    if len(per) > a.max:
+        print(f"  ... +{len(per) - a.max} more net(s)")
+    if not gone:
+        return 0
+    if _need_out(a, cmd):
+        return 1
+    t.save(a.out)
+    print(f"  -> {a.out}; then airwires / route the nets, and kdrc.py --refill-save --baseline")
+    return 0
+
+
+def prune(b, kill, absent=frozenset()):
+    """kill (ids of b.tracks/b.vias to delete) grown by what that leaves dangling: a track
+    end touching nothing of its net (no pad, via, track junction or fill), a via joining
+    fewer than two layers - spreading only from removed copper (and the pads of `absent`
+    parts, which anchor nothing), until stable. Returns the grown set."""
+    from kpcb_board import PolyIndex
+    kill = set(kill)
+    nets = {o['net'] for o in b.tracks + b.vias if id(o) in kill} | \
+        {p['net'] for f in b.fps.values() if f.ref in absent for p in f.pads if p['net']}
     # prune: per affected net, drop dangling copper until nothing changes
     fills = defaultdict(list)
     for fl in b.fills:
@@ -329,7 +404,7 @@ def c_ripup(b, a):
             fills[(fl['net'], fl['layer'])].append(PolyIndex(fl['pts']))
     pads = defaultdict(list)
     for f in b.fps.values():
-        for p in f.pads:
+        for p in f.pads if f.ref not in absent else ():
             if p['net'] in nets:
                 pads[p['net']].append(('p', p))
     cu = b.copper
@@ -351,7 +426,10 @@ def c_ripup(b, a):
         k, o = x
         return {o['layer']} if k == 't' else via_layers(o, cu) if k == 'v' else \
             (set(cu) if o['drill'] else cu_layers(o['layers'], cu))
-    while True:
+    # only copper touching what went can newly dangle: an old stub elsewhere on GND is not ours
+    frontier = [('t', t) for t in b.tracks if id(t) in kill] + [('v', v) for v in b.vias if id(v) in kill] + \
+        [('p', p) for f in b.fps.values() if f.ref in absent for p in f.pads if p['net'] in nets]
+    while frontier:
         live = [('t', t) for t in b.tracks if t['net'] in nets and id(t) not in kill and t['w'] > 0] + \
                [('v', v) for v in b.vias if v['net'] in nets and id(v) not in kill]
         G = defaultdict(list)                        # (net, cx, cy) -> items, 1 mm cells
@@ -365,8 +443,10 @@ def c_ripup(b, a):
                     if id(x[1]) not in seen:
                         seen.add(id(x[1]))
                         yield x
-        dead = set()
-        for it in live:
+        cand = {id(x[1]): x for f0 in frontier for x in near(f0[1]['net'], box_of(f0))     # touching it, not
+                if x[0] != 'p' and (on(x) & on(f0)) and _touch(x, f0)}                    # merely its box
+        dead = []
+        for it in cand.values():
             k, o = it
             net = o['net']
             if k == 't':
@@ -379,7 +459,7 @@ def c_ripup(b, a):
                     if not any(x[1] is not o and o['layer'] in on(x) and
                                (_joins(o, e, other, x[1]) if x[0] == 't' else _touch(stub, x))
                                for x in near(net, (e[0] - hw, e[1] - hw, e[0] + hw, e[1] + hw))):
-                        dead.add(id(o)); break
+                        dead.append(it); break
             else:                                    # KiCad: a via must join two or more LAYERS
                 lys = via_layers(o, cu)
                 got = set()
@@ -389,17 +469,16 @@ def c_ripup(b, a):
                 got |= {ly for ly in lys for idx in fills.get((net, ly), ())
                         if any(q in idx for q in _around(o['x'], o['y'], o['size'] / 2))}
                 if len(got) < 2:
-                    dead.add(id(o))
-        if not dead:
-            break
-        kill |= dead
-    gone = [o for o in b.tracks + b.vias if id(o) in kill]
-    t = PcbText(b.path)
-    for o in gone:
-        if o['uuid'] in t.span:
-            t.sub(o['uuid'], '')
-    tear = 0
-    trk = [o for o in gone if 'layer' in o and 'a' in o]
+                    dead.append(it)
+        kill |= {id(x[1]) for x in dead}
+        frontier = dead
+    return kill
+
+
+def tear_edits(t, trk):
+    """delete the teardrop zones that fillet any of the tracks `trk` (removed copper must
+    not leave its fillets behind); returns the edits, so a rip-up can withdraw them"""
+    out = []
     for s0, e0, net, ly, pts in t.tears:
         idx = None
         for o in trk:
@@ -410,25 +489,9 @@ def c_ripup(b, a):
             if any((o['a'][0] + (o['b'][0] - o['a'][0]) * i / L, o['a'][1] + (o['b'][1] - o['a'][1]) * i / L) in idx
                    for i in range(L + 1)):
                 t.edits.append((s0, e0 + (1 if t.txt[e0:e0 + 1] == '\n' else 0), ''))
-                tear += 1
+                out.append(t.edits[-1])
                 break
-    per = defaultdict(lambda: [0, 0])
-    for o in gone:
-        per[o['net']][0 if 'layer' in o and 'a' in o else 1] += 1
-    print(f"ripup: {first} item(s) selected, {len(gone) - first} more pruned as dangling, "
-          f"{tear} teardrop(s) with them: {sum(x[0] for x in per.values())} track(s) + "
-          f"{sum(x[1] for x in per.values())} via(s) on {len(per)} net(s)")
-    for net, (k, v) in sorted(per.items(), key=lambda kv: -sum(kv[1]))[:a.max]:
-        print(f"  {unesc_disp(net) or '(no net)':<34} {k:>3} trk {v:>2} via")
-    if len(per) > a.max:
-        print(f"  ... +{len(per) - a.max} more net(s)")
-    if not gone:
-        return 0
-    if _need_out(a, 'ripup'):
-        return 1
-    t.save(a.out)
-    print(f"  -> {a.out}; then airwires / route the nets, and kdrc.py --refill-save --baseline")
-    return 0
+    return out
 
 
 def _joins(t, e, other, u):
@@ -518,6 +581,32 @@ def flip_text(s, f):
     return re.sub(r'(?<=\n)(\t+)\(effects\n(?:\1\t.*\n)*\1\)', mirror, s)
 
 
+def drag_tracks(b, t, f, x, y, rot, flip=False):
+    """KiCad's Drag (D) for a part re-placed at x,y,rot (kpcb_move.drag_plan): each segment
+    end on one of its pads, on that pad's layers, follows the pad; a via inside a pad moves
+    with it, and every end on that via with it; an end on any other via stays. A flip moves
+    the pads to the other layer and an arc cannot bend, so those ends stay (counted).
+    Returns (ends dragged, ends left, vias moved)."""
+    if flip:
+        ends, _vias, left = drag_set(b, f)
+        return 0, left + len(ends), 0
+    segs, vias, left = drag_plan(b, f, x, y, rot)
+    dragged = 0
+    for tr, a, c in segs.values():
+        u, seg = tr['uuid'], t.text(tr['uuid'])
+        for k, e, old in (('start', a, tr['a']), ('end', c, tr['b'])):
+            if e != old:
+                seg, n = re.subn(rf'\({k} \S+ \S+\)', f"({k} {num(e[0])} {num(e[1])})", seg, count=1)
+                assert n == 1, (u, k)
+                dragged += 1
+        t.sub(u, seg)
+    for v, vx, vy in vias:
+        s, n = re.subn(r'\(at \S+ \S+\)', f"(at {num(vx)} {num(vy)})", t.text(v['uuid']), count=1)
+        assert n == 1, v['uuid']
+        t.sub(v['uuid'], s)
+    return dragged, left, len(vias)
+
+
 def c_move(b, a):
     try:
         ref, x, y = a.args[0], float(a.args[1]), float(a.args[2])
@@ -534,11 +623,293 @@ def c_move(b, a):
     if a.flip:
         s = flip_text(s, f)
     t.sub(f.uuid, place_text(s, _flipped(f) if a.flip else f, x, y, rot))
+    dragged, left, vin = drag_tracks(b, t, f, x, y, rot, a.flip)
     t.save(a.out)
-    tied = sum(1 for tr in b.tracks if tr['net'] and any(
-        tr['net'] == p['net'] and math.dist(e, (p['x'], p['y'])) <= max(p['sx'], p['sy'])
-        for p in f.pads for e in (tr['a'], tr['b'])))
     print(f"move {ref} {f.x:.3f},{f.y:.3f} rot {f.rot:g} -> {x:.3f},{y:.3f}" + (' FLIPPED' if a.flip else '')
           + (f" rot {norm_ang(rot):g}" if rot is not None else '') + f"   -> {a.out}"
-          + (f"\n  {tied} track end(s) sat on its pads and stay behind: re-route them" if tied else ''))
+          + (f"\n  dragged {dragged} track end(s) that sat on its pads (on their layers) or on its vias" if dragged else '')
+          + (f"\n  {left} track end(s) on its pads stay behind ({'flipped: other layer' if a.flip else 'arcs'}): "
+             f"re-route them" if left else '')
+          + (f"\n  moved {vin} via(s) inside its pads with it" if vin else ''))
+    return 0
+
+
+# ---------------------------------------------------------------- edit
+
+EDIT_OPS = {'width': 2, 'del': 1, 'seg': 5, 'via': 3, 'solid': 1, 'simplify': 2,
+            'ref': 3, 'hide': 1, 'show': 1, 'textsize': 3, 'text': 3, 'vcenter': 1,
+            'value': 3, 'hide-value': 1, 'show-value': 1, 'valuesize': 3, 'mvvia': 2}
+EDIT_USE = ("edit OP... -o OUT   (one or more, in order; UUID = a unique prefix, from `copper`)\n"
+            "  width UUID W                  a segment's or arc's width\n"
+            "  del UUID                      delete a segment, arc, via or zone\n"
+            "  seg NET LAYER W X1,Y1 X2,Y2   add a segment\n"
+            "  via NET X,Y SIZE/DRILL        add a through via, written (free yes)\n"
+            "  solid REF.PAD                 the pad joins zones solid (zone_connect 2), not by spokes\n"
+            "  simplify UUID EPS             fit a zone outline's staircases with straight edges (corners\n"
+            "                                within EPS mm dropped; its stale fill goes, refill after)\n"
+            "  ref REF X,Y ANG|keep          move REF's designator to board X,Y (centred; angle absolute)\n"
+            "  hide REF | show REF           hide / show REF's designator\n"
+            "  textsize REF|UUID H T         REF's designator (or a board text's) height and stroke, mm\n"
+            "  value REF X,Y ANG|keep        move REF's Value field, as ref (parts that use it as a label)\n"
+            "  hide-value REF | show-value REF | valuesize REF H T   the Value field, as hide/show/textsize\n"
+            "  text UUID X,Y ANG|keep        move a board silk text (uuid from `silk REF` or `silk --box ..`)\n"
+            "  mvvia UUID R                  re-place a trackless (stitching) via at the nearest legal spot\n"
+            "                                within R mm, same size/drill/free flag; reports the move and\n"
+            "                                the net's via count within 3 mm before/after\n"
+            "  vcenter all|DRC.json          snap track ends inside a same-net via onto its centre (a\n"
+            "                                segment left zero-length goes); DRC.json (kdrc --report) limits\n"
+            "                                it to its track_not_centered_on_via tracks. A snap that\n"
+            "                                would break clearance is skipped and listed")
+
+
+def mvvia(b, s, u, R):
+    """the via's text with (at) moved to the nearest legal spot within R (stitch's search:
+    the router's model, drill spacing, on the net's copper on >= 2 layers); the via itself
+    is out of the model while it looks"""
+    from kpcb_power import legal_spots, net_fills
+    v = next((x for x in b.vias if x['uuid'] == u), None)
+    if v is None:
+        raise SystemExit(f"edit: {u[:8]} is not a via; nothing written")
+    c = (v['x'], v['y'])
+    if any(tr['net'] == v['net'] and min(math.dist(tr['a'], c), math.dist(tr['b'], c)) <= v['size'] / 2
+           for tr in b.tracks):
+        raise SystemExit(f"edit: via {u[:8]} has a track on it (mvvia moves stitching vias only); nothing written")
+    near = lambda p: 1 + sum(1 for x in b.vias if x is not v and x['net'] == v['net']  # noqa: E731
+                             and math.dist(p, (x['x'], x['y'])) <= 3)    # itself included, where it stands
+    before = near(c)
+    b.vias.remove(v)
+    try:
+        got = legal_spots(b, v['net'], *c, 0.0, R, v['size'], v['drill'], 1, False, net_fills(b, v['net']),
+                          [(x['x'], x['y'], x['drill']) for x in b.vias])
+    finally:
+        b.vias.append(v)
+    if not got:
+        raise SystemExit(f"edit: no legal spot for via {u[:8]} within {R:g} mm; nothing written")
+    x, y, d = got[0]
+    if d < 1e-6:
+        print(f"  mvvia {u[:8]} already sits on a legal spot: not moved")
+        return s
+    s, k = re.subn(r'\(at [^)]*\)', f"(at {num(x)} {num(y)})", s, count=1)
+    assert k == 1
+    after = near((x, y))
+    print(f"  mvvia {u[:8]} {unesc_disp(v['net'])} {v['size']:g}/{v['drill']:g}" + (" free" if v['free'] else '')
+          + f" {c[0]:.3f},{c[1]:.3f} -> {x:.3f},{y:.3f} ({d:.2f} mm); {unesc_disp(v['net'])} vias within 3 mm "
+          f"{before} -> {after}")
+    return s
+
+
+def _closer(ex, old, new):
+    """does the moved segment `new` break clearance to any item it did not already break
+    it to as `old`: per item, not Exact.seg's one verdict (an old track already too close
+    to a fill would otherwise pass every snap)"""
+    from kpcb_smooth import seg_pad_dist
+    hw = ex.w / 2
+    tests = ([lambda p, c, a=a, e=e, n=n: seg_seg_dist(p, c, a, e) - n for a, e, n in ex.trk]
+             + [lambda p, c, o=o, n=n: pt_seg_dist(o, p, c) - n for o, n in ex.disks]
+             + [lambda p, c, d=d, n=n: seg_pad_dist(p, c, d) - n for d, n in ex.pads]
+             + [lambda p, c, u=u, v=v: seg_seg_dist(p, c, u, v) - ex.ec for u, v in ex.edge])
+    for f in tests:
+        m = f(*new) - hw
+        if m < -1e-4 and m < f(*old) - hw - 1e-4:
+            return True
+    samp = lambda p, c: [(p[0] + (c[0] - p[0]) * k / 20, p[1] + (c[1] - p[1]) * k / 20) for k in range(21)]  # noqa: E731
+    for idx, n in ex.fills:
+        if any(idx.touches(x, n + hw) for x in samp(*new)) and not any(idx.touches(x, n + hw) for x in samp(*old)):
+            return True
+    return False
+
+
+def vcenter(b, t, cur, src):
+    """track ends inside a same-net via but off its centre (KiCad 10.99 has no CLI clean-up
+    for track_not_centered_on_via) snap onto the centre; a segment both of whose ends land
+    on one centre is deleted. `src` 'all', or a kdrc --report JSON naming the tracks"""
+    import json
+    from kpcb_move import is_arc
+    from kpcb_smooth import Exact
+    only = None
+    if src != 'all':
+        only = {it.get('uuid') for v in json.load(open(src)).get('violations', [])
+                if v.get('type') == 'track_not_centered_on_via' for it in v.get('items', [])}
+    vias = defaultdict(list)
+    for v in b.vias:
+        vias[v['net']].append(v)
+    snapped, dropped, kept = 0, set(), []
+    for tr in b.tracks:
+        u = tr.get('uuid')
+        if is_arc(tr) or not u or (only is not None and u not in only) or u not in t.span or cur.get(u) == '':
+            continue
+        new = [tr['a'], tr['b']]
+        for i, e in enumerate(new):
+            for v in vias[tr['net']]:
+                if 0.0005 < math.dist(e, (v['x'], v['y'])) <= v['size'] / 2 - 1e-6:
+                    new[i] = (v['x'], v['y'])
+                    break
+        if new == [tr['a'], tr['b']]:
+            continue
+        if math.dist(*new) < 1e-6:
+            cur[u] = ''
+            dropped.add(u)
+            continue
+        box = (min(new[0][0], new[1][0]) - 1, min(new[0][1], new[1][1]) - 1,
+               max(new[0][0], new[1][0]) + 1, max(new[0][1], new[1][1]) + 1)
+        if _closer(Exact(b, tr['net'], tr['layer'], tr['w'], box), (tr['a'], tr['b']), new):
+            kept.append(u)
+            continue
+        s = cur.get(u, t.text(u))
+        s, n1 = re.subn(r'\(start [^)]*\)', f"(start {num(new[0][0])} {num(new[0][1])})", s, count=1)
+        s, n2 = re.subn(r'\(end [^)]*\)', f"(end {num(new[1][0])} {num(new[1][1])})", s, count=1)
+        assert n1 == n2 == 1, u
+        cur[u] = s
+        snapped += 1
+    print(f"  vcenter: {snapped} track end(s) snapped to the via centre, {len(dropped)} zero-length segment(s) deleted"
+          + (f", {len(kept)} skipped (the snap breaks clearance): {' '.join(x[:8] for x in kept)}" if kept else '')
+          + (f"  [{len(only)} track(s) named in {src}]" if only is not None else ''))
+    return dropped
+
+
+def _drop_cache(s):
+    """a moved or resized TrueType text's cached outline is stale: KiCad redraws it from the font"""
+    if '(render_cache' in s:
+        s = re.sub(r'\n\t\t\(render_cache .*?\n\t\t\)', '', s, flags=re.S)
+        print("  (TrueType text: its render_cache dropped; KiCad redraws it from the font)")
+    return s
+
+
+def c_edit(b, a):
+    """scripted hand edits on a copy, every match asserted: what a power pass or a
+    clean-up needs between the routers (a width, a stray track, a stitching via)"""
+    ops, i, args = [], 0, list(a.args)
+    while i < len(args):
+        k = args[i]
+        n = EDIT_OPS.get(k)
+        if n is None or i + n >= len(args):
+            print(f"edit: bad or short op {k!r}\n{EDIT_USE}"); return 1
+        ops.append((k, args[i + 1:i + 1 + n]))
+        i += 1 + n
+    if not ops or any(len(v) != EDIT_OPS[k] for k, v in ops):
+        print(EDIT_USE); return 1
+    if _need_out(a, 'edit'):
+        return 1
+    t = PcbText(b.path)
+    cur = {}                                             # uuid -> its text as edited so far
+    instub = set()                                       # in-via stubs: the via keeps its teardrops
+
+    def one(pfx):
+        m = [u for u in t.span if u.startswith(pfx)]
+        if len(m) != 1:
+            raise SystemExit(f"edit: {pfx!r} matches {len(m)} item(s); nothing written")
+        return m[0]
+    xy = lambda s: tuple(float(v) for v in s.split(','))      # noqa: E731
+    for k, v in ops:
+        if k == 'width':
+            u = one(v[0])
+            s = cur.get(u, t.text(u))
+            if not s.lstrip().startswith(('(segment', '(arc')):
+                raise SystemExit(f"edit: {v[0]} is not a segment or arc; nothing written")
+            s, c = re.subn(r'\(width [^)]*\)', f"(width {num(float(v[1]))})", s, count=1)
+            assert c == 1
+            cur[u] = s
+            print(f"  width {u[:8]} -> {float(v[1]):g}")
+        elif k == 'del':
+            u = one(v[0])
+            if u in cur and not cur[u]:
+                raise SystemExit(f"edit: {u[:8]} deleted twice; nothing written")
+            cur[u] = ''
+            print(f"  del   {u[:8]} ({t.text(u).split()[0].lstrip('(')})")
+        elif k == 'seg':
+            net, ly, w, p0, p1 = v
+            t.segment(net, ly, float(w), xy(p0), xy(p1))
+            print(f"  seg   {net} {ly} w {float(w):g} {p0} -> {p1}")
+        elif k == 'via':
+            net, p, sd = v
+            sz, dr = (float(x) for x in sd.split('/'))
+            t.via(net, *xy(p), sz, dr, [b.copper[0], b.copper[-1]], free=True)
+            print(f"  via   {net} {p} {sz:g}/{dr:g} (free)")
+        elif k == 'simplify':
+            from kpcb_route import simplify
+            u = one(v[0])
+            s = cur.get(u, t.text(u))
+            pols = list(re.finditer(r'(\n\t\t\(polygon\n\t\t\t\(pts\n)(.*?)(\n\t\t\t\)\n\t\t\))', s, re.S))
+            if not s.lstrip().startswith('(zone') or not pols or any('(arc' in m[2] for m in pols):
+                raise SystemExit(f"edit: {v[0]} is not a zone with a straight-edged outline; nothing written")
+            for m in reversed(pols):
+                pts = [(float(x), float(y)) for x, y in re.findall(r'\(xy (\S+) (\S+)\)', m[2])]
+                P = simplify(pts, float(v[1]))
+                s = s[:m.start(2)] + ''.join(f"\t\t\t\t(xy {num(x)} {num(y)})\n" for x, y in P).rstrip('\n') + s[m.end(2):]
+                print(f"  simplify {u[:8]} {len(pts)} -> {len(P)} corner(s)")
+            s, nf = re.subn(r'\n\t\t\(filled_polygon\n.*?\n\t\t\)', '', s, flags=re.S)
+            if nf:
+                print(f"  ({nf} stale fill polygon(s) dropped: refill)")
+            cur[u] = s
+        elif k == 'textsize' and v[0] not in b.fps:     # a board gr_text, by uuid
+            from kpcb_silk import edit_text
+            u = one(v[0])
+            s = cur.get(u, t.text(u))
+            if not s.lstrip().startswith('(gr_text'):
+                raise SystemExit(f"edit: {v[0]} is neither a footprint nor a board text; nothing written")
+            s = _drop_cache(edit_text(s, h=float(v[1]), t=float(v[2])))
+            cur[u] = s
+            print(f"  textsize {u[:8]} {v[1]} {v[2]}")
+        elif k in ('ref', 'hide', 'show', 'textsize', 'value', 'hide-value', 'show-value', 'valuesize'):
+            from kpcb_silk import ref_block, edit_text
+            from kpcb_move import fp_local
+            f = b.fps.get(v[0])
+            if not f:
+                raise SystemExit(f"edit: no footprint {v[0]!r}; nothing written")
+            fld = 'Value' if k in ('value', 'hide-value', 'show-value', 'valuesize') else 'Reference'
+            s = cur.get(f.uuid, t.text(f.uuid))
+            m = ref_block(s, fld)
+            if not m:
+                raise SystemExit(f"edit: {f.ref} has no {fld} field; nothing written")
+            if k in ('ref', 'value'):
+                nb = edit_text(m.group(0), fp_local(f, xy(v[1])), None if v[2] == 'keep' else float(v[2]), centre=True)
+            elif k in ('textsize', 'valuesize'):
+                nb = edit_text(m.group(0), h=float(v[1]), t=float(v[2]))
+            else:
+                nb = edit_text(m.group(0), hide=k.startswith('hide'))
+            cur[f.uuid] = s[:m.start()] + nb + s[m.end():]
+            print(f"  {k:<5} {f.ref} " + ' '.join(v[1:]))
+        elif k == 'text':
+            from kpcb_silk import edit_text
+            u = one(v[0])
+            s = cur.get(u, t.text(u))
+            if not s.lstrip().startswith('(gr_text'):
+                raise SystemExit(f"edit: {v[0]} is not a board text; nothing written")
+            cur[u] = _drop_cache(edit_text(s, xy(v[1]), None if v[2] == 'keep' else float(v[2])))
+            print(f"  text  {u[:8]} -> {v[1]} {v[2]}")
+        elif k == 'mvvia':
+            u = one(v[0])
+            cur[u] = mvvia(b, cur.get(u, t.text(u)), u, float(v[1]))
+        elif k == 'vcenter':
+            instub |= vcenter(b, t, cur, v[0])
+        else:                                            # solid REF.PAD
+            ref, _, pad = v[0].partition('.')
+            f = b.fps.get(ref)
+            if not f or not pad:
+                raise SystemExit(f"edit: no footprint {ref!r} (solid wants REF.PAD); nothing written")
+            s = cur.get(f.uuid, t.text(f.uuid))
+            ms = list(re.finditer(r'\n\t\t\(pad "%s" .*?\n\t\t\)' % re.escape(pad), s, re.S))
+            if len(ms) != 1:
+                raise SystemExit(f"edit: {v[0]} matches {len(ms)} pad(s); nothing written")
+            blk = ms[0].group(0)
+            was = re.search(r'\n\t\t\t\(zone_connect (\d)\)', blk)
+            if was:
+                nb = re.sub(r'(\n\t\t\t)\(zone_connect \d\)', r'\1(zone_connect 2)', blk, count=1)
+            else:                                        # KiCad's order: net, pinfunction, pintype, zone_connect
+                for tag in ('pintype', 'pinfunction', 'net'):
+                    m2 = re.search(r'\n\t\t\t\(%s [^\n]*\)' % tag, blk)
+                    if m2:
+                        nb = blk[:m2.end()] + '\n\t\t\t(zone_connect 2)' + blk[m2.end():]
+                        break
+                else:
+                    raise SystemExit(f"edit: {v[0]} has no (net) line to anchor on; nothing written")
+            cur[f.uuid] = s[:ms[0].start()] + nb + s[ms[0].end():]
+            print(f"  solid {v[0]}" + (' (was already solid)' if was and was[1] == '2' else ''))
+    for u, s in cur.items():
+        t.sub(u, s)
+    gone = [tr for tr in b.tracks if cur.get(tr['uuid'], None) == '' and tr['uuid'] not in instub]
+    tear = len(tear_edits(t, gone))                      # a deleted track's teardrop would orphan
+    t.save(a.out)
+    print(f"edit: {len(ops)} op(s)" + (f", {tear} teardrop(s) of deleted tracks dropped" if tear else '')
+          + f" -> {a.out}\n  verify: kdrc.py {a.out} --unconnected --baseline BEFORE.json")
     return 0

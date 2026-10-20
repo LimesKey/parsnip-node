@@ -10,12 +10,24 @@ centres 1329/1329).
 Code map (to patch one command, open only its module): `kpcb.py` is the CLI plus
 summary/where/map/sheet/unplaced/span/net/sync/review; the Board model, part
 classification regexes and geometry are `kpcb_board.py`; `check` rules are
-`kpcb_check.py`; `ic`, `zones`, `ampacity`, `viapad`, `rf`, `height` are
-`kpcb_<ic|zones|amp|viapad|rf|height>.py`. `kpcb_copper.py` is one net's copper as
-a graph (pads, tracks split at tees, via barrels, fill fragments as conductors):
-`net` counts its pieces and `ampacity --from/--to` solves current through it.
-The writers are `kpcb_edit.py` (the text-span editor plus `fixlines`, `renet`,
-`ripup`, `move`), `kpcb_route.py` (`airwires`, `route`) and `kpcb_place.py` (`place`).
+`kpcb_check.py`; `ic`, `zones`, `ampacity`, `viapad`, `rf`, `height`, `view`,
+`freebox`, `tidy`, `diff` are `kpcb_<ic|zones|amp|viapad|rf|height|view|freebox|tidy|diff>.py`,
+`silk` + `refdes` are `kpcb_silk.py`, `tracks` + `widen` + `loops` are `kpcb_tracks.py`,
+and `movecheck` (with KiCad's Drag model, `drag_set`/`drag_plan`) is `kpcb_move.py`.
+`kpcb_copper.py` is one net's copper as a graph (pads, tracks split at tees, via barrels,
+fill fragments as conductors): `net` counts its pieces and `ampacity --from/--to` solves
+current through it; custom pads join on their real primitive polygons, not their box.
+The clearance model is `kpcb_zones._clearance_fn`: netclass, `.kicad_dru` NetName pairs
+and, given the two item kinds and the layer, the `.kicad_dru` type rules (`A.Type ==
+'Pad' && B.Type == 'Track'` and the like, layer-scoped `outer`/`inner`) - which never
+relax a raised netclass (RF) or a pair rule; `route`, `movecheck`, `place`, `stitch`,
+`smooth` and `widen` all use it, and it warns once when no project rules sit beside the
+board. The writers are `kpcb_edit.py` (the text-span editor plus `fixlines`, `renet`,
+`ripup`, `unhook`, `move`, `edit`), `kpcb_route.py` (`airwires`, `route`, `pairs`),
+`kpcb_place.py` (`place`), `kpcb_power.py` (`fatten`, `stitch`, the `vscan` reader),
+`kpcb_smooth.py` (`smooth`), `kpcb_tracks.py` (`widen`, `loops -o`) and `kpcb_silk.py`
+(`refdes`); their model, the scratch-copy loop and every flag are in
+[kpcb-writers](kpcb-writers.md).
 
 Every `(footprint` block is one Board entry. KiCad allows a repeated ref (logos are
 all `REF**`): the second and later copies read `REF**~dup2`, `REF**~dup3`, ... A
@@ -25,7 +37,7 @@ carry F.SilkS art), so `summary`, `map` and `where` count it on the art's side.
 | command | use |
 | --- | --- |
 | `summary` | outline size, stackup, zones, how much of each sheet is placed, biggest parts. Run first. |
-| `check` | 10 rule-based findings, grouped ERROR/WARN/INFO. Exit 2 if any ERROR. |
+| `check` | rule-based findings (`--rules` lists the rules), grouped ERROR/WARN/INFO. Exit 2 if any ERROR. |
 | `where REF...` | **highest value per call.** Position, rotation, courtyard, Fab-only body (the housing a connector setback is measured from), edge distance, class, nets, and every neighbour within `-r`. Footprint `(scale)` is applied. `--origin grid\|aux` quotes KiCad's dialog coordinates. Use instead of eyeballing coordinates. |
 | `where X,Y -r N` | same, around a bare coordinate - "is there room here". |
 | `map [--side f\|b] [--cols N]` | ASCII occupancy map, one letter per schematic sheet. Shows the floorplan and the free space in ~50 lines. |
@@ -47,11 +59,16 @@ carry F.SilkS art), so `summary`, `map` and `where` count it on the art's side.
 | `net NET` | every pad on a net with absolute xy, copper per layer (segments, length, width range), vias, zones, extent, and whether the copper is **one piece** (else the pads in each cut-off piece) plus padless islands. Accepts the short name (`LORA_ANT`). |
 | `rf [NET...]` | 50-ohm trace review. No net = every net whose netclass names RF/50. See below. |
 | `height [REF...]` | 3D-model height of each part and the board's Z stack. Shells out to KiCad's GLB export (~15 s, then cached until the board, a `${KIPRJMOD}` model or kicad-cli changes). See below. |
-| `movecheck REF X Y [ROT]` | what moving REF there would **newly** break: foreign pads/tracks/vias inside the clearance, copper to the edge, a same-side courtyard overlap. `REF --scan x=X y=A..B [--step 0.05]` slides it and prints the clear stretches; `via X,Y NX,NY` moves one via and says whether tracks are tied to it. Read-only. See below. |
+| `movecheck REF X Y [ROT]` | what moving REF there would **newly** break: foreign pads/tracks/vias inside the clearance, copper to the edge, a same-side courtyard overlap, and the tracks the move drags swinging into foreign copper. `REF --scan x=X y=A..B [--step 0.05]` slides it and prints the clear stretches; `via X,Y NX,NY` moves one via and says whether tracks are tied to it. Read-only. See below. |
 | `tidy` | near-miss alignment, each fix pre-checked with `movecheck`: a row/column with one part 0.005-0.15 mm off, a row of >= 3 with an uneven pitch, mounting-hole insets that nearly agree, rotations off a multiple of 90, a small part a little off a big same-side part's long centre line (a thermistor under a cell holder). Prints `REF now -> new`; writes nothing. See below. |
 | `freebox SIDE W H` | where a W x H mm silk box (a logo, a label) fits on side `f`/`b`: clear of that side's courtyards, every through-hole pad and that side's silk (logos, board art, refdes and other footprint text), >= 1 mm inside the edge. Best centre per free region, by margin. See below. |
-| `silk` | every padless graphic footprint (logo, pasted art): the layers its art is really on (per item, not the footprint's `(layer)`), scaled extent, rotation, the same-side part body hiding it (HIDDEN >= 50% of its box), and the pads its art crosses. See below. |
-| `view REF... [-r 5] [--layers L,L] [-o x.png]` | PNG of the board around parts (their courtyards + `-r`), an `X,Y`, or `--box X0,Y0,X1,Y1`, on the part's side layers (Cu, SilkS, Fab, CrtYd + Edge.Cuts) unless `--layers`. Use it to check by eye what a number says (a void, a logo under a module, a setback). See below. |
+| `silk` | **silkscreen review**: every visible designator, value, user and board text over exposed pads, under a part body, overlapping other silk or a silk outline, off/near the edge, under the fab minimum size, ambiguous (nearer another part), mirrored wrongly or upside down; hidden designators; logos (art layer, scaled extent, the body hiding it, pads it crosses). Folded like `check`, `--only SILK-...`. See below. |
+| `silk REF... \| --box X0,Y0,X1,Y1` | every silk text in the region with position, angle, size, uuid (board texts) and its findings: what `edit ref/hide/show/textsize/text` takes. |
+| `refdes [REF...] [--all] [--show] [--size H] -o OUT` | re-place designators beside their parts, clear of all of the above (writer). [kpcb-writers](kpcb-writers.md). |
+| `view REF... [-r 5] [--layers L,L] [-o x.png]` | PNG of the board around parts (their courtyards + `-r`), an `X,Y`, or `--box X0,Y0,X1,Y1`, on the part's side layers (Cu, SilkS, Fab, CrtYd + Edge.Cuts) unless `--layers`. `--layers silk`: that side's silkscreen drawn from the model (pads, Fab bodies, silk outlines, texts; flagged texts red with their box). `--tracks [--net N] [--mark X,Y;..]`: tracks/pads/vias from the model, no fills. `--sites LAYER:X,Y;..`: one panel per site. See below. |
+| `tracks [--kind K] [--view P.png]` | trace-quality census: visible corners (46-90 deg, acute), off-45 segments, width steps mid-run, segments < 0.05 mm, each dropped when hidden under the union of same-net copper; listed rows say why `smooth` left them (pad/via anchor, width step, T, frozen, boxed in, or `fix: smooth --corners`); lane jogs (`--kind jog`) with which side collapses or what blocks it, priced only for listed rows. `--view` draws the listed rows, 16 panels per PNG (OUT-1.png, OUT-2.png...). |
+| `diff OLD.kicad_pcb` | what an edit changed: footprints moved/rotated/flipped, silk text, vias, zones, teardrops, tracks removed/added/re-laid/width-only, net or layer changes on kept tracks, length per layer, per-net series R of the changed tracks. |
+| `vscan NET X0,Y0,X1,Y1 [--width W] [--via S/D] [--layers L]` | the router's own model of a box as ASCII at 0.1 mm: legal via spots and the free layers per cell - what `route` saw when it reports a pin boxed in. |
 | `airwires [NET...]` | **what is left to route**: every net whose copper is not one piece, and per missing link the nearest copper of the two pieces (pad, track, via or pour) and the gap. Matches KiCad's unconnected count (135/135 on parsnip). Reads the saved fill: refill first. `--since OLD` (both refilled): the nets a later pass split into more pieces (a plane region cut off) and the new tracks that crossed OLD's pour, `--report R.json` for `ripup --drc`. |
 | `route NET... \| --pending [-o OUT]` | grid A* router: one piece of NET to the rest, 8 directions, through vias, every copper layer, ripping up and re-queuing its own earlier routes when they box a pin in. Dry run prints the path; `-o` writes it into a copy. See "Writers" below. |
 | `pairs [NET...]` | diff pairs (nets `X+`/`X-` or `XP`/`XN`): routed length per leg, skew, vias, widths, and the coupled length (same layer, parallel, perpendicular foot on the other leg, edge gap <= 2x the netclass `diff_pair_gap` + width) with that gap's median/min/max; flags a gap under the netclass's. `route` lays each leg alone, so run this after it. |
@@ -60,6 +77,9 @@ carry F.SilkS art), so `summary`, `map` and `where` count it on the art's side.
 | `ripup NET... \| --drc R.json [-o OUT]` | delete tracks/vias (every one of NET, `--box`, or exactly the items a kicad-cli DRC JSON flags), prune what that leaves dangling, drop their teardrops. |
 | `renet [--drop] -o OUT` | netless tracks/vias (a net renamed under them) take the one net their ends touch; `--drop` deletes the clusters that touch two nets (stale routes) or none. |
 | `fixlines -o OUT` | repair the KiCad 10.99 fp_line frame bug in a copy (see "fp_line frame bug" below). |
+| `fatten NET... -o OUT` / `stitch NET [X,Y] -o OUT` | same-net pour bands round a power path's tracks / legal via spots on its copper. [kpcb-writers](kpcb-writers.md). |
+| `copper X0,Y0,X1,Y1` / `edit OP... -o OUT` | every copper item in a box with its uuid / a hand edit (`width`, `del`, `seg`, `via`, `solid`; silk: `ref`, `hide`, `show`, `textsize`, `text`). [kpcb-writers](kpcb-writers.md). |
+| `smooth` / `widen` / `loops` / `unhook` `-o OUT` | trace clean-up writers: pull chains tight and octilinear (+ `--overlaps`, `--corners`, `--square`, `--pads`: a trace stopping at a pad edge onto the pad centre, `--all`), grow under-width tracks, delete redundant chains, rip only what served a part. [kpcb-writers](kpcb-writers.md). |
 
 ## Flags
 
@@ -107,7 +127,7 @@ review.
 **Nothing else here means anything if this fails.** A board that was never
 re-synced after a schematic change carries pad net names that look perfectly valid,
 so neither the board file nor any check on it can tell you it is stale - only the
-netlist can. Rules: `SYNCPART SYNCFP SYNCVAL SYNCDNP SYNCNET SYNCART`.
+netlist can. Rules: `SYNCPART SYNCFP SYNCVAL SYNCDNP SYNCNET SYNCART SYNCBOARD SYNCLINK`.
 
 Clean output is two lines (`IN SYNC`), so it is cheap to run every time. A `SYNCNET`
 error means re-run KiCad's *Update PCB from Schematic* before reading any other
@@ -116,7 +136,14 @@ connectivity is still right and placement findings still hold.
 
 A footprint on the board only that has no pads and no sheet path (a logo, pasted
 silk art, `REF**`) is `INFO SYNCART`, not a missing part: it never came from the
-schematic, so it cannot make the board stale and the output stays `IN SYNC`.
+schematic, so it cannot make the board stale and the output stays `IN SYNC`. So is a
+footprint with the `board_only` attr ("Not in schematic", e.g. B.Cu fiducials): `INFO
+SYNCBOARD`, which KiCad's own parity check skips too.
+
+A matching refdes is not a link: Update PCB pairs footprints with symbols by path. A
+footprint whose `(path)` is missing or is not its symbol's sheet tstamps + uuid is
+`ERROR SYNCLINK` (KiCad would delete and re-add it); a `board_only` footprint that does
+have a symbol is `WARN SYNCLINK`.
 
 `unconnected-*` pseudo-nets get a `_1` suffix on the board and not in the netlist;
 that is normalised away rather than reported as 439 differences.
@@ -162,6 +189,10 @@ reminder that a pour's own neck is not measured. On a plane net (GND) every pad'
 stub into the plane is a pendant bridge, so the bottleneck names the thinnest pad
 stub, which only matters if that pad carries the budget: `--from PAD --to PAD`
 answers the real source-to-load path. The R/Vdrop line still sums tracks only.
+
+With no kpcb.json `current{}`, the scan derives budgets from the protection parts on the
+board: a fuse's rating (`10A Hold`) on both its nets, an eFuse's ILIM max (knet.json `ilim`
+row for its family, resistor on its ILM/ILIM pin) on its OUT net - upper bounds, labelled.
 `--json` carries the `pour` block.
 
 ### How it reads the copper (the important part)
@@ -226,6 +257,13 @@ ampacity is conservative for a planed board (see the footer). `--from/--to`
 answers the first and the last, below.
 
 ### `--from PAD --to PAD` - current along the real path
+
+`--fills` adds a grid solve through the REAL copper: saved fills with their necks, tracks,
+pads, via and plated-hole barrels between layers, on `--cell` squares (0.1 mm with numpy,
+else 0.2, pure Python), Jacobi-PCG. It prints R / Vdrop / P and the densest current off
+the pads and vias as the width a uniform track would need to carry it all: the neck to
+widen. Refill first (it reads the saved fill). Parsnip: PPHV 32.9 mohm vs 16.6 with
+pours ideal; SW1's neck the In2 trace at U8's vias (0.86 mm equivalent).
 
 `ampacity --from Q16.1 --to R41.1 --amps 6` solves the copper between two pads of
 one net as a resistor network (Jacobi-preconditioned CG, ~0.02 s): tracks and via
@@ -501,20 +539,25 @@ on disk (a re-run is instant until a gap, width or the stackup changes); gaps ro
 Read-only: it prints what a move would do and never writes the board. REF's pads
 are re-placed at X,Y (and ROT, when given, turning them about the footprint origin)
 as boxes, then measured against every foreign pad, track and via that shares a copper
-layer (a through pad is on all of them), at the net-pair clearance `zones --voids`
-uses (netclasses + `.kicad_dru` `NetName` pairs; same-net copper is never a hit),
-plus copper to the edge (`Board.edge_clearance`) and a same-side courtyard overlap.
+layer (a through pad is on all of them), at the clearance `_clearance_fn` gives
+(netclasses, `.kicad_dru` `NetName` pairs and type rules; same-net copper is never a
+hit), plus copper to the edge (`Board.edge_clearance`) and a same-side courtyard overlap.
 The same test runs at the current spot and only hits the new one adds print as
-`NEW`, so a pre-existing violation is not blamed on the nudge. REF's own tracks
-(ending on its pads) are left out: KiCad's Drag (D) brings them along, so re-check
-those after the move. Zones are left out too: a refill flows around the part. Pads
-are boxes, conservative for round pads on a diagonal. Exit 2 when something new hits.
+`NEW`, so a pre-existing violation is not blamed on the nudge. What KiCad's Drag (D)
+takes along moves too and is checked at its new place (`drag_set`): segment ends on
+REF's pads on a layer that pad has (a through pad: all), the vias inside its pads and
+every end on them; an end on a via outside the pads stays tied to it. A dragged
+segment that swings into foreign copper prints `NEW   dragged NET LAYER @..`; `tidy`
+runs the same test. Zones are left out: a refill flows around the part. Pads are
+boxes, conservative for round pads on a diagonal. Exit 2 when something new hits.
 
 `--scan x=113.3 y=81..87` slides REF's centre along a line (one axis fixed, one a
 range, `--step` mm) and prints contiguous clear and blocked stretches with what
 blocks each, so a centring move can pick its spot. `via X,Y NX,NY` takes the via
-nearest X,Y (within 0.15 mm): `tied: nothing` means a bare stitching via that is free
-to move (the pour reconnects it on refill); otherwise the tracks ending on it drag.
+nearest X,Y (within 0.15 mm), measured as a disk (not its bounding square): `tied:
+nothing` means a bare stitching via that is free to move (the pour reconnects it on
+refill); otherwise the track ends inside it drag with it and their new paths are checked
+too (a stub with both ends inside drags only its nearer end; an end on the rim stays).
 
 ## `tidy` - near misses, with the fix already checked
 
@@ -541,7 +584,8 @@ hit), so a fix that would break clearance says so before anyone drags the part.
 
 A 0.25 mm raster of the side: blocked where outside the outline or within 1 mm of
 it, under a placed same-side courtyard, under any through-hole pad (pad box, both
-sides), or under that side's silk: padless art items, board-level `gr_*` silk, and
+sides) or that side's SMD pad (a holder's contacts sit outside its courtyard), or under
+that side's silk: padless art items, board-level `gr_*` silk, and
 each footprint's visible silk text. Text boxes are estimated (0.9 x font width per
 character, line height from the font, placed by `(justify)`, footprint text `(at)`
 local with an absolute angle). Every centre whose W x H box is empty is a candidate;
@@ -551,7 +595,48 @@ the region's middle). Blocked cells are any cell an obstacle touches, so margins
 err low by up to one cell. Tracks and pours are not obstacles: silk over masked
 copper is fine. ~0.5 s.
 
-## `silk` - where the logos really are
+## `silk` - the silkscreen review
+
+Every visible silk text - designators (the Reference field), values and user texts on
+a silk layer, board `gr_text` - is a box (0.9 x size per character, 1.2 x size per
+line, placed by its `(justify)`; within ~0.1 mm of KiCad's stroke font for designators,
+measured against a kicad-cli plot). A TrueType text with a `render_cache` is boxed by that
+outline (KiCad's own, exact) unless the cache misses the estimate (stale after a move).
+Rules, on the text's own side:
+- **SILK-PAD** the box, grown by the silk clearance (`.kicad_dru` `silk_clearance`,
+  `.kicad_pro` `min_silk_clearance`), touches an exposed pad (that side's SMD pad or any
+  through pad): the fab clips silk at the mask opening.
+- **SILK-UNDER** the box overlaps a placed part's body on that side, its own or a
+  neighbour's: hidden once assembled. The body is the Fab outline, else the courtyard when
+  something physical stands there (a 3D model, or not TP/JP/NT/H/MH/FID: the E22P, cell
+  holders and easyeda headers have no Fab); a part's own user marks (+/-) are exempt there.
+- **SILK-OVERLAP** another visible silk text, a footprint's silk outline (stroke width
+  counted; a footprint's own user texts on its own outline are by design), a logo, or
+  board art (filled `gr_poly`/`gr_rect`/`gr_circle` by box; unfilled ones and lines by
+  stroke, so a label inside a frame is not under it).
+- **SILK-EDGE** off the board or within the silk clearance of the edge.
+- **SILK-SIZE** height or thickness under the fab minimum (`.kicad_dru` text_height /
+  text_thickness, `.kicad_pro` min_text_*). A TrueType text's (thickness) is ignored: KiCad
+  measures the glyph stroke, ~0.116 x height for DIN Mittelschrift, so it needs height >=
+  min_thickness / 0.116 (1.3 mm at 0.15; bold does not help). Matched KiCad's 9
+  text_thickness hits on parsnip 2026-10-19.
+- **SILK-AMBIG** a designator whose box is 0.15 mm nearer another same-side part
+  (pads + Fab body, no courtyard margin) than its own - unless it sits in line with its
+  own part within 0.6 mm - or more than 2.5 mm from its part.
+- **SILK-MIRROR** back-side text not mirrored or front-side text mirrored.
+- **SILK-ORIENT** (info) a front designator at 180/270 (KiCad reads 0/90 from the
+  bottom/right edge) or off a multiple of 90. Back-side reading direction depends on the
+  flip convention, so it is not judged.
+- **SILK-HIDDEN** (info) designators hidden or off the silk, one summary line.
+- **SILK-ART** a logo HIDDEN >= 50% under a body, or over pads (below).
+Then the logo table and the designator size histogram (pick the normalisation from it).
+`silk REF... [-r]` / `--box` lists the texts in a region instead, with board-text uuids.
+KiCad's own `silk_over_copper` / `silk_overlap` may be IGNORED in the `.kicad_pro`
+(parsnip's are), so `kdrc` will not show these; its TEXT_HEIGHT/THICKNESS do overlap
+SILK-SIZE. Parsnip 2026-10-19: 242 visible designators of 469; ~400 warnings, about half
+gone after one `refdes` pass (0 new DRC, 12 TEXT_* violations gone).
+
+### logos
 
 A footprint with no pads is art. Its side is where its items are (a B.Cu logo can
 carry F.SilkS art), its extent is the union of its items' boxes with the footprint
@@ -559,8 +644,8 @@ carry F.SilkS art), its extent is the union of its items' boxes with the footpri
 body (Fab outline, else courtyard) covers >= 50% of that box: a module (U1, U12) or a
 cell holder sits on it after assembly. `pads` counts same-side pads (and through
 pads) whose copper box an art item's box touches; silk there is clipped at the mask
-opening. Board-level silk (`gr_poly`/`gr_text` on *.SilkS) is not listed here; `freebox`
-treats it as an obstacle.
+opening. Board-level silk graphics (`gr_poly` on *.SilkS) are not listed; `freebox`
+treats them as obstacles.
 
 ## `view` - a picture of the board
 
@@ -570,7 +655,17 @@ list. That SVG's viewBox is the page in mm with the board at its own coordinates
 the crop is a viewBox rewrite (the ksheet `view` recipe), rasterised by `rsvg-convert`
 at `--px 20` per mm on white; `-o x.svg` keeps the cropped SVG. Always seen from the
 top: a B.* layer is not mirrored, so coordinates stay the board's. Zones show their
-saved fill.
+saved fill, which hides routing and pads.
+
+The model renders skip kicad-cli: `--tracks` draws tracks (arcs as a quadratic through
+their mid), pads (custom ones as their polygons) and vias per copper layer from the
+Board model, `--net N` green, `--mark` rings points, 60 px/mm; `--sites LAYER:X,Y;..`
+draws one 1.6 mm panel per site (`-r` half size) in a 4-wide grid, 120 px/mm, the
+input `tracks --view` feeds. `--layers silk` draws one side's silkscreen from the model
+- exposed pads, Fab outlines, silk outlines, logos, every visible text as text at its
+size and angle - with each flagged text red and boxed; the back side is drawn seen from
+the bottom so it reads. KiCad's plot of SilkS+Fab cannot do this: the Fab values cover
+the designators.
 
 ## `height [REF...]` - the Z budget
 
@@ -593,103 +688,6 @@ What it will not do is guess:
   kpcb.json `"height": {"BT1": 23.1}` - an override wins over the model and prints
   with `*`.
 Enclosure, gasket, display and standoffs are not on the board and not counted.
-
-## Writers - place and route on a scratch copy
-
-Every writer writes a NEW file (`-o OUT`) and refuses to overwrite its input. They
-edit the board as text, by span: a top-level item opens on a `\n\t(` line and closes
-on the next `\n\t)` line, items are found by uuid, every regex match count is
-asserted, and nothing that was not edited is re-serialised. Verified exact: a flip
-applied twice, and a move+rotate and back, reproduce all 471 parsnip footprints
-byte for byte; a flipped board reads every pad mirrored in x about its footprint
-(1475/1475, 0 error) and KiCad's `export pos` agrees on side and position (465/465).
-
-**The loop** (scratch dir holds `parsnip.kicad_pcb` + the project's `.kicad_pro`,
-`.kicad_dru`, sheets and `.net` - the board must keep the project's stem, see gotchas):
-
-```bash
-P=kpcb.py; B=$S/parsnip.kicad_pcb
-kdrc.py $B drc --refill-save --report r0.json          # baseline, fresh fill saved
-$P $B airwires                                        # what is left
-$P $B ripup --drc r0.json -o n.kicad_pcb && mv n.kicad_pcb $B   # shorts/clearance/dangling
-$P $B place U22 -o n.kicad_pcb && mv n.kicad_pcb $B   # one part at a time
-$P $B route --pending -o n.kicad_pcb && mv n.kicad_pcb $B
-kdrc.py $B drc --refill-save --baseline r0.json --report r1.json   # only NEW findings
-$P $B airwires --since OLD.kicad_pcb                  # a plane region the routes cut off?
-$P $B pairs                                           # diff pairs: skew, coupling
-```
-
-`kdrc --baseline` lists only what the edit added (multiset on type + descriptions),
-so a clean step reads `0 new`; `--refill-save` is refused for a git-tracked file.
-
-**`route`** builds one window around the gap (`--margin` 3 mm, widened x2.5 then x6
-on failure) at `--grid` 0.05 mm, aligned to a grid point on the source pad. Per
-layer, foreign copper is painted as exact row intervals (pads as rectangles - a
-roundrect's corners are never assumed away -, tracks as capsules, vias as disks)
-grown by the net-pair clearance (netclasses + `.kicad_dru` `NetName` pairs, the same
-`_clearance_fn` `zones --voids` uses) + half the track width + s^2/(8R) (the most a
-straight grid step can dip into a convex obstacle, ~0.003 mm; a blanket half-cell
-margin made a 0.4 mm-pitch QFN pad unreachable). The board edge is copper-to-edge
-clearance, rule areas with tracks/vias not allowed block, and a through via needs
-its pad clear on every layer plus 0.25 mm hole to hole; no via lands in its own SMD
-pad. A foreign PLANE (GND, or any net filling > 20% of the board on that layer) is
-passable at `--pour-cost` (0.6: a route cuts the plane, the refill flows round it);
-every other foreign pour is a power island and counts as copper for tracks and vias -
-a first parsnip pass that let routes through them split PPHV from 3 pieces into 5.
-Inner layers cost `--inner-cost` (1.25), a via `--via-cost` (1.5 mm), a bend `--turn`
-(0.3 cells); the inner layer under an outer layer's RF-netclass traces (their
-reference plane: In1 on parsnip) costs `--ref-cost` x that (2, so 2.5 vs In2's 1.25).
-**Rip-up:** links go shortest net first, so an early route can box a later pin in
-(parsnip 2026-10-18: U22 LGA pins 4/13, REGN R54.1, D3.3, U1.4). A link that fails
-is retried with this run's own routes of other nets passable at `--rip-cost` (10 per
-mm: a 10 mm detour beats a rip). The links it comes within clearance of are deleted
-and their nets routed again at once (no further rips); if one cannot rejoin, the
-whole attempt is undone and the link reports FAILED with why. `--rips` (10) caps
-rips per run, 0 turns it off. Board copper that was there before the run is never
-ripped, so on parsnip's working-tree board (2026-10-18) it did little: of 56
-failures one cleared (U2.B1, covered by the run's own GND stub on U2.A1, which was
-ripped and re-laid; the net joined later without it anyway), one was undone (R53's
-two ends block each other, so ripping only swaps which net fails), and the rest are
-stale copper over the source pad (29) or boxed in by copper that predates the run (26).
-**`--pour W`** (off by default): a link no track width fits (PWR_HIGH in the dense
-charger corner fails at its 1.0 mm floor) is found at probe width W (0.3) and laid as
-same-net zones, one per same-layer run: a band the netclass track width wide round
-the probe path, solid pad connection, min thickness 0.25, priority above every zone
-on the board. The refill fits copper wherever the clearances leave room, so it necks
-through a gap a track cannot use; the probe path stays in the model (not the file) so
-later links route round it. Verified on a fixture with KiCad's own refill (one
-island, no unconnected item). Refill, then `airwires NET` and `ampacity`: the neck
-is as narrow as the gap allowed. NPTH holes keep the 0.2 mm hole-to-track rule, copper drawn as graphics
-(a `gr_rect` on In1 with a net) is copper, and a rule area blocks any copper that
-touches it, not just centres inside it. Each path ends on a KiCad anchor - a pad or
-via centre, or a point on a track's centreline - with a stub no wider than the copper
-it lies in: copper that merely overlaps (a pad under a same-net track) is not joined
-in KiCad, and a path ending there would add nothing. Ends prefer cells near their
-anchor (2x distance), so tracks leave pads at the centre. Widths: the netclass width, then 0.2, then
-0.15; PWR_HIGH 1.5 then its 1.0 floor; PWR_RAIL down to 0.3; `--width` forces one.
-RF netclasses are refused (hand-route impedance-controlled nets; `--force`).
-Each link is added to the model before the next, so later links see it. The path
-snaps onto the pad centre at each end when the track is no wider than the pad.
-Verdict: KiCad's DRC on the copy - the grid is conservative, not a proof.
-
-**`place`** rasterises each side at 0.1 mm (courtyards, through pads on both sides,
-the outline shrunk by `--edge`) plus, per net of the part, the foreign copper on
-that side's outer layer grown by 0.15 mm; summed-area tables make every candidate
-(0.25 mm pitch within `-r`, 4 rotations, `--side f|b|both`) a few O(1) tests: the
-courtyard as boxes, one per vertex-y slab (an L is two), not its bounding box.
-It never moves a placed part to make room. Score:
-per pad the distance to the nearest same-net copper on the board (rails x0.3, +1.5
-for an SMD pad on the other side), `--near REF`'s pin on that net (+2 mm off its
-side), + 0.2 x the distance to the anchor. A part whose every net is a rail (a
-decoupling cap) needs `--near`. The best spots are re-checked with movecheck's World.
-
-**`ripup --drc`** takes the item uuids kicad-cli puts in its JSON report (`kdrc.py
---report`), for `--types` (default shorts, clearance, hole clearance, hole-to-hole,
-copper-to-edge, dangling track/via), and deletes the tracks/vias among them. The
-prune then repeats until stable: a track end with no pad, via or fill of its net
-under it and no real junction (a shared endpoint that is not also this track's other
-end, or a T into another track's interior) goes, and so does a via that joins fewer
-than two LAYERS (KiCad's via_dangling). Teardrop zones on removed copper go too.
 
 ## fp_line frame bug (KiCad 10.99 nightly, the 2026-10-08 parsnip save)
 
