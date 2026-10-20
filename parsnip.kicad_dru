@@ -1,7 +1,7 @@
 (version 1)
 # parsnip-node custom DRC - valid at BOTH JLCPCB and PCBWay.
-# 4-layer FR-4, 2oz outer + 1oz inner (both doubled, no JLCPCB surcharge; see the
-# "2oz OUTER" note at the bottom), ENIG, impedance-controlled stackup,
+# 4-layer FR-4, 1oz outer + 1oz inner (JLC041611-7628; 2oz outer was rejected
+# 2026-09-16, see docs/fab/goals.md), ENIG, impedance-controlled stackup,
 # double-sided assembly. Every value below is the STRICTER of the two fabs'
 # capability, so the board is buildable at either without a design change.
 # Cost-tier surcharges (finer vias/traces) are deliberately NOT encoded here:
@@ -60,11 +60,16 @@
 # so a power or RF net necked below its class width passes DRC silently. These
 # rules turn that into a hard error.
 
-# Charge / PD path: never neck below 1.0mm (PWR_HIGH class target is 1.5mm; this
-# is the floor, route the trunks at 1.5mm). Covers every PWR_HIGH net in the
-# netclass_patterns of parsnip.kicad_pro (cells, pack, charger, input path).
+# Charge / PD path (every PWR_HIGH net in parsnip.kicad_pro: cells, pack, charger,
+# input path). The trunks ride on same-net pour bands ("route NET" zones), so the
+# copper that carries the current is the fill, not the track: check each trunk with
+#   kpcb.py parsnip.kicad_pcb ampacity --from SRC --to LOAD --amps X --fills
+# A 1.0mm floor here (until 2026-10-19) could not tell a trunk from a sense,
+# thermistor or bypass leg on the same net - KiCad rules have no track length or
+# endpoint property - and buried real DRC under ~460 legs, pad stubs and
+# pour-backed tracks. What is left is a sanity floor: nothing thinner than 0.2mm.
 (rule "pwr_min_width"
-    (constraint track_width (min 1.0mm))
+    (constraint track_width (min 0.2mm))
     (condition "A.NetClass == 'PWR_HIGH'"))
 
 # ================= DRILL / VIAS ===============================================
@@ -108,9 +113,8 @@
 
 # ================= ANNULAR RING ===============================================
 # Both fabs: 0.15mm absolute min ring on multilayer 1oz vias and PTH pads
-# (both also *recommend* 0.20mm). NOTE: the 0.3mm-drill / 0.5mm-pad vias placed
-# on the board sit at a 0.10mm ring and WILL fail this - enlarge those via pads
-# to >=0.6mm (a 0.6mm pad on a 0.3mm drill gives the recommended 0.15mm ring).
+# (both also *recommend* 0.20mm). The board's vias are 0.5/0.2, 0.6/0.3 and 0.8/0.4 mm,
+# all at least a 0.15mm ring.
 # Excludes castellated pads (half-holes have unusual ring geometry).
 (rule "Min Annular Ring"
     (constraint annular_width (min 0.15mm))
@@ -167,9 +171,9 @@
 # looser than a fab standard are flagged [FIX].
 #
 # Board Setup > Constraints:
-#   Min track width ............ 0.10 mm   [FIX: .pro = 0.09; PCBWay std is 0.10]
-#   Min clearance .............. 0.10 mm   [FIX: .pro = 0.09; PCBWay std is 0.10]
-#   Min connection width ....... 0.10 mm   [FIX: .pro = 0.09]
+#   Min track width ............ 0.10 mm   (.pro = 0.10)
+#   Min clearance .............. 0.10 mm   (.pro = 0.10)
+#   Min connection width ....... 0.10 mm   (.pro = 0.10)
 #   Copper to edge ............. 0.25 mm   (.pro = 0.20; DRU rule already 0.30)
 #   Min via diameter ........... 0.50 mm   (drill floor 0.20; board uses 0.30)
 #   Min through-hole diameter .. 0.20 mm
@@ -186,27 +190,16 @@
 #   Surface finish ............. ENIG      (required by the 0.35mm X2SON /
 #                                            0.4mm QFN fine pitch - HASL can't)
 #   Impedance controlled ....... yes       (order the impedance option; hold
-#                                            RF_50OHM = 0.40mm microstrip)
+#                                            the RF netclass widths below)
 #
 # Net classes (Board Setup > Net Classes) - already both-fab-safe, no change:
-#   RF_50OHM  track 0.40 / clearance 0.20   PWR_RAIL 0.60   PWR_HIGH 1.50
-#   (NB: the actual .pro RF_50OHM track is 0.36mm, not 0.40 - see 2oz note.)
+#   RF_50OHM     track 0.306 / clearance 0.20  (CPWG: gap to side GND pour)
+#   RF_50OHM_MS  track 0.34  / clearance 0.80  (microstrip, GND kept away)
+#   PWR_RAIL 0.60   PWR_HIGH 1.50
+#   Check routed RF with `kpcb.py parsnip.kicad_pcb rf` (field-solved Zo on the
+#   board's own stackup) rather than trusting these numbers.
 #
-# ================= 2oz OUTER (stackup change, action required) ================
-# Outer copper is now 2oz (inner 1oz), both doubled at no JLCPCB surcharge.
-# Two things the rules above do NOT yet reflect - confirm the exact number with
-# your chosen fab and update, then re-run DRC:
-#   1. Min outer trace/space: 2oz cannot etch as fine as 1oz. JLCPCB 2oz outer
-#      min is ~0.15mm/0.15mm (6mil), PCBWay similar - vs the 0.127mm outer rules
-#      above (sized for 1oz). Bump "Min Trace Width (outer)" and "Min Trace
-#      Spacing (outer)" to 0.15mm for 2oz. This makes the 167 outer 0.10mm tracks
-#      even more out-of-spec (re-width to >=0.15mm, not the old 0.127mm).
-#   2. 50-ohm width: 2oz outer lowers microstrip Zo for a given width, so the
-#      50-ohm width shifts off the old 0.40mm target. Recompute with the fab
-#      impedance calculator for this stackup, set RF_50OHM (.pro) + the
-#      rf_50ohm_width rule to it. Upside: 2oz ~doubles copper ampacity, so the
-#      0.20mm power necks are less catastrophic - but still widen to class.
-#
+# ================= FAB NOTES ==================================================
 # NOT DRC-checkable, but required for DOUBLE-SIDED ASSEMBLY at either house:
 #   - Fiducials: >=3 global fiducials (1mm copper / 2mm mask), both sides if
 #     both sides are placed. PCBWay assembly requires them; JLC strongly prefers.

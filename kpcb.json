@@ -1,0 +1,17 @@
+{
+  "_accepted": "Each suppress entry is an 'Accepted, don't chase' item from docs/TODO.md (2026-09-25 list, moved here 2026-10-19). Tokens are message substrings: keep them specific (a bare U1 also matches U12).",
+  "suppress": [
+    "EDGECLR:H1", "EDGECLR:H2", "EDGECLR:H3", "EDGECLR:H4",
+    "EDGECLR:U1 courtyard",
+    "EDGECLR:J1 courtyard", "EDGECLR:J3 courtyard", "EDGECLR:J4 courtyard", "EDGECLR:J5 courtyard",
+    "EDGECLR:J8 courtyard", "EDGECLR:J14 courtyard", "EDGECLR:J16 courtyard",
+    "OVERLAP:BT1 and TP12", "OVERLAP:BT1 and TP16", "OVERLAP:BT1 and TP6", "OVERLAP:BT1 and TP8",
+    "OVERLAP:BT2 and TP2", "OVERLAP:BT2 and TP4", "OVERLAP:TP9 and BT1",
+    "OVERLAP:J1 and J7",
+    "OVERLAP:C96 and C95", "OVERLAP:C96 and R75", "OVERLAP:C97 and L6", "OVERLAP:C97 and R75",
+    "OVERLAP:FL1 and L6", "OVERLAP:FL1 and L7", "OVERLAP:L2 and R73", "OVERLAP:R69 and R73",
+    "OVERLAP:R80 and L7", "OVERLAP:R80 and R81", "OVERLAP:U9 and R83",
+    "THERMAL",
+    "RFNOISE:U12"
+  ]
+}
