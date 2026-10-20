@@ -1,5 +1,5 @@
 (kicad_sch
-	(version 20260830)
+	(version 20261015)
 	(generator "eeschema")
 	(generator_version "10.99")
 	(uuid "18deedea-c7c9-4de5-a763-4d652b8b1916")
@@ -8278,36 +8278,6 @@
 		)
 		(uuid "fe63a147-ff09-4b5e-8058-9b7a55172d2b")
 	)
-	(label "GNSS_UFL"
-		(at 46.99 137.16 180)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right bottom)
-		)
-		(uuid "f111c6c8-bd91-4a50-82af-a9b1379d73d0")
-	)
-	(label "GNSS_BIAS"
-		(at 48.26 144.78 180)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right bottom)
-		)
-		(uuid "739ab3b4-59b3-47e5-a0af-062189e435f8")
-	)
-	(label "GNSS_SMA"
-		(at 33.02 133.35 180)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right bottom)
-		)
-		(uuid "fe07e773-a68f-4909-baa2-9f681f720a01")
-	)
 	(label "VCC_RF"
 		(at 130.81 38.1 0)
 		(effects
@@ -8348,6 +8318,16 @@
 		)
 		(uuid "56aed09f-832b-4517-bcfe-b656ef4e5024")
 	)
+	(label "GNSS_BIAS"
+		(at 48.26 144.78 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "739ab3b4-59b3-47e5-a0af-062189e435f8")
+	)
 	(label "VCC_RF"
 		(at 185.42 123.19 0)
 		(effects
@@ -8367,6 +8347,26 @@
 			(justify left bottom)
 		)
 		(uuid "a01e2fee-8c79-464a-bc1e-44e3c7c51aea")
+	)
+	(label "GNSS_UFL"
+		(at 46.99 137.16 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "f111c6c8-bd91-4a50-82af-a9b1379d73d0")
+	)
+	(label "GNSS_SMA"
+		(at 33.02 133.35 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "fe07e773-a68f-4909-baa2-9f681f720a01")
 	)
 	(global_label "GPS_ANT"
 		(shape bidirectional)

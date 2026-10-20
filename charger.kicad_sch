@@ -1,5 +1,5 @@
 (kicad_sch
-	(version 20260830)
+	(version 20261015)
 	(generator "eeschema")
 	(generator_version "10.99")
 	(uuid "57d6e8b5-675d-43d8-bfe4-5efb3e50617d")
@@ -6269,56 +6269,6 @@
 		)
 		(uuid "fcf2c22e-b041-4307-82cc-292a0ce356cf")
 	)
-	(label "VAC2_MID"
-		(at 104.14 68.58 180)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right bottom)
-		)
-		(uuid "4896ab31-6ec4-4a39-b9a8-ba6308ba5dee")
-	)
-	(label "VAC1_MID"
-		(at 102.87 29.21 180)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right bottom)
-		)
-		(uuid "514629a0-e93f-40bc-a91d-e8b7cc859cf2")
-	)
-	(label "SW2"
-		(at 204.47 86.36 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left bottom)
-		)
-		(uuid "a2b7b3b7-3e28-4531-9148-4cc66780684e")
-	)
-	(label "SW1"
-		(at 204.47 74.93 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left bottom)
-		)
-		(uuid "4ffa00ab-7a6a-48ad-9082-521100d2ce3d")
-	)
-	(label "CHG_BAT"
-		(at 208.28 114.3 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left bottom)
-		)
-		(uuid "36b3ce35-fdf5-483e-bce8-5971158caf76")
-	)
 	(label "ACDRV2"
 		(at 147.32 88.9 180)
 		(effects
@@ -6339,6 +6289,46 @@
 		)
 		(uuid "35a50993-79fe-4d70-aee8-edc1f66ded5e")
 	)
+	(label "CHG_BAT"
+		(at 208.28 114.3 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "36b3ce35-fdf5-483e-bce8-5971158caf76")
+	)
+	(label "VAC2_MID"
+		(at 104.14 68.58 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "4896ab31-6ec4-4a39-b9a8-ba6308ba5dee")
+	)
+	(label "SW1"
+		(at 204.47 74.93 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "4ffa00ab-7a6a-48ad-9082-521100d2ce3d")
+	)
+	(label "VAC1_MID"
+		(at 102.87 29.21 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "514629a0-e93f-40bc-a91d-e8b7cc859cf2")
+	)
 	(label "ACDRV1"
 		(at 118.11 41.91 0)
 		(effects
@@ -6348,6 +6338,16 @@
 			(justify left bottom)
 		)
 		(uuid "63986d6c-83fb-450d-9e37-ee1584dabd7c")
+	)
+	(label "SW2"
+		(at 204.47 86.36 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "a2b7b3b7-3e28-4531-9148-4cc66780684e")
 	)
 	(label "PMID"
 		(at 203.2 60.96 0)
