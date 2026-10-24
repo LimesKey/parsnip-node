@@ -1266,7 +1266,7 @@
 		)
 		(uuid "5279b1e4-cf43-40c8-8248-77c08d1cfff9")
 	)
-	(text "J1-J4, J16 (F1-F3, F7, F8)"
+	(text "J1-J3 (F1, F7, F2), J4/J16 (U23)"
 		(exclude_from_sim no)
 		(at 257.5 149.375 0)
 		(effects

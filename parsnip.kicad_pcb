@@ -962,7 +962,7 @@
 				(pins "1" "2")
 			)
 		)
-		(attr exclude_from_bom)
+		(attr exclude_from_pos_files exclude_from_bom)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
 			(start -1.03 -0.4)
@@ -8153,7 +8153,7 @@
 				(pins "1" "2")
 			)
 		)
-		(attr smd exclude_from_bom dnp)
+		(attr smd dnp)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
 			(start -0.167621 -0.38)
@@ -8922,7 +8922,7 @@
 				(pins "1" "2")
 			)
 		)
-		(attr smd exclude_from_pos_files exclude_from_bom)
+		(attr smd exclude_from_pos_files)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_circle
 			(center -5 0)
@@ -9379,7 +9379,7 @@
 				(pins "1" "2")
 			)
 		)
-		(attr exclude_from_bom)
+		(attr exclude_from_pos_files exclude_from_bom)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
 			(start -1.030001 -0.4)
@@ -10170,7 +10170,7 @@
 				(pins "1" "2")
 			)
 		)
-		(attr exclude_from_bom)
+		(attr exclude_from_pos_files exclude_from_bom)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
 			(start -1.03 -0.4)
@@ -17859,7 +17859,7 @@
 			)
 		)
 		(zone_connect 1)
-		(attr exclude_from_bom allow_soldermask_bridges)
+		(attr exclude_from_pos_files exclude_from_bom allow_soldermask_bridges)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_rect
 			(start -0.15 -0.75)
@@ -20212,7 +20212,7 @@
 			)
 		)
 		(zone_connect 1)
-		(attr exclude_from_bom allow_soldermask_bridges)
+		(attr exclude_from_pos_files exclude_from_bom allow_soldermask_bridges)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_rect
 			(start -0.75 -0.75)
@@ -21153,7 +21153,7 @@
 				(pins "1")
 			)
 		)
-		(attr exclude_from_bom)
+		(attr exclude_from_pos_files exclude_from_bom)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_circle
 			(center 0 0)
@@ -26943,7 +26943,7 @@
 				(pins "1" "2")
 			)
 		)
-		(attr exclude_from_bom)
+		(attr exclude_from_pos_files exclude_from_bom)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
 			(start -1.03 -0.4)
@@ -30382,7 +30382,7 @@
 				(pins "1" "2")
 			)
 		)
-		(attr exclude_from_bom)
+		(attr exclude_from_pos_files exclude_from_bom)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
 			(start -1.029999 -0.399998)
@@ -31160,7 +31160,7 @@
 				(pins "1" "2")
 			)
 		)
-		(attr exclude_from_bom)
+		(attr exclude_from_pos_files exclude_from_bom)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
 			(start -1.03 -0.4)
@@ -35905,7 +35905,7 @@
 			)
 		)
 		(zone_connect 1)
-		(attr exclude_from_bom allow_soldermask_bridges)
+		(attr exclude_from_pos_files exclude_from_bom allow_soldermask_bridges)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_poly
 			(pts
@@ -40543,7 +40543,7 @@
 				(pins "1" "2")
 			)
 		)
-		(attr smd exclude_from_bom dnp)
+		(attr smd dnp)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
 			(start -0.153641 -0.38)
@@ -43195,7 +43195,7 @@
 			)
 		)
 		(zone_connect 1)
-		(attr exclude_from_bom allow_soldermask_bridges)
+		(attr exclude_from_pos_files exclude_from_bom allow_soldermask_bridges)
 		(net_tie_pad_groups "1, 2")
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_poly
@@ -48479,7 +48479,7 @@
 				(pins "1" "2")
 			)
 		)
-		(attr smd exclude_from_bom dnp)
+		(attr smd dnp)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
 			(start -0.115835 -0.36)
@@ -50877,7 +50877,7 @@
 				(pins "1")
 			)
 		)
-		(attr exclude_from_bom)
+		(attr exclude_from_pos_files exclude_from_bom)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_circle
 			(center 0 0)
@@ -51005,7 +51005,7 @@
 				(pins "1" "2")
 			)
 		)
-		(attr exclude_from_bom)
+		(attr exclude_from_pos_files exclude_from_bom)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
 			(start -1.03 -0.4)
@@ -51302,7 +51302,7 @@
 				(pins "1" "2")
 			)
 		)
-		(attr smd exclude_from_bom dnp)
+		(attr smd dnp)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
 			(start -0.115835 -0.36)
@@ -52709,7 +52709,7 @@
 				(pins "1" "2")
 			)
 		)
-		(attr exclude_from_bom)
+		(attr exclude_from_pos_files exclude_from_bom)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
 			(start -1.03 -0.4)
@@ -54153,7 +54153,7 @@
 				(pins "1")
 			)
 		)
-		(attr exclude_from_bom)
+		(attr exclude_from_pos_files exclude_from_bom)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_circle
 			(center 0 0)
@@ -55379,7 +55379,7 @@
 				(pins "1" "3" "2")
 			)
 		)
-		(attr exclude_from_bom allow_missing_courtyard)
+		(attr exclude_from_pos_files exclude_from_bom allow_missing_courtyard)
 		(net_tie_pad_groups "1, 2, 3")
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_poly
@@ -55848,7 +55848,7 @@
 				(pins "1")
 			)
 		)
-		(attr exclude_from_bom)
+		(attr exclude_from_pos_files exclude_from_bom)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_circle
 			(center 0 0)
@@ -56476,7 +56476,7 @@
 			)
 		)
 		(zone_connect 1)
-		(attr exclude_from_bom allow_soldermask_bridges)
+		(attr exclude_from_pos_files exclude_from_bom allow_soldermask_bridges)
 		(net_tie_pad_groups "1, 2")
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_poly
@@ -58482,7 +58482,7 @@
 			)
 		)
 		(zone_connect 1)
-		(attr exclude_from_bom allow_soldermask_bridges)
+		(attr exclude_from_pos_files exclude_from_bom allow_soldermask_bridges)
 		(net_tie_pad_groups "1,2")
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_poly
@@ -59497,7 +59497,7 @@
 				(pins "1")
 			)
 		)
-		(attr exclude_from_bom)
+		(attr exclude_from_pos_files exclude_from_bom)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_circle
 			(center 0 0)
@@ -60348,7 +60348,7 @@
 				(pins "1" "2")
 			)
 		)
-		(attr smd exclude_from_bom dnp)
+		(attr smd dnp)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
 			(start -0.115835 -0.36)
@@ -60525,7 +60525,7 @@
 			)
 		)
 		(zone_connect 1)
-		(attr exclude_from_bom allow_soldermask_bridges)
+		(attr exclude_from_pos_files exclude_from_bom allow_soldermask_bridges)
 		(net_tie_pad_groups "1, 2")
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_poly
@@ -61069,7 +61069,7 @@
 			)
 		)
 		(zone_connect 1)
-		(attr exclude_from_bom allow_soldermask_bridges)
+		(attr exclude_from_pos_files exclude_from_bom allow_soldermask_bridges)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_rect
 			(start -1.225 -0.75)
@@ -63612,7 +63612,7 @@
 				(pins "1" "2")
 			)
 		)
-		(attr exclude_from_bom)
+		(attr exclude_from_pos_files exclude_from_bom)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
 			(start -1.03 -0.4)
@@ -67892,7 +67892,7 @@
 				(pins "1")
 			)
 		)
-		(attr exclude_from_bom)
+		(attr exclude_from_pos_files exclude_from_bom)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_circle
 			(center 0 0)
@@ -68258,7 +68258,7 @@
 				(pins "1" "2")
 			)
 		)
-		(attr exclude_from_bom)
+		(attr exclude_from_pos_files exclude_from_bom)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
 			(start -1.03 -0.4)
@@ -68992,7 +68992,7 @@
 				(pins "1" "2")
 			)
 		)
-		(attr exclude_from_bom)
+		(attr exclude_from_pos_files exclude_from_bom)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
 			(start -1.03 -0.4)
@@ -69530,7 +69530,7 @@
 				(pins "1")
 			)
 		)
-		(attr exclude_from_bom)
+		(attr exclude_from_pos_files exclude_from_bom)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_circle
 			(center 0 0)
@@ -70200,7 +70200,7 @@
 				(pins "1" "3" "2")
 			)
 		)
-		(attr exclude_from_bom allow_missing_courtyard)
+		(attr exclude_from_pos_files exclude_from_bom allow_missing_courtyard)
 		(net_tie_pad_groups "1, 2, 3")
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_poly
@@ -72751,7 +72751,7 @@
 			)
 		)
 		(zone_connect 1)
-		(attr exclude_from_bom allow_soldermask_bridges)
+		(attr exclude_from_pos_files exclude_from_bom allow_soldermask_bridges)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_rect
 			(start -1.225 -0.75)
@@ -73476,7 +73476,7 @@
 			)
 		)
 		(zone_connect 1)
-		(attr exclude_from_bom allow_soldermask_bridges)
+		(attr exclude_from_pos_files exclude_from_bom allow_soldermask_bridges)
 		(net_tie_pad_groups "1, 2")
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_poly
@@ -74038,7 +74038,7 @@
 				(pins "1" "2")
 			)
 		)
-		(attr smd exclude_from_bom dnp)
+		(attr smd dnp)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
 			(start -0.115835 -0.36)
@@ -75023,7 +75023,7 @@
 				(pins "1" "2")
 			)
 		)
-		(attr smd exclude_from_bom dnp)
+		(attr smd dnp)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
 			(start -0.115835 -0.36)
@@ -75201,7 +75201,7 @@
 			)
 		)
 		(zone_connect 1)
-		(attr exclude_from_bom allow_soldermask_bridges)
+		(attr exclude_from_pos_files exclude_from_bom allow_soldermask_bridges)
 		(net_tie_pad_groups "1, 2")
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_poly
@@ -78505,7 +78505,7 @@
 				(pins "1" "2")
 			)
 		)
-		(attr smd exclude_from_bom dnp)
+		(attr smd dnp)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
 			(start -0.115835 -0.36)
@@ -83720,7 +83720,7 @@
 				(pins "1" "2")
 			)
 		)
-		(attr smd exclude_from_bom dnp)
+		(attr smd dnp)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
 			(start -0.167621 -0.38)
@@ -89423,7 +89423,7 @@
 				(pins "1" "2")
 			)
 		)
-		(attr smd exclude_from_bom dnp)
+		(attr smd dnp)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
 			(start -0.227064 -0.735)
@@ -93558,7 +93558,7 @@
 				(pins "1" "2")
 			)
 		)
-		(attr smd exclude_from_bom dnp)
+		(attr smd dnp)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
 			(start -0.227064 -0.735)
@@ -105564,7 +105564,7 @@
 			)
 		)
 		(zone_connect 1)
-		(attr exclude_from_bom allow_soldermask_bridges)
+		(attr exclude_from_pos_files exclude_from_bom allow_soldermask_bridges)
 		(net_tie_pad_groups "1, 2")
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_poly
@@ -106934,7 +106934,7 @@
 				(pins "1")
 			)
 		)
-		(attr exclude_from_bom)
+		(attr exclude_from_pos_files exclude_from_bom)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_circle
 			(center 0 0)
@@ -107333,7 +107333,7 @@
 				(pins "1" "2")
 			)
 		)
-		(attr smd exclude_from_bom dnp)
+		(attr smd dnp)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
 			(start -0.153641 -0.38)
@@ -109793,7 +109793,7 @@
 			)
 		)
 		(zone_connect 1)
-		(attr exclude_from_bom allow_soldermask_bridges)
+		(attr exclude_from_pos_files exclude_from_bom allow_soldermask_bridges)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_rect
 			(start -0.15 -0.75)
@@ -116769,7 +116769,7 @@
 				(pins "1" "2" "3" "4")
 			)
 		)
-		(attr through_hole exclude_from_pos_files)
+		(attr through_hole)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
 			(start -1.33 -8.95)
@@ -122252,7 +122252,7 @@
 				(pins "1" "2" "3" "4")
 			)
 		)
-		(attr through_hole exclude_from_pos_files dnp)
+		(attr through_hole dnp)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
 			(start -1.33 -8.95)
@@ -130833,7 +130833,7 @@
 				(pins "1")
 			)
 		)
-		(attr exclude_from_bom)
+		(attr exclude_from_pos_files exclude_from_bom)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_circle
 			(center 0 0)
@@ -131030,7 +131030,7 @@
 				(pins "1" "2" "3" "4")
 			)
 		)
-		(attr through_hole exclude_from_pos_files)
+		(attr through_hole)
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_line
 			(start -1.33 -8.95)
@@ -136738,7 +136738,7 @@
 			)
 		)
 		(zone_connect 1)
-		(attr exclude_from_bom allow_soldermask_bridges)
+		(attr exclude_from_pos_files exclude_from_bom allow_soldermask_bridges)
 		(net_tie_pad_groups "1, 2")
 		(duplicate_pad_numbers_are_jumpers no)
 		(fp_poly

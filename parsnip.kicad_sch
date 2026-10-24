@@ -4796,7 +4796,7 @@
 		(exclude_from_sim no)
 		(in_bom no)
 		(on_board yes)
-		(in_pos_files yes)
+		(in_pos_files no)
 		(dnp no)
 		(uuid "06bf6e65-e21a-41e5-b578-37a4a88dd304")
 		(property "Reference" "H4"
@@ -6485,7 +6485,7 @@
 		(exclude_from_sim no)
 		(in_bom no)
 		(on_board yes)
-		(in_pos_files yes)
+		(in_pos_files no)
 		(dnp no)
 		(uuid "394f72ad-e211-4b41-9cf0-96032e50fade")
 		(property "Reference" "JP5"
@@ -6719,7 +6719,7 @@
 		(exclude_from_sim no)
 		(in_bom no)
 		(on_board yes)
-		(in_pos_files yes)
+		(in_pos_files no)
 		(dnp no)
 		(uuid "4f9fb7d5-91dc-4f87-96dd-f9de17a773e8")
 		(property "Reference" "H3"
@@ -8479,7 +8479,7 @@
 		(exclude_from_sim no)
 		(in_bom no)
 		(on_board yes)
-		(in_pos_files yes)
+		(in_pos_files no)
 		(dnp no)
 		(uuid "865591a5-d2bf-4a21-ab21-b1266afa628e")
 		(property "Reference" "H1"
@@ -9445,7 +9445,7 @@
 		(exclude_from_sim no)
 		(in_bom no)
 		(on_board yes)
-		(in_pos_files yes)
+		(in_pos_files no)
 		(dnp no)
 		(uuid "b9634463-c28c-4c6d-a05b-a9734356cc32")
 		(property "Reference" "JP4"
@@ -9525,7 +9525,7 @@
 		(exclude_from_sim no)
 		(in_bom no)
 		(on_board yes)
-		(in_pos_files yes)
+		(in_pos_files no)
 		(dnp no)
 		(uuid "ba26e834-be81-4bf5-a77b-bd1773a34ae5")
 		(property "Reference" "H2"
@@ -10075,7 +10075,7 @@
 		(exclude_from_sim no)
 		(in_bom no)
 		(on_board yes)
-		(in_pos_files yes)
+		(in_pos_files no)
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "d0269785-e9f4-4034-819a-98d0a4bb0dcf")
@@ -10377,7 +10377,7 @@
 		(exclude_from_sim no)
 		(in_bom no)
 		(on_board yes)
-		(in_pos_files yes)
+		(in_pos_files no)
 		(dnp no)
 		(uuid "e407ec89-0fbe-4085-8780-3aebcc2a3f42")
 		(property "Reference" "JP2"
@@ -10968,7 +10968,7 @@
 		(exclude_from_sim no)
 		(in_bom no)
 		(on_board yes)
-		(in_pos_files yes)
+		(in_pos_files no)
 		(dnp no)
 		(uuid "f7e03a6e-af17-47fa-a79f-39ac1fe2f0df")
 		(property "Reference" "JP1"
@@ -11126,7 +11126,7 @@
 		(exclude_from_sim no)
 		(in_bom no)
 		(on_board yes)
-		(in_pos_files yes)
+		(in_pos_files no)
 		(dnp no)
 		(uuid "f8609953-b562-45ea-b2b7-4124d86a41be")
 		(property "Reference" "JP3"
