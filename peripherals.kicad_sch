@@ -7346,7 +7346,7 @@
 				)
 			)
 		)
-		(property "Footprint" "easyeda2kicad:HDR-SMD_16P-P2.54_HXPM2.54-2X8PWT"
+		(property "Footprint" "footprints:HDR-SMD_16P-P2.54_HXPM2.54-2X8PWT"
 			(at 127 114.3 0)
 			(hide yes)
 			(show_name no)

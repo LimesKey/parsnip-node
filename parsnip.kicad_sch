@@ -5428,7 +5428,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "ESP32-S3-WROOM-1-N16R8"
+		(property "Value" "ESP32-S3-WROOM-1U-N16R8"
 			(at 110.0933 76.2 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -5461,7 +5461,7 @@
 				)
 			)
 		)
-		(property "Description" "MODULE Wi-Fi 802.11b/g/n + Bluetooth 5 LE, ESP32-S3, 16MB flash, 8MB octal PSRAM, PCB antenna"
+		(property "Description" "MODULE Wi-Fi 802.11b/g/n + Bluetooth 5 LE, ESP32-S3, 16MB flash, 8MB octal PSRAM, U.FL antenna connector"
 			(at 107.188 143.002 0)
 			(hide yes)
 			(show_name no)
@@ -5472,7 +5472,7 @@
 				)
 			)
 		)
-		(property "MPN" "ESP32-S3-WROOM-1-N16R8"
+		(property "MPN" "ESP32-S3-WROOM-1U-N16R8"
 			(at 86.614 75.184 0)
 			(hide yes)
 			(show_name no)
@@ -5494,7 +5494,18 @@
 				)
 			)
 		)
-		(property "LCSC Part" "C2913202"
+		(property "Note" "WROOM-1 (PCB antenna) footprint kept on purpose: same land pattern as the -1U (ds fig 11-1/11-2), so ESP32-S3-WROOM-1-N16R8 (C2913202) fits as-is. Its antenna keepout only matters for that variant."
+			(at 86.614 75.184 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC Part" "C3013946"
 			(at 107.95 104.14 0)
 			(hide yes)
 			(show_name no)

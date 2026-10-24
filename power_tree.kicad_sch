@@ -983,7 +983,7 @@
 		)
 		(uuid "f3f37711-efb6-4a7f-a394-260067a89a4f")
 	)
-	(text "ESP32-S3-WROOM-1 (U1)"
+	(text "ESP32-S3-WROOM-1U (U1)"
 		(exclude_from_sim no)
 		(at 257.5 105.375 0)
 		(effects

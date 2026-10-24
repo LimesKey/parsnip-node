@@ -1329,7 +1329,7 @@
 		)
 		(uuid "c697b3be-7a94-43cf-8fcc-e1ab557b4162")
 	)
-	(text "ESP32-S3-WROOM-1"
+	(text "ESP32-S3-WROOM-1U"
 		(exclude_from_sim no)
 		(at 144 86 0)
 		(effects
