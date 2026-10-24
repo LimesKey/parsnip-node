@@ -11,6 +11,9 @@
     "OVERLAP:C96 and C95", "OVERLAP:C96 and R75", "OVERLAP:C97 and L6", "OVERLAP:C97 and R75",
     "OVERLAP:FL1 and L6", "OVERLAP:FL1 and L7", "OVERLAP:L2 and R73", "OVERLAP:R69 and R73",
     "OVERLAP:R80 and L7", "OVERLAP:R80 and R81", "OVERLAP:U9 and R83",
+    "OVERLAP:C188 and L5", "OVERLAP:Q9 and C166", "OVERLAP:C10 and C30", "OVERLAP:C11 and C30",
+    "OVERLAP:C143 and C141", "OVERLAP:L5 and R130", "OVERLAP:Q15 and R107", "OVERLAP:RN1 and U21",
+    "HOLECLR:J11 is inside", "HOLECLR:J13 is inside", "HOLECLR:SW2 is inside", "HOLECLR:FID3 is inside",
     "THERMAL",
     "RFNOISE:U12"
   ]

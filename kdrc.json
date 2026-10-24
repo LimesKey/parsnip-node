@@ -6,6 +6,16 @@
     "ERC:PIN_TO_PIN",
     "ERC:FOOTPRINT_FILTER",
     "ERC:PIN_NOT_DRIVEN:[Q1]",
+    "ERC:POWER_PIN_NOT_DRIVEN:[PWR029]",
+    "ERC:POWER_PIN_NOT_DRIVEN:[PWR047]",
+    "ERC:POWER_PIN_NOT_DRIVEN:[PWR049]",
+    "ERC:POWER_PIN_NOT_DRIVEN:[PWR068]",
+    "ERC:POWER_PIN_NOT_DRIVEN:[PWR072]",
+    "ERC:POWER_PIN_NOT_DRIVEN:[PWR073]",
+    "ERC:POWER_PIN_NOT_DRIVEN:[PWR078]",
+    "ERC:POWER_PIN_NOT_DRIVEN:[PWR081]",
+    "ERC:POWER_PIN_NOT_DRIVEN:[PWR082]",
+    "ERC:POWER_PIN_NOT_DRIVEN:[PWR0208]",
     "DRC:HOLE_CLEARANCE:J7",
     "DRC:CLEARANCE:[Q1]",
     "DRC:CLEARANCE:[Q2]",
@@ -46,5 +56,5 @@
     "DRC:PTH_INSIDE_COURTYARD:TP8 BT1",
     "DRC:PTH_INSIDE_COURTYARD:TP9 BT1"
   ],
-  "_accepted": "Each entry is a 'Accepted, don't chase' item from docs/TODO.md (2026-09-25 list, moved here 2026-10-19). Use [REF] tokens: a bare Q1 also matches [Q11] in the message."
+  "_accepted": "Each entry is a 'Accepted, don't chase' item from docs/TODO.md (2026-09-25 list, moved here 2026-10-19). Use [REF] tokens: a bare Q1 also matches [Q11] in the message. The POWER_PIN_NOT_DRIVEN [PWRnnn] entries (2026-10-20) are per-root rail symbols (GND/+3V3/+5V/VBUS, driven or flagged in another root); #PWR refs renumber on re-annotation, so re-map them (sheet + lib_id) after one, or a real one (e.g. +BATT #PWR063) can inherit a suppressed ref."
 }
