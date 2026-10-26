@@ -19133,7 +19133,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "1k"
+		(property "Value" "10k"
 			(at 46.99 70.612 90)
 			(show_name no)
 			(do_not_autoplace no)
@@ -19155,7 +19155,7 @@
 				)
 			)
 		)
-		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/dcb62c832dd79d37c154ec20e16fb58d.pdf?productCode=C48533754"
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/68379ec060dbf46ca58f0ea52f41dfcd.pdf?productCode=C54951138"
 			(at 45.72 68.58 0)
 			(hide yes)
 			(show_name no)
@@ -19166,7 +19166,7 @@
 				)
 			)
 		)
-		(property "Description" "RES 1kΩ ±0.1% 62.5mW 0402 thick film"
+		(property "Description" "RES 10kΩ ±0.5% 62.5mW 0402 thick film"
 			(at 45.72 68.58 0)
 			(hide yes)
 			(show_name no)
@@ -19177,7 +19177,7 @@
 				)
 			)
 		)
-		(property "MPN" "FRH0402B1001TS"
+		(property "MPN" "FRH0402D1002TS"
 			(at 45.72 68.58 0)
 			(hide yes)
 			(show_name no)
@@ -19199,7 +19199,7 @@
 				)
 			)
 		)
-		(property "LCSC Part" "C48533754"
+		(property "LCSC Part" "C54951138"
 			(at 45.72 68.58 0)
 			(hide yes)
 			(show_name no)
@@ -19210,7 +19210,7 @@
 				)
 			)
 		)
-		(property "Tolerance" "0.1%"
+		(property "Tolerance" "0.5%"
 			(at 45.72 68.58 0)
 			(hide yes)
 			(show_name no)

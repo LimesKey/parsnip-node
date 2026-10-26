@@ -41,6 +41,7 @@
     "DRC:COURTYARDS_OVERLAP:R81",
     "DRC:COURTYARDS_OVERLAP:R83",
     "DRC:COURTYARDS_OVERLAP:[J5 J14]",
+    "DRC:COURTYARDS_OVERLAP:[C133 TP8]",
     "DRC:ITEMS_NOT_ALLOWED:keepout area of U1)",
     "DRC:LIB_FOOTPRINT_MISMATCH:BT1",
     "DRC:LIB_FOOTPRINT_MISMATCH:BT2",
@@ -58,5 +59,5 @@
     "DRC:PTH_INSIDE_COURTYARD:TP8 BT1",
     "DRC:PTH_INSIDE_COURTYARD:TP9 BT1"
   ],
-  "_accepted": "Each entry is a 'Accepted, don't chase' item from docs/TODO.md (2026-09-25 list, moved here 2026-10-19). Use [REF] tokens: a bare Q1 also matches [Q11] in the message. The POWER_PIN_NOT_DRIVEN [PWRnnn] entries (2026-10-20) are per-root rail symbols (GND/+3V3/+5V/VBUS, driven or flagged in another root); #PWR refs renumber on re-annotation, so re-map them (sheet + lib_id) after one, or a real one (e.g. +BATT #PWR063) can inherit a suppressed ref. 2026-10-23: [J5 J14] is a courtyard margin (J14.2 copper 0.68 mm from J5's housing, revealed when J14's courtyard was extended over its pads). 'keepout area of U1)' holds only while U1 is the WROOM-1U (U.FL, no PCB antenna): remove it if the PCB-antenna WROOM-1 goes back on, since then the copper under the antenna matters again."
+  "_accepted": "Each entry is a 'Accepted, don't chase' item from docs/TODO.md (2026-09-25 list, moved here 2026-10-19). Use [REF] tokens: a bare Q1 also matches [Q11] in the message. The POWER_PIN_NOT_DRIVEN [PWRnnn] entries (2026-10-20) are per-root rail symbols (GND/+3V3/+5V/VBUS, driven or flagged in another root); #PWR refs renumber on re-annotation, so re-map them (sheet + lib_id) after one, or a real one (e.g. +BATT #PWR063) can inherit a suppressed ref. 2026-10-23: [J5 J14] is a courtyard margin (J14.2 copper 0.68 mm from J5's housing, revealed when J14's courtyard was extended over its pads). 2026-10-25: [C133 TP8] is 0.10 mm2 of courtyard margin; C133 is DNP (U13 snubber) and boxed in (R111 above, vias left, R112 right, TP8 can move 0.02 mm), TP8 is a pin-less pad pair. 'keepout area of U1)' holds only while U1 is the WROOM-1U (U.FL, no PCB antenna): remove it if the PCB-antenna WROOM-1 goes back on, since then the copper under the antenna matters again."
 }
