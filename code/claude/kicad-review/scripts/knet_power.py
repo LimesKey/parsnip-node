@@ -401,20 +401,26 @@ def i2c_address(nl, ref, P, table):
     return ([base] if ok else []), why
 
 def i2c_buses(nl):
-    """[(sda_nets, scl_nets)]: each SDA-named net merged with what 0-10 R links and
-    closed jumpers join it to, paired with the SCL net by name or by the devices' SCL pins."""
+    """[(sda_nets, scl_nets)]: each SDA-named net merged with what 0-10 R links, series
+    R <= 100 ohm to another SDA/SCL-named net (a connector's 33 ohm) and closed jumpers
+    join it to, paired with the SCL net by name or by the devices' SCL pins."""
+    def bus_named(n):
+        return re.search(r'SDA|SCL', n.rsplit('/', 1)[-1], re.I)
     def group(net):
         g, todo = {net}, [net]
         while todo:
             n = todo.pop()
             for nd in nl.nets.get(n, []):
                 c = nl.comps.get(nd['ref'], {})
-                if ((c.get('prefix') == 'R' and _ohms_le(c.get('value'), 10)) or
-                        (c.get('prefix') == 'JP' and 'open' not in (c.get('part') or '').lower())) \
-                        and len(nl.cpins[nd['ref']]) == 2 and not (nl.no_dnp and c.get('dnp')):
-                    far = nl.cpins[nd['ref']].get(nl.other_pin(nd['ref'], nd['pin']))
-                    if far and far not in g and not nl.is_gnd(far) and far not in nl.railv:
-                        g.add(far); todo.append(far)
+                if len(nl.cpins[nd['ref']]) != 2 or (nl.no_dnp and c.get('dnp')):
+                    continue
+                far = nl.cpins[nd['ref']].get(nl.other_pin(nd['ref'], nd['pin']))
+                if not far or far in g or nl.is_gnd(far) or far in nl.railv:
+                    continue
+                if ((c.get('prefix') == 'R' and (_ohms_le(c.get('value'), 10) or
+                                                 (_ohms_le(c.get('value'), 100) and bus_named(far)))) or
+                        (c.get('prefix') == 'JP' and 'open' not in (c.get('part') or '').lower())):
+                    g.add(far); todo.append(far)
         return g
     out, done = [], set()
     for n in sorted(nl.nets, key=natkey):

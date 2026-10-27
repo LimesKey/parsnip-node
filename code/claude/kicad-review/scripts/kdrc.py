@@ -64,7 +64,7 @@ import sys, os, re, json, glob, tempfile, subprocess
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 try:
     from kcommon import (print_findings, suppressed, trunc, kicad_cli,
-                         top_level_sheets, sch_files, parse_args, doctor, rules_warning)
+                         top_level_sheets, project_root, sch_files, parse_args, doctor, rules_warning)
 except ImportError:                                     # pragma: no cover
     print("kdrc.py needs kcommon.py beside it (shared finding formatter)",
           file=sys.stderr)
@@ -197,13 +197,17 @@ def run_cli(args, tag):
 
 
 def discover_roots(board):
-    """Root schematics = the .kicad_pro's top_level_sheets (primary first), else
-    every *.kicad_sch beside the board minus the ones some other schematic
+    """Root schematics = the .kicad_pro's top_level_sheets, the project's own root
+    (<stem>.kicad_sch) first - its nightly report covers every top-level sheet, while
+    top_level_sheets[0] is navigator order (a front-matter page covers only itself,
+    and the rest then run standalone: false PIN_NOT_DRIVEN on cross-root nets) -,
+    else every *.kicad_sch beside the board minus the ones some other schematic
     pulls in as a sub-sheet (via a Sheetfile property)."""
     d = os.path.dirname(os.path.abspath(board)) or '.'
     tls = [os.path.join(d, fn) for fn, _ in top_level_sheets(d)]
     if tls and all(os.path.exists(f) for f in tls):
-        return tls
+        pr = project_root(d)
+        return sorted(tls, key=lambda f: os.path.basename(f) != pr)
     schs = sch_files(d)
     included = set()
     for s in schs:
@@ -709,7 +713,7 @@ def demoted(board):
                            + (f" IGNORED {', '.join(ign)}" if ign else '')
                            + (';' if ign and warn else '')
                            + (f" warning-only fab limits {', '.join(warn)}" if warn else '')
-                           + " - `--all` checks them at full severity")
+                           + " - `--all` checks them (ignored ones re-enabled on a temp copy)")
         break
     return out
 
@@ -719,7 +723,6 @@ def do_scratch(board, a):
     writers - the board under the project's own stem (or kicad-cli runs default rules), the
     .kicad_pro, .kicad_dru, sheets, netlists, tool configs and lib tables, and a symlink for
     every directory the lib tables name under ${KIPRJMOD} - so DRC there checks the real rules."""
-    import shutil
     src = os.path.dirname(os.path.abspath(board))
     if not a.dest:
         print("scratch DIR [--from OTHER.kicad_pcb]"); return 1
@@ -728,6 +731,22 @@ def do_scratch(board, a):
         sys.stderr.write(f"{dest} is not empty: refused (a scratch copy starts clean)\n"); return 3
     if dest == src:
         sys.stderr.write("DIR is the project itself: refused\n"); return 3
+    pcb = a.from_board or board
+    stem, got, links = copy_project(board, dest, pcb)
+    print(f"scratch copy of {src} -> {dest}\n  board: {stem}.kicad_pcb (from {os.path.abspath(pcb)})\n"
+          f"  copied: {', '.join(got)}\n  linked: {', '.join(sorted(links)) or '-'}")
+    rw = rules_warning(dest)
+    if rw:
+        print('  !! ' + rw)
+    print(f"  next: kdrc.py {os.path.join(dest, stem + '.kicad_pcb')} drc --refill-save --report {os.path.join(dest, 'r0.json')}")
+    return 0
+
+
+def copy_project(board, dest, pcb=None):
+    """the project beside `board` into dest, the board (or pcb) under the project's stem:
+    (stem, files copied, lib dirs linked)"""
+    import shutil
+    src = os.path.dirname(os.path.abspath(board))
     pros = sorted(glob.glob(os.path.join(src, '*.kicad_pro')))
     stem = os.path.basename(pros[0])[:-len('.kicad_pro')] if pros else os.path.splitext(os.path.basename(board))[0]
     os.makedirs(dest, exist_ok=True)
@@ -738,8 +757,7 @@ def do_scratch(board, a):
                 continue
             shutil.copy2(f, dest)
             got.append(os.path.basename(f))
-    pcb = a.from_board or board
-    shutil.copy2(pcb, os.path.join(dest, stem + '.kicad_pcb'))
+    shutil.copy2(pcb or board, os.path.join(dest, stem + '.kicad_pcb'))
     links = set()
     for tab in ('fp-lib-table', 'sym-lib-table'):
         p = os.path.join(src, tab)
@@ -748,13 +766,29 @@ def do_scratch(board, a):
     for d in sorted(links):
         if os.path.isdir(os.path.join(src, d)):
             os.symlink(os.path.join(src, d), os.path.join(dest, d))
-    print(f"scratch copy of {src} -> {dest}\n  board: {stem}.kicad_pcb (from {os.path.abspath(pcb)})\n"
-          f"  copied: {', '.join(got)}\n  linked: {', '.join(sorted(links)) or '-'}")
-    rw = rules_warning(dest)
-    if rw:
-        print('  !! ' + rw)
-    print(f"  next: kdrc.py {os.path.join(dest, stem + '.kicad_pcb')} drc --refill-save --report {os.path.join(dest, 'r0.json')}")
-    return 0
+    return stem, got, links
+
+
+def unignored_copy(board):
+    """kicad-cli's --severity-all never runs a check the .kicad_pro sets to 'ignore' (its
+    report lists them under ignored_checks). (temp board path, re-enabled rules) for a temp
+    copy of the project with every ignored DRC/ERC rule set to 'warning', else (None, [])."""
+    import tempfile
+    d = os.path.dirname(os.path.abspath(board))
+    pros = sorted(glob.glob(os.path.join(d, '*.kicad_pro')))
+    if not pros:
+        return None, []
+    p = json.load(open(pros[0]))
+    ign = [(sect, k) for sect in (p.get('board', {}).get('design_settings', {}), p.get('erc', {}))
+           for k, v in (sect.get('rule_severities') or {}).items() if v == 'ignore']
+    if not ign:
+        return None, []
+    tmp = tempfile.mkdtemp(prefix='kdrc-all-')
+    stem = copy_project(board, tmp)[0]
+    for sect, k in ign:
+        sect['rule_severities'][k] = 'warning'
+    json.dump(p, open(os.path.join(tmp, os.path.basename(pros[0])), 'w'), indent=2)
+    return os.path.join(tmp, stem + '.kicad_pcb'), sorted(k for _, k in ign)
 
 
 def load_cfg(board):
@@ -780,7 +814,8 @@ def main():
     ap.add_argument('--only', default='', help='comma list of RULE names to keep')
     ap.add_argument('--skip', default='', help='comma list of RULE names to drop')
     ap.add_argument('--all', action='store_true',
-                    help='pass --severity-all to kicad-cli (ignores .kicad_pro severities)')
+                    help='every severity, and the .kicad_pro\'s ignored rules too (run on a temp copy '
+                         'with them set to warning: --severity-all alone never runs an ignored check)')
     ap.add_argument('--parity', action='store_true',
                     help='add DRC schematic-parity (the CLI reads one hierarchy: its /Root naming '
                          'NET_CONFLICTs and other-sheet EXTRA_FOOTPRINTs are dropped, counted in a note)')
@@ -830,12 +865,22 @@ def main():
     skip = {s.strip().upper() for s in a.skip.split(',') if s.strip()}
 
     F, unconn, roots, whole = [], 0, None, False
-    if a.cmd in ('both', 'drc'):
-        df, unconn = do_drc(a.file, a)
-        F += df
-    if a.cmd in ('both', 'erc'):
-        ef, roots, whole = do_erc(a.file, a)
-        F += ef
+    run, unign = (unignored_copy(a.file) if a.all else (None, []))
+    if run and a.refill_save:
+        sys.stderr.write("--all runs on a temp copy (the .kicad_pro's ignored rules re-enabled): "
+                         "--refill-save would save that copy - run them apart\n")
+        return 3
+    try:
+        if a.cmd in ('both', 'drc'):
+            df, unconn = do_drc(run or a.file, a)
+            F += df
+        if a.cmd in ('both', 'erc'):
+            ef, roots, whole = do_erc(run or a.file, a)
+            F += ef
+    finally:
+        if run:
+            import shutil
+            shutil.rmtree(os.path.dirname(run), ignore_errors=True)
 
     if only:
         F = [f for f in F if f['rule'] in only]
@@ -865,6 +910,8 @@ def main():
     if not a.all:
         hdr += ''.join('\n' + ln for ln in demoted(a.file)
                        if a.cmd == 'both' or ln.startswith(a.cmd.upper()))
+    elif unign:
+        hdr += f"\n--all: ran on a temp copy of the project with the IGNORED {', '.join(unign)} re-enabled as warnings"
     rw = rules_warning(os.path.dirname(os.path.abspath(a.file))) if a.cmd in ('both', 'drc') else ''
     if rw:
         hdr += '\n!! ' + rw

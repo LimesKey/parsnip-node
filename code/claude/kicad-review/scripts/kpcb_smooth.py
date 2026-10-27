@@ -272,10 +272,14 @@ class Exact:
     """any-angle clearance of a centreline polyline of width w on one layer: segment-to-item
     distances under the typed rules (_clearance_fn kinds), hole clearance to other nets'
     holes, the edge, track keepouts and other nets' fills that are not planes (a plane
-    refills round the edit, as route assumes). No grid; a margin only shrinks acceptance."""
+    refills round the edit, as route assumes). No grid; a margin only shrinks acceptance.
+    box: where the centreline may run; items are gathered out to w/2 + 1 mm past it (a
+    4 mm track's cap reaches 2 mm past its centreline box: a neighbour there was missed)."""
 
     def __init__(self, b, net, ly, w, box):
         self.w = w
+        r = w / 2 + 1.0
+        box = (box[0] - r, box[1] - r, box[2] + r, box[3] + r)
         clr = _clearance_fn(b)[0]
         hc, planes = _hole_clr(b), _planes(b)
         near = lambda bb: bb[2] >= box[0] and bb[0] <= box[2] and bb[3] >= box[1] and bb[1] <= box[3]  # noqa: E731

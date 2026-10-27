@@ -99,7 +99,11 @@ IGNORED pth_inside_courtyard, silk_over_copper, silk_overlap; warning-only fab
 limits connection_width, copper_sliver, holes_co_located, starved_thermal`, and the
 same for ERC. "Fab limits" are the manufacturability rules (clearance, drill,
 annular ring, courtyard, hole-to-hole...) where a warning still means a board the
-fab may reject. `--all` checks them at full severity.
+fab may reject. `--all` checks them at full severity: kicad-cli's `--severity-all` alone
+never runs an `ignore` rule (its report lists them under `ignored_checks`), so `--all`
+copies the project to a temp dir (`copy_project`, what `scratch` uses), sets every ignored
+DRC/ERC rule to warning there and runs on that; the header names them. It refuses
+`--refill-save` (that would save the temp copy).
 
 ## Flags
 
@@ -109,7 +113,7 @@ fab may reject. `--all` checks them at full severity.
 | `--only R1,R2` / `--skip R` | keep or drop rules by name (e.g. `DRC:CLEARANCE`) |
 | `--unconnected` | include the DRC `unconnected_items` (unrouted nets; hidden by default because mid-layout there are hundreds) |
 | `--parity` | add DRC schematic-parity. The CLI's parity reads one hierarchy and names Root nets `/X` where the board has `/Root/X`: those NET_CONFLICTs, and EXTRA_FOOTPRINTs whose ref a sheet beside the board places, are dropped and counted in a header note (parsnip: 199 + 168). What is left is real. |
-| `--all` | pass `--severity-all` to kicad-cli: every rule at full severity. kicad-cli HONOURS the `.kicad_pro` severities (an `ignore` rule is absent from its report), so without this a demoted rule is silent; the header names them. |
+| `--all` | every severity, and the `.kicad_pro`'s `ignore` rules too, run on a temp copy of the project with them set to warning (`--severity-all` alone never runs an ignored check); the header names them. Without it a demoted rule is silent. |
 | `--no-suppress` | ignore kdrc.json |
 | `--rules` | print the rule legend |
 | `--json` | machine-readable findings |

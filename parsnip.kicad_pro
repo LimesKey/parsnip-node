@@ -1066,7 +1066,7 @@
           "group_by": false,
           "label": "Dielectric",
           "name": "Dielectric",
-          "show": false
+          "show": true
         },
         {
           "group_by": false,
@@ -1078,13 +1078,13 @@
           "group_by": false,
           "label": "Power Rating",
           "name": "Power Rating",
-          "show": false
+          "show": true
         },
         {
           "group_by": false,
           "label": "Note",
           "name": "Note",
-          "show": false
+          "show": true
         },
         {
           "group_by": false,

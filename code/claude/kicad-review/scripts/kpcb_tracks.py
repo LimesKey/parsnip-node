@@ -98,19 +98,27 @@ def census_rows(b, skip):
     for jog in find(b, skip, every=True):
         c['jog'] += 1
         rows.append(('jog', jog[0], jog[1], jog[4][jog[5]], f"{jog[6]:.2f} mm sideways", '', jog[:6]))
+    from kpcb_dense import detours
+    for _x, net, L, M, V, n, ly in detours(b, skip):
+        c['detour'] += 1
+        at = next(((p['x'], p['y']) for f in b.placed() for p in f.pads if p['net'] == net), (0.0, 0.0))
+        rows.append(('detour', net, ly, at, f"{L:.1f} vs MST {M:.1f} mm, {V} via", 'reroute ' + unesc_disp(net.split('/')[-1]), None))
     return c, rows
+
+
+KINDS = ('acute', '90', 'off45', 'neck', 'stub', 'pad', 'jog', 'detour')
 
 
 def c_tracks(b, a):
     skip = set() if a.all else skipped(b)
     c, rows = census_rows(b, skip)
-    kinds = [k for k in ('acute', '90', 'off45', 'neck', 'stub', 'pad', 'jog') if not a.kind or k in a.kind.split(',')]
+    kinds = [k for k in KINDS if not a.kind or k in a.kind.split(',')]
     print(f"tracks: {c['segs']} segments, {c['mm']:.1f} mm, {c['arc']} arc(s)"
           + (f"; {len(skip)} RF/USB/diff-pair net(s) skipped (--all includes them)" if skip else ''))
     label = {'acute': 'corners, acute', '90': 'corners 46-90 deg', 'off45': 'off-45 segments',
              'neck': 'width steps mid-run', 'stub': 'segments < 0.05 mm', 'pad': 'ends at a pad edge',
-             'jog': 'lane jogs 0.05-1 mm'}
-    for k in ('acute', '90', 'off45', 'neck', 'stub', 'pad', 'jog'):
+             'jog': 'lane jogs 0.05-1 mm', 'detour': 'detours (> 1.5x MST)'}
+    for k in KINDS:
         print(f"  {label[k]:<22} {c[k]:>4} visible" + (f"  ({c['hidden ' + k]} hidden under same-net copper)"
                                                       if 'hidden ' + k in c else ''))
     per = Counter((r[2], r[0]) for r in rows if r[0] in ('acute', '90', 'off45'))
@@ -134,13 +142,13 @@ def c_tracks(b, a):
                 why = 'fix: smooth --corners' if cut_corner(b, r[1], r[2], *r[6]) else 'boxed in at the real clearance'
             elif not why and k == 'off45':
                 why = 'smooth (or boxed in)'
-            print(f"  {unesc_disp(r[1]).split('/')[-1]:<24} {r[2]:<7} {r[3][0]:8.3f},{r[3][1]:<8.3f} {r[4]:<20} {why}")
+            print(f"  {unesc_disp(r[1].split('/')[-1]):<24} {r[2]:<7} {r[3][0]:8.3f},{r[3][1]:<8.3f} {r[4]:<20} {why}")
             shown.append(r)
         if len(rs) > a.max:
             print(f"  ... +{len(rs) - a.max} more - raise --max")
     if a.view and shown:
         from kpcb_view import sites_png
-        out = sites_png(b, [(r[2], r[3], f"{r[0]} {unesc_disp(r[1]).split('/')[-1]}") for r in shown], a.view,
+        out = sites_png(b, [(r[2], r[3], f"{r[0]} {unesc_disp(r[1].split('/')[-1])}") for r in shown], a.view,
                         a.radius if a.radius != 5.0 else 0.8, a.px if a.px != 20 else 120)
         print(f"\n{out}  ({len(shown)} panel(s), tracks/pads/vias only, the listed rows in order)")
     return 0
@@ -333,7 +341,7 @@ def c_widen(b, a):
           + (f"; {steps} width step(s) left mid-run in power classes (boxed in)" if steps is not None else ''))
     for i, w0, w1 in sorted(done, key=lambda d: -b.tracks[d[0]]['len'] * (d[2] - d[1]))[:a.max]:
         t = b.tracks[i]
-        print(f"  {unesc_disp(t['net']).split('/')[-1]:<26} {t['layer']:<7} {w0:g} -> {w1:g}  {t['len']:.2f} mm  "
+        print(f"  {unesc_disp(t['net'].split('/')[-1]):<26} {t['layer']:<7} {w0:g} -> {w1:g}  {t['len']:.2f} mm  "
               f"at {t['a'][0]:.2f},{t['a'][1]:.2f}")
     if len(done) > a.max:
         print(f"  ... +{len(done) - a.max} more")
@@ -410,7 +418,7 @@ def c_loops(b, a):
     print(f"loops: {len(found)} redundant chain(s) on {len({f[0] for f in found})} net(s), "
           f"{sum(f[1] for f in found):.1f} mm; removing each keeps its net's pads joined (prune included)")
     for net, L, lys, nt, nv, at in sorted(found, key=lambda f: -f[1])[:a.max]:
-        print(f"  {unesc_disp(net).split('/')[-1]:<26} {L:6.2f} mm  {'/'.join(lys):<14} {nt} seg" + (f" {nv} via" if nv else '')
+        print(f"  {unesc_disp(net.split('/')[-1]):<26} {L:6.2f} mm  {'/'.join(lys):<14} {nt} seg" + (f" {nv} via" if nv else '')
               + f"  from {at[0]:.2f},{at[1]:.2f}")
     if len(found) > a.max:
         print(f"  ... +{len(found) - a.max} more")

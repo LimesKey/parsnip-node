@@ -147,26 +147,58 @@ def pad_box(p):
     return bbox(pts)
 
 def text_box(x, y, ang, txt, node, k=1.0):
-    """estimated board box of a KiCad text at x,y (its anchor), absolute angle: 0.9 x
-    font width per character, 1.6 x height per line, placed by its (justify)"""
+    """estimated board box of a KiCad text at x,y (its anchor), absolute angle"""
+    return text_parts(x, y, ang, txt, node, k)[0]
+
+def text_parts(x, y, ang, txt, node, k=1.0):
+    """(box, parts) of a KiCad text at x,y (its anchor), absolute angle. box: 0.9 x font
+    width per character (KiCad's own text box, the plot's textLength), 1.6 x height per line,
+    placed by its (justify). parts: the boxes ink covers, so a pad in a word gap is clear. A
+    TrueType text's render_cache is KiCad's own outline in board coordinates: one box per
+    glyph polygon, exact unless a writer moved the text and left it stale (then it misses
+    the estimate). Otherwise one box per word, at the ink KiCad's plot draws: 0.82 x width
+    per character for the stroke font, with 0.28 / 0.31 x width bearing at a left / right
+    anchor (68 parsnip texts: residual -0.22..+0.15 x width per word, p10..p90); 0.75 for a
+    TrueType face (its caches: 0.53-0.89, median 0.75); a lone '-' is a bar at mid-height. A
+    knockout text is one solid box: the ink grown by KiCad's knockout margin, height / 9
+    (measured on parsnip's plot: 0.122 at 1.1 mm, 0.167 at 1.5)."""
+    if 'knockout' in (kid(node, 'layer') or []):
+        sz = kid(kid(kid(node, 'effects') or [], 'font') or [], 'size') or ['size', '1', '1']
+        bb = bbox([q for pb in _ink(x, y, ang, txt, node, k)[1] for q in (pb[:2], pb[2:])])
+        bb = grow(bb, k * float(sz[1]) / 9)
+        return bb, [bb]
+    return _ink(x, y, ang, txt, node, k)
+
+def _ink(x, y, ang, txt, node, k):
     eff = kid(node, 'effects') or []
-    sz = kid(kid(eff, 'font') or [], 'size') or ['size', '1', '1']
+    fnt = kid(eff, 'font') or []
+    sz = kid(fnt, 'size') or ['size', '1', '1']
     js = set((kid(eff, 'justify') or [])[1:])
     lines = txt.split('\\n')
-    w, h = .9 * k * float(sz[2]) * max(len(ln) for ln in lines), k * float(sz[1]) * (1.6 * len(lines) - .4)
+    fw, ch, ttf = k * float(sz[2]), k * float(sz[1]), kid(fnt, 'face') is not None
+    w, h = .9 * fw * max(len(ln) for ln in lines), ch * (1.6 * len(lines) - .4)
     left, right = ('right', 'left') if 'mirror' in js else ('left', 'right')
     x0 = 0.0 if left in js else -w if right in js else -w / 2
     y0 = 0.0 if 'top' in js else -h if 'bottom' in js else -h / 2
     est = bbox([xf(u, v, x, y, ang) for u in (x0, x0 + w) for v in (y0, y0 + h)])
-    # a TrueType text's render_cache is KiCad's own outline, in board coordinates: exact,
-    # unless a writer moved the text and left the cache stale (then it misses the estimate)
     rc = kid(node, 'render_cache')
-    pts = [(float(q[1]), float(q[2])) for pg in kids(rc or [], 'polygon') for q in kids(kid(pg, 'pts') or [], 'xy')]
-    if pts:
-        cb = bbox(pts)
+    polys = [[(float(q[1]), float(q[2])) for q in kids(kid(pg, 'pts') or [], 'xy')] for pg in kids(rc or [], 'polygon')]
+    polys = [pp for pp in polys if pp]
+    if polys:
+        cb = bbox([q for pp in polys for q in pp])
         if cb[0] < est[2] + 1 and cb[2] > est[0] - 1 and cb[1] < est[3] + 1 and cb[3] > est[1] - 1:
-            return cb
-    return est
+            return cb, [bbox(pp) for pp in polys]
+    iw, bl, br = (.75 * fw, 0.0, 0.0) if ttf else (.82 * fw, .28 * fw, .31 * fw)
+    parts = []
+    for i, ln in enumerate(lines):          # reading order from the anchor, then mirrored about it
+        lw, ly = iw * len(ln), y0 + i * 1.6 * ch
+        r0 = bl if 'left' in js else -br - lw if 'right' in js else -lw / 2
+        for m in re.finditer(r'\S+', ln):
+            ra, rb = r0 + iw * m.start(), r0 + iw * m.end()
+            ua, ub = (-rb, -ra) if 'mirror' in js else (ra, rb)
+            va, vb = (ly + .4 * ch, ly + .7 * ch) if m.group(0) == '-' else (ly, ly + ch * 1.2)
+            parts.append(bbox([xf(u, v, x, y, ang) for u in (ua, ub) for v in (va, vb)]))
+    return est, parts or [est]
 
 def _ccw(a, b, c):
     return (c[1] - a[1]) * (b[0] - a[0]) > (b[1] - a[1]) * (c[0] - a[0])
@@ -341,7 +373,7 @@ def ipc_width(need_a, thick_mm, external, dt):
 class FP:
     __slots__ = ('ref', 'value', 'fp', 'layer', 'x', 'y', 'rot', 'sheet', 'attr',
                  'dnp', 'pads', 'crtyd', 'crtyd_real', 'cpoly', 'body', 'placed', '_edge', 'models', 'art',
-                 'fab', 'scale', 'edgeref', 'arts', 'texts', 'uuid', 'badlines', 'lcsc', 'fields', 'silklines',
+                 'fab', 'scale', 'edgeref', 'arts', 'texts', 'uuid', 'badlines', 'lcsc', 'mpn', 'fields', 'silklines',
                  'sympath')
 
     @property
@@ -471,7 +503,7 @@ class Board:
             if g[0] == 'gr_text':
                 at = kid(g, 'at') or ['at', '0', '0']
                 ang = _f(at[3]) if len(at) > 3 else 0.0
-                bx = text_box(float(at[1]), float(at[2]), ang, str(g[1]), g)
+                bx, parts = text_parts(float(at[1]), float(at[2]), ang, str(g[1]), g)
                 self.silk.append((val(g, 'layer'), bx))
                 eff = kid(g, 'effects') or []
                 fnt = kid(eff, 'font') or []
@@ -479,7 +511,8 @@ class Board:
                 self.silktexts.append({'kind': 'board', 'text': str(g[1]), 'layer': val(g, 'layer'), 'x': float(at[1]),
                                        'y': float(at[2]), 'ang': ang, 'h': _f(sz[1], 1.0), 'thick': _f(th[1], 0.15) if th else 0.15,
                                        'hidden': False, 'mirror': 'mirror' in (kid(eff, 'justify') or []),
-                                       'uuid': val(g, 'uuid'), 'box': bx, 'ttf': kid(fnt, 'face') is not None})
+                                       'knockout': 'knockout' in (kid(g, 'layer') or []),
+                                       'uuid': val(g, 'uuid'), 'box': bx, 'parts': parts, 'ttf': kid(fnt, 'face') is not None})
             elif self._gpts(g, g[0]):
                 self.silk.append((val(g, 'layer'), bbox(self._gpts(g, g[0]))))
                 self.silkart.append(self._art(g))
@@ -642,7 +675,7 @@ class Board:
         a = kid(node, 'attr') or []
         f.attr = set(x for x in a[1:] if isinstance(x, str))
         f.dnp = 'dnp' in f.attr
-        f.ref, f.value, f.lcsc = '?', '', ''
+        f.ref, f.value, f.lcsc, f.mpn = '?', '', '', ''
         for p in kids(node, 'property'):
             if len(p) > 2 and p[1] == 'Reference':
                 f.ref = p[2]
@@ -650,6 +683,8 @@ class Board:
                 f.value = p[2]
             elif len(p) > 2 and p[1] in ('LCSC Part', 'LCSC') and isinstance(p[2], str):
                 f.lcsc = p[2].strip()
+            elif len(p) > 2 and p[1] == 'MPN' and isinstance(p[2], str):
+                f.mpn = p[2].strip()
         # visible silk text (refdes, values, fp_text): (at) is footprint-local, its angle absolute
         f.texts = []
         for t in kids(node, 'property') + kids(node, 'fp_text'):
@@ -680,7 +715,9 @@ class Board:
                              'thick': _f(th[1], 0.15) if th else 0.15 * _f(sz[1], 1.0),
                              'hidden': 'hide' in t or (kid(t, 'hide') or ['', 'no'])[1:2] == ['yes'] or 'hide' in eff,
                              'mirror': 'mirror' in (kid(eff, 'justify') or []), 'uuid': val(t, 'uuid'),
-                             'ttf': kid(fnt, 'face') is not None, 'box': text_box(tx, ty, ang, txt, t, (kx + ky) / 2)})
+                             'knockout': 'knockout' in (kid(t, 'layer') or []),
+                             'ttf': kid(fnt, 'face') is not None})
+            f.fields[-1]['box'], f.fields[-1]['parts'] = text_parts(tx, ty, ang, txt, t, (kx + ky) / 2)
         if f.ref in self.fps:                     # KiCad allows it; keep every one visible
             n = 2
             while f"{f.ref}~dup{n}" in self.fps:

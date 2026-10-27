@@ -91,7 +91,7 @@ def silk_svg(b, box, back, flagged=frozenset()):
     """one side's silkscreen from the model, seen from that side (the back is mirrored so it
     reads): exposed pads, Fab bodies, silk outlines, logos, every visible silk text drawn as
     text at its size and angle; flagged texts (ids) red with their estimated box"""
-    from kpcb_silk import on_side, art_rows
+    from kpcb_silk import exposed, art_rows
     x0, y0, x1, y1 = box
     inb = lambda bb: bb[2] >= x0 - 1 and bb[0] <= x1 + 1 and bb[3] >= y0 - 1 and bb[1] <= y1 + 1     # noqa: E731
     from kpcb_board import pad_box
@@ -100,7 +100,7 @@ def silk_svg(b, box, back, flagged=frozenset()):
     side = 'B' if back else 'F'
     for f in b.placed():
         for p in f.pads:
-            if (on_side(p, back) or p['drill']) and inb(pad_box(p)):
+            if exposed(p, back) and inb(pad_box(p)):
                 if p['shape'] == 'circle' and not p['prims']:
                     o.append(f'<circle cx="{p["x"]}" cy="{p["y"]}" r="{p["sx"] / 2}" fill="#c8a050"/>')
                 else:
@@ -129,18 +129,54 @@ def silk_svg(b, box, back, flagged=frozenset()):
             bb = x['box']
             o.append(f'<rect x="{bb[0]}" y="{bb[1]}" width="{bb[2] - bb[0]}" height="{bb[3] - bb[1]}" fill="none" '
                      f'stroke="#ff5050" stroke-width="0.06"/>')
-        flip = ' scale(-1 1)' if back else ''
-        cx, cy = (x['box'][0] + x['box'][2]) / 2, (x['box'][1] + x['box'][3]) / 2     # justify is in the box
-        for k, line in enumerate(x['text'].split('\\n')):
-            dy = (k - (x['text'].count('\\n')) / 2) * 1.6 * x['h']
-            o.append(f'<text x="0" y="{dy}" font-size="{x["h"] * 1.3:.3f}" font-family="DejaVu Sans Mono, monospace" '
-                     f'text-anchor="middle" dominant-baseline="central" fill="{col}" '
-                     f'transform="translate({cx} {cy}) rotate({-x["ang"]}){flip}">'
-                     f'{line.replace("&", "&amp;").replace("<", "&lt;")}</text>')
+        o += _text_lines(x, col)
     for u, v in b.edge_segs:
         if inb((min(u[0], v[0]), min(u[1], v[1]), max(u[0], v[0]), max(u[1], v[1]))):
             o.append(f'<line x1="{u[0]}" y1="{u[1]}" x2="{v[0]}" y2="{v[1]}" stroke="#e8e050" stroke-width="0.1"/>')
     return '\n'.join(o + ['</g>'])
+
+
+def _text_lines(x, col):
+    """<text> per line of a silk text, each laid on the ink its own line covers (x['parts']:
+    glyph boxes from KiCad's render_cache, else word boxes placed by the justification), so a
+    left-justified mirrored title block sits where KiCad plots it. The view's font is
+    monospace (DejaVu Sans Mono advances 0.602 em) and scaled in x to that width: rsvg-convert
+    ignores textLength. Falls back to the whole box when lines and parts disagree."""
+    t = math.radians(x['ang'])
+    c, s = math.cos(t), math.sin(t)
+    loc = lambda px, py: ((px - x['x']) * c - (py - x['y']) * s, (px - x['x']) * s + (py - x['y']) * c)  # noqa: E731
+    lines = x['text'].split('\\n')
+    while len(lines) > 1 and not lines[-1].strip():
+        lines.pop()
+    spans = []                                  # per part: (u0, u1, v0, v1) in the text's own frame
+    for pb in x.get('parts') or [x['box']]:
+        q = [loc(px, py) for px in (pb[0], pb[2]) for py in (pb[1], pb[3])]
+        spans.append((min(u for u, _ in q), max(u for u, _ in q), min(v for _, v in q), max(v for _, v in q)))
+    rows = []
+    for sp in sorted(spans, key=lambda r: (r[2] + r[3]) / 2):
+        if rows and (sp[2] + sp[3]) / 2 - rows[-1][-1] < 0.8 * x['h']:
+            rows[-1][0].append(sp)
+        else:
+            rows.append(([sp], (sp[2] + sp[3]) / 2))
+        rows[-1] = (rows[-1][0], (sp[2] + sp[3]) / 2)
+    out, esc = [], lambda ln: ln.replace('&', '&amp;').replace('<', '&lt;')    # noqa: E731
+    em = x['h'] * 1.3
+    fs = f'font-size="{em:.3f}" font-family="DejaVu Sans Mono, monospace" fill="{col}" dominant-baseline="central"'
+    if len(rows) != len(lines):                # a knockout block, or an odd cache: centre the lines in the box
+        cx, cy = (x['box'][0] + x['box'][2]) / 2, (x['box'][1] + x['box'][3]) / 2
+        for k, ln in enumerate(lines):
+            dy = (k - (len(lines) - 1) / 2) * 1.6 * x['h']
+            out.append(f'<text x="0" y="{dy:.3f}" {fs} text-anchor="middle" transform="translate({cx} {cy}) '
+                       f'rotate({-x["ang"]}){" scale(-1 1)" if x["mirror"] else ""}">{esc(ln)}</text>')
+        return out
+    for ln, (sp, _v) in zip(lines, rows):
+        u0, u1 = min(r[0] for r in sp), max(r[1] for r in sp)
+        vc = (min(r[2] for r in sp) + max(r[3] for r in sp)) / 2
+        sx = (u1 - u0) / max(0.602 * em * len(ln.strip()), 1e-6)
+        at = f"translate({u1:.3f} {vc:.3f}) scale({-sx:.4f} 1)" if x['mirror'] else f"translate({u0:.3f} {vc:.3f}) scale({sx:.4f} 1)"
+        out.append(f'<text x="0" y="0" {fs} text-anchor="start" '
+                   f'transform="translate({x["x"]} {x["y"]}) rotate({-x["ang"]}) {at}">{esc(ln.strip())}</text>')
+    return out
 
 
 def _png(svg_txt, out, wpx):
@@ -216,6 +252,7 @@ def c_view(b, a):
         box = (bb[0] - a.radius, bb[1] - a.radius, bb[2] + a.radius, bb[3] + a.radius)
     if a.layers == 'silk':
         import argparse
+        back = back or getattr(a, 'side', '') == 'b'      # a bare box or point: --side b for the back
         from kpcb_silk import findings
         _F, per = findings(b, argparse.Namespace(only=''))
         w, h = box[2] - box[0], box[3] - box[1]

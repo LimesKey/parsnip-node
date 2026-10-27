@@ -92,13 +92,16 @@ scrambled. The plot only tells you which sheet a symbol lives on.
 | what is left to route | `kpcb.py FILE airwires [NET]` - per net, each missing link between copper pieces, nearest copper of each, gap |
 | where a copper layer still has room for routes | `kpcb.py FILE map --layers In2.Cu` - track/pad/via density, pour-only and free cells |
 | where does this unplaced part fit | `kpcb.py FILE place REF [--near IC]` - both sides, 4 rotations, ranked by ratsnest, copper-checked, every pad able to escape (a via spot or its net's copper within 1.5 mm); `--shove` nudges one small part aside when nothing fits; `-o OUT` writes it |
-| route a net / everything left | `kpcb.py FILE route NET... \| --pending -o OUT` - grid A* through clearance-inflated copper, vias, all layers; necks down out of fine-pitch pads; rips up its own routes that box a pin in (`--rip-board N`: small nets already on the board too); a FAILED link names what boxes it in; `--pair` runs a diff-pair leg alongside its routed mate |
+| route a net / everything left | `kpcb.py FILE route NET... \| --pending -o OUT` - grid A* through clearance-inflated copper, vias, all layers; necks down out of fine-pitch pads; rips up its own routes that box a pin in (`--rip-board N`: small nets already on the board too); a FAILED link names what boxes it in; `--pair` runs a diff-pair leg alongside its routed mate; `--avoid X0,Y0,X1,Y1[;..]` keeps this run out of boxes (an antenna whose keepout allows tracks) |
 | diff pair skew / coupling / gap | `kpcb.py FILE pairs [NET]` - per pair leg lengths, skew, coupled length, edge gap vs the netclass |
 | place and route on a scratch copy, prove each step | the loop in [recipes](references/recipes.md) "Place the rest": `kdrc.py COPY drc --refill-save --baseline r0.json` reads `0 new` when a step is clean |
 | widen a routed power path / add its vias | `kpcb.py FILE fatten NET... [--layers L] [--width W] -o OUT` - same-net pour bands round its tracks, leaving its parts' GND pads reachable; `kpcb.py FILE stitch NET [X,Y] [--box ..] -o OUT` - legal via spots on its copper, written `(free yes)` |
-| what copper is in this box (with uuids) / a hand edit / a staircased zone outline | `kpcb.py FILE copper X0,Y0,X1,Y1 [--net N]`, then `kpcb.py FILE edit width UUID W \| del UUID (track, via, zone) \| seg .. \| via .. \| mvvia UUID R \| vcenter all\|DRC.json \| solid REF.PAD \| simplify ZONE EPS -o OUT` |
-| how clean is the routing (corners, off-45, width steps, stubs, lane jogs) and why | `kpcb.py FILE tracks [--kind jog] [--view census.png]` (16 panels per PNG) |
-| clean up the routing | `kpcb.py FILE smooth --all -o OUT`, `smooth --jogs [--nudge] -o OUT`, `widen [--uniform-power] -o OUT`, `loops -o OUT` on a scratch copy; recipe in [recipes](references/recipes.md) |
+| what copper is in this box (with uuids) / a hand edit / a staircased or faceted zone outline | `kpcb.py FILE copper X0,Y0,X1,Y1 [--net N]`, then `kpcb.py FILE edit width UUID W \| del UUID (track, via, zone) \| seg .. \| via .. \| mvvia UUID R \| vcenter all\|DRC.json \| solid REF.PAD \| simplify ZONE EPS \| unround ZONE\|all -o OUT` (unround: sharp corners + KiCad fillet, editable in KiCad) |
+| how clean is the routing (corners, off-45, width steps, stubs, lane jogs, detours) and why | `kpcb.py FILE tracks [--kind jog\|detour] [--view census.png]` (16 panels per PNG) |
+| clean up the routing / make the traces look nice | `kpcb.py FILE reroute -o OUT` (detours first), `smooth --all -o OUT`, `smooth --jogs [--nudge] -o OUT`, `widen [--uniform-power] -o OUT`, `loops -o OUT` on a scratch copy; what "clean" means and the order: [recipes](references/recipes.md) |
+| is this net routed the best way / straighten a meandering route | `kpcb.py FILE reroute NET [-o OUT]` - rips and re-routes on a copy, kept only when shorter or fewer vias |
+| where will routing jam / is the placement routable | `kpcb.py FILE congest [--all]` - demand (RUDY) vs free copper per cell and layer, hot regions with their nets and the layer with room |
+| how do the pins of this dense part get out | `kpcb.py FILE fanout U5` - per pin: escape side on its layer, dogbone via spot, or boxed (via-in-pad); route a dense area: [recipes](references/recipes.md) |
 | what did this edit change | `kpcb.py FILE diff OLD.kicad_pcb` - footprints, silk, vias, zones, teardrops, tracks, per-net R |
 | why is this pin boxed in / what does the router see here | `kpcb.py FILE vscan NET X0,Y0,X1,Y1 [--layers L]` |
 | rip out only what served a part | `kpcb.py FILE unhook REF -o OUT` |
@@ -111,7 +114,7 @@ scrambled. The plot only tells you which sheet a symbol lives on.
 | where does a W x H logo/label fit on the silk | `kpcb.py FILE freebox f 8 4` - best centre per free region |
 | label a header's pins / put a silk label somewhere clear | `kpcb.py FILE pinlabels REF [NAME...] -o OUT` (names from the nets, through fuses/0R), `kpcb.py FILE label TEXT X,Y\|--near REF -o OUT` |
 | is the silkscreen clean: designators over pads, under bodies, overlapping, too small, ambiguous, upside down; logos hidden | `kpcb.py FILE silk` (`silk REF` or `--box` lists the texts there with what `edit` needs) |
-| clean up the designators | `kpcb.py FILE refdes -o OUT` - flagged ones to clear spots beside their parts (`--show`, `--size`); the rest by hand: `edit ref REF X,Y 0 \| hide REF \| textsize REF\|UUID H T \| text UUID X,Y A \| value REF X,Y A \| hide-value REF \| valuesize REF H T`; the recipe is in [recipes](references/recipes.md) |
+| clean up the designators | `kpcb.py FILE refdes -o OUT` - flagged ones to clear spots beside their parts (`--show`, `--size`); the rest by hand: `edit ref REF X,Y 0 \| hide REF \| textsize REF\|UUID H T \| text UUID X,Y A \| value REF X,Y A \| hide-value REF \| valuesize REF H T \| knockout UUID\|REF on\|off \| retext UUID T \| addtext T X,Y A f\|b H` (UUID: a board or footprint user text); the recipe is in [recipes](references/recipes.md) |
 | look at the silkscreen | `kpcb.py FILE view REF --layers silk` - drawn from the model, flagged texts red (KiCad's plot buries designators under Fab values) |
 | picture of a board region (chosen layers) | `kpcb.py FILE view REF [-r 5] [--layers B.Cu,B.SilkS]` -> PNG path |
 | where is this PAD / how far apart are two pads | `kpcb.py FILE where F5.1 BT1.1` |
@@ -151,7 +154,7 @@ Netlist, load_sexp) - never re-implement paren matching in an inline script.
   each rule stops after `--max`. The counts in the tails stay accurate even when
   not every item is printed: `+90 more OVERLAP line(s) (102 total)` means 102 real
   findings. Widen deliberately with `--only RULE` or `--max`, never by default.
-- **The writers (`move`, `place`, `route`, `ripup`, `unhook`, `renet`, `fixlines`, `fatten`, `stitch`, `edit`,
+- **The writers (`move`, `place`, `route`, `reroute`, `ripup`, `unhook`, `renet`, `fixlines`, `fatten`, `stitch`, `edit`,
   `smooth`, `widen`, `loops -o`, `refdes`, `pinlabels`, `label`; `kfront pages -o`/`draw`) write a
   copy, `-o OUT`, and refuse their input.** Work on a scratch copy of the project and
   hand back the result; the real board is edited only when the user asks.

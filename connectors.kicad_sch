@@ -7899,7 +7899,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/e746529444b0a48d4f291628523ddcfb.pdf?productCode=C7509546"
 			(at 143.51 115.57 0)
 			(hide yes)
 			(show_name no)
@@ -7910,7 +7910,7 @@
 				)
 			)
 		)
-		(property "Description" "CONN RCPT female 1x4 2.54mm, vertical THT (not in BOM)"
+		(property "Description" "CONN RCPT female 1x4 2.54mm, vertical THT"
 			(at 143.51 115.57 0)
 			(hide yes)
 			(show_name no)
@@ -7921,7 +7921,7 @@
 				)
 			)
 		)
-		(property "MPN" ""
+		(property "MPN" "DS1023-1x4SF11"
 			(at 143.51 115.57 0)
 			(hide yes)
 			(show_name no)
@@ -7932,7 +7932,7 @@
 				)
 			)
 		)
-		(property "Manufacturer" ""
+		(property "Manufacturer" "CONNFLY Elec"
 			(at 143.51 115.57 0)
 			(hide yes)
 			(show_name no)
@@ -7943,7 +7943,7 @@
 				)
 			)
 		)
-		(property "LCSC Part" ""
+		(property "LCSC Part" "C7509546"
 			(at 143.51 115.57 0)
 			(hide yes)
 			(show_name no)
@@ -8930,7 +8930,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/e746529444b0a48d4f291628523ddcfb.pdf?productCode=C7509546"
 			(at 143.51 85.09 0)
 			(hide yes)
 			(show_name no)
@@ -8941,7 +8941,7 @@
 				)
 			)
 		)
-		(property "Description" "CONN RCPT female 1x4 2.54mm, vertical THT (not in BOM)"
+		(property "Description" "CONN RCPT female 1x4 2.54mm, vertical THT"
 			(at 143.51 85.09 0)
 			(hide yes)
 			(show_name no)
@@ -8952,7 +8952,7 @@
 				)
 			)
 		)
-		(property "MPN" ""
+		(property "MPN" "DS1023-1x4SF11"
 			(at 143.51 85.09 0)
 			(hide yes)
 			(show_name no)
@@ -8963,7 +8963,7 @@
 				)
 			)
 		)
-		(property "Manufacturer" ""
+		(property "Manufacturer" "CONNFLY Elec"
 			(at 143.51 85.09 0)
 			(hide yes)
 			(show_name no)
@@ -8974,7 +8974,7 @@
 				)
 			)
 		)
-		(property "LCSC Part" ""
+		(property "LCSC Part" "C7509546"
 			(at 143.51 85.09 0)
 			(hide yes)
 			(show_name no)

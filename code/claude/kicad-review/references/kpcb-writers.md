@@ -74,7 +74,10 @@ stale copper over the source pad (29) or boxed in by copper that predates the ru
 charger corner fails at its 1.0 mm floor) is found at probe width W (0.3) and laid as
 same-net zones, one per same-layer run: a band the netclass track width wide round
 the probe path, solid pad connection, min thickness 0.25, priority above every zone
-on the board. The refill fits copper wherever the clearances leave room, so it necks
+on the board, its outline sharp + fillet like `fatten`'s (`edit unround`).
+**`--avoid X0,Y0,X1,Y1[;..]`**: boxes no track or via of this run may touch, every
+layer, held as rule areas in the model only (nothing written): U1's antenna, whose
+footprint keepout allows tracks, without a hand-inserted rule area to delete after. The refill fits copper wherever the clearances leave room, so it necks
 through a gap a track cannot use; the probe path stays in the model (not the file) so
 later links route round it. Verified on a fixture with KiCad's own refill (one
 island, no unconnected item). Refill, then `airwires NET` and `ampacity`: the neck
@@ -93,7 +96,8 @@ Verdict: KiCad's DRC on the copy - the grid is conservative, not a proof.
 
 **`place`** rasterises each side at 0.1 mm (courtyards, through pads on both sides,
 the outline shrunk by `--edge`) plus, per net of the part, the foreign copper on
-that side's outer layer grown by 0.15 mm; summed-area tables make every candidate
+that side's outer layer grown by 0.15 mm, and every other part's pad whatever its net (an
+easyeda header's courtyard leaves its pads out: R4 once landed on J1.6); summed-area tables make every candidate
 (0.25 mm pitch within `-r`, 4 rotations, `--side f|b|both`) a few O(1) tests: the
 courtyard as boxes, one per vertex-y slab (an L is two), not its bounding box.
 It never moves a placed part to make room. Score:
@@ -119,6 +123,9 @@ other part's pad - then the prune with the parts treated as absent. A stub that 
 them goes; a via in their pads goes only if it then joins fewer than two layers; a trunk
 that also serves others stays. Parsnip: `unhook C65` takes C65's three GND stubs and keeps
 the 4-layer VSYS via-in-pad and its trunk (`ripup --box` would have cascaded into both nets).
+A route that ran THROUGH a part's pad (trunk -> R25.2 -> C17.1) goes with it; each pad of
+another part left off its net's copper prints `CUT  C17.1 now off +3V3's other 58 pad(s)`
+(Copper pieces before vs after, the parts absent): re-route those too.
 
 **Neck-down, diagnostics, `--rip-board`, `--pair`.** When no class width can leave a pad
 (a 0.5 mm-pitch USB-C VBUS pin, a WSON TVS pin: "foreign copper covers every cell of the
@@ -144,7 +151,9 @@ straight edges, `simplify`, so a diagonal band is one diagonal edge), minus othe
 side), a 1.0 mm halo round the GND pads of every part on the net (the GND pour keeps its
 thermal spokes: without it parsnip's -BATT band cut R41.4's ground off), bands of other nets
 from the same run and --keep boxes. Holes are slit open (one ring per zone outline); each
-zone gets its own priority above every zone on the board. Then refill, `airwires --since`
+zone gets its own priority above every zone on the board. Its outline (and `route --pour`'s)
+is written sharp + `(smoothing fillet) (radius 0.2)`, as `edit unround` does, so it stays
+editable in KiCad. Then refill, `airwires --since`
 (a band can cut a plane region off) and `ampacity --fills`. Parsnip 2026-10-19: PPHV
 In2/B.Cu 3 mm bands, 0 new DRC, PPHV U5->Q7 52.5 -> 32.9 mohm through the real fills.
 
@@ -163,7 +172,14 @@ applies `width UUID W`, `del UUID` (a deleted track's teardrops go with it, or K
 `solid REF.PAD` (zone_connect 2), `simplify UUID EPS` (a zone outline's corners within EPS mm
 of the edge replacing them dropped, Douglas-Peucker, refused if it would cross itself; the stale
 fill goes, refill after: 0.0625 turns a 0.05 mm raster staircase into its straight/diagonal edge;
-parsnip's two pre-fix `fatten -BATT` In1 zones 1006 -> 39 and 146 -> 20 corners, 0 new DRC), and
+parsnip's two pre-fix `fatten -BATT` In1 zones 1006 -> 39 and 146 -> 20 corners, 0 new DRC),
+`unround UUID|all` (`kpcb_fillet`: a faceted outline's chord runs / fitted staircases become
+the corners where their tangent lines meet + `(smoothing fillet) (radius 0.2)`; a convex cap
+only gains a sliver, a concave run under 0.9 mm (a GND-pad halo bite) only grows, a wider one
+keeps a vertex every <= 45 deg so the neck it rounds never thins; checked against a copy of
+KiCad's fillet at 0.01 mm and left faceted if it would cross itself, lose > 0.25 mm2 or grow
+into a bite; a hand-drawn polygon (no chord run) or one already filleted is left alone; `all`
+= the route*/fatten* bands. Parsnip 2026-10-26: 84 bands, 4626 -> 2218 points, 0 new DRC), and
 `del` takes a zone too (its fills go with it); `mvvia UUID R` re-places a trackless
 (stitching) via at the nearest legal spot within R mm by `stitch`'s search (same size, drill
 and free flag; refused with a track on it; "already on a legal spot" when nothing makes it
@@ -177,9 +193,15 @@ flags); for the silkscreen `ref REF X,Y ANG|keep` (move a designator: board X,Y,
 angle, justification centred), `hide REF` / `show REF`, `textsize REF|UUID H T` (a
 designator, or a board text by uuid), `value REF X,Y ANG|keep`, `hide-value REF` /
 `show-value REF`, `valuesize REF H T` (the Value field, which parsnip uses as a label:
-BOOT, UART0, PGOOD) and `text UUID X,Y ANG|keep` (a board text; uuids from `silk REF`, a
-TrueType text's stale `render_cache` is dropped on any move or resize), in order, a prefix matching anything but
-exactly one item refusing the lot. **`move`** is KiCad's Drag (D), `kpcb_move.drag_plan`:
+BOOT, UART0, PGOOD) and `text UUID X,Y ANG|keep` (a board text or a footprint's user text -
+a jumper's '1'/'3' pin label; uuids from `silk REF`, which prints them in [brackets]; a
+TrueType text's stale `render_cache` is dropped on any move, resize or retext); `del UUID` and
+`textsize UUID H T` take a user text too (never a Reference/Value field: `hide`/`textsize REF`);
+`knockout UUID|REF on|off` (a board/user text, or REF's designator; `(layer "F.SilkS"
+knockout)`), `retext UUID TEXT` (a board or user text's content) and `addtext TEXT X,Y ANG f|b H`
+(a new board silk text at exactly X,Y, stroke 0.15 H >= 0.15, mirrored on b; `label` finds a
+clear spot instead), in order, a prefix matching anything but exactly one item refusing the lot.
+`diff` reports each in place: `JP1: Reference knockout on, user moved, user removed`. **`move`** is KiCad's Drag (D), `kpcb_move.drag_plan`:
 segment ends on the part's pads follow ONLY on a layer that pad has (a through pad: all);
 a via inside one of its pads moves with it, and every end on that via (any layer) with
 it; an end on any other via stays tied to it. Arcs and a flip's ends stay (counted).
@@ -260,6 +282,19 @@ trace was left grazing the pad edge.
 `-o` deletes them (prune, teardrops); then `kdrc --unconnected --baseline` (parsnip: 23
 chains, 0 new, 0 unconnected).
 
+**`reroute [NET...] [--max N] [-o OUT]`** (`kpcb_dense.py`): the nets `tracks --kind detour`
+lists (routed signal nets > 1.5x their octilinear pad MST and > 3 mm longer, or > 2 vias per
+link; not GND, poured, PWR/RF/USB/diff-class or 9+ pad nets), worst first, or the named ones
+(any class). Each in turn, on temp copies beside the board (the router reads the project's
+rules there): `ripup NET`, then `route NET` with the run's route flags (`--via-cost`,
+`--layers`, `--grid`...), and the result is kept only when the net is one piece again and
+length + `--via-cost` x vias drops by >= 5%; each kept one is in the board the next is routed
+on. Refused: locked copper, a net with its own pour. Without -o it is a dry run of the same.
+The verdict lines say why one was kept: the router failed, it cannot complete the net without
+the old copper (the old route used a gap the grid calls closed), or the detour is the shortest
+legal path. Parsnip scratch 2026-10-24: ANT_DETECT 57.4 mm 2 vias -> 43.6 mm 5 vias; I2C_HOST_IRQ
+and Net-(D23-COM) kept (~10 s a net). Then `smooth --all` and the usual `kdrc --baseline`.
+
 **`refdes [REF...] [--all] [--show] [--size H] [--thick T] -o OUT`** (`kpcb_silk.py`):
 designators to the best clear spot beside what a reader sees of the part (pads + Fab
 body): 4 sides, slid along each (centre first), 3 rings out (clearance +0.02, +0.35,
@@ -285,7 +320,9 @@ the blockers. `label`: the clear spot nearest X,Y (or REF's designator, which it
 
 **`place` escapes and `--shove`.** A copper-clear spot is kept only if every SMD pad there
 reaches its net's track/via/pad or a legal via spot within 1.5 mm of free board (0.15 mm,
-0.5/0.2 vias); a fill does not count (it can be an island: parsnip's D28 GND pad). `--shove`
+the via `route` lays for the net's class: 0.6/0.3 on parsnip's Default, 0.5/0.2 when the
+class ring is under 0.15 mm - a 0.5/0.2 check once called spots CLEAR that `route` then
+found boxed in); a fill does not count (it can be an island: parsnip's D28 GND pad). `--shove`
 (only when nothing is clear): spots blocked by ONE small part (<= 3 pads, courtyard <= 8 mm2,
 not U/J/BT/H/SW/Y/X/NT, not --near) that open when it moves <= 1.5 mm, each checked like
 movecheck both ways; `-o` writes the nudge (tracks dragged) and the part.

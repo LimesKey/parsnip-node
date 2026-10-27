@@ -78,8 +78,11 @@ Writers (always to a new file, -o OUT; verify the copy with kdrc.py):
                                       --corners, --square, --pads, --jogs [--nudge]: one other
                                       pass; --all: every pass but jogs until nothing changes)
   kpcb.py FILE tracks [--view P.png]  trace-quality census: visible corners, off-45, width
-                                      steps, tiny segments, ends at a pad edge, lane jogs, and
-                                      why smooth left each
+                                      steps, tiny segments, ends at a pad edge, lane jogs,
+                                      detours, and why smooth left each
+  kpcb.py FILE reroute [NET..] -o OUT rip a detour net and route it again; kept when better
+  kpcb.py FILE congest [--all]        routing demand vs free copper per cell: where it jams
+  kpcb.py FILE fanout REF             per pin of a dense part: escape, dogbone via, or boxed
   kpcb.py FILE widen [NET..] -o OUT   grow under-width tracks to their netclass width
                                       (--uniform-power: a power run at its widest where clear)
   kpcb.py FILE loops [NET..] [-o OUT] redundant track chains on signal nets (-o deletes)
@@ -157,6 +160,7 @@ from kpcb_power import c_fatten, c_stitch, c_vscan
 from kpcb_smooth import c_smooth
 from kpcb_tracks import c_tracks, c_widen, c_loops
 from kpcb_diff import c_diff
+from kpcb_dense import c_congest, c_fanout, c_reroute
 
 
 def c_summary(b, a):
@@ -297,8 +301,11 @@ def c_where(b, a):
             print(f"\n=== {spec}  {p['fn'] or ''}  on {unesc_disp(p['net']) or '(no net)'}")
             print(f"  at        : {O(p['x'], p['y'])}  ({'absolute' if a.origin == 'page' else a.origin + ' origin'})"
                   f"  pad rot {p['prot']:g}")
+            bb = pad_box(p)                          # the pad's own size is before its rotation
             print(f"  pad       : {p['kind']} {p['shape']} {p['sx']:.2f} x {p['sy']:.2f} mm"
-                  + (f"  drill {p['drill']:.2f}" if p['drill'] else '') + f"  {ly}")
+                  + (f"  drill {p['drill']:.2f}" if p['drill'] else '') + f"  {ly}"
+                  + (f"  (on the board: {bb[2] - bb[0]:.2f} x {bb[3] - bb[1]:.2f}, x {bb[0]:.2f}..{bb[2]:.2f}"
+                     f" y {bb[1]:.2f}..{bb[3]:.2f})" if p['prot'] % 180 else ''))
             if b.edge_segs:
                 print(f"  edge dist : {min(pt_seg_dist((p['x'], p['y']), u, v) for u, v in b.edge_segs):.2f} mm")
             others = sorted(((math.hypot(q['x'] - p['x'], q['y'] - p['y']), g.ref, q)
@@ -438,44 +445,12 @@ def c_map(b, a):
 def _cu_map(b, a):
     """`map --layers L`: copper occupancy of one copper layer - where a route can still
     go. Tracks, pads and vias are hard copper; a pour is passable (a route cuts it)."""
-    from kpcb_route import _iv, _pad_shape
-    from kpcb_board import PolyIndex, pad_box
-    from kpcb_move import cu_layers, via_layers
+    from kpcb_dense import cu_raster
     ly = a.layers.split(',')[0]
     if ly not in b.copper:
         print(f"--layers {ly}: not a copper layer ({' '.join(b.copper)})"); return 1
     o, res = b.outline, 0.2
-    W, H = int((o[2] - o[0]) / res) + 1, int((o[3] - o[1]) / res) + 1
-    hard, soft = bytearray(W * H), bytearray(W * H)
-    def paint(ras, sh, R=0.0):
-        y0, y1, f = _iv(sh, R)
-        for j in range(max(0, math.ceil((y0 - o[1]) / res)), min(H - 1, math.floor((y1 - o[1]) / res)) + 1):
-            iv = f(o[1] + j * res)
-            if iv:
-                i0, i1 = max(0, math.ceil((iv[0] - o[0]) / res)), min(W - 1, math.floor((iv[1] - o[0]) / res))
-                if i0 <= i1:
-                    ras[j * W + i0:j * W + i1 + 1] = b'\x01' * (i1 - i0 + 1)
-    for f in b.placed():
-        for p in f.pads:
-            if p['kind'] != 'np_thru_hole' and (p['drill'] or ly in cu_layers(p['layers'], b.copper)):
-                paint(hard, _pad_shape(p, pad_box(p)))
-    for t in b.tracks:
-        if t['layer'] == ly:
-            paint(hard, ('cap', t['a'], t['b'], t['w'] / 2))
-    for v in b.vias:
-        if ly in via_layers(v, b.copper):
-            paint(hard, ('disk', v['x'], v['y'], v['size'] / 2))
-    for fl in b.fills:
-        if fl['layer'] == ly:
-            idx = PolyIndex(fl['pts'])
-            for j in range(H):
-                y = o[1] + j * res
-                xs = sorted(x1 + (y - y1) * (x2 - x1) / (y2 - y1) for x1, y1, x2, y2 in
-                            idx.rows.get(math.floor(y / idx.cell), ()) if (y1 > y) != (y2 > y))
-                for a0, a1 in zip(xs[::2], xs[1::2]):
-                    i0, i1 = max(0, math.ceil((a0 - o[0]) / res)), min(W - 1, math.floor((a1 - o[0]) / res))
-                    if i0 <= i1:
-                        soft[j * W + i0:j * W + i1 + 1] = b'\x01' * (i1 - i0 + 1)
+    W, H, hard, soft = cu_raster(b, ly, res)
     cols = max(20, a.cols)
     cw = (o[2] - o[0]) / cols
     ch = cw * 2.0
@@ -904,7 +879,8 @@ CMDS = {'summary': c_summary, 'check': c_check, 'where': c_where, 'map': c_map,
         'airwires': c_airwires, 'route': c_route, 'place': c_place, 'pairs': c_pairs,
         'edit': c_edit, 'copper': c_copper, 'fatten': c_fatten, 'stitch': c_stitch, 'unhook': c_unhook,
         'vscan': c_vscan, 'smooth': c_smooth, 'tracks': c_tracks, 'widen': c_widen, 'loops': c_loops,
-        'diff': c_diff, 'refdes': c_refdes, 'pinlabels': c_pinlabels, 'label': c_label}
+        'diff': c_diff, 'refdes': c_refdes, 'pinlabels': c_pinlabels, 'label': c_label,
+        'congest': c_congest, 'fanout': c_fanout, 'reroute': c_reroute}
 
 LIMITS = (('edge', 0.5, 'courtyard-to-board-edge minimum, mm'),
           ('hole', 1.5, 'keepout beyond a mounting hole pad radius, mm'),
@@ -929,7 +905,7 @@ def main():
     ap.add_argument('--max', type=int, default=12,
                     help='max lines per rule / per neighbour list before a +N tail (12)')
     ap.add_argument('--cols', type=int, default=48, help='for `map`: grid width (48)')
-    ap.add_argument('--side', default=None, help='for `map`: f (front, default) or b; for `place`: f, b or both (default)')
+    ap.add_argument('--side', default=None, help='for `map` and `view --layers silk`: f (front, default) or b; for `place`: f, b or both (default)')
     ap.add_argument('--near', default='', help='for `place`: the part (or X,Y) this one serves, e.g. the IC a cap decouples; '
                     'for `label`: the part whose designator spot the label takes')
     ap.add_argument('--rots', default='', help='for `place`: rotations to try (0,90,180,270)')
@@ -969,7 +945,8 @@ def main():
                     help='for `ampacity --from/--to`: also solve R through the REAL saved fills (pour necks '
                          'included) on a grid; numpy speeds it up when installed')
     ap.add_argument('--cell', type=float, default=0.0,
-                    help='for `ampacity --fills`: grid cell, mm (0.1 with numpy, else 0.2)')
+                    help='for `ampacity --fills`: grid cell, mm (0.1 with numpy, else 0.2); for `congest`: '
+                         'the map cell, mm (2)')
     ap.add_argument('--net', action='append', default=[],
                     help='for `ampacity`: net name, repeatable. For a name starting with '
                          '"-", use =, e.g. --net=-BATT (a space before the dash still '
@@ -1021,6 +998,9 @@ def main():
                     help="for `route`: rip-up budget - a failed link may cross this run's own routes of "
                          "other nets, which are ripped and routed again at once (all undone if one cannot), "
                          "this many times per run (10; 0 = off)")
+    ap.add_argument('--avoid', default='', metavar='X0,Y0,X1,Y1[;..]',
+                    help="for `route`: boxes no new track or via may touch, every layer, for this run only (a "
+                         "footprint keepout that allows tracks, e.g. U1's antenna); nothing is written for them")
     ap.add_argument('--rip-board', type=int, default=0, metavar='N',
                     help="for `route`: also rip unlocked signal nets ALREADY on the board with <= N pads (not GND, "
                          "power, RF, USB or poured nets), a whole net at a time, re-routing them at once (0 = off)")
@@ -1059,11 +1039,13 @@ def main():
     ap.add_argument('--nudge', action='store_true', help='for `smooth --jogs`: also drag one blocking signal via <= 0.3 mm')
     ap.add_argument('--all', action='store_true', help='for `smooth -o`: chains, overlaps, corners, square, pads, repeated until a round '
                                                       'changes nothing; for `tracks`: include RF/USB/diff-pair nets; '
-                                                      'for `refdes`: every visible designator, not only flagged ones')
+                                                      'for `refdes`: every visible designator, not only flagged ones; '
+                                                      'for `congest`: every net\'s pad MST, no tracks (the placement '
+                                                      'view); for `fanout`: list routed pads too')
     ap.add_argument('--hidden', action='store_true', help='for `smooth --corners`: also corners hidden under same-net copper')
     ap.add_argument('--uniform-power', action='store_true', help='for `widen`: per power run, also raise every '
                     'segment to the run\'s widest where clear (never narrows); reports the width steps left')
-    ap.add_argument('--kind', default='', help='for `tracks`: only these rows: acute,90,off45,neck,stub,pad,jog')
+    ap.add_argument('--kind', default='', help='for `tracks`: only these rows: acute,90,off45,neck,stub,pad,jog,detour')
     ap.add_argument('--show', action='store_true', help='for `refdes`: also place (and unhide) hidden designators')
     ap.add_argument('--size', type=float, default=None, help='for `refdes`: designator text height, mm (default: kept, >= the fab minimum); '
                     'for `pinlabels`/`label`: text height (default 1, >= the fab minimum)')

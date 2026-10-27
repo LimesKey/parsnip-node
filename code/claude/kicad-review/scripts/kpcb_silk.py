@@ -51,7 +51,12 @@ TTF_STROKE = 0.116
 
 
 def size_short(x, mh, mt):
-    """'' or why a text is under the fab minimum: height/thickness, or a TTF's glyph stroke"""
+    """'' or why a text is under the fab minimum: height/thickness, a TTF's glyph stroke, or
+    a knockout's margin (height / 9: KiCad fails knockout DIN at 1.3 mm, passes it at 1.5)"""
+    if x.get('knockout'):
+        need = max(mh, mt * 9, mt / TTF_STROKE if x.get('ttf') else 0)
+        return f"knockout at {x['h']:g} mm: its margin (height / 9) under the {mt:g} mm minimum (needs >= " \
+               f"~{need:.3g} mm)" if x['h'] < need - 1e-6 else ''
     if x.get('ttf'):
         need = max(mh, mt / TTF_STROKE)
         return f"TrueType at {x['h']:g} mm: glyph stroke under the {mt:g} mm minimum (needs >= ~{need:.2g} mm)" \
@@ -67,6 +72,11 @@ MOVABLE = {'SILK-PAD', 'SILK-UNDER', 'SILK-OVERLAP', 'SILK-EDGE', 'SILK-AMBIG', 
 def on_side(p, back):
     """does this pad have copper on that side (an SMD pad there, or a through pad)"""
     return any(l in ('B.Cu' if back else 'F.Cu', '*.Cu') for l in p['layers'])
+
+
+def exposed(p, back):
+    """is this pad's copper open in that side's solder mask (a tented via-in-pad is not)"""
+    return on_side(p, back) and any(l in ('B.Mask' if back else 'F.Mask', '*.Mask', 'F&B.Mask') for l in p['layers'])
 
 
 def art_rows(b):
@@ -116,7 +126,7 @@ class Silk:
         for g in P:
             for p in g.pads:
                 for side in (False, True):
-                    if on_side(p, side) or p['drill']:
+                    if exposed(p, side):
                         self.put(('pad', side, g, p), pad_box(p))
             if body(g) and not b.is_hole(g):      # no Fab body (E22P, cell holders, easyeda headers): the courtyard
                 self.put(('body', g.back, g, None), body(g))
@@ -163,23 +173,27 @@ class Silk:
                         yield item, ib
 
     def hits(self, box, side, me=None, owner=None):
-        """[(rule, message, other ref)] for a text box on a side: what it runs over"""
-        out = []
+        """[(rule, message, other ref)] for a text box on a side: what it runs over. A text
+        (me) is judged by its parts - glyph or word boxes - so a pad in a word gap is clear."""
+        out, P = [], me['parts'] if me and me.get('parts') and box == me['box'] else [box]
+        anyp = lambda test: any(test(pb) for pb in P)      # noqa: E731
         for (kind, s, g, extra), ib in self.near(grow(box, self.clr + 0.5)):
             if s != side:
                 continue
-            if kind == 'pad' and hit(grow(box, self.clr), ib):
-                out.append(('SILK-PAD', f"over {g.ref}.{extra['num']}", g.ref))
-            elif kind == 'body' and hit(box, ib) and \
+            if kind == 'pad' and anyp(lambda pb: hit(grow(pb, self.clr), ib)):
+                gap = min(box_dist(pb, ib) for pb in P)
+                out.append(('SILK-PAD', f"over {g.ref}.{extra['num']}" if gap <= 0 else
+                            f"{gap:.3f} mm from {g.ref}.{extra['num']} (silk clearance {self.clr:g})", g.ref))
+            elif kind == 'body' and anyp(lambda pb: hit(pb, ib)) and \
                     not (g is owner and not g.fab and me is not None and me['kind'] == 'user'):  # its own marks, courtyard body
                 out.append(('SILK-UNDER', 'under its own body' if g is owner else f"under {g.ref}'s body", g.ref))
-            elif kind == 'line' and seg_box_dist(extra[0], extra[1], box) < extra[2] / 2 and \
+            elif kind == 'line' and anyp(lambda pb: seg_box_dist(extra[0], extra[1], pb) < extra[2] / 2) and \
                     not (g is owner and me is not None and me['kind'] == 'user'):     # its own +/- marks: by design
                 out.append(('SILK-OVERLAP', 'over board art' if g is None else 'over its own silk outline' if g is owner
                             else f"over {g.ref}'s silk outline", g.ref if g else ''))
-            elif kind == 'art' and hit(box, ib):
+            elif kind == 'art' and anyp(lambda pb: hit(pb, ib)):
                 out.append(('SILK-OVERLAP', f"over logo {g.ref or '(blank)'}" if g else 'over board art', g.ref if g else ''))
-            elif kind == 'text' and extra is not me and hit(box, ib):
+            elif kind == 'text' and extra is not me and anyp(lambda pb: any(hit(pb, ob) for ob in extra.get('parts') or [ib])):
                 who = (f"{g.ref}'s {extra['kind'].lower()}" if extra['kind'] != 'Reference' else f"{g.ref}'s designator") \
                     if g else f"board text '{trunc(extra['text'], 16)}'"
                 out.append(('SILK-OVERLAP', f"over {who}", g.ref if g else ''))
@@ -190,8 +204,10 @@ class Silk:
                 dedup.append(r)
         return dedup
 
-    def edge_gap(self, box):
-        """how far the box sits inside the outline (< 0: off it)"""
+    def edge_gap(self, box, x=None):
+        """how far the box (a text x: its nearest part) sits inside the outline (< 0: off it)"""
+        if x and x.get('parts'):
+            return min(self.edge_gap(pb) for pb in x['parts'])
         b = self.b
         if not b.edge_segs:
             return 9.0
@@ -265,8 +281,8 @@ def findings(b, a, S=None):
             side = x['layer'][0] == 'B'
             for rule, msg, other in S.hits(x['box'], side, x, f):
                 add('WARN', rule, f"{name} {msg}", [f.ref] if rule != 'SILK-OVERLAP' or not other else [f.ref, other], x)
-            if S.edge_gap(x['box']) < clr:
-                add('WARN', 'SILK-EDGE', f"{name} {'off the board' if S.edge_gap(x['box']) < 0 else 'inside the edge clearance'}",
+            if S.edge_gap(x['box'], x) < clr:
+                add('WARN', 'SILK-EDGE', f"{name} {'off the board' if S.edge_gap(x['box'], x) < 0 else 'inside the edge clearance'}",
                     [f.ref], x)
             if size_short(x, mh, mt):
                 add('WARN', 'SILK-SIZE', f"{name} {size_short(x, mh, mt)}", [f.ref], x)
@@ -292,8 +308,8 @@ def findings(b, a, S=None):
         side = x['layer'][0] == 'B'
         for rule, msg, other in S.hits(x['box'], side, x, None):
             add('WARN', rule, f"{name} {msg}", [other])
-        if S.edge_gap(x['box']) < clr:
-            add('WARN', 'SILK-EDGE', f"{name} {'off the board' if S.edge_gap(x['box']) < 0 else 'inside the edge clearance'}", [])
+        if S.edge_gap(x['box'], x) < clr:
+            add('WARN', 'SILK-EDGE', f"{name} {'off the board' if S.edge_gap(x['box'], x) < 0 else 'inside the edge clearance'}", [])
         if size_short(x, mh, mt):
             add('WARN', 'SILK-SIZE', f"{name} {size_short(x, mh, mt)}", [])
         if x['mirror'] != side:
@@ -357,13 +373,15 @@ def silk_list(b, a):
     rows = [(f, x) for f in b.placed() for x in f.fields] + [(None, x) for x in b.silktexts]
     rows = [(f, x) for f, x in rows if x['layer'].endswith('.SilkS') and hit(x['box'], box)]
     print(f"silk in {box[0]:.2f},{box[1]:.2f} .. {box[2]:.2f},{box[3]:.2f}: {len(rows)} text(s) "
-          f"(move one: `edit ref REF X,Y ANG` / `edit text UUID X,Y ANG`)")
+          f"(move one: `edit ref REF X,Y ANG` / `edit text UUID X,Y ANG`; [uuid] = board or user text)")
     for f, x in sorted(rows, key=lambda r: (r[1]['layer'], r[1]['y'], r[1]['x'])):
         who = f"{f.ref} {'designator' if x['kind'] == 'Reference' else x['kind'].lower()}" if f else 'board text'
         flags = ', '.join(sorted(r.replace('SILK-', '').lower() for r in per.get(id(x), ())))
         print(f"  {x['layer'][0]}  {who:<20} {trunc(x['text'], 18)!r:<20} {x['x']:8.3f},{x['y']:<8.3f} {x['ang']:>4g} deg  "
-              f"{x['h']:g}/{x['thick']:g}" + (' TTF' if x.get('ttf') else '') + (' hidden' if x['hidden'] else '')
-              + (f"  [{x['uuid'][:8]}]" if not f else '') + (f"  ({flags})" if flags else ''))
+              f"{x['h']:g}/{x['thick']:g}" + (' TTF' if x.get('ttf') else '') + (' knockout' if x.get('knockout') else '')
+              + (' hidden' if x['hidden'] else '')
+              + (f"  [{x['uuid'][:8]}]" if (not f or x['kind'] == 'user') and x['uuid'] else '')
+              + (f"  ({flags})" if flags else ''))
     return 0
 
 

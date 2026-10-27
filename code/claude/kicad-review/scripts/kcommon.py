@@ -13,7 +13,7 @@ from collections import Counter, defaultdict
 
 __all__ = [
     'CACHE', 'GND_RE', 'KNOWN_RAILS', 'Netlist', 'SchInfo', 'cache_prune', 'cache_put', 'eng',
-    'fp_lib_dirs', 'fp_pads', 'doctor', 'has', 'kicad_cli', 'kicad_running', 'parse_args', 'sym_geometry',
+    'fp_lib_dirs', 'fp_mod', 'fp_pads', 'doctor', 'has', 'kicad_cli', 'kicad_running', 'parse_args', 'sym_geometry',
     'kid', 'kids', 'load_sexp', 'natkey', 'netlist_warnings', 'parse_sexp', 'parse_value',
     'prefix', 'print_findings', 'rail_voltage', 'refrange', 'refresh_netlist', 'sch_files', 'smart_re',
     'suppressed', 'top_level_sheets', 'project_root', 'trunc', 'tvs_standoff', 'unesc_disp',
@@ -290,18 +290,25 @@ def fp_lib_dirs(projdir):
     _FPDIRS[projdir] = out
     return out
 
-def fp_pads(fpid, projdir, count=False):
-    """{pad number: pad type} of footprint 'Lib:Name' read from its .kicad_mod, or
-    None when the library or file cannot be found. Numberless pads (paste
-    apertures, mechanical copper) and np_thru_hole drills are left out. count=True
-    gives {pad number: copper pieces} instead (a merged pad group counts each)."""
+def fp_mod(fpid, projdir):
+    """The parsed .kicad_mod of footprint 'Lib:Name', or None when the library or
+    file cannot be found."""
     lib, _, name = (fpid or '').partition(':')
     d = fp_lib_dirs(projdir).get(lib)
     if not (name and d):
         return None
     try:
-        root = load_sexp(os.path.join(d, name + '.kicad_mod'))
+        return load_sexp(os.path.join(d, name + '.kicad_mod'))
     except OSError:
+        return None
+
+def fp_pads(fpid, projdir, count=False):
+    """{pad number: pad type} of footprint 'Lib:Name' read from its .kicad_mod, or
+    None when the library or file cannot be found. Numberless pads (paste
+    apertures, mechanical copper) and np_thru_hole drills are left out. count=True
+    gives {pad number: copper pieces} instead (a merged pad group counts each)."""
+    root = fp_mod(fpid, projdir)
+    if root is None:
         return None
     pads = [p for p in kids(root, 'pad') if len(p) > 2 and p[1] and p[2] != 'np_thru_hole']
     return Counter(p[1] for p in pads) if count else {p[1]: p[2] for p in pads}

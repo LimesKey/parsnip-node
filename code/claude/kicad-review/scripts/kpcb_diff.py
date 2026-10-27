@@ -7,12 +7,38 @@ kept ones, length per layer, and the series resistance of each net's changed tra
 (stackup copper thickness per layer)."""
 import math
 from collections import defaultdict, Counter
-from kcommon import natkey, unesc_disp
+from kcommon import natkey, trunc, unesc_disp
 from kpcb_board import Board, RHO_CU, thick_of
 
 
 def _r(b, t):
     return RHO_CU * t['len'] / max(t['w'] * thick_of(b, t['layer']), 1e-9)
+
+
+TXT = ('text', 'layer', 'x', 'y', 'ang', 'h', 'thick', 'hidden', 'mirror', 'knockout')
+
+
+def _tkey(t):
+    return tuple(round(t[k] % 360 if k == 'ang' else t[k], 3) if isinstance(t[k], float) else t.get(k) for k in TXT)
+
+
+def _silk_fields(f):
+    return [t for t in f.fields if t['layer'].endswith('.SilkS')]
+
+
+def _what(new, old):
+    """'Reference ang 180->0 knockout off' for texts matched by uuid (else by kind, in order)"""
+    out, ob = [], {t['uuid'] or (t['kind'], i): t for i, t in enumerate(old)}
+    for i, t in enumerate(new):
+        o = ob.pop(t['uuid'] or (t['kind'], i), None)
+        if o is None:
+            out.append(f"{t['kind']} added"); continue
+        ch = [k for k, x, y in zip(TXT, _tkey(t), _tkey(o)) if x != y]
+        ch = ['moved' if k in ('x', 'y') else f"{k} {'on' if t[k] else 'off'}" if isinstance(t[k], bool)
+              else f"{k} {o[k]:g}->{t[k]:g}" if isinstance(t[k], float) else k for k in ch]
+        if ch:
+            out.append(f"{t['kind']} " + ' '.join(dict.fromkeys(ch)))
+    return ', '.join(out + [f"{o['kind']} removed" for o in ob.values()])
 
 
 def c_diff(b, a):
@@ -36,7 +62,7 @@ def c_diff(b, a):
             rot.append(f"{ref} {g.rot:g}->{f.rot:g}")
         if f.layer != g.layer or math.dist((f.x, f.y), (g.x, g.y)) > 1e-4 or f.rot != g.rot:
             placed.add(ref)
-        if sorted(f.texts) != sorted(g.texts):
+        if sorted(map(_tkey, _silk_fields(f))) != sorted(map(_tkey, _silk_fields(g))):
             txt.append(ref)
     add, rem = sorted(set(b.fps) - set(o.fps), key=natkey), sorted(set(o.fps) - set(b.fps), key=natkey)
     fp_n = len(set(b.fps) & set(o.fps)) - len(placed)
@@ -52,12 +78,19 @@ def c_diff(b, a):
     still = [r for r in txt if r not in placed]
     sb, so = Counter((ly, tuple(round(v, 3) for v in bb)) for ly, bb in b.silk), \
         Counter((ly, tuple(round(v, 3) for v in bb)) for ly, bb in o.silk)
-    if txt or sb != so:
+    tb, to = {t['uuid']: t for t in b.silktexts}, {t['uuid']: t for t in o.silktexts}
+    bt = [u for u in set(tb) & set(to) if _tkey(tb[u]) != _tkey(to[u])]
+    if txt or sb != so or bt:
         lines.append(f"silk: visible text changed on {len(txt)} footprint(s) ({len(still)} of them did not move)"
                      + (f"; board silk items {sum(so.values())} -> {sum(sb.values())}, "
-                        f"{sum((sb - so).values())} new/changed" if sb != so else ''))
-        if still:
-            lines.append("  text only: " + ' '.join(still[:a.max * 2]) + (f" +{len(still) - 2 * a.max}" if len(still) > 2 * a.max else ''))
+                        f"{sum((sb - so).values())} new/changed" if sb != so else '')
+                     + (f"; {len(bt)} board text(s) restyled in place" if bt else ''))
+        for r in still[:a.max]:
+            lines.append(f"  {r}: " + _what(_silk_fields(b.fps[r]), _silk_fields(o.fps[r])))
+        if len(still) > a.max:
+            lines.append(f"  +{len(still) - a.max} more text-only: " + ' '.join(still[a.max:a.max * 3]))
+        for u in sorted(bt, key=lambda u: tb[u]['text'])[:a.max]:
+            lines.append(f"  board text '{trunc(tb[u]['text'].replace(chr(10), ' '), 24)}': " + _what([tb[u]], [to[u]]).removeprefix('board '))
     else:
         same.append("silk")
     # vias

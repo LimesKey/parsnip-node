@@ -88,12 +88,13 @@ class SideMap:
         self.occ = occ
         self.S = self._sat(occ)
         # foreign copper on this side's outer layer, grown by the default clearance, one
-        # raster per net of the part: a pad may sit on its own net's copper, no other
+        # raster per net of the part: a pad may sit on its own net's tracks and vias, never
+        # on another part's pad (an easyeda courtyard can leave its pads out: R4 on J1.6)
         L = b.copper[-1] if back else b.copper[0]
         objs = []
         for g in b.placed():
             if g.ref not in skip:
-                objs += [(p['net'], _pad_shape(p, pad_box(p))) for p in g.pads if p['kind'] != 'np_thru_hole'
+                objs += [('', _pad_shape(p, pad_box(p))) for p in g.pads if p['kind'] != 'np_thru_hole'
                          and (p['drill'] or L in cu_layers(p['layers'], b.copper))]
         objs += [(t['net'], ('cap', t['a'], t['b'], t['w'] / 2)) for t in b.tracks if t['layer'] == L]
         objs += [(v['net'], ('disk', v['x'], v['y'], v['size'] / 2)) for v in b.vias]
@@ -192,9 +193,11 @@ def _bands(rings, res):
 def _escapes(b, f, x, y, rot, back, reach=1.5):
     """pads of f, placed at x,y,rot on that side, that can reach neither same-net copper (a
     track, via or another pad - not a fill, which can be an island: parsnip's D28 GND pad sat
-    on one) nor a legal via spot, within `reach` mm of free board at 0.15 mm, with 0.5/0.2
-    vias: the route model's own Grid. ["REF.PAD (NET)"]"""
-    from kpcb_route import Grid, DIRS, SQ2
+    on one) nor a legal via spot, within `reach` mm of free board at 0.15 mm, with the via
+    route lays for the net's class (0.6/0.3 on parsnip's Default: a spot only a 0.5/0.2 via
+    fits read CLEAR, then route called the pad boxed in): the route model's own Grid.
+    ["REF.PAD (NET)"]"""
+    from kpcb_route import Grid, DIRS, SQ2, class_via, _netclass
     from kpcb_board import grow
     import heapq
     _i, _r, cent = as_placed(f, x, y, rot, back != f.back, b.copper)
@@ -208,7 +211,7 @@ def _escapes(b, f, x, y, rot, back, reach=1.5):
             if not n or n.startswith('unconnected-') or q['drill'] or q['kind'] == 'np_thru_hole' or not lys:
                 continue
             ly = sorted(lys)[0]
-            g = Grid(b, n, grow(pad_box(q), reach + 0.5), 0.05, 0.15, 0.5, 0.2, [ly])
+            g = Grid(b, n, grow(pad_box(q), reach + 0.5), 0.05, 0.15, *class_via(_netclass(b, n)), [ly])
             src = g.cells_of({'pads': [(f, q)], 'vias': [], 'tracks': [], 'fills': []})[0].get(ly, set())
             tgt = bytearray(g.W * g.H)                   # same-net copper the escape may end on
             def paint(shape):

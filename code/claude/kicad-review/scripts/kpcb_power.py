@@ -30,7 +30,7 @@ from kpcb_board import PolyIndex, bbox, grow, pad_box, pt_seg_dist
 from kpcb_copper import _local
 from kpcb_edit import PcbText, _need_out
 from kpcb_move import cu_layers
-from kpcb_route import ONES, Grid, _iv, _kos, _netclass, _pad_shape, _trace, _area
+from kpcb_route import ONES, Grid, _iv, _kos, _netclass, _pad_shape, _trace, _area, class_via
 
 RES = 0.05
 
@@ -274,9 +274,7 @@ def c_stitch(b, a):
     if not net:
         print(f"{a.args[0]}: no such net" + (f"; did you mean {' | '.join(cand)}" if cand else '')); return 1
     cls = _netclass(b, net)
-    vsz, vdr = (cls.get('via_diameter') or 0.6), (cls.get('via_drill') or 0.3)
-    if (vsz - vdr) / 2 < 0.15 - 1e-6:
-        vsz, vdr = 0.5, 0.2
+    vsz, vdr = class_via(cls)
     if a.via:
         vsz, vdr = (float(x) for x in a.via.split('/'))
     n = a.n or (3 if len(a.args) > 1 else 2)
@@ -334,8 +332,7 @@ def c_vscan(b, a):
     if not net:
         print(f"{a.args[0]}: no such net" + (f"; did you mean {' | '.join(cand)}" if cand else '')); return 1
     box = _boxes(a.args[1])[0]
-    cls = _netclass(b, net)
-    vsz, vdr = (cls.get('via_diameter') or 0.6), (cls.get('via_drill') or 0.3)
+    vsz, vdr = class_via(_netclass(b, net))
     if a.via:
         vsz, vdr = (float(x) for x in a.via.split('/'))
     w = a.width or 0.15

@@ -1,8 +1,8 @@
 """kpcb.py `check`: the placement rules (RULES) and their findings."""
-import json, math
+import json, math, os
 from collections import defaultdict
 from kcommon import (refrange, natkey, trunc, prefix, unesc_disp, GND_RE, rail_voltage,
-                     print_findings, suppressed)
+                     print_findings, suppressed, fp_mod, kid)
 from kpcb_board import (bbox, box_dist, EDGEMNT, grow, hit, inside, overlap_area, pad_box, poly_dist,
                         pt_box_dist, ray_hit, RF_FP, RF_VAL, seg_box_dist, seg_closest, sheet_of,
                         SUP_PIN, THERM_PFX)
@@ -47,15 +47,16 @@ RULES = {
     'OVERLAP':  'courtyards of two placed parts intersect',
     'EDGECLR':  'courtyard crosses the board edge or sits closer than --edge',
     'EDGEREF':  "an edge-launch part's PCB Edge mark off the outline; a side-entry housing's setback",
-    'HOLECLR':  'part inside a mounting hole keepout, or a hole off the board',
+    'HOLECLR':  "a part's body or pads inside a mounting hole's screw keepout, or a hole off the board",
     'CONNACC':  'connector buried away from an edge, or its cable exit blocked',
     'RFNOISE':  'RF part / antenna net within --rf of a switching node',
     'THERMAL':  'heat source within --therm of a heat-sensitive part',
     'BYPASS':   'supply pin further than --bypass from its nearest bypass cap',
     'NOCRTYD':  'footprint has no courtyard - overlap was checked on pads+fab instead',
+    'CRTYDPAD': "pads outside their own footprint's courtyard - OVERLAP and KiCad's courtyard DRC miss them",
     'NETSPAN':  'a fully placed non-rail net whose pads are more than --span apart',
     'UNPLACED': 'footprint still parked off the board outline',
-    'FABFLAGS': 'DNP / exclude-from-BOM / exclude-from-position attrs that misbuild at a fab',
+    'FABFLAGS': 'DNP / exclude-from-BOM / exclude-from-position attrs vs KiCad semantics and the library footprint',
 }
 
 def _drill_in(f, g):
@@ -87,31 +88,50 @@ def gen_findings(b, a):
         add('INFO', 'UNPLACED', f"{trunc(s,24)}: {len(bys[s])} off the board - "
                                 f"{trunc(refrange(bys[s]), 90)}")
 
-    # --- FABFLAGS: the footprint attrs are what a fab BOM/CPL export reads ----
-    bom_cpl = []
+    # --- FABFLAGS: KiCad's semantics - DNP is the dnp flag (export with --exclude-dnp), and
+    # exclude_from_bom is for what is not a component (the library footprint says which) ----
+    FLAGS = ('exclude_from_bom', 'exclude_from_pos_files')
+    projdir, libattr, differ = os.path.dirname(os.path.abspath(b.path)), {}, {}
     for f in sorted(b.fps.values(), key=lambda f: natkey(f.ref)):
         if 'board_only' in f.attr or f.ref.startswith(('#', 'REF**')):
             continue
-        inbom, incpl = 'exclude_from_bom' not in f.attr, 'exclude_from_pos_files' not in f.attr
-        if f.dnp and inbom and f.lcsc:
-            add('WARN', 'FABFLAGS', f"{f.ref} is DNP but in the BOM with LCSC {f.lcsc}: JLC ignores a DNP "
-                                    f"column and places it - tick Exclude from BOM", [f.ref])
-        elif not f.dnp and not inbom and f.lcsc:
-            add('WARN', 'FABFLAGS', f"{f.ref} has LCSC {f.lcsc} but is excluded from the BOM: it will not "
-                                    f"be bought or placed - clear Exclude from BOM, or mark it DNP", [f.ref])
-        if not inbom and incpl and not f.dnp and not f.lcsc:     # an LCSC one is WARNed above
-            bom_cpl.append(f.ref)
-    if bom_cpl:
-        add('INFO', 'FABFLAGS', f"{len(bom_cpl)} part(s) excluded from the BOM but in the CPL: "
-                                f"{trunc(refrange(bom_cpl), 90)} - Update PCB copies the symbol's 'Exclude "
-                                f"from position files' (default no) over the library's; set it on the symbols",
-            bom_cpl)
+        if f.fp not in libattr:
+            m = fp_mod(f.fp, projdir)
+            libattr[f.fp] = None if m is None else set((kid(m, 'attr') or [])[1:])
+        lib = libattr[f.fp]
+        if f.dnp and 'exclude_from_bom' in f.attr:
+            add('WARN', 'FABFLAGS', f"{f.ref} is DNP and excluded from the BOM: the BOM loses it - clear "
+                                    f"Exclude from BOM and export with --exclude-dnp", [f.ref])
+        elif ('exclude_from_bom' in f.attr and (f.lcsc or f.mpn or f.models)
+              and not (lib and 'exclude_from_bom' in lib)):
+            what = f"LCSC {f.lcsc}" if f.lcsc else f"MPN {f.mpn}" if f.mpn else "a 3D model"
+            add('WARN', 'FABFLAGS', f"{f.ref} has {what} but is excluded from the BOM: it will not be "
+                                    f"bought - clear Exclude from BOM (DNP if it is not fitted)", [f.ref])
+        if lib is None:         # no library to compare: the one combination no library footprint has
+            lib = set(FLAGS) if 'exclude_from_bom' in f.attr and not f.dnp and not f.lcsc else f.attr
+        d = ' '.join(('+' if x in f.attr else '-') + x[13:] for x in FLAGS if (x in f.attr) != (x in lib))
+        if d:
+            differ[f.ref] = d
+    if differ:
+        add('INFO', 'FABFLAGS', f"{len(differ)} part(s) whose BOM/pos flags differ from their library footprint: "
+                                + trunc(' '.join(f"{r} ({d})" for r, d in differ.items()), 110)
+                                + " - deliberate (hand-soldered), or Update PCB copied the symbol's flag "
+                                  "over the library's: set it on the symbol", list(differ))
 
     # --- NOCRTYD -------------------------------------------------------
     for f in P:
         if not f.crtyd_real and not (f.art and not f.pads):   # a logo is `silk`'s job
             add('INFO', 'NOCRTYD', f"{f.ref} has no F/B.CrtYd geometry; "
                                    f"overlap tested on its pad+fab extent instead", [f.ref])
+
+    # --- CRTYDPAD: a courtyard drawn round only part of its footprint (J14's housing alone) ---
+    for f in P:
+        if not (f.crtyd_real and f.cpoly) or 'allow_missing_courtyard' in f.attr:
+            continue
+        out = [p['num'] for p in f.pads if p['num'] and not any(inside((p['x'], p['y']), [r]) for r in f.cpoly)]
+        if out:
+            add('WARN', 'CRTYDPAD', f"{f.ref}: {len(out)} of {len(f.pads)} pad(s) outside its own courtyard "
+                                    f"({trunc(' '.join(dict.fromkeys(out)), 40)}) - fix the footprint's CrtYd", [f.ref])
 
     # --- OVERLAP: pairwise, but only among placed parts ----------------
     # O(n^2) on the placed set only. 400 unplaced parts stacked in a pile would
@@ -185,13 +205,15 @@ def gen_findings(b, a):
                 f"unplaced parts - not placed yet, rather than misplaced)" if pile >= 3 else ""),
                 [h.ref])
             continue
-        keep = (h.x - r, h.y - r, h.x + r, h.y + r)
-        for f in P:
+        for f in P:     # what the hardware meets: the Fab body and the pads, not the courtyard's margin
             if f is h or b.is_hole(f):
                 continue
-            if hit(keep, f.crtyd):
-                add('ERROR', 'HOLECLR', f"{f.ref} is inside {h.ref}'s {r:.1f} mm screw "
-                                        f"keepout", [f.ref, h.ref])
+            boxes = ([('body', f.fab)] if f.fab else []) + [('pad', pad_box(p)) for p in f.pads] \
+                or [('courtyard', f.crtyd)]
+            d, what = min((pt_box_dist((h.x, h.y), bx), w) for w, bx in boxes)
+            if d < r:
+                add('ERROR', 'HOLECLR', f"{f.ref} is inside {h.ref}'s {r:.1f} mm screw keepout: its {what} "
+                                        f"{d:.2f} mm from the centre", [f.ref, h.ref])
 
     # --- CONNACC -------------------------------------------------------
     for f in P:

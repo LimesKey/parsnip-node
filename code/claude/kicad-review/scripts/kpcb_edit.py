@@ -8,7 +8,7 @@ is asserted - and leaves the verdict to KiCad: `kdrc.py OUT --unconnected` on th
   move REF X Y [ROT] -o OUT    re-place a footprint (pads/text turn with it, segment ends
                                on its pads are dragged along; --flip for the other side)
   edit OP... -o OUT            scripted hand edits: width, del, seg, via (free), mvvia, vcenter,
-                               solid, simplify, and the silk ops (ref, value, text, sizes)
+                               solid, simplify, unround, and the silk ops (ref, value, text, sizes)
   unhook REF... -o OUT         rip the copper that only served these parts
 
 `route` and `place` (kpcb_route.py, kpcb_place.py) write through PcbText too."""
@@ -106,12 +106,16 @@ class PcbText:
                  + f"\t\t(net {qs(net)})\n\t\t(uuid \"{uuid.uuid4()}\")\n\t)\n")
 
     def zone(self, net, layer, pts, priority, clearance=0.2, min_w=0.25, name=None):
-        """an unfilled solid-connect zone (the refill draws its copper)"""
+        """an unfilled solid-connect zone (the refill draws its copper), its faceted arcs as
+        sharp corners + KiCad's fillet (kpcb_fillet), so the outline stays editable in KiCad"""
+        from kpcb_fillet import fillet_outline
+        pts, r, _note = fillet_outline(pts)
+        sm = f"\t\t\t(smoothing fillet)\n\t\t\t(radius {num(r)})\n" if r else ''
         xy = ''.join(f"\t\t\t\t(xy {num(x)} {num(y)})\n" for x, y in pts)
         return self.add(f"\t(zone\n\t\t(net {qs(net)})\n\t\t(layer {qs(layer)})\n\t\t(uuid \"{uuid.uuid4()}\")\n"
                         f"\t\t(name {qs(name or 'route ' + net)})\n\t\t(hatch edge 0.5)\n\t\t(priority {priority})\n"
                         f"\t\t(connect_pads yes\n\t\t\t(clearance {num(clearance)})\n\t\t)\n\t\t(min_thickness {num(min_w)})\n"
-                        f"\t\t(fill yes\n\t\t\t(thermal_gap 0.5)\n\t\t\t(thermal_bridge_width 0.5)\n"
+                        f"\t\t(fill yes\n\t\t\t(thermal_gap 0.5)\n\t\t\t(thermal_bridge_width 0.5)\n{sm}"
                         f"\t\t\t(island_removal_mode 0)\n\t\t)\n\t\t(polygon\n\t\t\t(pts\n{xy}\t\t\t)\n\t\t)\n\t)\n")
 
     def save(self, out):
@@ -381,11 +385,40 @@ def _rip_out(b, a, kill, cmd, absent=frozenset()):
         print(f"  ... +{len(per) - a.max} more net(s)")
     if not gone:
         return 0
+    for net, cut, kept in cut_off(b, kill, absent) if absent else ():
+        print(f"  CUT  {' '.join(cut)} now off {unesc_disp(net)}'s other {len(kept)} pad(s): its only link ran "
+              f"through {' '.join(sorted(absent))} - re-route it")
     if _need_out(a, cmd):
         return 1
     t.save(a.out)
     print(f"  -> {a.out}; then airwires / route the nets, and kdrc.py --refill-save --baseline")
     return 0
+
+
+def cut_off(b, kill, absent):
+    """pads of parts not in `absent` that shared a copper piece before the rip and are cut
+    from it after (the deleted `kill` gone, the `absent` parts' pads anchoring nothing):
+    [(net, cut pads, pads they were joined to)]"""
+    from types import SimpleNamespace
+    from kpcb_copper import Copper
+    after = SimpleNamespace(fps={r: f for r, f in b.fps.items() if r not in absent},
+                            tracks=[x for x in b.tracks if id(x) not in kill],
+                            vias=[x for x in b.vias if id(x) not in kill], fills=b.fills, copper=b.copper)
+    out = []
+    for net in sorted({o['net'] for o in b.tracks + b.vias if id(o) in kill and o['net']}):
+        def groups(bd):
+            C = Copper(bd, net)
+            g = defaultdict(set)
+            for i, (f, p) in enumerate(C.pads):
+                if f.ref not in absent:
+                    g[C.piece.find(('pad', i))].add(f"{f.ref}.{p['num']}")
+            return list(g.values())
+        post = groups(after)
+        for g in groups(b):
+            parts = sorted((g & h for h in post if g & h), key=lambda h: (-len(h), sorted(h)))
+            for cut in parts[1:]:
+                out.append((net, sorted(cut), sorted(parts[0])))
+    return out
 
 
 def prune(b, kill, absent=frozenset()):
@@ -638,7 +671,8 @@ def c_move(b, a):
 
 EDIT_OPS = {'width': 2, 'del': 1, 'seg': 5, 'via': 3, 'solid': 1, 'simplify': 2,
             'ref': 3, 'hide': 1, 'show': 1, 'textsize': 3, 'text': 3, 'vcenter': 1,
-            'value': 3, 'hide-value': 1, 'show-value': 1, 'valuesize': 3, 'mvvia': 2}
+            'value': 3, 'hide-value': 1, 'show-value': 1, 'valuesize': 3, 'mvvia': 2,
+            'knockout': 2, 'retext': 2, 'addtext': 5, 'unround': 1}
 EDIT_USE = ("edit OP... -o OUT   (one or more, in order; UUID = a unique prefix, from `copper`)\n"
             "  width UUID W                  a segment's or arc's width\n"
             "  del UUID                      delete a segment, arc, via or zone\n"
@@ -647,12 +681,21 @@ EDIT_USE = ("edit OP... -o OUT   (one or more, in order; UUID = a unique prefix,
             "  solid REF.PAD                 the pad joins zones solid (zone_connect 2), not by spokes\n"
             "  simplify UUID EPS             fit a zone outline's staircases with straight edges (corners\n"
             "                                within EPS mm dropped; its stale fill goes, refill after)\n"
+            "  unround UUID|all              a faceted zone outline (arcs as chord runs or staircases) as\n"
+            "                                sharp corners + (smoothing fillet) (radius 0.2), editable in\n"
+            "                                KiCad; left faceted if KiCad's fillet would lose copper. all =\n"
+            "                                the bands route --pour / fatten wrote (named route* / fatten*)\n"
             "  ref REF X,Y ANG|keep          move REF's designator to board X,Y (centred; angle absolute)\n"
             "  hide REF | show REF           hide / show REF's designator\n"
             "  textsize REF|UUID H T         REF's designator (or a board text's) height and stroke, mm\n"
             "  value REF X,Y ANG|keep        move REF's Value field, as ref (parts that use it as a label)\n"
             "  hide-value REF | show-value REF | valuesize REF H T   the Value field, as hide/show/textsize\n"
-            "  text UUID X,Y ANG|keep        move a board silk text (uuid from `silk REF` or `silk --box ..`)\n"
+            "  text UUID X,Y ANG|keep        move a board silk text or a footprint's user text (a jumper's\n"
+            "                                '1'/'3'), uuid from `silk REF` or `silk --box ..`; `del UUID` and\n"
+            "                                `textsize UUID H T` take either too\n"
+            "  knockout UUID|REF on|off      knockout (inverted) text: a board/user text, or REF's designator\n"
+            "  retext UUID TEXT              a board or user text's content\n"
+            "  addtext TEXT X,Y ANG f|b H    a new board silk text centred at X,Y, H mm (stroke 0.15 H, >= 0.15)\n"
             "  mvvia UUID R                  re-place a trackless (stitching) via at the nearest legal spot\n"
             "                                within R mm, same size/drill/free flag; reports the move and\n"
             "                                the net's via count within 3 mm before/after\n"
@@ -770,9 +813,24 @@ def vcenter(b, t, cur, src):
 def _drop_cache(s):
     """a moved or resized TrueType text's cached outline is stale: KiCad redraws it from the font"""
     if '(render_cache' in s:
-        s = re.sub(r'\n\t\t\(render_cache .*?\n\t\t\)', '', s, flags=re.S)
+        s = re.sub(r'\n(\t+)\(render_cache .*?\n\1\)', '', s, flags=re.S)
         print("  (TrueType text: its render_cache dropped; KiCad redraws it from the font)")
     return s
+
+
+def fp_field(s, fu):
+    """the span of the text (property or fp_text) with uuid fu inside a footprint's text"""
+    for m in re.finditer(r'\n\t\t\((?:property|fp_text)(?: (?:"(?:[^"\\]|\\.)*"|\w+))+\n.*?\n\t\t\)', s, re.S):
+        if f'(uuid "{fu}")' in m.group(0):
+            return m
+    raise SystemExit(f"edit: text {fu[:8]} not found in its footprint's tab layout; nothing written")
+
+
+def _knockout(blk, on):
+    blk, c = re.subn(r'\(layer ("[^"]+")(?: knockout)?\)', lambda m: f"(layer {m[1]}{' knockout' if on else ''})",
+                     blk, count=1)
+    assert c == 1
+    return blk
 
 
 def c_edit(b, a):
@@ -799,6 +857,30 @@ def c_edit(b, a):
         if len(m) != 1:
             raise SystemExit(f"edit: {pfx!r} matches {len(m)} item(s); nothing written")
         return m[0]
+    sub = {x['uuid']: (f, x) for f in b.fps.values() for x in f.fields if x['uuid']}
+
+    def text_at(pfx, ops):
+        """a board gr_text (its uuid, None) or a footprint text (the footprint's uuid, the
+        field): what `text`/`textsize`/`del`/`knockout`/`retext` act on"""
+        m = [(u, None) for u in t.span if u.startswith(pfx) and t.text(u).lstrip().startswith('(gr_text')] \
+            + [(f.uuid, x) for u, (f, x) in sub.items() if u.startswith(pfx)]
+        if len(m) != 1:
+            raise SystemExit(f"edit: {pfx!r} matches {len(m)} board/footprint text(s); nothing written")
+        if m[0][1] and m[0][1]['kind'] != 'user' and ops != 'any':
+            raise SystemExit(f"edit: {pfx!r} is {sub[m[0][1]['uuid']][0].ref}'s {m[0][1]['kind']} field: "
+                             f"use ref/value/hide/textsize REF; nothing written")
+        return m[0]
+
+    def text_edit(pfx, fn, ops=''):
+        """apply fn to a text block, in its footprint when it is a footprint text"""
+        u, x = text_at(pfx, ops)
+        s = cur.get(u, t.text(u))
+        if x is None:
+            cur[u] = _drop_cache(fn(s, None))
+            return u
+        m = fp_field(s, x['uuid'])
+        cur[u] = s[:m.start()] + _drop_cache(fn(m.group(0), sub[x['uuid']][0])) + s[m.end():]
+        return x['uuid']
     xy = lambda s: tuple(float(v) for v in s.split(','))      # noqa: E731
     for k, v in ops:
         if k == 'width':
@@ -810,6 +892,8 @@ def c_edit(b, a):
             assert c == 1
             cur[u] = s
             print(f"  width {u[:8]} -> {float(v[1]):g}")
+        elif k == 'del' and any(u.startswith(v[0]) for u in sub):     # a footprint user text
+            print(f"  del   {text_edit(v[0], lambda blk, f: '')[:8]} (footprint user text)")
         elif k == 'del':
             u = one(v[0])
             if u in cur and not cur[u]:
@@ -841,15 +925,68 @@ def c_edit(b, a):
             if nf:
                 print(f"  ({nf} stale fill polygon(s) dropped: refill)")
             cur[u] = s
-        elif k == 'textsize' and v[0] not in b.fps:     # a board gr_text, by uuid
+        elif k == 'unround':
+            from kpcb_fillet import fillet_outline, smooth_fill
+            every = v[0] == 'all'
+            done = 0
+            for u in [u for u in t.span if t.text(u).lstrip().startswith('(zone')] if every else [one(v[0])]:
+                s = cur.get(u, t.text(u))
+                pols = list(re.finditer(r'(\n\t\t\(polygon\n\t\t\t\(pts\n)(.*?)(\n\t\t\t\)\n\t\t\))', s, re.S))
+                nm = re.search(r'\n\t\t\(name "([^"]*)"\)', s)
+                if not s.lstrip().startswith('(zone') or '(teardrop' in s or '(keepout' in s or len(pols) != 1 \
+                        or '(arc' in pols[0][2] or every and not (nm and nm[1].startswith(('route', 'fatten'))):
+                    if every:
+                        continue
+                    raise SystemExit(f"edit: {v[0]} is not a copper zone with one straight-edged outline; nothing written")
+                m = pols[0]
+                lab = f"{u[:8]} {(nm[1] if nm else '')[:28]}"
+                if '(smoothing fillet)' in s:            # already sharp + fillet: its corners are meant
+                    if not every:
+                        print(f"  unround {lab}: already (smoothing fillet), left as is")
+                    continue
+                Q, r, note = fillet_outline([(float(x), float(y)) for x, y in re.findall(r'\(xy (\S+) (\S+)\)', m[2])])
+                s2 = smooth_fill(s[:m.start(2)] + ''.join(f"\t\t\t\t(xy {num(x)} {num(y)})\n" for x, y in Q).rstrip('\n')
+                                 + s[m.end(2):], r) if r else None
+                if s2 is None:
+                    if not every or 'faceted' in note:
+                        print(f"  unround {lab}: {note if r is None else 'no (fill yes) block'}")
+                    continue
+                cur[u] = re.sub(r'\n\t\t\(filled_polygon\n.*?\n\t\t\)', '', s2, flags=re.S)
+                done += 1
+                print(f"  unround {lab}: {note}")
+            if every:
+                print(f"  unround all: {done} zone(s) now sharp + fillet {'(stale fills dropped: refill)' if done else ''}")
+        elif k == 'textsize' and v[0] not in b.fps:     # a board or footprint user text, by uuid
             from kpcb_silk import edit_text
-            u = one(v[0])
-            s = cur.get(u, t.text(u))
-            if not s.lstrip().startswith('(gr_text'):
-                raise SystemExit(f"edit: {v[0]} is neither a footprint nor a board text; nothing written")
-            s = _drop_cache(edit_text(s, h=float(v[1]), t=float(v[2])))
-            cur[u] = s
+            u = text_edit(v[0], lambda blk, f: edit_text(blk, h=float(v[1]), t=float(v[2])))
             print(f"  textsize {u[:8]} {v[1]} {v[2]}")
+        elif k == 'knockout':
+            if v[1] not in ('on', 'off'):
+                raise SystemExit(f"edit: knockout wants on|off, not {v[1]!r}; nothing written")
+            kn = lambda blk, f: _knockout(blk, v[1] == 'on')      # noqa: E731
+            if v[0] in b.fps:                                    # REF: its designator
+                fx = next((x for x in b.fps[v[0]].fields if x['kind'] == 'Reference' and x['uuid']), None)
+                if not fx:
+                    raise SystemExit(f"edit: {v[0]} has no Reference field with a uuid; nothing written")
+                text_edit(fx['uuid'], kn, 'any')
+            else:
+                text_edit(v[0], kn)
+            print(f"  knockout {v[0]} {v[1]}")
+        elif k == 'retext':
+            def rt(blk, f):
+                blk, c = re.subn(r'^(\n?\t+\((?:gr_text|fp_text user|property "[^"]*") )"(?:[^"\\]|\\.)*"',
+                                 lambda m: m[1] + qs(v[1]), blk, count=1)
+                assert c == 1
+                return blk
+            u = text_edit(v[0], rt)
+            print(f"  retext {u[:8]} -> {v[1]!r}")
+        elif k == 'addtext':
+            from kpcb_label import gr_text
+            if v[3] not in ('f', 'b'):
+                raise SystemExit(f"edit: addtext side is f or b, not {v[3]!r}; nothing written")
+            h = float(v[4])
+            t.add(gr_text(v[0], *xy(v[1]), float(v[2]), v[3] == 'b', h, max(0.15, round(0.15 * h, 3))))
+            print(f"  addtext {v[0]!r} {v[1]} {v[2]} deg {v[3].upper()}.SilkS {h:g} mm")
         elif k in ('ref', 'hide', 'show', 'textsize', 'value', 'hide-value', 'show-value', 'valuesize'):
             from kpcb_silk import ref_block, edit_text
             from kpcb_move import fp_local
@@ -871,11 +1008,9 @@ def c_edit(b, a):
             print(f"  {k:<5} {f.ref} " + ' '.join(v[1:]))
         elif k == 'text':
             from kpcb_silk import edit_text
-            u = one(v[0])
-            s = cur.get(u, t.text(u))
-            if not s.lstrip().startswith('(gr_text'):
-                raise SystemExit(f"edit: {v[0]} is not a board text; nothing written")
-            cur[u] = _drop_cache(edit_text(s, xy(v[1]), None if v[2] == 'keep' else float(v[2])))
+            from kpcb_move import fp_local
+            ang = None if v[2] == 'keep' else float(v[2])
+            u = text_edit(v[0], lambda blk, f: edit_text(blk, fp_local(f, xy(v[1])) if f else xy(v[1]), ang))
             print(f"  text  {u[:8]} -> {v[1]} {v[2]}")
         elif k == 'mvvia':
             u = one(v[0])

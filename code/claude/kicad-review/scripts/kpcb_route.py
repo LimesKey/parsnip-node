@@ -63,6 +63,15 @@ def _netclass(b, net):
     return {}
 
 
+def class_via(cls):
+    """(size, drill) of the via route lays for a netclass dict: the class's, or 0.5/0.2 when
+    that annular ring is under the fab minimum"""
+    vsz, vdr = (cls.get('via_diameter') or 0.6), (cls.get('via_drill') or 0.3)
+    if (vsz - vdr) / 2 < 0.15 - 1e-6:
+        vsz, vdr = 0.5, 0.2
+    return vsz, vdr
+
+
 # ---------------------------------------------------------------- pieces
 
 def piece_parts(b, net, strict=False):
@@ -1119,6 +1128,13 @@ def _pad_cells(g, p, ly):
     return out
 
 
+def rf_ref_layers(b):
+    """inner layers right under an outer layer's RF-netclass traces: their reference plane"""
+    rfl = {t['layer'] for t in b.tracks if len(b.copper) > 2 and t['layer'] in b.outer
+           and 'RF' in b.netclass(t['net'] or '').upper()}
+    return {b.copper[1] if ly == b.copper[0] else b.copper[-2] for ly in rfl} - b.outer
+
+
 def c_route(b, a):
     if a.pending:                                   # every net airwires lists, shortest first
         gaps = []
@@ -1132,12 +1148,12 @@ def c_route(b, a):
     if not a.args:
         print("route NET [NET...] | --pending  [--width W] [--layers F.Cu,B.Cu] [-o OUT]"); return 1
     from kpcb_board import _resolve_net
+    for x0, y0, x1, y1 in (tuple(float(v) for v in x.split(',')) for x in (a.avoid or '').split(';') if x.strip()):
+        _kos(b).append((set(b.copper), PolyIndex([(x0, y0), (x1, y0), (x1, y1), (x0, y1)]), True, False, True))
+        print(f"(--avoid {x0:g},{y0:g},{x1:g},{y1:g}: no track or via of this run there, every layer)")
     layers = [l for l in (a.layers.split(',') if a.layers else b.copper) if l in b.copper]
     lcost = {ly: (1.0 if ly in b.outer else a.inner_cost) for ly in b.copper}
-    # the plane under an outer layer's RF traces is their return path: cutting it costs more
-    rfl = {t['layer'] for t in b.tracks if len(b.copper) > 2 and t['layer'] in b.outer
-           and 'RF' in b.netclass(t['net'] or '').upper()}
-    for ly in {b.copper[1] if ly == b.copper[0] else b.copper[-2] for ly in rfl} - b.outer:
+    for ly in rf_ref_layers(b):          # the RF traces' return path: cutting it costs more
         lcost[ly] *= a.ref_cost
         print(f"({ly}: the RF traces' reference plane, cost x{lcost[ly]:g} vs inner x{a.inner_cost:g})")
     t = PcbText(b.path) if a.out else None
@@ -1175,9 +1191,7 @@ def c_route(b, a):
             widths = [cls.get('track_width') or 1.5, 1.0]
         elif not a.width and nc == 'PWR_RAIL':
             widths = [cls.get('track_width') or 0.6, 0.4, 0.3]
-        vsz, vdr = (cls.get('via_diameter') or 0.6), (cls.get('via_drill') or 0.3)
-        if (vsz - vdr) / 2 < 0.15 - 1e-6:                    # annular ring under the fab minimum
-            vsz, vdr = 0.5, 0.2
+        vsz, vdr = class_via(cls)
         if a.via:
             vsz, vdr = (float(x) for x in a.via.split('/'))
         return cls, widths, vsz, vdr

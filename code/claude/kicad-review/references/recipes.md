@@ -70,17 +70,51 @@ board (the loop and each writer's model are in [kpcb-writers](kpcb-writers.md)):
 A spot no via fits: `stitch NET X,Y -r 2` says so in one call; `copper BOX` + `edit` for the
 hand fix (a width, a stray stub, `solid REF.PAD` for a pad on spokes that must carry current).
 
-**"Clean up the routing" (after it is complete, on the scratch copy).** The writers are in
-[kpcb-writers](kpcb-writers.md); each step `kdrc.py COPY drc --refill-save --baseline r0.json`
-(0 new) and `kpcb.py COPY diff BEFORE.kicad_pcb` (no net/layer change on kept tracks):
-1. `kpcb.py COPY tracks --view census.png` - what a reviewer will see and why each was left.
-2. `smooth --all -o n.kicad_pcb` - chains tight and octilinear, doubled copper, corners, pad ends.
-3. `widen -o n.kicad_pcb` - under-width tracks to their class width (power per segment).
-4. `loops -o n.kicad_pcb` - redundant chains on signal nets.
-5. `tracks` again: the rest are anchors, width steps or boxed in at the real clearance.
-   `ends at a pad edge` rows left by steps 3-4: `smooth --pads -o n.kicad_pcb`.
-A pin `route` calls boxed in: `vscan NET BOX --layers L` shows the cells it saw. A part
-to re-place without its old routes: `unhook REF -o n.kicad_pcb`, then `place`/`route`.
+**"Clean up the routing" / "make the traces look nice" (after it is complete, on the scratch
+copy).** What a reviewer calls clean, each measured by a `tracks` row, so "done" is a number:
+every track octilinear (`off45`), no corner past 45 deg (`90`, `acute`), one width per run
+(`neck`), no stub under 0.05 mm (`stub`), every dead end on its pad's centre (`pad`), no lane
+jogs (`jog`), every signal net close to its shortest path with few vias (`detour`), no
+redundant parallel chain (`loops`), power at its class width (`widen`). The writers are in
+[kpcb-writers](kpcb-writers.md); after each step `kdrc.py COPY drc --refill-save --baseline
+r0.json` (0 new) and `kpcb.py COPY diff BEFORE.kicad_pcb` (no net/layer change on kept tracks):
+1. `kpcb.py COPY tracks --view census.png` - the baseline numbers, and why each row was left.
+2. `reroute -o n.kicad_pcb` - the detours first (it re-lays whole nets; the others polish what
+   is there): each kept only when shorter or with fewer vias.
+3. `smooth --all -o n.kicad_pcb` - chains tight and octilinear, doubled copper, corners, pad ends.
+4. `smooth --jogs --nudge -o n.kicad_pcb` - lane jogs, lifting a stitching via when one blocks.
+5. `widen -o n.kicad_pcb` (`--uniform-power`) - under-width tracks to their class width.
+6. `loops -o n.kicad_pcb` - redundant chains on signal nets.
+7. `tracks` again: the rest are anchors, width steps or boxed in at the real clearance; quote the
+   before/after counts. `ends at a pad edge` rows left by steps 5-6: `smooth --pads -o n.kicad_pcb`.
+Hand fixes for what is left: `copper BOX` for uuids, `edit seg/del/width`, `movecheck via` for a
+via in the way. Never chase a row the census calls hidden or boxed in by re-routing a dense
+neighbourhood by hand: `reroute NET` it, or leave it. A pin `route` calls boxed in: `vscan NET
+BOX --layers L` shows the cells it saw. A part to re-place without its old routes: `unhook REF
+-o n.kicad_pcb`, then `place`/`route`.
+
+**"Route this dense area" / "how do I fit these traces" (high density, on the scratch copy).**
+Order matters more than any single route; dense boards fail on the last 10 links:
+1. `congest --all` - where the floorplan forces density, before any track. Over 100% on every
+   layer is a placement problem: `tidy`/`movecheck` to spread parts, turn an IC so its pins face
+   their loads, swap equivalent pins/gates in the schematic. Fix it here; routing cannot.
+2. Planes and power first: GND is a plane (In1 under RF), power by pours (`fatten`), so their
+   copper is in the model before signals claim the channels.
+3. `fanout REF` on each fine-pitch part (QFN, module, connector field): boxed pins get
+   via-in-pad or a neighbour moved; dogbones next (a via row one pitch out); escapes last.
+4. Hand-route what `route` refuses or must not improvise: RF (`rf` checks it), diff pairs
+   (`route --pair`, then `pairs`), switch nodes (short, wide, on their own layer).
+5. `congest` (pending links) and `map --layers L`: send the long links to the layer with room
+   (`route NET --layers In2.Cu`), keep short ones on the outer layers, keep the RF reference
+   plane whole (route charges it 2x).
+6. `route --pending -o n.kicad_pcb` (shortest first); a FAILED link names what boxes it in:
+   `--rip-board 3` lets it rip small nets already on the board, `--pour 0.3` lays a power link
+   no track width fits as a zone band, a neck is automatic out of fine-pitch pads.
+7. `airwires` until 0, `airwires --since` the copy before (a route that cut a plane region off),
+   then the clean-up recipe above.
+What does not work on a dense board: Freerouting on a poured board (it stalls on the planes),
+widening before everything is connected (it eats the channels), and many hand detours (each
+blocks the next link: `reroute` them).
 
 **"Clean up the silkscreen" (on the scratch copy; the real board only when asked).**
 1. `kpcb.py COPY silk` - every designator/text over pads, under bodies, overlapping,
@@ -89,8 +123,10 @@ to re-place without its old routes: `unhook REF -o n.kicad_pcb`, then `place`/`r
    designators back) - the flagged designators to clear spots beside their parts.
 3. `silk` on the copy: what is left prints "no clear spot". For each, `silk REF` (the
    texts there), `view REF --layers silk` (flagged ones red), then `edit ref REF X,Y 0`,
-   `hide REF` or `textsize REF H T`; a board text: `edit text UUID X,Y ANG`; a logo:
-   `move REF X Y` (`freebox f W H` for room).
+   `hide REF` or `textsize REF H T`; a board or footprint user text (uuid in `silk REF`):
+   `edit text UUID X,Y ANG`, `del UUID`, `retext UUID TEXT`, `knockout UUID|REF on|off`; a new
+   label at an exact spot: `edit addtext TEXT X,Y ANG f|b H`; a logo: `move REF X Y`
+   (`freebox f W H` for room).
 4. `kpcb.py COPY diff BEFORE.kicad_pcb` - silk only, copper identical; `kdrc.py COPY drc
    --refill-save --baseline r0.json` - 0 new (TEXT_HEIGHT/THICKNESS go down).
 
