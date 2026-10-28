@@ -9871,7 +9871,7 @@
 				)
 			)
 		)
-		(property "Manufacturer" "Sunlord"
+		(property "Manufacturer" "TAI-TECH"
 			(at 200.66 81.28 0)
 			(hide yes)
 			(show_name no)

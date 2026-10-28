@@ -12802,7 +12802,7 @@
 				(justify left)
 			)
 		)
-		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/e6a378b8a37019759bb545a349a60ab8.pdf?productCode=C6851467"
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/e6a378b8a37019759bb545a349a60ab8.pdf?productCode=C70158"
 			(at 45.72 124.46 0)
 			(hide yes)
 			(show_name no)
@@ -12813,7 +12813,7 @@
 				)
 			)
 		)
-		(property "Description" "FUSE PTC resettable 2A hold, 4A trip, 12V, 0805"
+		(property "Description" "FUSE PTC resettable 2A hold, 4A trip, 6V, 0805"
 			(at 45.72 124.46 0)
 			(hide yes)
 			(show_name no)
@@ -12824,7 +12824,7 @@
 				)
 			)
 		)
-		(property "MPN" "SL0805200-12V"
+		(property "MPN" "SL0805200"
 			(at 40.64 125.73 0)
 			(hide yes)
 			(show_name no)
@@ -12848,7 +12848,7 @@
 				(justify left)
 			)
 		)
-		(property "LCSC Part" "C6851467"
+		(property "LCSC Part" "C70158"
 			(at 45.72 124.46 0)
 			(hide yes)
 			(show_name no)
