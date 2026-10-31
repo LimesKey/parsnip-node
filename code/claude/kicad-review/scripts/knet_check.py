@@ -18,7 +18,7 @@ RULES = {
     'OCNOPULL':  'open-collector/open-drain output with no pull-up',
     'I2CPULL':   'SDA/SCL net with no pull-up to a rail',
     'PASSONLY':  'net made only of passives (no IC, no connector)',
-    'RFSTUB':    'RF / 50 ohm net with more than 2 parts in series (shunts to GND not counted)',
+    'RFSTUB':    'RF / 50 ohm net with more than 2 parts in series (shunts to GND not counted), or a DNP part bridging two RF nets',
     'DNPPATH':   'DNP part sits in series in a signal path (open circuit on the board)',
     'CAPRATING': 'capacitor voltage rating below 2x the rail it sits on',
     'NOVALUE':   'component with no value or no footprint',
@@ -374,10 +374,11 @@ def gen_findings(nl, a):
         rest = [nd['ref'] for nd in nl.nets.get(far[0], []) if nd['ref'] != ref]
         return any(not dnp for _, _, dnp in caps_on(nl, far[0])) or (rest and all(
             nl.comps[r]['prefix'] == 'R' and (parse_value(nl.value(r), 'R') or 0) >= 1e3 for r in rest))
+    is_rf = lambda n: 'RF' in nl.netclass.get(n, '').upper() or bool(     # noqa: E731
+        by_name and re.search(r'ANT|_RF\b|RF_IN|RFIN', n.upper()))
     for n, nodes in nl.nets.items():
         cls = nl.netclass.get(n, '')
-        rf = 'RF' in cls.upper() or (by_name and re.search(r'ANT|_RF\b|RF_IN|RFIN', n.upper()))
-        if not rf:
+        if not is_rf(n):
             continue
         pop = sorted({nd['ref'] for nd in nodes if not nl.comps.get(nd['ref'], {}).get('dnp')
                       and not shunt(nd['ref'], nd['pin'])}, key=natkey)
@@ -388,6 +389,12 @@ def gen_findings(nl, a):
                 f"({', '.join(pop)})"
                 + (f" plus DNP {', '.join(dnp)}" if dnp else '')
                 + " - anything beyond a 2-port chain is a stub on a 50 ohm line", pop)
+        for r in dnp:                         # a DNP bypass across a filter: unfitted, a pad hanging
+            cp = nl.conn_pins(r)              # on each RF net it bridges (JP14 across FL2, 2026-10-27)
+            other = [x for x in cp.values() if x != n]
+            if len(cp) == 2 and other and not nl.is_gnd(other[0]) and is_rf(other[0]):
+                add('WARN', 'RFSTUB', f"{n} [{cls}]: DNP {r} bridges it to RF net {other[0]} - unfitted, its pad "
+                    f"is an open stub on each (`kpcb.py BOARD rf {n.split('/')[-1]}` measures it)", [r])
 
     # DNPPATH
     for ref, c in nl.comps.items():

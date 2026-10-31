@@ -3,8 +3,9 @@ import sys, re, math
 from collections import defaultdict
 import contextlib, io
 from kzo import microstrip, field_zo, prefetch
-from kcommon import natkey, unesc_disp, GND_RE
+from kcommon import natkey, unesc_disp, GND_RE, trunc
 from kpcb_board import _resolve_net, point_in_poly, pt_seg_dist, thick_of
+from kpcb_copper import dead_copper
 
 # ---------------- RF traces ----------------
 
@@ -74,7 +75,9 @@ def c_rf(b, a):
     """`rf [NET...]`: one-call review of a 50-ohm trace. With no net, every net
     whose netclass names RF/50 ohm. Per net: routed width uniformity (necks),
     microstrip Zo from the stackup plus the same-layer GND gap (coplanar
-    coupling), reference-plane coverage under the trace, and the GND via fence.
+    coupling), reference-plane coverage under the trace, the GND via fence, and
+    every branch off the populated pad-to-pad path (tee point, length, electrical
+    length, what ends it): one ending in a DNP pad or nothing over lambda/50 WARNs.
     A silent first pass records every field solve, kzo runs them as one parallel
     batch, then the printing pass reads the memo (cold 2.4 -> ~1 s on parsnip)."""
     calls, gaps = [], {}
@@ -208,9 +211,86 @@ def _rf(b, a, field_zo, gaps, rec=False):
         print(f"  GND fence (<= {fence:g} mm from the trace edge): {len(side_v[0]) + len(side_v[1])} vias, "
               f"L {len(side_v[0])} / R {len(side_v[1])}, widest nearest-neighbour gap "
               f"L {fmt(nl)} / R {fmt(nr)} mm{verdict}")
+        # branches off the populated pad-to-pad path: a DNP pad or an open end is a stub
+        lam = 299792.458 / f_mhz / math.sqrt(eeff_net or 1) if f_mhz else None
+        brs = dead_copper(b, net, terminal=lambda f, p: not f.dnp)
+        for d in brs:
+            ends = ', '.join(d['pads']) or 'nothing (an open track end)'
+            stub = all(e.endswith(' DNP') for e in d['pads']) and lam and d['mm'] > lam / 50
+            print(f"  branch off {d['off']}" + (f" @{d['at'][0]:.2f},{d['at'][1]:.2f}" if d['at'] else '')
+                  + f": {d['mm']:.2f} mm" + (f", {d['mm'] / lam * 360:.0f} deg at {f_mhz:g} MHz" if lam else '')
+                  + f", ends in {ends}" + (f"  <-- OPEN STUB > lambda/50 ({lam / 50:.1f} mm)" if stub else ''))
+            rc = rc or (2 if stub else 0)
+        if not brs:
+            print("  branches: none off the populated pad-to-pad path")
     print("\nZo: microstrip is Hammerstad's closed form (uncoated, ~1%); CPWG is a 2D field solve\n"
           "(kzo.py, ~1% vs exact cases) on the board file's stackup, rectangular copper, median\n"
           "gap per side. The fab's stackup (and its etch trapezoid) is the arbiter: check h and er\n"
           "above match it. Fills are the LAST SAVED state. Fence gaps are nearest-neighbour\n"
           "spacing along each side, a proxy for pitch on a bent trace.")
     return rc
+
+
+# ---------------- reference-plane slots ----------------
+
+def c_refslots(b, a):
+    """`refslots [NET...] [--layers F.Cu]`: per signal net on an outer layer, the mm of its
+    tracks over GND fill on the layer below (its reference), over another net's plane, and
+    over a gap - each gap credited to the reference-layer track that cuts it (else a void,
+    pad or via antipad). A signal crossing a slot loses its return path there: re-route
+    the cutting track, or stitch the slot."""
+    from kpcb_power import Raster
+    from kpcb_board import _resolve_net
+    gnd = lambda n: re.search(r'(^|/)GND$', n or '')     # noqa: E731  (GND_RE takes -BATT too)
+    want = {(_resolve_net(b, n)[0] or n) for n in a.args}
+    outer = [ly for ly in (a.layers.split(',') if a.layers else b.outer) if ly in b.outer]
+    poured = {fl['net'] for fl in b.fills if not gnd(fl['net'])}
+    rows = []
+    for sly in outer:
+        ref = _ref_below(b, sly)
+        rly = ref[0] if ref else None
+        if rly not in b.copper:
+            continue
+        ras = {}
+        for fl in b.fills:
+            if fl['layer'] == rly:
+                ras.setdefault('gnd' if gnd(fl['net']) else 'plane', Raster(b.outline, 0.05)).poly(fl['pts'])
+        at = lambda r, x, y: (lambda i, j: 0 <= i < r.W and 0 <= j < r.H and r.d[j * r.W + i])(   # noqa: E731
+            round((x - r.x0) / r.res), round((y - r.y0) / r.res))
+        reft = [t for t in b.tracks if t['layer'] == rly]
+        res = defaultdict(lambda: defaultdict(float))
+        for t in b.tracks:
+            n = t['net']
+            if t['layer'] != sly or not n or gnd(n) or n in poured or (want and n not in want):
+                continue
+            k = max(1, int(t['len'] / 0.05))
+            for s in range(k):
+                x = t['a'][0] + (t['b'][0] - t['a'][0]) * (s + 0.5) / k
+                y = t['a'][1] + (t['b'][1] - t['a'][1]) * (s + 0.5) / k
+                dl = t['len'] / k
+                if 'gnd' in ras and at(ras['gnd'], x, y):
+                    res[n]['gnd'] += dl
+                elif 'plane' in ras and at(ras['plane'], x, y):
+                    res[n]['plane'] += dl
+                else:
+                    cut = next((u['net'] for u in reft if u['net'] != n and
+                                pt_seg_dist((x, y), u['a'], u['b']) <= u['w'] / 2 + 0.3), None)
+                    res[n]['gap:' + (unesc_disp(cut) if cut else 'void/pad/via')] += dl
+        for n, d in res.items():
+            gap = sum(v for k, v in d.items() if k.startswith('gap'))
+            if gap >= 0.5 or want:
+                rows.append((gap, sly, rly, n, d))
+    if not rows:
+        print(f"refslots: no signal net crosses >= 0.5 mm of gap in its reference plane ({', '.join(outer)})")
+        return 0
+    rows.sort(key=lambda r: -r[0])
+    print(f"refslots: {sum(r[0] >= 0.5 for r in rows)} signal net(s) cross >= 0.5 mm of gap in the plane below "
+          f"(mm over GND / another plane / GAP: what cuts it)")
+    for gap, sly, rly, n, d in rows[:a.max * 2]:
+        gs = sorted(((k[4:], v) for k, v in d.items() if k.startswith('gap')), key=lambda kv: -kv[1])
+        det = ', '.join(f"{trunc(k, 22)} {v:.1f}" for k, v in gs[:4]) + (f", +{len(gs) - 4} more" if len(gs) > 4 else '')
+        print(f"  {trunc(unesc_disp(n), 26):<26} {sly}/{rly.split('.')[0]}  gnd {d['gnd']:5.1f}  plane {d['plane']:5.1f}"
+              f"  GAP {gap:5.1f}" + (f": {det}" if det else ''))
+    if len(rows) > a.max * 2:
+        print(f"  ... +{len(rows) - a.max * 2} more")
+    return 0

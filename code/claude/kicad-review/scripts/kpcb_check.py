@@ -57,6 +57,7 @@ RULES = {
     'NETSPAN':  'a fully placed non-rail net whose pads are more than --span apart',
     'UNPLACED': 'footprint still parked off the board outline',
     'FABFLAGS': 'DNP / exclude-from-BOM / exclude-from-position attrs vs KiCad semantics and the library footprint',
+    'DEADCU':   'routed copper (tracks, vias, pour) hanging off one point that serves no pad (`tracks --kind deadend`)',
 }
 
 def _drill_in(f, g):
@@ -308,6 +309,17 @@ def gen_findings(b, a):
                                       f"nearest placed bypass cap is {best.ref} at {d:.1f} mm "
                                       f"(want <= {a.bypass:g})", [f.ref, best.ref])
 
+    # --- DEADCU: routed copper (tracks, vias, pour) hanging off one point and serving no pad --
+    if (not only or 'DEADCU' in only) and 'DEADCU' not in skip and b.tracks:
+        from kpcb_copper import dead_all, dead_desc
+        for net, ds in sorted(dead_all(b).items()):
+            rf = 'RF' in (b.netclass(net) or '').upper()
+            for d in ds:
+                add('INFO' if rf else 'WARN', 'DEADCU',
+                    f"{unesc_disp(net)} {dead_desc(d)} serves no pad"
+                    + (" (an RF stub: matching?)" if rf else f" - `ripup --deadend {unesc_disp(net.split('/')[-1])}`"),
+                    [d['off'].split('.')[0]] if '.' in d['off'] and ' ' not in d['off'] else [])
+
     n = len(F)
     F = [f for f in F if not suppressed(f, a.suppress)]
     return F, n - len(F)
@@ -392,8 +404,8 @@ def _corridor(b, f):
     return [g for g in b.placed()
             if g is not f and g.back == f.back and not b.is_hole(g) and hit(lane, g.crtyd)]
 
-def c_check(b, a):
-    F, supp = gen_findings(b, a)
+def c_check(b, a, found=None):
+    F, supp = found or gen_findings(b, a)            # found: gen_findings already run (`review`)
     if a.json:
         print(json.dumps(F, indent=1)); return 2 if any(x['severity'] == 'ERROR' for x in F) else 0
     n = defaultdict(int)

@@ -25,8 +25,8 @@ Commands:
   kpcb.py FILE ic U13                 WHERE to put a regulator's passives, with
                                       an ASCII picture of the recommendation
   kpcb.py FILE viapad [--signal] [--min N]
-                                      components with a via centred in an SMD pad
-                                      (via-in-pad -> needs filled+capped vias)
+                                      SMD pads a via drill reaches into, small first
+                                      (advice from the board's via protection)
   kpcb.py FILE where F5.1 BT1.1       a PAD's absolute centre, size, net; two specs
                                       also print the distance between them
   kpcb.py FILE net NET                every pad on a net (absolute xy), copper per
@@ -46,7 +46,7 @@ Commands:
   kpcb.py FILE label TEXT X,Y|--near REF -o OUT   TEXT at the nearest clear silk spot
   kpcb.py FILE movecheck REF X Y [ROT] what a move would newly break: foreign copper inside
                                       the clearance, copper to edge, courtyard overlap;
-                                      `REF --scan x=X y=A..B`, `via X,Y NX,NY`. Read-only.
+                                      `REF --scan x=X y=A..B`, `via X,Y NX,NY`, `--no-drag`. Read-only.
   kpcb.py FILE freebox SIDE W H       where a W x H silk box fits on side f|b (clear of
                                       courtyards, through pads, silk/art; 1 mm from edge)
   kpcb.py FILE tidy                   near-miss alignment (rows/columns, pitch, hole insets,
@@ -54,14 +54,19 @@ Commands:
   kpcb.py FILE rf [NET...]            50-ohm trace review: width necks, microstrip Zo
                                       from the stackup, same-layer GND gap, reference
                                       plane under it, GND via fence vs lambda/20
+  kpcb.py FILE refslots [NET...]      outer-layer signal tracks over a gap in the plane below:
+                                      mm over GND / another plane / gap, and what cuts each gap
 
 Writers (always to a new file, -o OUT; verify the copy with kdrc.py):
   kpcb.py FILE fixlines -o OUT        undo the 10.99 fp_line frame bug (KiCad draws the
                                       silk/courtyard/fab lines near the page origin)
   kpcb.py FILE renet -o OUT           netless tracks/vias take the one net their ends touch
-  kpcb.py FILE move REF X Y [ROT] -o OUT   re-place a footprint (--flip: to the other side)
+  kpcb.py FILE move REF X Y [ROT] -o OUT   re-place a footprint (--flip: to the other side;
+                                      --no-drag: KiCad's Move, tracks and in-pad vias stay)
   kpcb.py FILE ripup NET.. | --drc R.json -o OUT   delete tracks/vias (KiCad-flagged or by net,
-                                      --box), prune what dangles, drop their teardrops
+                                      --box), prune what dangles, drop their teardrops; `[GND]
+                                      --inpour`: plane tracks wholly inside their own fill;
+                                      `[NET] --deadend`: copper hanging off one point, no pad
   kpcb.py FILE airwires [NET...]      what is left to route: per net, each missing link
                                       between copper pieces, nearest copper, gap
   kpcb.py FILE route NET... [-o OUT]  grid A* router (8 directions, through vias) through
@@ -75,19 +80,22 @@ Writers (always to a new file, -o OUT; verify the copy with kdrc.py):
   kpcb.py FILE vscan NET X0,Y0,X1,Y1  the router's model of a box as ASCII: legal via spots,
                                       free layers per cell (--width, --via, --layers)
   kpcb.py FILE smooth [-o OUT]        pull track chains tight and octilinear (--overlaps,
-                                      --corners, --square, --pads, --jogs [--nudge]: one other
-                                      pass; --all: every pass but jogs until nothing changes)
+                                      --corners, --square, --pads, --jogs [--nudge], --twins: one
+                                      other pass; --all: every pass but jogs/twins until nothing changes)
   kpcb.py FILE tracks [--view P.png]  trace-quality census: visible corners, off-45, width
-                                      steps, tiny segments, ends at a pad edge, lane jogs,
-                                      detours, and why smooth left each
+                                      steps, tiny segments, ends at a pad edge, runs joined only
+                                      through a pad, twin runs, lane jogs, detours, GND tracks
+                                      inside their pour, and why smooth left each (--box: a region)
   kpcb.py FILE reroute [NET..] -o OUT rip a detour net and route it again; kept when better
   kpcb.py FILE congest [--all]        routing demand vs free copper per cell: where it jams
   kpcb.py FILE fanout REF             per pin of a dense part: escape, dogbone via, or boxed
   kpcb.py FILE widen [NET..] -o OUT   grow under-width tracks to their netclass width
-                                      (--uniform-power: a power run at its widest where clear)
+                                      (--uniform-power: a power run at its widest where clear;
+                                      --uniform: a sliver narrower than its neighbours to theirs)
   kpcb.py FILE loops [NET..] [-o OUT] redundant track chains on signal nets (-o deletes)
   kpcb.py FILE diff OLD.kicad_pcb     what changed since OLD: footprints, silk text, vias,
-                                      zones, teardrops, tracks (+ length, per-net series R)
+                                      zones, teardrops, tracks (+ length, per-net series R);
+                                      --box a region, -v each net's -/+ segments
 
 `ic` is the one command that suggests rather than judges. It reads the IC's own
 pad coordinates - there is no per-part template - classifies its pins by name,
@@ -126,7 +134,7 @@ accurate even when not every item is printed.
 
 Exit codes: 0 clean, 1 not found, 2 `check` found an ERROR, 3 bad file.
 """
-import sys, os, re, json, math, glob, argparse, signal
+import sys, os, re, json, math, glob, argparse, signal, time
 from collections import Counter, defaultdict
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -144,7 +152,7 @@ from kpcb_copper import Copper
 from kpcb_amp import c_ampacity
 from kpcb_zones import c_zones
 from kpcb_viapad import c_viapad
-from kpcb_rf import c_rf
+from kpcb_rf import c_rf, c_refslots
 from kpcb_height import c_height
 from kpcb_ic import c_ic, role_pads
 from kpcb_view import c_view
@@ -555,6 +563,12 @@ def sync_findings(b, netpath, a):
     if art:
         add('INFO', 'SYNCART', f"padless graphic footprints, not components ({len(art)}): "
             f"{trunc(' '.join(sorted((r or '(blank)' for r in art), key=natkey)), 90)}")
+    # art with no symbol and no board_only: Update PCB with "Delete footprints with
+    # no symbols" deletes it silently (parsnip lost five logos that way)
+    for r in sorted((r for r in art if 'board_only' not in b.fps[r].attr), key=natkey):
+        f = b.fps[r]
+        add('WARN', 'SYNCART', f"{r or '(blank)'} ({f.fp.split(':')[-1]} at {f.x:.1f},{f.y:.1f} "
+            f"{f.layer[0]}) lacks board_only: Update PCB deletes it; tick 'Not in schematic'", [r])
     # 'Not in schematic' (board_only): KiCad's own parity check skips these
     bonly = {r for r in bf - nf - art if 'board_only' in b.fps[r].attr}
     if bonly:
@@ -620,7 +634,8 @@ def c_sync(b, a):
     print(f"board   : {b.path}   {len(b.fps)} footprints")
     print(f"netlist : {netpath}   {len(n.comps)} components   exported {n.date}"
           + (f"   [{cands} .net files here; name one to be sure]" if cands > 1 else ""))
-    if len(F) == ni:
+    # a SYNCART WARN is a risk to the next Update PCB, not a stale board
+    if len(F) == ni + sum(1 for x in F if x['rule'] == 'SYNCART' and x['severity'] == 'WARN'):
         print("\nIN SYNC - same parts, same footprints, same values, same net on every "
               "pad.\nPlacement findings can be trusted to be about the current circuit.")
         if F:
@@ -657,6 +672,7 @@ def c_review(b, a):
 
     The point is not to save printing - it is to save the caller working out
     what to run next from a summary it has not seen yet."""
+    b._dead_memo = {}                                # read-only: check and the census share dead_all
     netpath, _ = find_netlist(b.path, a.args[0] if a.args else None)
     if netpath:
         try:
@@ -679,7 +695,8 @@ def c_review(b, a):
               "Pass one:\n### `kpcb.py board.kicad_pcb review board.net`\n")
 
     print("### placement"); c_summary(b, a)
-    print("\n### findings"); rc = c_check(b, a)
+    found = gen_findings(b, a)
+    print("\n### findings"); rc = c_check(b, a, found)
     print("\n### longest nets"); old, a.max = a.max, min(a.max, 6); c_span(b, a); a.max = old
     from kpcb_route import links
     todo = {}
@@ -690,9 +707,13 @@ def c_review(b, a):
     print(f"\n### routing\n{sum(len(v) for v in todo.values())} unrouted link(s) on {len(todo)} net(s)"
           + (f", e.g. {', '.join(unesc_disp(n) for n in sorted(todo, key=lambda n: -len(todo[n]))[:5])}"
              if todo else ' - every net is one piece of copper (from the saved fill)'))
+    from kpcb_tracks import donothing, nothing_line
+    dn = donothing(b) if b.tracks else None
+    if dn:
+        print(f"do-nothing copper: {nothing_line(dn)}")
 
     # what to do next, worked out from the findings rather than left to the reader
-    F, _ = gen_findings(b, a)
+    F, _ = found
     hot = defaultdict(int)
     for x in F:
         if x['severity'] == 'ERROR':
@@ -713,6 +734,9 @@ def c_review(b, a):
     un = sorted((f for f in b.fps.values() if not f.placed and f.pads), key=lambda f: -f.area)
     if un:
         nxt.append(f"kpcb.py {b.path} place {un[0].ref}   # where the biggest unplaced part fits (scratch copy: -o)")
+    if dn and any(dn[k] for k in ('dead', 'passvia', 'micro', 'inpour')):
+        nxt.append(f"kpcb.py {b.path} tracks --kind deadend,stub,inpour   # do-nothing copper; the clean-up order is "
+                   f"recipes.md 'Clean up the routing' (ripup --deadend, smooth --micro, ripup --inpour)")
     if todo:
         nxt.append(f"kpcb.py {b.path} airwires   # each unrouted link; on a scratch copy `route --pending -o OUT`")
         nxt.append(f"kpcb.py {b.path} map --layers In2.Cu   # where a layer still has room for routes")
@@ -727,6 +751,13 @@ def c_review(b, a):
     nxt.append(f"kpcb.py {b.path} sync   # re-run after any schematic change")
     print("\n### next\n" + '\n'.join('  ' + x for x in nxt))
     return rc
+
+def _xy(p):
+    """x,y at >= 3 decimals and every one KiCad stored (an `edit seg` laid from a rounded
+    102.661 ended 0.25 um off a via at 102.66125, and KiCad flagged it not centred)"""
+    f = lambda v: (lambda s: s + '0' * (3 - len(s.split('.')[1])))(f"{v:.6f}".rstrip('0'))   # noqa: E731
+    return f"{f(p[0])},{f(p[1])}"
+
 
 def c_copper(b, a):
     """Every track, arc, via, pad and zone touching a box (X0,Y0,X1,Y1, or X,Y with -r),
@@ -753,19 +784,19 @@ def c_copper(b, a):
         if t['layer'] in lys and want(t['net']) and hit(bb) and (
                 inb(t['a']) or inb(t['b']) or min(_segd(t['a'], t['b'], e0, e1) for e0, e1 in edges) <= hw):
             rows.append((t['layer'], 'T', f"{trunc(unesc_disp(t['net']) or '(no net)', 22):<22} w{t['w']:.2f}  "
-                         f"{t['a'][0]:.3f},{t['a'][1]:.3f} -> {t['b'][0]:.3f},{t['b'][1]:.3f}", t['uuid']))
+                         f"{_xy(t['a'])} -> {_xy(t['b'])}", t['uuid']))
     for v in b.vias:
         r0 = v['size'] / 2
         if want(v['net']) and hit((v['x'] - r0, v['y'] - r0, v['x'] + r0, v['y'] + r0)) and lys & set(b.copper):
             rows.append(('via', 'V', f"{trunc(unesc_disp(v['net']) or '(no net)', 22):<22} {v['size']:.2f}/{v['drill']:.2f}"
-                         f"  {v['x']:.3f},{v['y']:.3f}" + ('  free' if v.get('free') else ''), v['uuid']))
+                         f"  {_xy((v['x'], v['y']))}" + ('  free' if v.get('free') else ''), v['uuid']))
     for f in b.placed():
         for p in f.pads:
             cl = [l for l in b.copper if l in p['layers'] or '*.Cu' in p['layers']]
             if want(p['net']) and lys & set(cl) and hit(pad_box(p)):
                 rows.append(('/'.join(l.split('.')[0] for l in cl), 'P',
                              f"{f.ref + '.' + p['num']:<10} {trunc(unesc_disp(p['net']) or '(no net)', 22):<22} "
-                             f"{p['x']:.3f},{p['y']:.3f}  {p['sx']:.2f}x{p['sy']:.2f}", ''))
+                             f"{_xy((p['x'], p['y']))}  {p['sx']:.2f}x{p['sy']:.2f}", ''))
     for z in b.zones:
         net, zl = z
         if z.outline and want(net) and lys & set(zl if '*.Cu' not in zl else b.copper) and hit(bbox(z.outline)):
@@ -829,7 +860,8 @@ def c_net(b, a):
             e = bbox(xy)
             print(f"  extent  {e[2]-e[0]:.1f} x {e[3]-e[1]:.1f} mm  "
                   f"({e[0]:.1f},{e[1]:.1f} .. {e[2]:.1f},{e[3]:.1f})")
-        P = Copper(b, net).pieces()
+        C = Copper(b, net)
+        P = C.pieces()
         pp, stray = [q for q in P if q['pads']], [q for q in P if not q['pads']]
         def what(q):
             f = ', '.join(f"{ly} fill {ar:.1f} mm2" for ly, ar in sorted(q['fills'], key=lambda z: -z[1])[:2])
@@ -842,10 +874,18 @@ def c_net(b, a):
             print(f"  copper  {len(pp)} PIECES - not one conductor. Main: {len(pp[0]['pads'])} pad(s). Cut off:")
             for q in pp[1:1 + a.max]:
                 print(f"    {' '.join(q['pads'][:8])}{' ...' if len(q['pads']) > 8 else ''}  ({what(q)})")
+        for t, f, p, dep in C.clip_only():          # joined only by a body grazing the pad's shape
+            print(f"  note    {t['layer']} track {t['a'][0]:.2f},{t['a'][1]:.2f} -> {t['b'][0]:.2f},{t['b'][1]:.2f} "
+                  f"clips a corner of {f.ref}.{p['num']} ({dep * 1000:.0f} um overlap, no end on it), its only join: "
+                  "KiCad counts it, a marginal one; end the track on the pad")
         if stray:
             big = sorted(stray, key=lambda q: -sum(ar for _l, ar in q['fills']))
             print(f"  islands {len(stray)} padless piece(s) (isolated copper), largest: "
                   + '; '.join(what(q) for q in big[:3]))
+        from kpcb_route import _planes
+        from kpcb_copper import dead_copper, dead_desc
+        for d in dead_copper(b, net) if all(n != net for n, _l in _planes(b)) else ():
+            print(f"  dead    branch {dead_desc(d)}: serves no pad (`ripup --deadend {unesc_disp(net.split('/')[-1])}`)")
     return rc
 
 def c_vias(b, a):
@@ -880,7 +920,7 @@ CMDS = {'summary': c_summary, 'check': c_check, 'where': c_where, 'map': c_map,
         'edit': c_edit, 'copper': c_copper, 'fatten': c_fatten, 'stitch': c_stitch, 'unhook': c_unhook,
         'vscan': c_vscan, 'smooth': c_smooth, 'tracks': c_tracks, 'widen': c_widen, 'loops': c_loops,
         'diff': c_diff, 'refdes': c_refdes, 'pinlabels': c_pinlabels, 'label': c_label,
-        'congest': c_congest, 'fanout': c_fanout, 'reroute': c_reroute}
+        'congest': c_congest, 'fanout': c_fanout, 'reroute': c_reroute, 'refslots': c_refslots}
 
 LIMITS = (('edge', 0.5, 'courtyard-to-board-edge minimum, mm'),
           ('hole', 1.5, 'keepout beyond a mounting hole pad radius, mm'),
@@ -966,10 +1006,13 @@ def main():
                          "for `map`: one copper layer -> its copper occupancy (where routes can go); "
                          "for `route`: the layers it may use")
     ap.add_argument('--box', default='', help='for `view`: X0,Y0,X1,Y1 board mm instead of refs; '
-                                              'for `fatten`/`stitch`: only tracks / vias in this box')
-    ap.add_argument('--px', type=float, default=20, help='for `view`: pixels per mm (20; 60 for --tracks, 120 for --sites)')
+                                              'for `fatten`/`stitch`/`ripup`: only tracks / vias in this box; '
+                                              'for `tracks`: the census of this region; for `diff`: vias and tracks here')
+    ap.add_argument('--px', type=float, default=20, help='for `view`: pixels per mm (plot: ~1200 px across the box; 60 for --tracks, 120 for --sites)')
+    ap.add_argument('--by-net', action='store_true', help='for `view`: the copper on --layers (default all), fills '
+                    'included, one hue per net, GND grey, a legend of the largest nets in the box')
     ap.add_argument('--tracks', action='store_true', help='for `view`: draw tracks/pads/vias from the board model, '
-                                                         'no pour fills, one colour per copper layer (--net highlights one)')
+                                                         'no pour fills, one colour per copper layer (each --net green)')
     ap.add_argument('--mark', default='', help='for `view --tracks`: X,Y;X,Y points to ring')
     ap.add_argument('--sites', default='', help='for `view`: LAYER:X,Y;... one panel per site (-r = half size, 0.8)')
     ap.add_argument('-o', '--out', default='',
@@ -1016,8 +1059,12 @@ def main():
                     help='for `route`: the longest a neck may run before the class width, mm (1.5; 0 = off)')
     ap.add_argument('--minw', type=float, default=None,
                     help='for `fatten`: only tracks at least this wide get a band (0.5: sense legs stay thin)')
-    ap.add_argument('--keep', default='', help='for `fatten`: X0,Y0,X1,Y1[;...] boxes the bands stay out of')
+    ap.add_argument('--keep', default='', help='for `fatten`: X0,Y0,X1,Y1[;...] boxes the bands stay out of; '
+                    'for `stitch --sparse`: boxes no via goes in')
     ap.add_argument('--n', type=int, default=0, help='for `stitch`: vias per anchor (3 near a point, 2 beside each via)')
+    ap.add_argument('--sparse', type=float, default=0.0, metavar='T',
+                    help='for `stitch`: greedy stitching of the outer pour, worst point first, until every point is '
+                         'within T mm of a via of the net (--keep boxes stay free)')
     ap.add_argument('--in-pad', action='store_true',
                     help='for `stitch`: a via may sit wholly inside a same-net SMD pad of >= 3 mm2 (FET, fuse, inductor)')
     ap.add_argument('--pair', action='store_true',
@@ -1031,31 +1078,51 @@ def main():
                     help='for `route`: let a route cross a power-island pour at 4x the plane cost (check the '
                          'refill: it may split the island) instead of treating it as copper')
     ap.add_argument('--flip', action='store_true', help='for `move`: flip REF to the other side first')
+    ap.add_argument('--stub', type=float, default=None, metavar='W',
+                    help="for `edit dragvia`: the pad-to-via stub's width (default: the pad-layer track on the via, "
+                         "capped at the pad's narrow side)")
+    ap.add_argument('--no-drag', action='store_true', help="for `move`/`movecheck`: KiCad's Move (M), not Drag (D): "
+                    "its tracks and in-pad vias stay put (moving a part off its via-in-pad)")
     ap.add_argument('--overlaps', action='store_true', help='for `smooth`: drop doubled same-net copper, trim hairpin tips')
     ap.add_argument('--corners', action='store_true', help='for `smooth`: cut every visible corner >= 46 deg at a two-track node')
     ap.add_argument('--square', action='store_true', help='for `smooth`: slide an off-45 segment\'s pad end onto a 45 inside the pad')
     ap.add_argument('--pads', action='store_true', help='for `smooth`: run a dead-end trace that stops at a pad edge onto the pad centre')
+    ap.add_argument('--micro', action='store_true', help='for `smooth`: merge segments under 0.05 mm into a neighbour '
+                    '(a join stays a join), delete one only when wholly under other same-net copper')
     ap.add_argument('--jogs', action='store_true', help='for `smooth`: collapse lane jogs, moving one blocking free GND via')
+    ap.add_argument('--twins', action='store_true', help='for `smooth`: two same-net runs side by side into one pad '
+                    're-laid as a daisy chain through the nearer start (not in --all)')
     ap.add_argument('--nudge', action='store_true', help='for `smooth --jogs`: also drag one blocking signal via <= 0.3 mm')
-    ap.add_argument('--all', action='store_true', help='for `smooth -o`: chains, overlaps, corners, square, pads, repeated until a round '
+    ap.add_argument('--all', action='store_true', help='for `smooth -o`: chains, overlaps (+ merge), corners, square, pads, repeated until a round '
                                                       'changes nothing; for `tracks`: include RF/USB/diff-pair nets; '
                                                       'for `refdes`: every visible designator, not only flagged ones; '
                                                       'for `congest`: every net\'s pad MST, no tracks (the placement '
                                                       'view); for `fanout`: list routed pads too')
     ap.add_argument('--hidden', action='store_true', help='for `smooth --corners`: also corners hidden under same-net copper')
+    ap.add_argument('--uniform', action='store_true', help='for `widen`: a non-power segment narrower than its '
+                    'neighbours (each end a two-track node or a via, never a pad) takes their width where clear')
     ap.add_argument('--uniform-power', action='store_true', help='for `widen`: per power run, also raise every '
                     'segment to the run\'s widest where clear (never narrows); reports the width steps left')
-    ap.add_argument('--kind', default='', help='for `tracks`: only these rows: acute,90,off45,neck,stub,pad,jog,detour')
+    ap.add_argument('--kind', default='', help='for `tracks`: only these rows: acute,90,off45,neck,stub,pad,overlap,twin,'
+                                               'jog,detour,inpour,inpourpwr,deadend')
     ap.add_argument('--show', action='store_true', help='for `refdes`: also place (and unhide) hidden designators')
     ap.add_argument('--size', type=float, default=None, help='for `refdes`: designator text height, mm (default: kept, >= the fab minimum); '
                     'for `pinlabels`/`label`: text height (default 1, >= the fab minimum)')
     ap.add_argument('--thick', type=float, default=None, help='for `refdes`: stroke thickness, mm (default: kept; 0.15 x --size)')
     ap.add_argument('--view', default='', help='for `tracks`: also a PNG montage of the listed rows, one panel each')
     ap.add_argument('--drc', default='', help='for `ripup`: a kicad-cli DRC JSON (`kdrc.py --report`): rip up the items it flags')
+    ap.add_argument('--inpour', action='store_true', help='for `ripup`: tracks wholly inside the saved fill of their own '
+                    'net - every plane net\'s (GND), or a NAMED net\'s of any kind (opt-in) - minus any a thermal-relief '
+                    'pad needs as a spoke (`tracks --kind inpour,inpourpwr` lists them)')
+    ap.add_argument('--drop-track', action='store_true', help='for `fatten`: refill a temp copy and delete the banded '
+                    'tracks the band then wholly holds (`ripup NET --inpour` on them; OUT stays unfilled)')
+    ap.add_argument('--deadend', action='store_true', help='for `ripup`: copper that serves no pad (`tracks --kind deadend`): '
+                    'its tracks and vias, a dead end cut back, a zone whose every fill fragment is dead')
     ap.add_argument('--types', default='', help='for `ripup --drc`: violation types to act on (shorts, clearances, dangling)')
     ap.add_argument('--drop', action='store_true',
                     help='for `renet`: delete netless clusters that touch 2+ nets or none (stale routes)')
-    ap.add_argument('-v', '--verbose', action='store_true', help='for `route`: print every segment and via')
+    ap.add_argument('-v', '--verbose', action='store_true', help='for `route`: print every segment and via; for `diff`: '
+                    'each net\'s removed (-), added (+) and re-widened (~) segments with coordinates')
     ap.add_argument('--only', default='')
     ap.add_argument('--skip', default='')
     ap.add_argument('--json', action='store_true')
@@ -1094,7 +1161,14 @@ def main():
         print(str(e), file=sys.stderr); return 3
     if not a.span and b.outline:
         a.span = 0.5 * math.hypot(b.outline[2] - b.outline[0], b.outline[3] - b.outline[1])
-    return CMDS[a.cmd](b, a) or 0
+    t0 = time.time()
+    rc = CMDS[a.cmd](b, a) or 0
+    out = getattr(a, 'out', None)
+    if out and a.cmd != 'diff' and os.path.exists(out) and os.path.getmtime(out) >= t0 - 1 \
+            and out.endswith('.kicad_pcb'):           # every writer: the do-nothing copper it added
+        from kpcb_tracks import gate
+        gate(b, out, a.cmd)
+    return rc
 
 if __name__ == '__main__':
     if hasattr(signal, 'SIGPIPE'):                  # piping to `head`: no traceback

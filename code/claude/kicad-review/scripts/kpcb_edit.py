@@ -15,7 +15,7 @@ is asserted - and leaves the verdict to KiCad: `kdrc.py OUT --unconnected` on th
 import math, os, re, uuid
 from collections import defaultdict
 from kcommon import unesc_disp
-from kpcb_board import PolyIndex, xf, pad_box, pt_seg_dist, seg_seg_dist
+from kpcb_board import PolyIndex, _pidx, xf, pad_box, pt_seg_dist, seg_seg_dist
 from kpcb_copper import UF, _local, _reach, _around, pad_dist
 from kpcb_move import cu_layers, via_layers, drag_plan, drag_set
 
@@ -106,10 +106,11 @@ class PcbText:
                  + f"\t\t(net {qs(net)})\n\t\t(uuid \"{uuid.uuid4()}\")\n\t)\n")
 
     def zone(self, net, layer, pts, priority, clearance=0.2, min_w=0.25, name=None):
-        """an unfilled solid-connect zone (the refill draws its copper), its faceted arcs as
-        sharp corners + KiCad's fillet (kpcb_fillet), so the outline stays editable in KiCad"""
-        from kpcb_fillet import fillet_outline
+        """an unfilled solid-connect zone (the refill draws its copper): sharp corners (faceted
+        arcs unrounded, kpcb_fillet) + KiCad's 0.2 fillet, as Ryan draws his own power zones"""
+        from kpcb_fillet import fillet_outline, FILLET
         pts, r, _note = fillet_outline(pts)
+        r = r or FILLET
         sm = f"\t\t\t(smoothing fillet)\n\t\t\t(radius {num(r)})\n" if r else ''
         xy = ''.join(f"\t\t\t\t(xy {num(x)} {num(y)})\n" for x, y in pts)
         return self.add(f"\t(zone\n\t\t(net {qs(net)})\n\t\t(layer {qs(layer)})\n\t\t(uuid \"{uuid.uuid4()}\")\n"
@@ -118,8 +119,9 @@ class PcbText:
                         f"\t\t(fill yes\n\t\t\t(thermal_gap 0.5)\n\t\t\t(thermal_bridge_width 0.5)\n{sm}"
                         f"\t\t\t(island_removal_mode 0)\n\t\t)\n\t\t(polygon\n\t\t\t(pts\n{xy}\t\t\t)\n\t\t)\n\t)\n")
 
-    def save(self, out):
-        if os.path.abspath(out) == os.path.abspath(self.path):
+    def save(self, out, inplace=False):
+        """inplace: OUT is this run's own output being amended (the post-write gate), never the input"""
+        if not inplace and os.path.abspath(out) == os.path.abspath(self.path):
             raise SystemExit("refusing to overwrite the input board: write a copy (-o OUT), "
                              "check it with kdrc.py, then move it into place")
         parts, pos = [], 0
@@ -329,11 +331,216 @@ def c_ripup(b, a):
             if not net:
                 print(f"{nm}: no such net" + (f"; did you mean {' | '.join(cand)}" if cand else '')); return 1
             names.add(net)
-    elif not a.drc:
-        print("ripup NET... [--box X0,Y0,X1,Y1] | --drc REPORT.json [--types T,T] [-o OUT]"); return 1
+    elif not a.drc and not a.inpour and not getattr(a, 'deadend', False):
+        print("ripup NET... [--box X0,Y0,X1,Y1] | --drc REPORT.json [--types T,T] | [NET] --inpour | [NET] --deadend  "
+              "[-o OUT]"); return 1
+    if a.inpour:
+        return _inpour(b, a, names, box)
+    if getattr(a, 'deadend', False):
+        return _deadend(b, a, names, box)
     kill = {id(t) for t in b.tracks if (t['uuid'] in sel or t['net'] in names) and inbox([t['a'], t['b']])}
     kill |= {id(v) for v in b.vias if (v['uuid'] in sel or v['net'] in names) and inbox([(v['x'], v['y'])])}
     return _rip_out(b, a, kill, 'ripup')
+
+
+def _inpour(b, a, names, box):
+    """`ripup [NET] --inpour`: delete tracks lying wholly inside their own net's saved fill
+    (`tracks --kind inpour,inpourpwr`): every plane net's, or a NAMED net's of any kind
+    (opt-in: whether a power path may rely on its fill alone is the designer's call), each with
+    what its removal leaves dangling, except one whose removal takes a track off a thermal-relief
+    pad: KiCad counts that track as a spoke, and without it the pad can be starved
+    (STARVED_THERMAL: C18.1, 2026-10-27). Then, once, the stubs the rip leaves hanging in the
+    pour (a plane net's too), a thermal pad's included: a stub is no spoke Ryan keeps, and
+    TODO.md accepts the 1-spoke 0402 it can leave. Also kept: copper joining two pads (a decoupling
+    return, an IC GND pin to its EP) and a leg whose removal leaves a remaining end loose (on a
+    pad edge, in the pour) - every bdbbaac candidate was one Ryan kept, 2026-10-28. Refill, then DRC."""
+    kill, cand, kept = inpour_kill(b, names, box)
+    from kpcb_route import _planes
+    pl = {n for n, _l in _planes(b)}
+    print(f"inpour: {len(cand)} {'plane-net ' if names <= pl else ''}track(s) wholly inside their own saved fill, "
+          f"{len(kept)} run(s) kept (a thermal pad's spoke, a pad-to-pad tie, or a leg whose removal leaves the rest "
+          f"ending loose)")
+    for t, lab in kept[:a.max]:
+        print(f"  kept {unesc_disp(t['net'])} {t['layer']} w{t['w']:g} {t['a'][0]:.3f},{t['a'][1]:.3f} -> "
+              f"{t['b'][0]:.3f},{t['b'][1]:.3f}  ({lab})")
+    if not a.out:
+        n = sum(1 for t in b.tracks if id(t) in kill)
+        print(f"  (dry run: {n} track(s) with what they leave dangling; -o OUT deletes them, then "
+              f"kdrc.py OUT drc --refill-save --baseline BEFORE.json)")
+        return 0
+    return _rip_out(b, a, kill, 'ripup --inpour')
+
+
+def inpour_kill(b, names, box, only=None):
+    """(kill ids, candidate track idx, kept [(track, why)]) for `ripup --inpour` on b's saved fill,
+    candidates joined end to end taken as one run (kept: its first track);
+    only: the track uuids that may go (fatten --drop-track: the tracks it banded, one at a time
+    and none of the 2026-10-28 guards - the band is their replacement)"""
+    from kpcb_tracks import in_pour
+    from kpcb_board import solid, PolyIndex
+    from kpcb_smooth import seg_pad_dist, on_layer
+    cand = [i for i in in_pour(b, names or None, box, every=bool(names)) if only is None or b.tracks[i]['uuid'] in only]
+    zones = [(z, PolyIndex(z.outline)) for z in b.zones if z[0] and not z.keepout and z.outline]
+    def thermal(p, ly):
+        zs = [z for z, idx in zones if z[0] == p['net'] and (ly in z[1] or '*.Cu' in z[1]) and (p['x'], p['y']) in idx]
+        return bool(zs) and not solid(p, max(zs, key=lambda z: z.priority))
+    pads = defaultdict(list)
+    for f in b.placed():
+        for p in f.pads:
+            pads[p['net']].append((f, p))
+    from kpcb_copper import pad_dist
+    from kpcb_board import pt_seg_dist
+
+    def ends_on(u, E, gone):
+        """what u's end E lands on: live tracks, vias at their centre, and pads it sits in by w/2
+        (or at their centre) - a pad's edge or a via's rim is not one (U12.11's feed grazes one)"""
+        return [('t', id(o)) for o in b.tracks if id(o) not in gone and o is not u and o['net'] == u['net'] and
+                o['layer'] == u['layer'] and pt_seg_dist(E, o['a'], o['b']) <= (o['w'] + u['w']) / 2] + \
+            [('v', id(v)) for v in b.vias if v['net'] == u['net'] and id(v) not in gone and u['layer'] in via_layers(v, b.copper)
+             and math.dist(E, (v['x'], v['y'])) < 0.05] + \
+            [('p', id(p)) for _f, p in pads[u['net']] if on_layer(p, u['layer']) and
+             (pad_dist(p, E) <= -u['w'] / 2 or math.dist(E, (p['x'], p['y'])) < 0.05)]
+
+    def loose(u, E, gone):
+        """E lands on nothing, in a via off its centre (KiCad's TRACK_NOT_CENTERED_ON_VIA once the
+        sliver that was centred there goes: GND 105.82,82.58), or the run it is on now reaches
+        < 2 pads/vias (a dead end in the pour)"""
+        if not ends_on(u, E, gone) or any(
+                v['net'] == u['net'] and id(v) not in gone and 1e-3 < math.dist(E, (v['x'], v['y'])) <= v['size'] / 2
+                and u['layer'] in via_layers(v, b.copper) for v in b.vias):
+            return True
+        tid = {id(o): o for o in b.tracks}
+        seen, todo, anchors = {id(u)}, [u], set()
+        while todo and len(anchors) < 2:
+            o = todo.pop()
+            for x in (o['a'], o['b']):
+                for k, j in ends_on(o, x, gone):
+                    if k != 't':
+                        anchors.add(j)
+                    elif j not in seen:
+                        seen.add(j)
+                        todo.append(tid[j])
+        return len(anchors) < 2
+    runs = UF()                                      # candidates joined end to end go as one run (a
+    for i in cand:                                   # via-to-via track pair in the pour: one at a time,
+        runs.find(i)                                 # each would leave the other loose)
+        for j in cand:
+            ti, tj = b.tracks[i], b.tracks[j]
+            if only is None and i < j and ti['net'] == tj['net'] and ti['layer'] == tj['layer'] and \
+                    any(pt_seg_dist(e, tj['a'], tj['b']) <= (ti['w'] + tj['w']) / 2 for e in (ti['a'], ti['b'])):
+                runs.union(i, j)
+    grp = defaultdict(list)
+    for i in cand:
+        grp[runs.find(i)].append(b.tracks[i])
+    kill, kept = set(), []
+    for run in grp.values():
+        t = run[0]
+        if id(t) in kill:
+            continue
+        k = prune(b, kill | {id(u) for u in run}, planes=False) - kill
+        gone = [u for u in b.tracks if id(u) in k]
+        hit = [f"{f.ref}.{p['num']}" for u in gone for f, p in pads[u['net']]
+               if on_layer(p, u['layer']) and seg_pad_dist(u['a'], u['b'], p) <= u['w'] / 2 and thermal(p, u['layer'])]
+        if hit:
+            kept.append((t, f"feeds {hit[0]}"))
+            continue
+        if only is None:                             # Ryan kept every bdbbaac candidate (2026-10-28):
+            ties = {(f.ref, p['num']) for u in gone for f, p in pads[u['net']]   # a pad-to-pad tie (C183.2 ->
+                    if on_layer(p, u['layer']) and seg_pad_dist(u['a'], u['b'], p) <= u['w'] / 2}   # U22, U17.9 -> EP)
+            hang = next((f"{E[0]:.2f},{E[1]:.2f}" for u in b.tracks if id(u) not in kill | k and u['net'] == t['net']
+                         and u['layer'] == t['layer'] for E in (u['a'], u['b'])
+                         if any(pt_seg_dist(E, g['a'], g['b']) <= g['w'] / 2 + 1e-3 for g in gone)
+                         and loose(u, E, kill | k)), None)   # or a leg whose rest then ends on a pad edge / in the pour
+            if len(ties) >= 2 or hang:
+                kept.append((t, f"ties {len(ties)} pads" if len(ties) >= 2 else f"the rest would end loose @{hang}"))
+                continue
+        kill |= k
+    kill = prune(b, kill) if kill else kill          # the stubs it all leaves, a kept spoke's included
+    return kill, cand, [(t, lab) for t, lab in kept if id(t) not in kill]
+
+
+def _deadend(b, a, names, box):
+    """`ripup [NET] --deadend`: delete copper that serves no pad (kpcb_copper.dead_copper): its
+    wholly dead tracks and vias, a track dead only past its last tee cut back to it, and a zone
+    whose every fill fragment is dead (a band of a live zone is reported, never touched). RF
+    netclass branches (matching stubs?) only when named. Then prune, as every ripup."""
+    from kpcb_copper import dead_all, dead_desc, drop_layer
+    inb = lambda p: not box or box[0] <= p[0] <= box[2] and box[1] <= p[1] <= box[3]   # noqa: E731
+    ds = [(net, d) for net, lst in sorted(dead_all(b, sorted(names) if names else None).items()) for d in lst
+          if (names or 'RF' not in (b.netclass(net) or '').upper()) and (not d['at'] or inb(d['at']))]
+    dead_fl = {id(fl) for _n, d in ds for fl in d['fills']}
+    zones = {fl['zone'] for fl in b.fills if id(fl) in dead_fl}
+    zones = {z for z in zones if all(id(fl) in dead_fl for fl in b.fills if fl.get('zone') == z)}
+    from kpcb_smooth import Exact
+    kill, cuts, mid, stubs = set(), [], 0, []
+    for _n, d in ds:
+        kill |= {id(v) for v in d['vias']}
+        blocked = set()                              # a cut whose stub onto an off-line via won't clear
+        for t, P, c in d.get('stubs', ()):
+            ok = Exact(b, t['net'], t['layer'], t['w'], (min(P[0], c[0]), min(P[1], c[1]),
+                                                         max(P[0], c[0]), max(P[1], c[1]))).seg(P, c)
+            (stubs.append((t, P, c)) if ok else blocked.add(id(t)))
+        stubs = [x for x in stubs if id(x[0]) not in blocked]
+        for t, _L, keep in d['tracks']:
+            if keep is None:
+                kill.add(id(t))
+            elif keep and id(t) not in blocked:
+                cuts.append((t, keep))
+            else:
+                mid += 1
+    print(f"deadend: {len(ds)} branch(es) serving no pad, {sum(len(d['tracks']) for _n, d in ds)} track(s), "
+          f"{sum(len(d['vias']) for _n, d in ds)} via(s), {len(zones)} whole zone(s)")
+    for net, d in ds[:a.max]:
+        print(f"  {unesc_disp(net):<28} {dead_desc(d)}")
+    left = sorted({(fl['zone'], fl['layer']) for fl in b.fills if id(fl) in dead_fl and fl['zone'] not in zones})
+    for z, ly in left:                               # its zone has live fragments too
+        keep = drop_layer(b, z, ly)
+        print(f"  pour left {z[:8]} {ly}: " + (f"drop {ly} from the zone (keep {', '.join(keep)}): its {ly} fill joins "
+              "no pad, only vias joined on another layer; check `ampacity --from --to --fills`" if keep
+              else "its zone has live fragments too - trim the zone outline by hand"))
+    for t, P, c in stubs:
+        print(f"  cut {t['uuid'][:8]} ends in a via off its line: to {P[0]:g},{P[1]:g} + a {t['w']:g} mm stub onto "
+              f"the centre {c[0]:g},{c[1]:g} (clear)")
+    if mid:
+        print(f"  {mid} track(s) reported, not cut: dead only between two live pieces, or the stub onto a via "
+              "off the track's line would not clear")
+    if not a.out:
+        print("  (dry run: -o OUT deletes them, then kdrc.py OUT drc --refill-save --baseline BEFORE.json)")
+        return 0
+    first = len(kill)
+    orig = {id(tr): (tr['a'], tr['b']) for tr, _k in cuts}
+    for tr, (a2, b2) in cuts:                        # the prune must see the cut ends, not the dead ones
+        tr.update(a=a2, b=b2, len=math.dist(a2, b2), mid=((a2[0] + b2[0]) / 2, (a2[1] + b2[1]) / 2))
+    kill = prune(b, kill)
+    t = PcbText(b.path)
+    gone = [o for o in b.tracks + b.vias if id(o) in kill]
+    for o in gone:
+        if o['uuid'] in t.span:
+            t.sub(o['uuid'], '')
+    for z in zones:
+        if z in t.span:
+            t.sub(z, '')
+    for tr, (a2, b2) in cuts:
+        if id(tr) in kill:
+            continue
+        txt = t.text(tr['uuid'])
+        for tag, P in (('start', a2), ('end', b2)):
+            txt, c = re.subn(r'\(%s [^)]*\)' % tag, f"({tag} {num(P[0])} {num(P[1])})", txt, count=1)
+            assert c == 1
+        t.sub(tr['uuid'], txt)
+    for tr, P, c in stubs:
+        if id(tr) not in kill:
+            t.segment(tr['net'], tr['layer'], tr['w'], P, c)
+    cut_off = [dict(tr, a=p, b=q, len=math.dist(p, q)) for tr, (a2, b2) in cuts if id(tr) not in kill
+               for p, q in ((orig[id(tr)][0], a2), (b2, orig[id(tr)][1])) if math.dist(p, q) > 1e-6]   # the part that goes
+    tear = len(tear_edits(t, [o for o in gone if 'a' in o] + cut_off))
+    if _need_out(a, 'ripup --deadend'):
+        return 1
+    t.save(a.out)
+    print(f"  -> {a.out}: {len(gone)} item(s) deleted ({len(gone) - first} more pruned as dangling), {len(cuts)} cut "
+          f"back" + (f" ({len(stubs)} with a stub onto its via)" if stubs else '') + f", {len(zones)} zone(s), {tear} "
+          "teardrop(s); then kdrc.py --refill-save --baseline")
+    return 0
 
 
 def c_unhook(b, a):
@@ -421,11 +628,13 @@ def cut_off(b, kill, absent):
     return out
 
 
-def prune(b, kill, absent=frozenset()):
+def prune(b, kill, absent=frozenset(), planes=True):
     """kill (ids of b.tracks/b.vias to delete) grown by what that leaves dangling: a track
     end touching nothing of its net (no pad, via, track junction or fill), a via joining
     fewer than two layers - spreading only from removed copper (and the pads of `absent`
-    parts, which anchor nothing), until stable. Returns the grown set."""
+    parts, which anchor nothing), until stable - then by what it leaves serving no pad
+    (_newly_dead: a cycle hanging off one point, a plane stub ending in its fill; planes=False
+    leaves the plane stubs to a later call). Returns the grown set."""
     from kpcb_board import PolyIndex
     kill = set(kill)
     nets = {o['net'] for o in b.tracks + b.vias if id(o) in kill} | \
@@ -505,7 +714,30 @@ def prune(b, kill, absent=frozenset()):
                     dead.append(it)
         kill |= {id(x[1]) for x in dead}
         frontier = dead
-    return kill
+    return kill | _newly_dead(b, kill, absent, nets, planes)
+
+
+def _newly_dead(b, kill, absent, nets, planes=True):
+    """what the leaf prune cannot see: copper the rip leaves serving no pad though every end
+    still touches something - a two-layer run through two vias, a cycle (kpcb_copper.dead_copper),
+    a plane-net stub whose free end lies in its own fill (the leaf prune counts fill as a join:
+    `ripup GND --inpour` left both ends of a half-ripped chain, 2026-10-27) - and not dead before
+    the rip (an old dead branch elsewhere on the net is not ours). A plane net gives only its
+    track stubs (kpcb_copper.plane_stubs: its islands are the pour's); planes=False skips them
+    (inpour_kill prices each candidate without the ~2 s GND graph, then runs it once)"""
+    from types import SimpleNamespace
+    from kpcb_copper import dead_copper, plane_stubs
+    from kpcb_route import _planes
+    pl = {n for n, _l in _planes(b)}
+    todo = sorted(n for n in nets if n and (planes or n not in pl))
+    if not todo:
+        return set()
+    after = SimpleNamespace(fps={r: f for r, f in b.fps.items() if r not in absent}, fills=b.fills, copper=b.copper,
+                            tracks=[x for x in b.tracks if id(x) not in kill], vias=[x for x in b.vias if id(x) not in kill])
+    def ids(bd, n):
+        ds = dead_copper(bd, n)
+        return {id(o) for d in (plane_stubs(ds) if n in pl else ds) for o in [t for t, _L, k in d['tracks'] if k is None] + d['vias']}
+    return {i for n in todo for i in ids(after, n) - ids(b, n)}
 
 
 def tear_edits(t, trk):
@@ -656,13 +888,24 @@ def c_move(b, a):
     if a.flip:
         s = flip_text(s, f)
     t.sub(f.uuid, place_text(s, _flipped(f) if a.flip else f, x, y, rot))
-    dragged, left, vin = drag_tracks(b, t, f, x, y, rot, a.flip)
+    tear = 0
+    if a.no_drag:                                    # KiCad's Move (M): its tracks and vias stay put
+        from kpcb_move import pad_ends
+        ends, _vias, stay = pad_ends(b, f)
+        dragged, left, vin = 0, len(ends) + stay, 0
+        tip = lambda tr, k: (tr[k], tr['b' if k == 'a' else 'a'])            # noqa: E731
+        near = [dict(tr, a=e, b=(e[0] + (o[0] - e[0]) * s_, e[1] + (o[1] - e[1]) * s_), len=min(tr['len'], .5))
+                for tr, k in ends for e, o in [tip(tr, k)] for s_ in [min(1.0, .5 / (tr['len'] or 1))]]
+        tear = len(tear_edits(t, near))              # the teardrops of ends left on the moved pads
+    else:
+        dragged, left, vin = drag_tracks(b, t, f, x, y, rot, a.flip)
     t.save(a.out)
     print(f"move {ref} {f.x:.3f},{f.y:.3f} rot {f.rot:g} -> {x:.3f},{y:.3f}" + (' FLIPPED' if a.flip else '')
           + (f" rot {norm_ang(rot):g}" if rot is not None else '') + f"   -> {a.out}"
           + (f"\n  dragged {dragged} track end(s) that sat on its pads (on their layers) or on its vias" if dragged else '')
-          + (f"\n  {left} track end(s) on its pads stay behind ({'flipped: other layer' if a.flip else 'arcs'}): "
+          + (f"\n  {left} track end(s) on its pads stay behind ({'--no-drag' if a.no_drag else 'flipped: other layer' if a.flip else 'arcs'}): "
              f"re-route them" if left else '')
+          + (f"\n  dropped {tear} teardrop(s) of the ends left behind" if tear else '')
           + (f"\n  moved {vin} via(s) inside its pads with it" if vin else ''))
     return 0
 
@@ -672,7 +915,7 @@ def c_move(b, a):
 EDIT_OPS = {'width': 2, 'del': 1, 'seg': 5, 'via': 3, 'solid': 1, 'simplify': 2,
             'ref': 3, 'hide': 1, 'show': 1, 'textsize': 3, 'text': 3, 'vcenter': 1,
             'value': 3, 'hide-value': 1, 'show-value': 1, 'valuesize': 3, 'mvvia': 2,
-            'knockout': 2, 'retext': 2, 'addtext': 5, 'unround': 1}
+            'knockout': 2, 'retext': 2, 'addtext': 5, 'unround': 1, 'dragvia': 2}
 EDIT_USE = ("edit OP... -o OUT   (one or more, in order; UUID = a unique prefix, from `copper`)\n"
             "  width UUID W                  a segment's or arc's width\n"
             "  del UUID                      delete a segment, arc, via or zone\n"
@@ -699,6 +942,10 @@ EDIT_USE = ("edit OP... -o OUT   (one or more, in order; UUID = a unique prefix,
             "  mvvia UUID R                  re-place a trackless (stitching) via at the nearest legal spot\n"
             "                                within R mm, same size/drill/free flag; reports the move and\n"
             "                                the net's via count within 3 mm before/after\n"
+            "  dragvia UUID X,Y|auto         move a via WITH its tracks (KiCad's Drag) off the pad its drill\n"
+            "                                sits in: ends still in that pad stay, a pad-to-via stub (--stub\n"
+            "                                W) where nothing else joins them; auto = the nearest clear spot\n"
+            "                                within 1.2 mm keeping every segment 0/45/90, drill clear of pads\n"
             "  vcenter all|DRC.json          snap track ends inside a same-net via onto its centre (a\n"
             "                                segment left zero-length goes); DRC.json (kdrc --report) limits\n"
             "                                it to its track_not_centered_on_via tracks. A snap that\n"
@@ -739,6 +986,114 @@ def mvvia(b, s, u, R):
           + f" {c[0]:.3f},{c[1]:.3f} -> {x:.3f},{y:.3f} ({d:.2f} mm); {unesc_disp(v['net'])} vias within 3 mm "
           f"{before} -> {after}")
     return s
+
+
+DRAG_R, DRAG_STEP = 1.2, 0.05     # ponytail: dragvia auto's square grid; a ring search if 1.2 mm is short
+
+
+def dragvia(b, t, cur, u, spec, stubw=None):
+    """`edit dragvia UUID X,Y|auto`: move a via that has tracks on it (via_plan's Drag) off the
+    pad its drill sits in. Tracks whose end still lands in that pad stay (the pad joins them); a
+    stub joins pad and via on the pad's layer when nothing else does (the via's ring 50 um into
+    the pad, a same-net fill holding both); the dragged ends' teardrops go. auto: the spots within DRAG_R where the drill clears
+    every pad's mask opening and drills keep legal_spots' spacing, ranked by every moved or new
+    segment staying 0/45/90, then distance."""
+    from kpcb_move import World, via_plan, via_drag
+    from kpcb_viapad import drill_depth
+    from kpcb_smooth import Exact, octi
+    v = next((x for x in b.vias if x['uuid'] == u), None)
+    if v is None:
+        raise SystemExit(f"edit: {u[:8]} is not a via; nothing written")
+    c0, net, r = (v['x'], v['y']), v['net'], v['size'] / 2
+    L = via_layers(v, b.copper)
+    pads = [(f, p) for f in b.placed() for p in f.pads if p['kind'] == 'smd' and p['num']
+            and math.dist((p['x'], p['y']), c0) < 4 and any(l in L for l in p['layers'])]
+    dep = lambda p, xy: drill_depth(p, {'x': xy[0], 'y': xy[1], 'drill': v['drill']})     # noqa: E731
+    vic = max(((dep(p, c0), f, p) for f, p in pads if p['net'] == net and dep(p, c0) > 0), default=None,
+              key=lambda x: x[0])
+    vf, vp = (vic[1], vic[2]) if vic else (None, None)
+    pl = next((l for l in vp['layers'] if l in b.copper), None) if vp else None
+    keep = {id(tr) for tr in b.tracks if vp and tr['net'] == net and tr['layer'] == pl
+            and any(math.dist(e, c0) < r - 1e-3 and pad_dist(vp, e, True) <= 0 for e in (tr['a'], tr['b']))}
+    on = [tr for tr in b.tracks if tr['net'] == net and min(math.dist(tr['a'], c0), math.dist(tr['b'], c0)) < r - 1e-3]
+    w0 = stubw or min([max([tr['w'] for tr in on if tr['layer'] == pl] or [tr['w'] for tr in on] or [0.2])]
+                      + ([min(vp['sx'], vp['sy'])] if vp else []))
+    P = (vp['x'], vp['y']) if vp else None
+    fl = [_pidx(b, f) for f in b.fills if pl and f['net'] == net and f['layer'] == pl]
+    ex = Exact(b, net, pl, w0, (c0[0] - DRAG_R - 1, c0[1] - DRAG_R - 1, c0[0] + DRAG_R + 1, c0[1] + DRAG_R + 1)) if pl else None
+    holes = [(x['x'], x['y'], x['drill']) for x in b.vias if x is not v] + \
+        [(p['x'], p['y'], p['drill']) for f in b.placed() for p in f.pads if p['drill']]
+    sep = lambda hd: max(v['size'] + 0.05, (v['drill'] + hd) / 2 + 0.25)                   # noqa: E731  as legal_spots
+    w = World(b, via=v)
+
+    def plan(to):
+        """(cost, moved, stub, why-not) for the via at `to`"""
+        if any(dep(p, to) > 0 for _f, p in pads):
+            return None, None, None, 'its drill still reaches into a pad\'s mask opening'
+        if any(math.dist(to, h[:2]) < sep(h[2]) for h in holes):
+            return None, None, None, 'too close to another drill'
+        stub = (P, to) if vp and not any(to in i and P in i for i in fl) \
+            and pad_dist(vp, to, True) > r - 0.05 else None        # its ring still 50 um into the pad: joined
+        moved = via_plan(b, v, to, keep, on)
+        segs = [(a2, b2) for _t, a2, b2 in moved] + ([stub] if stub else [])
+        return (not all(octi(a2, b2) for a2, b2 in segs if math.dist(a2, b2) > 1e-6), math.dist(to, c0)), moved, stub, ''
+
+    def ok(to):
+        cost, moved, stub, why = plan(to)
+        if cost is None:
+            return None, why
+        new, moved = via_drag(b, v, to, w, keep)
+        if new:
+            return None, '; '.join(sorted(new.values())[:3])
+        if stub and not ex.seg(*stub):
+            return None, f"the {w0:g} mm stub from {vf.ref}.{vp['num']} would not clear"
+        return (cost, to, moved, stub), ''
+
+    if spec == 'auto':
+        n = int(DRAG_R / DRAG_STEP)
+        grid = [(round(c0[0] + i * DRAG_STEP, 4), round(c0[1] + j * DRAG_STEP, 4)) for i in range(-n, n + 1)
+                for j in range(-n, n + 1) if 0 < math.hypot(i, j) * DRAG_STEP <= DRAG_R]
+        cand = sorted((c_, to) for to in grid for c_ in [plan(to)[0]] if c_ is not None)
+        best, whys = None, []
+        for _c, to in cand:
+            best, why = ok(to)
+            if best:
+                break
+            whys.append(f"{to[0]:g},{to[1]:g}: {why}")
+        if best is None:
+            raise SystemExit(f"edit: dragvia {u[:8]}: no clear spot within {DRAG_R:g} mm ({len(cand)} with the drill off "
+                             "every pad tried; nearest:\n    " + '\n    '.join(whys[:3]) + ")\n  nothing written; "
+                             "`move REF X Y --no-drag` moves the part off the via instead")
+    else:
+        to = tuple(float(x) for x in spec.split(','))
+        best, why = ok(to)
+        if best is None:
+            raise SystemExit(f"edit: dragvia {u[:8]} -> {spec}: {why}; nothing written")
+    (skew, d), to, moved, stub = best
+    cur[u] = re.sub(r'\(at \S+ \S+\)', f"(at {num(to[0])} {num(to[1])})", cur.get(u, t.text(u)), count=1)
+    fold = 0
+    for tr, a2, b2 in moved:
+        if math.dist(a2, b2) < 1e-6:                 # an in-via sliver folded to nothing
+            cur[tr['uuid']], fold = '', fold + 1
+            continue
+        seg = cur.get(tr['uuid'], t.text(tr['uuid']))
+        for k, e, old in (('start', a2, tr['a']), ('end', b2, tr['b'])):
+            if e != old:
+                seg, k2 = re.subn(rf'\({k} \S+ \S+\)', f"({k} {num(e[0])} {num(e[1])})", seg, count=1)
+                assert k2 == 1, (tr['uuid'], k)
+        cur[tr['uuid']] = seg
+    if stub:
+        t.segment(net, pl, w0, *stub)
+    near = [dict(tr, a=e, b=(e[0] + (o[0] - e[0]) * s_, e[1] + (o[1] - e[1]) * s_))
+            for tr in on for e, o in ((tr['a'], tr['b']), (tr['b'], tr['a'])) if math.dist(e, c0) < r - 1e-3
+            for s_ in [min(1.0, .5 / (tr['len'] or 1))]]
+    tear = len(tear_edits(t, near))
+    print(f"  dragvia {u[:8]} {unesc_disp(net)} {c0[0]:g},{c0[1]:g} -> {to[0]:g},{to[1]:g} ({d:.2f} mm"
+          + (', off 0/45/90' if skew else '') + f"): {len(moved) - fold} track(s) dragged"
+          + (f", {fold} in-via sliver(s) folded away" if fold else '')
+          + (f", {len(keep)} left in {vf.ref}.{vp['num']}" if keep else '')
+          + (f", stub {w0:g} mm {pl} from {vf.ref}.{vp['num']}" if stub else '')
+          + (f", {tear} teardrop(s) dropped (regenerate in KiCad)" if tear else ''))
 
 
 def _closer(ex, old, new):
@@ -810,12 +1165,19 @@ def vcenter(b, t, cur, src):
     return dropped
 
 
-def _drop_cache(s):
+def _drop_cache(s, _old=None):
     """a moved or resized TrueType text's cached outline is stale: KiCad redraws it from the font"""
     if '(render_cache' in s:
         s = re.sub(r'\n(\t+)\(render_cache .*?\n\1\)', '', s, flags=re.S)
         print("  (TrueType text: its render_cache dropped; KiCad redraws it from the font)")
     return s
+
+
+def _shift_cache(s, dx, dy):
+    """a TrueType text moved without turning: its cached outline moves with it, so `silk`
+    keeps judging the real glyphs (a dropped cache reads as a wider estimated box)"""
+    sh = lambda m: re.sub(r'\(xy (\S+) (\S+)\)', lambda q: f"(xy {num(float(q[1]) + dx)} {num(float(q[2]) + dy)})", m[0])  # noqa: E731
+    return re.sub(r'\n(\t+)\(render_cache .*?\n\1\)', sh, s, flags=re.S)
 
 
 def fp_field(s, fu):
@@ -871,15 +1233,17 @@ def c_edit(b, a):
                              f"use ref/value/hide/textsize REF; nothing written")
         return m[0]
 
-    def text_edit(pfx, fn, ops=''):
-        """apply fn to a text block, in its footprint when it is a footprint text"""
+    def text_edit(pfx, fn, ops='', cache=_drop_cache):
+        """apply fn to a text block, in its footprint when it is a footprint text; `cache`
+        then fixes its render_cache (default: dropped). cache(blk, old xy) for a move"""
         u, x = text_at(pfx, ops)
         s = cur.get(u, t.text(u))
         if x is None:
-            cur[u] = _drop_cache(fn(s, None))
+            at = re.search(r'\(at (\S+) (\S+)', s)
+            cur[u] = cache(fn(s, None), (float(at[1]), float(at[2])))
             return u
         m = fp_field(s, x['uuid'])
-        cur[u] = s[:m.start()] + _drop_cache(fn(m.group(0), sub[x['uuid']][0])) + s[m.end():]
+        cur[u] = s[:m.start()] + cache(fn(m.group(0), sub[x['uuid']][0]), (x['x'], x['y'])) + s[m.end():]
         return x['uuid']
     xy = lambda s: tuple(float(v) for v in s.split(','))      # noqa: E731
     for k, v in ops:
@@ -902,8 +1266,15 @@ def c_edit(b, a):
             print(f"  del   {u[:8]} ({t.text(u).split()[0].lstrip('(')})")
         elif k == 'seg':
             net, ly, w, p0, p1 = v
-            t.segment(net, ly, float(w), xy(p0), xy(p1))
-            print(f"  seg   {net} {ly} w {float(w):g} {p0} -> {p1}")
+            ends = []
+            for e in (xy(p0), xy(p1)):                   # within 1 um of a same-net via/pad centre: onto it
+                c = min([(v2['x'], v2['y']) for v2 in b.vias if v2['net'] == net] +
+                        [(p['x'], p['y']) for f in b.placed() for p in f.pads if p['net'] == net],
+                        key=lambda c: math.dist(c, e), default=None)
+                ends.append(c if c and 0 < math.dist(c, e) <= 1e-3 else e)
+            t.segment(net, ly, float(w), *ends)
+            snap = [f"{e[0]:g},{e[1]:g}" for e, s0 in zip(ends, (p0, p1)) if e != xy(s0)]
+            print(f"  seg   {net} {ly} w {float(w):g} {p0} -> {p1}" + (f"  (snapped onto the centre {' '.join(snap)})" if snap else ''))
         elif k == 'via':
             net, p, sd = v
             sz, dr = (float(x) for x in sd.split('/'))
@@ -1009,14 +1380,18 @@ def c_edit(b, a):
         elif k == 'text':
             from kpcb_silk import edit_text
             from kpcb_move import fp_local
-            ang = None if v[2] == 'keep' else float(v[2])
-            u = text_edit(v[0], lambda blk, f: edit_text(blk, fp_local(f, xy(v[1])) if f else xy(v[1]), ang))
+            ang, to = None if v[2] == 'keep' else float(v[2]), xy(v[1])
+            keep = lambda blk, old: _shift_cache(blk, to[0] - old[0], to[1] - old[1])   # noqa: E731
+            u = text_edit(v[0], lambda blk, f: edit_text(blk, fp_local(f, to) if f else to, ang),
+                          cache=keep if ang is None else _drop_cache)
             print(f"  text  {u[:8]} -> {v[1]} {v[2]}")
         elif k == 'mvvia':
             u = one(v[0])
             cur[u] = mvvia(b, cur.get(u, t.text(u)), u, float(v[1]))
         elif k == 'vcenter':
             instub |= vcenter(b, t, cur, v[0])
+        elif k == 'dragvia':
+            dragvia(b, t, cur, one(v[0]), v[1], a.stub)
         else:                                            # solid REF.PAD
             ref, _, pad = v[0].partition('.')
             f = b.fps.get(ref)

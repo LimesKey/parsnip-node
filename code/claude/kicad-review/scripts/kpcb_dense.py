@@ -226,7 +226,7 @@ def c_congest(b, a):
         print(f"  {bx[0]:.0f},{bx[1]:.0f} .. {bx[2]:.0f},{bx[3]:.0f}  peak {pct(max(util[k] for k in reg))}  "
               f"demand {d:.1f} vs capacity {c:.1f} track(s)  free: "
               + ' '.join(f"{ly} {v:.0%}" for ly, v in fl.items()))
-        top = sorted(nets, key=lambda n: -nets[n])
+        top = sorted(nets, key=lambda n: (-nets[n], n))      # ties by name: `through` holds sets
         print(f"    nets: {', '.join(unesc_disp(n.split('/')[-1]) for n in top[:8])}"
               + (f" +{len(top) - 8}" if len(top) > 8 else ''))
         if d <= c * 1.0:

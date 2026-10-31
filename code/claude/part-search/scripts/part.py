@@ -261,12 +261,24 @@ def c_selftest(a):
         assert [bool(LIGHT_LED.search(t)) for t in ('white LED', 'LED 5000K', 'high power LEDs',
                                                     'red LED', 'LED', 'ledger white')] \
             == [True, True, True, False, False, False], 'lighting-LED gap note'
+        import tempfile
+        from part_fpcheck import _load_confirmed
+        with tempfile.TemporaryDirectory() as td:    # a broken store stops; --confirm would rewrite it
+            src = os.path.join(td, 'b.net')          # holding only the new entries
+            miss = _load_confirmed(src)[0] == set()
+            open(os.path.join(td, 'fpcheck.json'), 'w').write('{"confirmed": [1,}')
+            try:
+                _load_confirmed(src)
+                broke = False
+            except SystemExit:
+                broke = True
+        assert miss and broke, 'fpcheck.json: missing loads empty, malformed exits'
         # the spec caps a skill description at 1024 chars; claude.ai refuses more, Claude Code clips it
         sk = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'SKILL.md')).read()
         nd = len(sk.split('description: ', 1)[1].split('\n---', 1)[0].strip())
         assert nd <= 1024, f'SKILL.md description {nd} chars > 1024'
         off = (f"OK    pick/alt parsing {_pick_selftest()}, fpcheck matcher {_fpcheck_selftest()}, "
-               f"ds names 6/6, wmsc v2 fallback, mouser normaliser, kcap bridge, lighting-LED note, "
+               f"ds names 6/6, wmsc v2 fallback, mouser normaliser, kcap bridge, lighting-LED note, broken fpcheck.json, "
                f"description {nd} chars")
     except AssertionError as e:
         off = f"FAIL  {e}"

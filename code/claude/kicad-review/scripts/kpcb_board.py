@@ -261,12 +261,15 @@ class PolyIndex:
 
     def touches(self, p, tol=0.01):
         """inside, or within tol of the outline (a shared boundary reads either way)"""
+        b = self.bbox
+        if not (b[0] - tol <= p[0] <= b[2] + tol and b[1] - tol <= p[1] <= b[3] + tol):
+            return False
         if p in self:
             return True
         c = self.cell
         return any(pt_seg_dist(p, a, b) <= tol
-                   for gx in (math.floor((p[0] - tol) / c), math.floor((p[0] + tol) / c))
-                   for gy in (math.floor((p[1] - tol) / c), math.floor((p[1] + tol) / c))
+                   for gx in range(math.floor((p[0] - tol) / c), math.floor((p[0] + tol) / c) + 1)
+                   for gy in range(math.floor((p[1] - tol) / c), math.floor((p[1] + tol) / c) + 1)
                    for a, b in self.grid.get((gx, gy), ()))
 
     def __contains__(self, p):
@@ -279,6 +282,17 @@ class PolyIndex:
             if (y1 > y) != (y2 > y) and x < x1 + (y - y1) * (x2 - x1) / (y2 - y1):
                 c = not c
         return c
+
+
+def _pidx(b, fl):
+    """a fill's PolyIndex, built once per board: GND alone has ~200 fragments. Holds the fill
+    too, so a freed fill's id reused by a new one is never served the old index"""
+    c = b.__dict__.setdefault('_pidx', {})
+    hit = c.get(id(fl))
+    if hit is None or hit[0] is not fl:
+        hit = c[id(fl)] = (fl, PolyIndex(fl['pts']))
+    return hit[1]
+
 
 def arc_pts(start, mid, end, n=8):
     """Flatten a KiCad 3-point arc into n chords. Falls back to the three given
@@ -409,7 +423,8 @@ class FP:
 
 class Zone(tuple):
     """a board-level zone: unpacks as (net, layers) like it always did, and carries
-    .outline [(x, y)], .priority, .keepout (a rule area), .uuid, .name"""
+    .outline [(x, y)], .priority, .keepout (a rule area), .uuid, .name, .connect (its pad
+    connection: thermal, yes = solid, no, thru_hole_only), .thermal_gap"""
 
     def __new__(cls, net, layers, **kw):
         z = super().__new__(cls, (net, layers))
@@ -444,10 +459,14 @@ class Board:
             pts = [(_f(q[1]), _f(q[2])) for q in (kid(kid(z, 'polygon') or [], 'pts') or [])[1:]
                    if isinstance(q, list) and q and q[0] == 'xy']
             pr = val(z, 'priority')
+            cp = kid(z, 'connect_pads') or []           # (connect_pads yes|no|thru_hole_only ...), bare = thermal
+            tg = kid(kid(z, 'fill') or [], 'thermal_gap')
             self.zones.append(Zone(net, [l for l in lays[1:] if isinstance(l, str)], outline=pts,
                                    priority=int(_f(pr)) if pr else 0, keepout=kid(z, 'keepout') is not None,
-                                   uuid=val(z, 'uuid'), name=val(z, 'name')))
-            self._fill_nodes += [(net, fp) for fp in kids(z, 'filled_polygon')]
+                                   uuid=val(z, 'uuid'), name=val(z, 'name'),
+                                   connect=cp[1] if len(cp) > 1 and isinstance(cp[1], str) else 'thermal',
+                                   thermal_gap=_f(tg[1], 0.5) if tg else 0.5))
+            self._fill_nodes += [(net, fp, val(z, 'uuid')) for fp in kids(z, 'filled_polygon')]
 
         # copper thickness per layer from the stackup (mm); outer = first+last Cu
         self.thick = {}
@@ -464,6 +483,12 @@ class Board:
         st = kid(root, 'setup') or []
         self.origins = {'page': (0.0, 0.0), 'grid': self._xy(st, 'grid_origin'),
                         'aux': self._xy(st, 'aux_axis_origin')}
+        # Board Setup > Via protection (KiCad 9+): {tenting|covering|plugging: (front, back),
+        # capping|filling: bool}; and the pad mask expansion a pad/footprint margin overrides
+        yn = lambda n, k: val(kid(st, n) or [], k) == 'yes'          # noqa: E731
+        self.viaprot = {n: (yn(n, 'front'), yn(n, 'back')) for n in ('tenting', 'covering', 'plugging')}
+        self.viaprot.update(capping=val(st, 'capping') == 'yes', filling=val(st, 'filling') == 'yes')
+        self.mask_clear = _f(val(st, 'pad_to_mask_clearance'), 0.0)
 
         # routed tracks (segments + arcs) and vias, carrying their own net names
         self.tracks, self.vias = [], []
@@ -545,14 +570,14 @@ class Board:
     @cached_property
     def fills(self):
         """the saved zone fills, per layer: most of the file, parsed on first use
-        because most commands never look at them"""
+        because most commands never look at them; 'zone' is the owning zone's uuid"""
         out = []
-        for net, fp in self._fill_nodes:
+        for net, fp, zu in self._fill_nodes:
             pts = [(float(p[1]), float(p[2])) for p in (kid(fp, 'pts') or [])[1:]
                    if isinstance(p, list) and p and p[0] == 'xy']
             if len(pts) >= 3:
                 out.append({'net': net, 'layer': val(fp, 'layer'), 'pts': pts,
-                            'area': poly_area(pts), 'bbox': bbox(pts)})
+                            'area': poly_area(pts), 'bbox': bbox(pts), 'zone': zu})
         return out
 
     # -- parsing helpers -------------------------------------------------
@@ -728,6 +753,8 @@ class Board:
         f.art = max('FB', key=lambda c: sides.count(c + '.')) if sides else None
 
         f.pads = []
+        fzc = val(node, 'zone_connect')                 # footprint override: 0 none 1 thermal 2 solid 3 THT
+        fmask = val(node, 'solder_mask_margin')         # footprint override of the board's mask expansion
         pad_pts, all_pts, crt_pts, crt_segs, fab_pts, dwg = [], [], [], [], [], []
         for p in kids(node, 'pad'):
             num = p[1] if len(p) > 1 else '?'
@@ -757,12 +784,17 @@ class Board:
             # (drill 0.8) or (drill oval 1.0 2.0) - take the widest number given
             dn = [float(t) for t in d[1:] if isinstance(t, str)
                   and re.match(r'^[\d.]+$', t)]
+            shape = p[3] if len(p) > 3 and isinstance(p[3], str) else ''
+            rr = min(sx, sy) * (_f(val(p, 'roundrect_rratio'), 0.25) if shape == 'roundrect' else
+                                0.5 if shape == 'oval' else 0.0)
             f.pads.append({'num': num, 'net': net, 'x': bx, 'y': by, 'fn': fn,
                            'type': val(p, 'pintype'), 'w': max(sx, sy),
                            'sx': sx, 'sy': sy, 'prot': prot,
-                           'shape': p[3] if len(p) > 3 and isinstance(p[3], str) else '',
+                           'shape': shape, 'rr': rr,         # rr: corner radius (roundrect, oval)
                            'kind': p[2] if len(p) > 2 else '',
                            'drill': max(dn) if dn else 0.0, 'prims': prims,
+                           'zc': int(_f(val(p, 'zone_connect') or fzc, -1)),     # -1: the zone decides
+                           'mask': _f(val(p, 'solder_mask_margin') or fmask, self.mask_clear),
                            'layers': [l for l in lays[1:] if isinstance(l, str)]})
             if net:
                 self.nets[net].append((f.ref, num))
@@ -1044,3 +1076,11 @@ def _resolve_net(b, name):
     if len(c) == 1:
         return c[0], []
     return None, c or sorted(n for n in allnets if name.lower() in n.lower())[:8]
+
+
+def solid(p, z):
+    """pad p joins zone z solid (no thermal spokes: a track off it can never starve it)"""
+    zc = p.get('zc', -1)
+    if zc in (0, 1, 2, 3):
+        return zc == 2 or zc == 3 and bool(p['drill'])
+    return getattr(z, 'connect', 'thermal') == 'yes' or getattr(z, 'connect', '') == 'thru_hole_only' and bool(p['drill'])

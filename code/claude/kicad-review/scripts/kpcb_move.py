@@ -2,11 +2,12 @@
 copper inside the clearance, copper too close to the edge, a courtyard overlap, and
 the tracks the move drags swinging into foreign copper - measured before vs after so
 only NEW hits print. It never writes the board. `drag_set`/`drag_plan` are KiCad's
-Drag (D) model, shared with the `move` writer."""
+Drag (D) model, shared with the `move` writer; `--no-drag` is KiCad's Move (M)."""
 import math, re
+from collections import defaultdict
 from kcommon import unesc_disp
 from kpcb_board import bbox, grow, hit, pad_box, poly_dist, pt_box_dist, pt_seg_dist, seg_box_dist, seg_seg_dist, xf
-from kpcb_copper import _local
+from kpcb_copper import _local, pad_dist
 from kpcb_zones import _clearance_fn
 
 
@@ -50,6 +51,9 @@ def drag_set(b, f):
     cu = b.copper
     vias = [v for v in b.vias if v['net'] and any(p['net'] == v['net'] and _on_pad(p, (v['x'], v['y'])) for p in f.pads)]
     vid = {id(v) for v in vias}
+    vnet = defaultdict(list)
+    for v in b.vias:
+        vnet[v['net']].append(v)
     ends, stay = [], 0
     for t in b.tracks:
         if not t['net']:
@@ -57,8 +61,8 @@ def drag_set(b, f):
         mine = []
         for k in ('a', 'b'):
             e = t[k]
-            on = [v for v in b.vias if v['net'] == t['net'] and t['layer'] in via_layers(v, cu)
-                  and math.dist(e, (v['x'], v['y'])) <= v['size'] / 2]
+            on = [v for v in vnet[t['net']] if math.dist(e, (v['x'], v['y'])) <= v['size'] / 2
+                  and t['layer'] in via_layers(v, cu)]
             if on:
                 if any(id(v) in vid for v in on):
                     mine.append(k)
@@ -70,6 +74,15 @@ def drag_set(b, f):
         else:
             ends += [(t, k) for k in mine]
     return ends, vias, stay
+
+
+def pad_ends(b, f):
+    """(ends, vias in its pads): drag_set's ends that sit on f's pads themselves, not on a via
+    in them - what KiCad's Move (M) leaves behind, the via and its own ends staying together"""
+    ends, vias, stay = drag_set(b, f)
+    onv = lambda t, k: any(v['net'] == t['net'] and math.dist(t[k], (v['x'], v['y'])) <= v['size'] / 2   # noqa: E731
+                           for v in vias)
+    return [(t, k) for t, k in ends if not onv(t, k)], vias, stay
 
 
 def drag_plan(b, f, x, y, rot):
@@ -85,12 +98,21 @@ def drag_plan(b, f, x, y, rot):
     return segs, [(v, *T((v['x'], v['y']))) for v in vias], stay
 
 
+class Hit(str):
+    """a hit's message carrying its gap (mm), so a caller can tell one that got worse"""
+    def __new__(cls, msg, gap):
+        h = super().__new__(cls, msg)
+        h.gap = gap
+        return h
+
+
 class World:
     """the board's copper and courtyards as obstacles, minus what moves with the item:
-    the part's own pads and the tracks ending on them (those drag), or the via"""
+    the part's own pads and the tracks ending on them (those drag), or the via. drag=False:
+    KiCad's Move (M), its tracks and in-pad vias stay put and are obstacles like the rest"""
 
-    def __init__(self, b, ref=None, via=None, skip=()):
-        self.b, cu = b, b.copper
+    def __init__(self, b, ref=None, via=None, skip=(), drag=True):
+        self.b, cu, self.drag = b, b.copper, drag
         self.clr = _clearance_fn(b)[0]
         self.ec = b.edge_clearance()
         movers = [g for g in (b.fps.get(r) for r in (ref, *skip)) if g]     # what moves: not an obstacle
@@ -98,7 +120,7 @@ class World:
                       pad_box(p)) for g in b.placed() if g not in movers for p in g.pads
                      if p['kind'] != 'np_thru_hole']
         own, moving = set(), {id(via)} if via is not None else set()
-        for g in movers:                                 # what drags with them (drag_set)
+        for g in movers if drag else ():                 # what drags with them (drag_set)
             ends, vs, _stay = drag_set(b, g)
             own |= {id(t) for t, _k in ends}
             moving |= {id(v) for v in vs}
@@ -157,8 +179,8 @@ class World:
                 need = max(self.clr(net, n2, k, 'pad', ly) for ly in L & L2)
                 gap = pt_box_dist(c, b2) - r if disk else _box_gap(bb, b2)
                 if gap < need - 1e-6:
-                    out[('pad', ref, num, name)] = (f"{name} {gap:.2f} mm from {ref}.{num} "
-                                                     f"({unesc_disp(n2) or 'no net'}), needs {need:.2f}")
+                    out[('pad', ref, num, name)] = Hit(f"{name} {gap:.2f} mm from {ref}.{num} "
+                                                     f"({unesc_disp(n2) or 'no net'}), needs {need:.2f}", gap)
             for t in near['t']:
                 if (net and t['net'] == net) or t['layer'] not in L or \
                         not hit(zone, (min(t['a'][0], t['b'][0]) - t['w'], min(t['a'][1], t['b'][1]) - t['w'],
@@ -167,9 +189,9 @@ class World:
                 need = self.clr(net, t['net'], k, 'track', t['layer'])
                 gap = (pt_seg_dist(c, t['a'], t['b']) - r if disk else seg_box_dist(t['a'], t['b'], bb)) - t['w'] / 2
                 if gap < need - 1e-6:
-                    out[('trk', id(t), name)] = (f"{name} {max(gap, 0):.2f} mm from a {unesc_disp(t['net'])} "
+                    out[('trk', id(t), name)] = Hit(f"{name} {max(gap, 0):.2f} mm from a {unesc_disp(t['net'])} "
                                                  f"track on {t['layer']} @{t['mid'][0]:.2f},{t['mid'][1]:.2f}, "
-                                                 f"needs {need:.2f}")
+                                                 f"needs {need:.2f}", gap)
             for v in near['v']:
                 if (net and v['net'] == net) or not (L & self.vl[id(v)]) or \
                         not hit(zone, grow((v['x'], v['y'], v['x'], v['y']), v['size'])):
@@ -177,19 +199,19 @@ class World:
                 need = max(self.clr(net, v['net'], k, 'via', ly) for ly in L & self.vl[id(v)])
                 gap = (math.dist((v['x'], v['y']), c) - r if disk else pt_box_dist((v['x'], v['y']), bb)) - v['size'] / 2
                 if gap < need - 1e-6:
-                    out[('via', id(v), name)] = (f"{name} {max(gap, 0):.2f} mm from a {unesc_disp(v['net'])} "
-                                                 f"via @{v['x']:.2f},{v['y']:.2f}, needs {need:.2f}")
+                    out[('via', id(v), name)] = Hit(f"{name} {max(gap, 0):.2f} mm from a {unesc_disp(v['net'])} "
+                                                 f"via @{v['x']:.2f},{v['y']:.2f}, needs {need:.2f}", gap)
             if self.b.edge_segs:
                 gap = min(pt_seg_dist(c, u, w) - r if disk else seg_box_dist(u, w, bb) for u, w in self.b.edge_segs)
                 if gap < self.ec - 1e-6:
-                    out[('edge', name)] = f"{name} {gap:.2f} mm from the board edge, needs {self.ec:g}"
+                    out[('edge', name)] = Hit(f"{name} {gap:.2f} mm from the board edge, needs {self.ec:g}", gap)
         if outline:
             ob = bbox([q for r in outline for q in r])
             for g in self.parts:
                 if g.back == back and hit(grow(ob, .01), g.crtyd):
                     d, ov = poly_dist(outline, g.outline)
                     if ov:
-                        out[('crt', g.ref)] = f"courtyard overlaps {g.ref} ({g.value})"
+                        out[('crt', g.ref)] = Hit(f"courtyard overlaps {g.ref} ({g.value})", 0.0)
         return out
 
 
@@ -206,26 +228,26 @@ class World:
                     continue
                 need, gap = self.clr(net, n2, 'track', 'pad', ly), seg_box_dist(a, c, b2) - w / 2
                 if gap < need - 1e-6:
-                    out[('spad', ref, num, name)] = (f"dragged {name} {max(gap, 0):.2f} mm from {ref}.{num} "
-                                                      f"({unesc_disp(n2) or 'no net'}), needs {need:.2f}")
+                    out[('spad', ref, num, name)] = Hit(f"dragged {name} {max(gap, 0):.2f} mm from {ref}.{num} "
+                                                      f"({unesc_disp(n2) or 'no net'}), needs {need:.2f}", gap)
             for t in near['t']:
                 if (net and t['net'] == net) or t['layer'] != ly:
                     continue
                 need, gap = self.clr(net, t['net'], 'track', 'track', ly), seg_seg_dist(a, c, t['a'], t['b']) - (w + t['w']) / 2
                 if gap < need - 1e-6:
-                    out[('strk', id(t), name)] = (f"dragged {name} {max(gap, 0):.2f} mm from a {unesc_disp(t['net'])} "
-                                                  f"track on {ly} @{t['mid'][0]:.2f},{t['mid'][1]:.2f}, needs {need:.2f}")
+                    out[('strk', id(t), name)] = Hit(f"dragged {name} {max(gap, 0):.2f} mm from a {unesc_disp(t['net'])} "
+                                                  f"track on {ly} @{t['mid'][0]:.2f},{t['mid'][1]:.2f}, needs {need:.2f}", gap)
             for v in near['v']:
                 if (net and v['net'] == net) or ly not in self.vl[id(v)]:
                     continue
                 need, gap = self.clr(net, v['net'], 'track', 'via', ly), pt_seg_dist((v['x'], v['y']), a, c) - (w + v['size']) / 2
                 if gap < need - 1e-6:
-                    out[('svia', id(v), name)] = (f"dragged {name} {max(gap, 0):.2f} mm from a {unesc_disp(v['net'])} "
-                                                  f"via @{v['x']:.2f},{v['y']:.2f}, needs {need:.2f}")
+                    out[('svia', id(v), name)] = Hit(f"dragged {name} {max(gap, 0):.2f} mm from a {unesc_disp(v['net'])} "
+                                                  f"via @{v['x']:.2f},{v['y']:.2f}, needs {need:.2f}", gap)
             if self.b.edge_segs:
                 gap = min(seg_seg_dist(a, c, u, e) for u, e in self.b.edge_segs) - w / 2
                 if gap < self.ec - 1e-6:
-                    out[('sedge', name)] = f"dragged {name} {max(gap, 0):.2f} mm from the board edge, needs {self.ec:g}"
+                    out[('sedge', name)] = Hit(f"dragged {name} {max(gap, 0):.2f} mm from the board edge, needs {self.ec:g}", gap)
         return out
 
     def move_hits(self, f, x, y, rot):
@@ -233,7 +255,7 @@ class World:
         inside its pads, and the segments its move drags"""
         if x is None:
             x, y, rot = f.x, f.y, f.rot
-        segs, vias, _stay = drag_plan(self.b, f, x, y, rot)
+        segs, vias, _stay = drag_plan(self.b, f, x, y, rot) if self.drag else ({}, [], 0)
         items, rings = placed_as(f, x, y, rot, self.b.copper)
         items += [(f"via@{v['x']:.2f},{v['y']:.2f}", v['net'], via_layers(v, self.b.copper),
                    (vx - v['size'] / 2, vy - v['size'] / 2, vx + v['size'] / 2, vy + v['size'] / 2)) for v, vx, vy in vias]
@@ -278,7 +300,7 @@ def c_movecheck(b, a):
     if not a.args or a.args[0] not in b.fps:
         print("movecheck REF X Y [ROT] | REF --scan x=X y=Y0..Y1 | via X,Y NX,NY"); return 1
     f = b.fps[a.args[0]]
-    w = World(b, ref=f.ref)
+    w = World(b, ref=f.ref, drag=not a.no_drag)
     before = w.move_hits(f, None, None, None)
     if a.scan:
         return _scan(b, a, f, w, before)
@@ -291,11 +313,17 @@ def c_movecheck(b, a):
     print(f"movecheck {f.ref} -> {x:.3f},{y:.3f}" + (f" rot {rot:g}" if rot is not None else '')
           + f"   (now {f.x:.3f},{f.y:.3f} rot {f.rot:g}; dx {x - f.x:+.3f} dy {y - f.y:+.3f})")
     print(f"  clearances: netclasses + .kicad_dru net pairs and type rules; copper to edge {w.ec:g} mm; pads as "
-          f"boxes; {len(w.own)} own track(s) drag, checked at their new position")
+          + (f"boxes; {len(w.own)} own track(s) drag, checked at their new position" if w.drag else
+             "boxes; --no-drag (Move, M): its tracks and in-pad vias stay, obstacles like the rest"))
     for k in sorted(new, key=lambda k: new[k]):
         print(f"  NEW   {new[k]}")
     if gone:
         print(f"  cleared {len(gone)} hit(s) the current spot has")
+    if not w.drag:
+        ends, vs, stay = pad_ends(b, f)
+        if ends or stay or vs:
+            print(f"  left behind: {len(ends) + stay} track end(s) on its pads, {len(vs)} via(s) in them - "
+                  "re-link them to the moved pads")
     print(f"  => {'CLEAR: nothing new' if not new else f'{len(new)} new hit(s)'}"
           + (f"  ({len(before)} at the current spot, unchanged)" if before and not new else ''))
     return 2 if new else 0
@@ -336,29 +364,55 @@ def _scan(b, a, f, w, before):
     return 0
 
 
-def via_drag(b, v, to):
-    """(new hits {key: message}, [(track, new a, new b)]): dragging via v to `to` with the track
-    ends on it (KiCad's Drag), against what it and those tracks already hit where they are"""
-    w = World(b, via=v)
-    c, r, L = (v['x'], v['y']), v['size'] / 2, via_layers(v, b.copper)
-    # an end inside the via drags; a track with both ends inside (a stub) drags only its nearer
-    # one, or the stub would fold the next track onto the new centre. An end on the rim stays.
+def via_plan(b, v, to, keep=frozenset(), tracks=None):
+    """[(track, new a, new b)]: KiCad's Drag of via v to `to`: every end inside the via goes to
+    `to`, an end on the rim stays, as does a track in `keep` (ids). A track with both ends inside
+    drags only its nearer one when its far end joins copper that stays (a kept or rim track end, a
+    pad: it then stretches to keep that join), else it folds to `to` (zero length: the writer
+    deletes it; dragging one end of a chain of in-via slivers left the next one dangling, JP13
+    2026-10-28). tracks: the candidates (default every track), for a search asking per spot"""
+    c, r = (v['x'], v['y']), v['size'] / 2
+    pool = [t for t in (b.tracks if tracks is None else tracks) if t['net'] == v['net']]
+    ins = lambda e: math.dist(e, c) < r - 1e-3                                   # noqa: E731
+    mine = [t for t in pool if id(t) not in keep and (ins(t['a']) or ins(t['b']))]
+    drag = {id(t) for t in mine}
+    def stays(t, e):
+        tol = t['w'] / 2
+        return any(o is not t and o['layer'] == t['layer'] and math.dist(e, q) <= min(tol, o['w'] / 2)
+                   and (id(o) not in drag or not ins(q)) for o in pool for q in (o['a'], o['b'])) or \
+            any(p['net'] == v['net'] and (p['drill'] or t['layer'] in p['layers']) and pad_dist(p, e, True) <= 0
+                for f in b.placed() for p in f.pads)
     moved = []
-    for t in b.tracks:
-        da, db = math.dist(t['a'], c), math.dist(t['b'], c)
-        if t['net'] != v['net'] or min(da, db) >= r - 1e-3:
-            continue
-        ka = da < r - 1e-3 and (db >= r - 1e-3 or da <= db)
-        moved.append((t, to if ka else t['a'], t['b'] if ka else to))
-    tied = [t for t, _a, _b in moved]
+    for t in mine:
+        ia, ib = ins(t['a']), ins(t['b'])
+        if ia and ib:
+            far = 'b' if math.dist(t['b'], c) >= math.dist(t['a'], c) else 'a'
+            if stays(t, t[far]):
+                ia, ib = far == 'b', far == 'a'
+        moved.append((t, to if ia else t['a'], to if ib else t['b']))
+    return moved
+
+
+def via_drag(b, v, to, w=None, keep=frozenset()):
+    """(new hits {key: message}, [(track, new a, new b)]): dragging via v to `to` with the track
+    ends on it (via_plan), against what it and those tracks already hit where they are. w: a
+    World(b, via=v) built once for a search over many spots (one per spot took ~4 min)"""
+    w = w or World(b, via=v)
+    c, r, L = (v['x'], v['y']), v['size'] / 2, via_layers(v, b.copper)
+    on = w.__dict__.setdefault('_vdt', {}).setdefault(id(v), [t for t in b.tracks if t['net'] == v['net']])
+    moved = via_plan(b, v, to, keep, on)
     box = lambda p: (p[0] - r, p[1] - r, p[0] + r, p[1] + r)                       # noqa: E731
     segs = lambda lst: [(f"{t['net'].split('/')[-1]} {t['layer']} track {k + 1}", t['net'], t['layer'], a, e, t['w'])  # noqa: E731
                         for k, (t, a, e) in enumerate(lst)]
-    before = w.hits([('via', v['net'], L, box(c))])
-    before.update(w.seg_hits(segs([(t, t['a'], t['b']) for t in tied])))
+    memo = w.__dict__.setdefault('_vdb', {})
+    key = (id(v), frozenset(keep))
+    if key not in memo:                              # what it hits where it stands: once per via
+        memo[key] = w.hits([('via', v['net'], L, box(c))])
+        memo[key].update(w.seg_hits(segs([(t, t['a'], t['b']) for t, _a, _b in moved])))
     after = w.hits([('via', v['net'], L, box(to))])
     after.update(w.seg_hits(segs(moved)))
-    return {k: m for k, m in after.items() if k not in before}, moved
+    was = memo[key]                                  # a hit it already had counts when it got worse
+    return {k: m for k, m in after.items() if k not in was or m.gap < was[k].gap - 1e-4}, moved
 
 
 def _via(b, a):

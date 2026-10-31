@@ -145,7 +145,11 @@ carries an explicit NC flag.
   parts, a 2-pin R/C/L/D/FB whose other end is GND (a shunt at the node: pad shunt,
   ESD diode, matching element), and an RF choke (an L whose far end is bypassed by
   a capacitor, or only feeds resistors >= 1k: a bias tee, an antenna-detect line).
-  Net names (`ANT`, `_RF`) count as RF only in a project with no RF netclass.
+  Net names (`ANT`, `_RF`) count as RF only in a project with no RF netclass. A DNP
+  2-pin part bridging two RF nets (a bypass across a filter: JP14 across FL2, R73
+  between GNSS_BIAS and GNSS_UFL) is a WARN on each: unfitted, its pad hangs on each
+  line as an open stub; `kpcb.py BOARD rf NET` measures how long (`OPEN STUB` over
+  lambda/50).
 - **Rails** come from names: a whole-name voltage (`+3V3`, `12V`), `KNOWN_RAILS`,
   one voltage token inside a longer name (`PD_LDO_3V3`, `3V3_GNSS`, `5V_RAW`) unless
   another token is a signal word (`5V_EN`, `PG_3V3`), and `--rail`/knet.json.

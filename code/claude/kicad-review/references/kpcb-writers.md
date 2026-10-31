@@ -12,9 +12,22 @@ applied twice, and a move+rotate and back, reproduce all 471 parsnip footprints
 byte for byte; a flipped board reads every pad mirrored in x about its footprint
 (1475/1475, 0 error) and KiCad's `export pos` agrees on side and position (465/465).
 
+**Every writer then gates its own output** (kpcb.py's dispatcher, `kpcb_tracks.gate`): the
+do-nothing copper census (dead branches, pass-through vias, segments < 0.05 mm, in-fill
+tracks by class) on the nets it touched, before vs after; an item counts as added only when
+none of its uuids was do-nothing copper before. New dead branches and pass-through vias are
+pruned from OUT when the writer is a clean-up pass (`smooth`, `widen`, `loops`, `reroute`,
+`ripup`, `unhook`: there they are a side effect); after `edit`, `route`, `move`, `place`,
+`fatten` or `stitch` they are only named with the call that takes them (a hand `edit seg`
+lays a route one piece at a time). Micro segments and in-fill tracks are always only named.
+
 **After any writer**, `kpcb.py OUT diff BEFORE.kicad_pcb` is the fingerprint: footprints,
 silk, vias, zones and teardrops identical or not; tracks removed/added/re-laid/width-only;
-net or layer changes on kept tracks (should be none); length and per-net series R deltas.
+net or layer changes on kept tracks (should be none); length and per-net series R deltas
+(a SUM over the changed tracks, not the path R: `ampacity --from --to --fills` is that), each
+net's changed region; vias added/removed with xy; items KiCad only re-uuid'd count apart.
+`--box X0,Y0,X1,Y1` limits vias and tracks to a region; `-v` lists each net's removed (-),
+added (+) and re-widened (~) segments with full coordinates.
 **Teardrops**: the writers delete the teardrops of tracks they change; kicad-cli's
 `--refill-save` re-creates one only where its track is <= 0.9x the pad/via
 (`td_width_to_size_filter_ratio`): widening dropped 1092 -> 1059, and a smooth pass's
@@ -58,6 +71,13 @@ a first parsnip pass that let routes through them split PPHV from 3 pieces into 
 Inner layers cost `--inner-cost` (1.25), a via `--via-cost` (1.5 mm), a bend `--turn`
 (0.3 cells); the inner layer under an outer layer's RF-netclass traces (their
 reference plane: In1 on parsnip) costs `--ref-cost` x that (2, so 2.5 vs In2's 1.25).
+**Plane nets** (GND, or a net pouring > 20%): a piece whose pad sits inside its own zone
+outline with >= 2 thermal spokes (1 if solid) clear of foreign copper and inside the
+outline, and no saved fill at the spoke ends yet (a stale fill), is `left to the pour` - no
+track; refill, then `airwires`. A fill already there that still leaves the pad apart is an
+island or a starved relief, so that one is routed. With an inner plane, a via costs <= 0.3
+mm, so one via into In1/In2 beats a surface run to the outer pour: a GND track is laid only
+where the pour cannot reach (2026-10-27: the routing passes had laid stubs in the pour).
 **Rip-up:** links go shortest net first, so an early route can box a later pin in
 (parsnip 2026-10-18: U22 LGA pins 4/13, REGN R54.1, D3.3, U1.4). A link that fails
 is retried with this run's own routes of other nets passable at `--rip-cost` (10 per
@@ -115,7 +135,43 @@ something just removed, so an old dangling stub elsewhere on GND is left alone (
 whole-net prune once deleted two, one C138.2 needed): a track end with no pad, via or
 fill of its net under it and no real junction (a shared endpoint that is not also this
 track's other end, or a T into another track's interior) goes, and so does a via that
-joins fewer than two LAYERS (KiCad's via_dangling). Teardrop zones on removed copper go too.
+joins fewer than two LAYERS (KiCad's via_dangling); then what the rip leaves serving no pad
+though every end still touches something (a two-layer run through two vias, a cycle: the
+leaf prune never sees it) and was not dead before (`_newly_dead`, plane nets skipped).
+Teardrop zones on removed copper go too.
+**`ripup [NET] --deadend [--box ..]`**: copper that serves no pad (`tracks --kind deadend`,
+`kpcb_copper.dead_copper`; DEADCU in kpcb.md): its wholly dead tracks and vias, a track dead
+only past its last tee cut back to the tee (the cut is in the model before the prune, which
+otherwise took the whole live track for its loose end), and a zone whose every fill fragment
+is dead; a dead fragment of a live zone is named, never touched (trim the outline by hand),
+unless the zone spans several layers and its whole fill on that layer joins no pad and only
+vias already joined on another layer (pad partition unchanged without it): then it says
+"drop LAYER from the zone", since the same area may be live on another layer and no trim
+works (CHG_BAT dff6a707 F/B/In2: B.Cu dropped, 0 new DRC, U8.22 -> Q11.1 unchanged).
+RF-netclass branches only when named. Parsnip 2026-10-28 working board: 6 branches, 25
+items, the BT1- 3 mm overhang cut back, PPHV's 605d76c3 + e852c2ce zones; `kdrc --baseline`
+0 new, unconnected 1 -> 1. A cut end that lands in a same-net via goes to its centre when
+that is on the track's line; off it, to the on-line point nearest the via centre plus a
+same-width stub onto the centre, laid only when the stub is Exact-clear (else the track is
+reported, not cut). The BT1- strap's cut at 103.95,115.50 sat 0.1 off via 103.95,115.60:
+cut there + a 3 mm stub to 115.60 is what the 2026-10-28 hand fix did (`kdrc --baseline` 0 new, no
+TRACK_NOT_CENTERED_ON_VIA in `--all`); a slant from 104.40 instead broke TP2's pad clearance.
+**`ripup [NET] --inpour [--box ..]`**: tracks wholly inside their own net's saved fill
+(centreline, both edges and end caps every 0.1 mm, in a fragment >= 4 mm2; `tracks --kind
+inpour,inpourpwr` lists them): every plane net's by default, or a NAMED net's of any kind -
+opt-in, since whether a power path may rely on its fill alone is Ryan's call (parsnip
+2026-10-28: 364 such power tracks, mostly what `fatten`'s bands now cover). No neck test:
+fill holding the whole track is at least the track's width across it everywhere, and a
+same-net track does not shape the refill; each with what its removal leaves dangling - except a candidate whose
+removal takes a track off a thermal-relief pad (the pad's zone_connect, its footprint's,
+else the zone's connect_pads): KiCad counts that track as a spoke, and Ryan's 2026-10-27 hand
+pass starved C18.1 deleting one. Candidates joined end to end go as one run, and a run is
+kept when its copper joins two pads (a decoupling return C183.2 -> U22.6/7, an IC GND pin
+to its EP U17.9 -> U17.25) or its removal leaves a remaining end loose: on nothing, on a pad
+edge (not w/2 in), in a via off its centre, or on a run reaching < 2 pads/vias (dangling in
+the pour). On bdbbaac every candidate was one Ryan kept and all 23 now stay (2026-10-28);
+`fatten --drop-track` skips these guards (its band replaces the tracks). Dry run without -o; refill + `kdrc --baseline` after (a fill
+fragment only that track kept alive goes with the refill: DRC shows it).
 
 **`unhook REF... -o OUT`** rips only the copper that served those parts: the track ends
 on their pads (on a layer the pad has) that sit on nothing else of the net - no via, no
@@ -143,32 +199,55 @@ re-routed at once and put back if they cannot be. `--pair`: a diff-pair leg whos
 already routed pays per mm for straying from the netclass pitch (diff_pair_width +
 diff_pair_gap) off the mate's tracks, so it runs alongside; the coupled length prints after.
 
-**`fatten NET... [--layers L,..] [--width W] [--minw 0.5] [--box ..] [--keep BOX;..]`** wraps
-each net's tracks (>= --minw, so sense legs stay thin) per layer in a same-net zone band W
-wide (2x the netclass width, >= 2 mm), rastered at 0.05 mm (the traced staircase fitted with
-straight edges, `simplify`, so a diagonal band is one diagonal edge), minus other nets' zone outlines
-(+0.3), pour-forbidding rule areas, the inner layer under outer RF traces (1.5 mm each
-side), a 1.0 mm halo round the GND pads of every part on the net (the GND pour keeps its
-thermal spokes: without it parsnip's -BATT band cut R41.4's ground off), bands of other nets
-from the same run and --keep boxes. Holes are slit open (one ring per zone outline); each
-zone gets its own priority above every zone on the board. Its outline (and `route --pour`'s)
-is written sharp + `(smoothing fillet) (radius 0.2)`, as `edit unround` does, so it stays
-editable in KiCad. Then refill, `airwires --since`
-(a band can cut a plane region off) and `ampacity --fills`. Parsnip 2026-10-19: PPHV
-In2/B.Cu 3 mm bands, 0 new DRC, PPHV U5->Q7 52.5 -> 32.9 mohm through the real fills.
+**`fatten NET... --amps A [--dt 10] | --width W [--layers L,..] [--minw 0.5] [--box ..] [--keep BOX;..] [--drop-track]`**
+needs a purpose, and refuses without one: `--amps A` bands only the tracks IPC-2221 says are
+too thin for A at --dt on their layer, the band exactly as wide as A needs (it names the ones
+that already carry it); `--width W` is an explicit band width. A band that only shaves a few
+mohm off a path that already carries its current is copper with no job: Ryan deleted such
+bands by hand (2026-10-28), so do not fatten "to lower R". It wraps each net's tracks (>=
+--minw, so sense legs stay thin; never copper that serves no pad, nor a track a same-net zone
+already pours - a band there is two outlines for one copper; it says how many it left out) per
+layer in a same-net zone band, minus other nets' zone outlines (+0.3), pour-forbidding rule
+areas, the inner layer under outer RF traces (1.5 mm each side), a 1.0 mm square halo round
+the GND pads of every part on the net (the GND pour keeps its thermal spokes: without it
+parsnip's -BATT band cut R41.4's ground off), bands of other nets from the same run and --keep
+boxes. Every grow is an octagon, not a disc, the raster sits on the 0.05 mm grid and the trace
+is put on 0/45/90 grid lines (`kpcb_fillet.octilinear`), so the outline reads like one drawn
+by hand: on parsnip VSYS/PPHV/+5V, median 11 corners (the round-grown bands: 22), 97% of edges
+on 0/45/90 (47%), 98% of corners on the grid (6%). A piece under 2 mm2 or squeezed to < 1.25x
+its tracks' own copper is dropped (`widen` the track instead). Holes are slit open (one ring per
+zone outline); each zone gets its own priority above every zone on the board, and is written
+sharp + `(smoothing fillet) (radius 0.2)`, as Ryan draws his own (`route --pour`'s too). Then
+refill, `airwires --since` (a band can cut a plane region off) and `ampacity --fills`.
+`--drop-track` refills a temp copy of OUT with kicad-cli (OUT itself is never a kicad-cli
+save), then deletes from OUT the banded tracks the refilled band wholly holds - `ripup NET
+--inpour` on just those, spoke guard and prune included; OUT stays unfilled. Parsnip VSYS
+B.Cu: 10 tracks, 9 s, 0 new unconnected.
 
 **`stitch NET [X,Y] [-r 1.5] [--box ..] [--n N] [--via S/D] [--in-pad]`**: through-via spots
 the router's Grid calls legal (all-layer clearances incl. `.kicad_dru` pairs, hole to hole,
 edge, rule areas), on NET copper (track body, pad, saved fill) on >= 2 layers and in no
 other net's power pour - the N nearest X,Y within -r, or N beside each NET via in --box
-(0.6-1.6 mm out). `-o` writes them `(free yes)`: KiCad re-nets a trackless via from what it
+(0.6-1.6 mm out); never on (or within 0.1 mm of) a same-net plated-hole pad's annular ring
+(it wicks solder, and the hole already ties every layer), never beside or onto copper that
+serves no pad. `-o` writes them `(free yes)`: KiCad re-nets a trackless via from what it
 touches otherwise. `--in-pad` lets one sit wholly inside a same-net SMD pad >= 3 mm2 (FET,
 fuse, inductor; never a small pad - paste wicks).
+**`stitch NET --sparse T [--keep BOX;..] [--box ..]`**: the outer-layer pour sampled every
+0.25 mm (fragments >= 4 mm2), each sample's distance to the nearest NET via or plated hole in
+its own fragment (a plated hole counts when its pad comes within its zone's thermal gap of
+the fragment: the relief keeps its centre out of the fill, so TP1.2 / J4.2 used not to); the worst first gets a via at the nearest legal spot (the search above, the
+class via then 0.5/0.2) within min(2.5, d - T/2) mm, until every sample is within T or has no
+spot (its 0.75 mm neighbourhood is given up). Prints the area > T/4/5/8 mm before and after;
+`-o` writes them free. Parsnip 5107a56, `--sparse 5 --keep 105,134,150,166` (U1's antenna and
+the GPIO_38 pocket): 7 vias, > 5 mm 186 -> 100 mm2, ~27 s.
 
 **`copper X0,Y0,X1,Y1 | X,Y -r R [--layers ..] [--net N]`** lists every track, arc, via (free
 flag), pad and zone outline touching the box with its uuid prefix; **`edit OP... -o OUT`**
 applies `width UUID W`, `del UUID` (a deleted track's teardrops go with it, or KiCad reports
-"Missing connection ... Teardrop"), `seg NET LAYER W X1,Y1 X2,Y2`, `via NET X,Y S/D` (free),
+"Missing connection ... Teardrop"), `seg NET LAYER W X1,Y1 X2,Y2` (an end within 1 um of a
+same-net via or pad centre snaps onto it; `copper` prints every decimal KiCad stored, so a
+rounded 102.661 no longer leaves an end 0.25 um off a via at 102.66125), `via NET X,Y S/D` (free),
 `solid REF.PAD` (zone_connect 2), `simplify UUID EPS` (a zone outline's corners within EPS mm
 of the edge replacing them dropped, Douglas-Peucker, refused if it would cross itself; the stale
 fill goes, refill after: 0.0625 turns a 0.05 mm raster staircase into its straight/diagonal edge;
@@ -184,7 +263,18 @@ into a bite; a hand-drawn polygon (no chord run) or one already filleted is left
 (stitching) via at the nearest legal spot within R mm by `stitch`'s search (same size, drill
 and free flag; refused with a track on it; "already on a legal spot" when nothing makes it
 move, so lay the clashing copper first) and prints the move and the net's via count within
-3 mm before/after; `vcenter all|DRC.json` snaps track ends inside a same-net via onto its
+3 mm before/after; `dragvia UUID X,Y|auto [--stub W]` moves a via WITH its tracks (KiCad's
+Drag, `kpcb_move.via_plan`) off the pad its drill sits in (`viapad`): an end still landing in
+that pad stays (the pad joins it); a chain of in-via slivers folds away (dragging one end of it
+left the next dangling); a pad-to-via stub on the pad's layer is laid only when nothing else
+joins them (the via's ring still 50 um into the pad, a same-net fill holding both). `auto`
+tries a 0.05 mm grid within 1.2 mm where the drill clears every pad's mask opening and keeps
+`stitch`'s drill spacing, ranked by every moved or new segment staying 0/45/90, then distance
+(`off 0/45/90` when none clears straight); an explicit spot is refused with what blocks it. A
+hit the via already had counts when the move makes it worse (C33.1 0.14 -> 0.05 mm read as
+"not new" before). Parsnip 2026-10-28: JP13.1, C123.2, C11.1, JP5.2 cleared, `kdrc --baseline`
+0 new; R44.1, C36.1, R20.1, U21.5 boxed (`move REF X Y --no-drag` moves the part instead).
+`vcenter all|DRC.json` snaps track ends inside a same-net via onto its
 centre and deletes segments left zero-length (in-via stubs keep the via's teardrops), a snap
 that would newly break clearance to any item skipped and listed (parsnip 2026-10-19: 307
 snapped, 479 stubs, 86 skipped, 0 new DRC errors; the project IGNOREs
@@ -206,26 +296,68 @@ segment ends on the part's pads follow ONLY on a layer that pad has (a through p
 a via inside one of its pads moves with it, and every end on that via (any layer) with
 it; an end on any other via stays tied to it. Arcs and a flip's ends stay (counted).
 Before 2026-10-19 it dragged ends on every layer inside a pad's box and left the via:
-`move C65` pulled the B.Cu/In1/In2/F.Cu ends 0.1 mm off a VSYS via-in-pad.
+`move C65` pulled the B.Cu/In1/In2/F.Cu ends 0.1 mm off a VSYS via-in-pad. `--no-drag` is
+KiCad's Move (M): the footprint alone moves, its tracks and in-pad vias stay put (the way
+to move a part OFF its via-in-pad: R20, 2026-10-28, needed a hand script); the pad ends
+left behind are counted and their teardrops dropped (a via's own ends keep theirs).
+Check the spot with `movecheck REF X Y --no-drag` first.
 
-**`smooth [NET...] [--layers ..] [--box ..] [--overlaps|--corners|--square|--pads|--jogs|--all] -o OUT`**
+**`smooth [NET...] [--layers ..] [--box ..] [--micro|--overlaps|--corners|--square|--pads|--jogs|--twins|--all] -o OUT`**
 (`kpcb_smooth.py`; it, `widen` and `loops` need a `.kicad_pro` in the board's directory,
 any stem: the rules are read by directory glob). The chain pass:
 a chain is a run of same-net, same-layer, same-width segments between anchors - a pad or
 via its END CAP touches (KiCad joins on the cap, not the centreline end: a cut through a
 cap-only contact disconnected Q14 on 2026-10-19), a 3+ junction, a width change, a T, an
 arc or a locked track; a segment whose body crosses a pad/via it does not end on is
-frozen. A DP over the chain's own vertices joins any vertex to any later one straight or
-by a 45 dogleg when clear; cost = length + bends (45: 0.5, 90: 3, acute: 15) + 2 and 10%
+frozen. Not anchors (2026-10-27, J7.A9's VBUS escape was five one-segment chains): a cap
+merely overlapping a via that has a centred end on this layer, or a pad another end
+enters (a tight bend grazing it); a node inside a pad or via whose other track is a stub
+to that via's centre, or wholly in that pad ending in a dead end or junction (the chain
+then ends there); a T
+from a node within two hops along its own path, or with both in one pad (the pad joins
+them). A DP over the chain's own vertices joins any vertex to any later one straight or
+by a 45 dogleg when clear, then straight + 45 + straight (the 45 centred, else at 1/4,
+1/3, 2/3, 3/4 of the way) where no dogleg clears: J7.A9 -> via re-laid H + 45 + H within
+11 um of Ryan's hand version. Exact holds each hole kind to its own hole_clearance (via /
+PTH / NPTH from the .kicad_dru conditions; one max of all once read J7's NPTH pegs at the
+PTH 0.28); and every re-laid path (chains, merge, jogs) must still touch each same-net pad
+and via the old one touched (`keeps`: a relaxed anchor once let a chain cut past U6.5); cost = length + bends (45: 0.5, 90: 3, acute: 15) + 2 and 10%
 per off-45 segment, the old chain always a candidate, a result > 9% longer refused; then
-leftover 90s chamfer as deep as clears. `--overlaps`: doubled same-net copper deleted,
-hairpin tips cut back to the first attachment. `--corners`: every visible corner >= 46 deg
+leftover 90s chamfer as deep as clears. `--micro` (first in `--all`): a segment under
+0.05 mm (`tracks` row `stub`) joining something at both ends (a track end, a via centre, a
+pad) is collapsed - the tracks at one end moved onto the other (the via-centre end, else the
+pad end, else the busier; the other way round when that refuses, never off a via centre),
+each moved track no closer to other copper than it was (`Exact.slack`: it turns a hair and
+its far side gains up to ~35 um, which gave 21 new clearance violations before the check);
+one with a free end (or both ends in one via) goes only when other same-net copper wholly
+covers it (then everything it touches, its cover touches); the rest are left and say why. A
+merge that would tilt a 0/45/90 neighbour off octilinear is refused (bdbbaac off-45 went 9 ->
+78 without it), and "on a via centre" means the same KiCad nm: a 0.9 um sliver deleted as
+"both ends on the centre" left UART0_RX's track off it.
+Parsnip 2026-10-28, two rounds: 222 -> 28, `kdrc --baseline` 0 new, unconnected 1 -> 1.
+`--overlaps`: doubled same-net copper deleted,
+hairpin tips cut back to the first attachment - but never the only track end centred on a
+via that other ends sit in off-centre (KiCad: TRACK_NOT_CENTERED_ON_VIA, +BATT In1
+102.66,126.52); then (`merge`) two same-width runs entering a small SMD pad (<= 4 mm2, no
+via of the net on it) at different points, joined only through its copper and "bridge"
+tracks wholly on it, are one chain to the DP (the pad as drawn: roundrect/oval corners
+round, an end within 1 um of the edge on it; a dead end whose cap is on the pad rests on
+it, so C58.1's sliver 12 um past the corner arc is a bridge, but not one lying on a track
+that reaches into the pad, U16's run onto its 2-3 strap, nor one nearer a neighbour pad), kept only if its centreline reaches as
+deep into the pad as the old copper, bridges included ("crosses the pad" let J12.2/R23.2/U1.12 become edge grazes): +5V at C40.1 (a 1.4 mm stub, a 2 um and a 17 um sliver) came out H + 45 + H, Ryan's
+shape. `--twins` (not in `--all`: a topology change): two signal runs side by side (< 1 mm,
+within 10 deg, > 1 mm outside the pad) into one pad, a star, become a daisy chain - the run
+from the farther start deleted, that start joined to the nearer start straight or by a
+dogleg at its own width, where it clears and is shorter (I2C_PMIC_SDA U5.16 -> via ->
+R37.2, as Ryan laid it). Power, GND and poured nets are left (parallel copper is lower R). `--corners`: every visible corner >= 46 deg
 at a node of two tracks (width steps included, connector at the wider width) cut at
 P1/P2 on its legs (0.05 mm steps, <= 1.5 mm), straight or a 45 dogleg, every new turn
 <= 45. `--square`: an off-45 segment ending in a same-net pad slides that end inside the
 pad onto the nearest octilinear line (<= 0.5 mm, >= w/4 inside). `--pads`: a dead-end
-trace (no other same-net track or via at its end) whose cap only grazes a same-net pad,
-or stops >= 0.05 mm short of its centre, is run onto the centre at its own width (a
+trace (no other same-net track or via at its end) whose cap only grazes a same-net pad
+(centreline end outside it or < 0.05 mm in) is run onto the centre at its own width (an end
+deeper in but off centre is left: 81 of 83 on bdbbaac, where extending only added hooks at
+JP12.3/JP2.1, a jog at J15.1 and dropped teardrops; `tracks` counts them, unlisted) (a
 narrower stub broke 21 PWR track_width rules): the end slid along its own line when that
 line runs through the centre (out to it, or back from an overshoot past the pad), else
 the last segment re-laid from its far end where the turn there stays <= 45, else a stub
@@ -238,11 +370,25 @@ mirror (B), <= 9% longer, when `Clear` passes; when exactly one free GND stitchi
 blocks it, the via is lifted, the chain re-laid, and the via put back at its own size at
 the nearest legal spot within 2.5 mm (`stitch`'s search), or the jog is left and says so.
 `--nudge` also drags exactly one blocking routed signal via (never RF/USB/pair) and the
-track ends in it <= 0.3 mm straight away, when `movecheck via` finds the drag clean. One
+track ends in it <= 0.3 mm straight away, when `movecheck via` finds the drag clean. Then,
+partial: the run slides 90..20% of the way (its bends along the lead-in and the jog leg),
+the most that clears - a smaller jog is still a win. No collapse (full, partial, lifted
+via or nudge) may leave a plane a strip of 0..0.25 mm beside another item (track, via, pad,
+another net's fill) where it filled full width before (`neck_ok`: two plane clearances <= gap
+< them + 0.25; laid copper is in the model, so a second jog sees the first), nor add a bend
+inside its own via's or pad's antipad off the centre, and a nudged via's antipad is held to
+the same strip test on every layer it spans: the 0.078 mm In1 GND CONNECTION_WIDTH
+logged 2026-10-27 was that cusp (GPIO_4 left its via by a 0.15 mm stub, then 45 deg, after a
+lifted GND via let collapse A through), not two jogs. kicad-cli reports CONNECTION_WIDTH at
+the zone's origin only. A nudge never drags a track this pass laid
+(no uuid yet: the writer crashed `KeyError: None`) nor a via or track already dragged. Diff-pair legs (skipped above) go as
+a unit: a collapse, full or partial, only with the mate's parallel run (<= 1 mm off, one
+plain neighbour each end) slid by the same vector, both cleared or neither: C_USB_B_P's
+0.25 mm jog at 140.07,145.62 slid 80% with C_USB_B_N alongside, the gap held. One
 jog per chain per pass. `tracks --kind jog` lists every jog with what blocks each side.
 Parsnip 2026-10-19 (after the hand pass): 116 jogs; 1 collapsed by a nudge, P16's GND via
 has no spot, 0 new DRC; the rest touch their own net somewhere new or are boxed in.
-`--all` chains, overlaps, corners, square, pads, repeated until a round changes nothing
+`--all` micro, chains, overlaps (+ merge), corners, square, pads, repeated until a round changes nothing
 (two fixed temp names beside the board). Clearance (`Clear`): route's Grid at 0.02 mm grown 0.8 cell (a free point is
 free wherever it rounds from) with the type rules; where the grid refuses, `Exact`
 decides - segment-to-item distances (pads exact in their frame, custom/roundrect as
@@ -253,7 +399,7 @@ where the old chain did (a sense tap keeps its one contact; GND exempt). RF/USB/
 nets are skipped. Parsnip 2026-10-19 (after the prototype pass): `--all` 18 edits in 3
 rounds (~200 s), 0 new DRC.
 
-**`widen [NET...] [--width W] [--uniform-power] -o OUT`** (`kpcb_tracks.py`): each under-width track to the
+**`widen [NET...] [--width W] [--uniform-power] [--uniform] -o OUT`** (`kpcb_tracks.py`): each under-width track to the
 widest legal step up to its target - a PWR_* class's track width, the class width for
 GND, W (0.2) for signals - checked like `smooth`. Power classes >= 1 mm go per segment
 (R first) and skip legs under 0.5 mm (sense); the rest take one width per run (joined at
@@ -266,7 +412,10 @@ centre and passed 0.016 mm). Its under-floor tracks read as `changed` in `kdrc -
 `--uniform-power` then raises every segment of a per-segment power run to the run's widest
 where that clears (never narrows; sense legs < 0.5 mm and tracks in their own fill left)
 and prints the width steps left mid-run (boxed in): parsnip 2026-10-19, +1 track
-(Net-(BT1--) B.Cu 3 -> 4 mm), 55 steps left.
+(Net-(BT1--) B.Cu 3 -> 4 mm), 55 steps left. `--uniform` does the same for any other net's
+segment narrower than its neighbours (each end a plain two-track node or a via no smaller
+than the target, never a pad: a fine-pitch neck stays): FAULT's 0.2 x 0.1 mm sliver inside
+a 0.3 run on e4545fd. A whole run at the wrong width is plain `widen --width W NET`.
 
 **`loops [NET...] [-o OUT]`** (`kpcb_tracks.py`): per signal net (not GND, power classes,
 rails or poured nets: parallel copper there is lower R), greedily the longest chain whose

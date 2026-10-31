@@ -10,7 +10,9 @@
 # feature's diff is expected - read it, don't waive it. Known non-regressions:
 # a part.py diff that is only `fx: 1 USD = ...` and the prices it scales (the FX
 # rate refreshes daily: rerun), and a golden command REV doesn't know yet (it
-# records as REV's usage error until committed).
+# records as REV's usage error until committed). REV may also be a directory holding
+# a code/claude copy: snapshot it (`mkdir S; cp -r code S/`) before a refactor on top of
+# uncommitted skill work, since HEAD would then diff the earlier work too.
 set -uo pipefail
 cd "$(git rev-parse --show-toplevel)" || exit 1
 R=code/claude K=code/claude/kicad-review P=code/claude/part-search
@@ -29,10 +31,11 @@ python3 $K/references/selftest.py --lint CLAUDE.md .claude/agents/*.md docs/TODO
 echo "== goldens: $REV's scripts vs the working tree, on a frozen copy"
 F=$(mktemp -d) H=$(mktemp -d)
 trap 'rm -rf "$F" "$H"' EXIT
-git archive "$REV" $R | tar -x -C "$H"
+if [ -d "$REV" ]; then mkdir -p "$H/code" && cp -r "$REV/$R" "$H/code/"
+else git archive "$REV" $R | tar -x -C "$H"; fi
 cp -p ./*.kicad_sch ./*.kicad_pro ./*.kicad_dru parsnip.kicad_pcb parsnip-merged.net kdrc.json \
       fp-lib-table sym-lib-table "$F"
-git show "$REV":fpcheck.json > "$F/fpcheck.json"
+if [ -d "$REV" ]; then git show HEAD:fpcheck.json; else git show "$REV":fpcheck.json; fi > "$F/fpcheck.json"
 ln -s "$PWD/lib" "$PWD/docs" "$F/"
 for T in "$H" "$PWD"; do                    # REV records, the working tree diffs
     (cd "$F" && python3 "$T/$K/references/selftest.py" --golden g parsnip.kicad_pcb parsnip-merged.net \

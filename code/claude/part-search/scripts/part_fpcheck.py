@@ -358,17 +358,19 @@ def _load_confirmed(src):
     """fpcheck.json beside the netlist: {"confirmed":[{lcsc_pkg,footprint,...}]}.
     These are package-nomenclature pairs a human/LLM has verified are the same
     body (LCSC 'DFN-8(3x3)' == KiCad 'PQFN-8...'), so fpcheck stops flagging them.
-    Returns (key set, path, loaded doc); missing/broken -> empty (nothing confirmed
-    yet). Path sits beside the board, so it commits and persists across sessions."""
+    Returns (key set, path, loaded doc); missing -> empty (nothing confirmed yet), broken
+    -> exit: `--confirm` would otherwise rewrite it holding only the new entries. Path sits
+    beside the board, so it commits and persists across sessions."""
     path = os.path.join(os.path.dirname(os.path.abspath(src)), 'fpcheck.json')
     try:
         with open(path, encoding='utf8') as fh:
             doc = json.load(fh)
-        keys = {_conf_key(e.get('lcsc_pkg'), e.get('footprint'))
-                for e in doc.get('confirmed', [])}
-        return keys, path, doc
-    except Exception:
+    except FileNotFoundError:
         return set(), path, {'confirmed': []}
+    except (OSError, ValueError) as e:
+        raise SystemExit(f"{path} is unreadable ({e}): fix it by hand; nothing was checked or written")
+    keys = {_conf_key(e.get('lcsc_pkg'), e.get('footprint')) for e in doc.get('confirmed', [])}
+    return keys, path, doc
 
 def _land_key(code, footprint, land):
     """A land confirmation holds only while the diff text (both sides' numbers)
@@ -498,9 +500,11 @@ def c_fpcheck(a):
                      'example': code, 'note': a.note or '', 'added': today})
                 added.append(f"{code}  {row['lcsc_pkg']!r} ~ {row['footprint']!r}")
         if added:
-            with open(cpath, 'w', encoding='utf8') as fh:
+            tmp = f"{cpath}.{os.getpid()}.tmp"           # whole or not at all: never a half-written store
+            with open(tmp, 'w', encoding='utf8') as fh:
                 json.dump(cdoc, fh, indent=1, ensure_ascii=False)
                 fh.write('\n')
+            os.replace(tmp, cpath)
         print(f"confirmed {len(added)} entr{'y' if len(added) == 1 else 'ies'} -> {cpath}")
         for x in added:
             print(f"  {x}")

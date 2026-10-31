@@ -12,24 +12,16 @@ to hole for a via. It prefers free board over foreign pours (cutting a plane) an
 over inner layers, and penalises bends. It prints the path; -o OUT writes it into a
 copy. KiCad's DRC on that copy is the verdict - the grid is conservative by half a
 cell, pads are their rectangle (a roundrect's corners are never assumed away)."""
-import heapq, itertools, math, re
+import argparse, heapq, itertools, math, re
 from collections import defaultdict
 from kcommon import natkey, unesc_disp
-from kpcb_board import PolyIndex, bbox, grow, inside, pad_box, pt_seg_dist, seg_seg_dist as _segd
+from kpcb_board import PolyIndex, _pidx, bbox, grow, inside, pad_box, pt_seg_dist, xf, seg_seg_dist as _segd
 from kpcb_copper import Copper, _local, _q
 from kpcb_move import cu_layers, via_layers
 from kpcb_zones import _clearance_fn, _keepouts
 from kpcb_edit import PcbText, tear_edits
 
 DIRS = [(1, 0), (1, 1), (0, 1), (-1, 1), (-1, 0), (-1, -1), (0, -1), (1, -1)]
-
-
-def _pidx(b, fl):
-    """a fill's PolyIndex, built once per board: GND alone has ~200 fragments"""
-    c = b.__dict__.setdefault('_pidx', {})
-    if id(fl) not in c:
-        c[id(fl)] = PolyIndex(fl['pts'])
-    return c[id(fl)]
 
 
 def _planes(b):
@@ -291,7 +283,8 @@ def c_pairs(b, a):
     how much of each leg runs coupled (same layer, parallel, edge gap <= 2x the
     netclass diff_pair_gap + its width) with that gap's spread. `route` lays each leg
     alone, so this is the check after it."""
-    P = [q for q in _legs(b) if not a.args or any(x in (q[0], q[1], q[0][:-1]) for x in a.args)]
+    hit = lambda x, n: n.startswith(x) or n.rsplit('/', 1)[-1].startswith(x.rsplit('/', 1)[-1])   # noqa: E731
+    P = [q for q in _legs(b) if not a.args or any(hit(x, n) for x in a.args for n in q)]   # a stem or prefix will do
     if not P:
         print("pairs: no diff pair (nets named X+/X- or XP/XN)" + (f" matching {' '.join(a.args)}" if a.args else ''))
         return 1
@@ -325,6 +318,15 @@ def c_pairs(b, a):
 # ---------------------------------------------------------------- router
 
 ONES = b'\x01' * 100000
+
+
+class _Sink:
+    """a raster nobody reads (Grid(vias=False)): paint and fill_rows skip it, a read raises"""
+    def __setitem__(self, k, v):
+        pass
+
+
+SINK = _Sink()
 
 
 def _pad_shape(p, bb):
@@ -370,29 +372,34 @@ def _iv(sh, R):
         if L < 1e-9:
             return _iv(('disk', ax, ay, hw), R)
         tx, ty = (bx - ax) / L, (by - ay) / L
-        _a, _b, fa = _iv(('disk', ax, ay, 0.0), r)
-        _a, _b, fb = _iv(('disk', bx, by, 0.0), r)
-        def f(y):
-            ivs = [iv for iv in (fa(y), fb(y)) if iv]
-            lo, hi = -1e18, 1e18
+        rr, ty0, tx0, sqrt = r * r, abs(ty) < 1e-12, abs(tx) < 1e-12, math.sqrt
+        def f(y):                                      # the end disks and the band, unioned
+            lo = None                                  # inline: every router/Clear grid's inner loop
+            d = abs(y - ay)
+            if d <= r:
+                d = sqrt(rr - d * d)
+                lo, hi = ax - d, ax + d
+            d = abs(y - by)
+            if d <= r:
+                d = sqrt(rr - d * d)
+                lo, hi = (bx - d, bx + d) if lo is None else (min(lo, bx - d), max(hi, bx + d))
+            blo, bhi = -1e18, 1e18
             c1, c2 = tx * (y - ay), ty * (y - ay)      # |n.(p-a)| <= r, 0 <= t.(p-a) <= L
-            if abs(ty) < 1e-12:
+            if ty0:
                 if abs(c1) > r:
-                    lo, hi = 1.0, 0.0
+                    blo, bhi = 1.0, 0.0
             else:
                 u1, u2 = (r + c1) / ty, (c1 - r) / ty
-                lo, hi = max(lo, ax + min(u1, u2)), min(hi, ax + max(u1, u2))
-            if abs(tx) < 1e-12:
+                blo, bhi = max(blo, ax + min(u1, u2)), min(bhi, ax + max(u1, u2))
+            if tx0:
                 if not (-1e-12 <= c2 <= L + 1e-12):
-                    lo, hi = 1.0, 0.0
+                    blo, bhi = 1.0, 0.0
             else:
                 u1, u2 = -c2 / tx, (L - c2) / tx
-                lo, hi = max(lo, ax + min(u1, u2)), min(hi, ax + max(u1, u2))
-            if lo <= hi:
-                ivs.append((lo, hi))
-            if not ivs:
-                return None
-            return min(v[0] for v in ivs), max(v[1] for v in ivs)
+                blo, bhi = max(blo, ax + min(u1, u2)), min(bhi, ax + max(u1, u2))
+            if blo <= bhi:
+                return (blo, bhi) if lo is None else (min(lo, blo), max(hi, bhi))
+            return None if lo is None else (lo, hi)
         return min(ay, by) - r, max(ay, by) + r, f
     p = sh[1]                                            # a pad at an odd angle: per point
     hx, hy = p['sx'] / 2, p['sy'] / 2
@@ -408,9 +415,10 @@ class Grid:
     """one routing window: per-layer `blocked` rasters for a track centreline of width
     w, a `vblk` raster for a through via, and a foreign-pour cost raster. Tracks/vias
     this pass laid whose `rid` is in `soft` go in sblk/svblk instead: passable at the
-    rip-up cost"""
+    rip-up cost. vias=False: only the track rasters (Clear's check paints no via rasters)"""
 
-    def __init__(self, b, net, box, res, w, vsz, vdr, layers, extra_clr=0.0, cut=False, soft=frozenset(), ownpads=True):
+    def __init__(self, b, net, box, res, w, vsz, vdr, layers, extra_clr=0.0, cut=False, soft=frozenset(), ownpads=True,
+                 vias=True):
         self.b, self.net, self.res, self.w = b, net, res, w
         self.x0, self.y0 = box[0], box[1]
         self.W = int((box[2] - box[0]) / res) + 1
@@ -423,6 +431,9 @@ class Grid:
         self.vpour = bytearray(N)                           # a via here sits in a power-island pour
         self.sblk = {ly: bytearray(N) for ly in layers} if soft else None
         self.svblk = bytearray(N) if soft else None
+        if not vias:
+            self.vblk = self.vpour = SINK
+            self.svblk = SINK if soft else None
         self.follow, self.follow_k = None, 4.0          # `route --pair`: per-layer deviation from the partner
         clr = _clearance_fn(b)[0]
         # a straight step of length s between two clear grid points dips at most
@@ -434,6 +445,8 @@ class Grid:
             return bb[2] >= gbox[0] and bb[0] <= gbox[2] and bb[3] >= gbox[1] and bb[1] <= gbox[3]
 
         def paint(ras, shape, R):
+            if ras is SINK:
+                return
             y_lo, y_hi, f = _iv(shape, R)
             W = self.W
             for jj in range(max(0, math.ceil((y_lo - self.y0) / res)), min(self.H - 1, math.floor((y_hi - self.y0) / res)) + 1):
@@ -520,16 +533,29 @@ class Grid:
                 paint(self.vblk, ('cap', u, v, 0.0), ec + vsz / 2 + m)
         if b.rings:
             ring = PolyIndex([q for r in b.rings for q in r[:-1]]) if len(b.rings) == 1 else None
+            W, x0 = self.W, self.x0
             for j in range(self.H):
                 y = self.y0 + j * res
-                ins = self.spans(ring, y) if ring else None
-                for i in range(self.W):
-                    x = self.x0 + i * res
-                    if (not any(a0 <= x <= a1 for a0, a1 in ins)) if ring is not None else not inside((x, y), b.rings):
-                        k = j * self.W + i
-                        for ly in layers:
-                            self.blk[ly][k] = 1
-                        self.vblk[k] = 1
+                if ring is None:                             # several rings: per point
+                    out = bytearray(not inside((x0 + i * res, y), b.rings) for i in range(W))
+                else:                                        # one ring: outside its spans, by slices
+                    out = bytearray(b'\x01') * W
+                    for a0, a1 in self.spans(ring, y):
+                        i0 = max(0, math.ceil((a0 - x0) / res) - 1)
+                        while i0 < W and x0 + i0 * res < a0:
+                            i0 += 1
+                        i1 = min(W - 1, math.floor((a1 - x0) / res) + 1)
+                        while i1 >= 0 and x0 + i1 * res > a1:
+                            i1 -= 1
+                        if i0 <= i1:
+                            out[i0:i1 + 1] = bytes(i1 - i0 + 1)
+                i = out.find(1)
+                while i != -1:                               # each run outside: blocked
+                    e = out.find(0, i)
+                    e = W if e == -1 else e
+                    for ras in [self.blk[ly] for ly in layers] + [self.vblk]:
+                        ras[j * W + i:j * W + e] = ONES[:e - i]
+                    i = out.find(1, e) if e < W else -1
         # keepouts (rule areas): tracks / vias not allowed
         for lys, idx, novia, _nopour, notrk in _kos(b):
             if not near(idx.bbox) or not (notrk or novia):  # copper may not even touch the area
@@ -572,6 +598,8 @@ class Grid:
         """mark every grid point inside the ring, row by row; `keep` (a raster) must be 0"""
         res, fb = self.res, idx.bbox
         out = []
+        if ras is SINK:
+            return out
         for j in range(max(0, int((fb[1] - self.y0) / res)), min(self.H, int((fb[3] - self.y0) / res) + 2)):
             for a0, a1 in self.spans(idx, self.y0 + j * res):
                 for i in range(max(0, math.ceil((a0 - self.x0) / res)), min(self.W - 1, int((a1 - self.x0) / res)) + 1):
@@ -876,22 +904,11 @@ def _ends(segs, g, path, src_q, dst_qs, w, cu):
     return pre + [(ly, u, v, w) for ly, u, v in segs] + post
 
 
-def _blob(segs, hw, res=0.1):
-    """outline [(x, y)] of the band within hw of segs [(p0, p1)]: the outer boundary of the
-    union of res-squares, its staircases fitted with straight edges (a zone outline for `--pour`)"""
-    xs, ys = [p[0] for s in segs for p in s], [p[1] for s in segs for p in s]
-    x0, y0 = min(xs) - hw - 2 * res, min(ys) - hw - 2 * res
-    W, H = int((max(xs) + hw - x0) / res) + 3, int((max(ys) + hw - y0) / res) + 3
-    on = bytearray(W * H)
-    for p0, p1 in segs:
-        y_lo, y_hi, f = _iv(('cap', p0, p1, 0.0), hw)
-        for j in range(max(0, math.ceil((y_lo - y0) / res)), min(H - 1, math.floor((y_hi - y0) / res)) + 1):
-            iv = f(y0 + j * res)
-            if iv:
-                i0, i1 = max(0, math.ceil((iv[0] - x0) / res)), min(W - 1, math.floor((iv[1] - x0) / res))
-                on[j * W + i0:j * W + i1 + 1] = ONES[:max(0, i1 - i0 + 1)]
-    L = max(_trace(on, W, H), key=_area)
-    return [(round(x0 + (ci - 0.5) * res, 4), round(y0 + (cj - 0.5) * res, 4)) for ci, cj in L]
+def _blob(segs, hw):
+    """outline [(x, y)] of the band within hw of segs [(p0, p1)] (a zone outline for `--pour`):
+    each segment octagon-grown, on the 0.05 grid, 0/45/90 edges (kpcb_power.band), holes filled"""
+    from kpcb_power import band, _outlines
+    return max(_outlines(band(segs, hw), slit=False), key=_area)
 
 
 def _area(L):
@@ -1135,6 +1152,34 @@ def rf_ref_layers(b):
     return {b.copper[1] if ly == b.copper[0] else b.copper[-2] for ly in rfl} - b.outer
 
 
+def pour_joins(b, net, q):
+    """why a refill will join piece q to its own net's pour ('' if not): a pad inside a
+    same-net zone outline on one of its layers with >= 2 thermal spokes (1 if solid) clear of
+    foreign copper and inside the outline, and no saved fill there yet (a fill already at the
+    spoke ends that still leaves the pad apart is an island or a starved relief: route it)"""
+    from kpcb_smooth import Exact
+    from kpcb_board import solid
+    zs = [(z, PolyIndex(z.outline)) for z in b.zones if z[0] == net and not z.keepout and len(z.outline) > 2]
+    for f, p in q['pads']:
+        for ly in sorted(set(b.copper) if p['drill'] else cu_layers(p['layers'], b.copper)):
+            inz = [(z, idx) for z, idx in zs if (ly in z[1] or '*.Cu' in z[1]) and (p['x'], p['y']) in idx]
+            if not inz:
+                continue
+            z, idx = max(inz, key=lambda zi: zi[0].priority)
+            ex, n = None, 0
+            for u, v, h in ((1, 0, p['sx'] / 2), (-1, 0, p['sx'] / 2), (0, 1, p['sy'] / 2), (0, -1, p['sy'] / 2)):
+                e = xf(u * h, v * h, p['x'], p['y'], p['prot'])
+                c = xf(u * (h + z.thermal_gap + 0.3), v * (h + z.thermal_gap + 0.3), p['x'], p['y'], p['prot'])
+                if any(fl['net'] == net and fl['layer'] == ly and c in _pidx(b, fl) for fl in b.fills):
+                    n = -99                          # the pour is already there: not a stale fill
+                    break
+                ex = ex or Exact(b, net, ly, 0.25, (p['x'] - 2, p['y'] - 2, p['x'] + 2, p['y'] + 2))
+                n += c in idx and ex.seg(e, c)
+            if n >= (1 if solid(p, z) else 2):
+                return f"{f.ref}.{p['num']} sits in its {ly} zone '{z.name}' and {n} spoke(s) land"
+    return ''
+
+
 def c_route(b, a):
     if a.pending:                                   # every net airwires lists, shortest first
         gaps = []
@@ -1317,6 +1362,11 @@ def c_route(b, a):
             print(f"{unesc_disp(net)}: netclass {nc} - hand-route impedance-controlled nets "
                   f"(--force to route it anyway)"); rc = 1; continue
         cls, widths, vsz, vdr = settings(net)
+        # a plane net (GND): its inner plane is one cheap via away, so a via into it beats a
+        # surface run to the outer pour; and a pad the refill will join gets no track at all
+        plane = any((net, ly) in _planes(b) for ly in b.copper)
+        inner = any((net, ly) in _planes(b) for ly in b.copper if ly not in b.outer)
+        ap = argparse.Namespace(**{**vars(a), 'via_cost': min(a.via_cost, 0.3)}) if inner else a
         follow = None
         if a.pair:                                       # the other leg already routed: run alongside it
             mate = next((q[1] if q[0] == net else q[0] for q in _legs(b) if net in q), None)
@@ -1337,7 +1387,14 @@ def c_route(b, a):
             src = min(todo, key=lambda q: len(q['pads']))
             others = [q for q in Q if q is not src]
             label = key(src)
-            res, why = route_link(b, net, src, others, a, widths, vsz, vdr, layers, lcost, follow=follow)
+            joins = pour_joins(b, net, src) if plane else ''
+            if joins:                                    # a refill does it: no track in the pour
+                print(f"{unesc_disp(net)}: {label} - left to the pour: {joins}, no saved fill there yet "
+                      f"(refill, then `airwires {unesc_disp(net)}`)")
+                failed.add(label)
+                last = None
+                continue
+            res, why = route_link(b, net, src, others, ap, widths, vsz, vdr, layers, lcost, follow=follow)
             ripped, band = None, 0.0
             if not res and rips < a.rips:
                 ripped, note = rip(net, src, others, cls, widths, vsz, vdr)

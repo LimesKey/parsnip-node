@@ -54,7 +54,9 @@ board (the loop and each writer's model are in [kpcb-writers](kpcb-writers.md)):
    `ripup --drc r0.json` to clear shorts, clearance hits and dangling copper.
 3. `place REF` (decoupling caps: `--near IC`) one part at a time, writing each before
    the next so it sees the last; `airwires` for what is left.
-4. `route --pending` (or `route NET...`), then `kdrc.py COPY drc --refill-save
+4. Refill before reading GND's airwires (`kdrc --refill-save`): a stale fill shows links the
+   pour already makes, and `route GND` leaves a pad the refill will join (`left to the pour`).
+   `route --pending` (or `route NET...`), then `kdrc.py COPY drc --refill-save
    --baseline r0.json`: a clean step reads `0 new`. Hand-route RF nets (refused) and
    check power nets with `ampacity`.
 5. `airwires --since <the copy before step 4>` (both refilled): a net in more pieces
@@ -63,35 +65,78 @@ board (the loop and each writer's model are in [kpcb-writers](kpcb-writers.md)):
 **"Make this power path carry X A" (after routing, on the scratch copy).** Budgets: kpcb.json
 `current{}`, else the `ampacity` scan's derived ones. Then per path:
 1. `ampacity --from SRC --to LOAD --amps X --fills` - R, Vdrop and the neck, through the real fills.
-2. `fatten NET [--layers ..] -o n.kicad_pcb` - bands round its tracks; refill (`kdrc --refill-save
-   --baseline`), `airwires --since` the copy before it (a band can cut a plane off).
+2. `widen NET -o n.kicad_pcb` first (a wider track is no new zone); then, only for what step 1
+   still calls too thin, `fatten NET --amps X [--layers ..] -o n.kicad_pcb` - bands round the
+   tracks too thin for X; refill (`kdrc --refill-save --baseline`), `airwires --since` the copy
+   before it (a band can cut a plane off). A path that already carries X needs no band.
 3. `stitch NET --box ..` at each layer change the solve showed crowding; `-o` writes free vias.
 4. `ampacity ... --fills` again; what is left needs a placement change, say so.
 A spot no via fits: `stitch NET X,Y -r 2` says so in one call; `copper BOX` + `edit` for the
 hand fix (a width, a stray stub, `solid REF.PAD` for a pad on spokes that must carry current).
 
+**What Ryan's own clean-up did (2026-10-27/28: ~574 segments deleted, ~508 laid by hand), so
+the bar is his, not the census's:** he deleted every GND track stub that ended in the pour beside a pad
+the pour already reached (12, plus pad-to-pad GND tracks the pour duplicates; a 1-spoke 0402
+thermal is fine, TODO.md), the `route`/`fatten` bands that duplicated his own zones or only
+padded a track, and re-laid signal runs as one straight run with one 45 and their vias on the
+track axis or in the via row beside them. His zones are blocks over a pad group, <= 22 corners
+on 0/45/90, never a band tracing a track. Net: -84 mm of copper; the 10-28 session 0 new DRC
+errors, +2 STARVED_THERMAL warnings; the census jog count did not drop, so never chase `jog` rows at the
+cost of those conventions. "Improve the routing" never means adding copper: no stub, band or
+zone without a current or a connection it is needed for.
+
 **"Clean up the routing" / "make the traces look nice" (after it is complete, on the scratch
 copy).** What a reviewer calls clean, each measured by a `tracks` row, so "done" is a number:
-every track octilinear (`off45`), no corner past 45 deg (`90`, `acute`), one width per run
-(`neck`), no stub under 0.05 mm (`stub`), every dead end on its pad's centre (`pad`), no lane
-jogs (`jog`), every signal net close to its shortest path with few vias (`detour`), no
-redundant parallel chain (`loops`), power at its class width (`widen`). The writers are in
-[kpcb-writers](kpcb-writers.md); after each step `kdrc.py COPY drc --refill-save --baseline
-r0.json` (0 new) and `kpcb.py COPY diff BEFORE.kicad_pcb` (no net/layer change on kept tracks):
+no copper that serves no pad (`deadend`, GND stubs included), no zone outline hard to edit
+(`zonepts`) or pouring a same-net zone's copper again (`zonedup`: delete the script band), no segment under 0.05 mm (`stub`), no track the pour
+already is (`inpour`, and `inpourpwr` for the power nets Ryan opts in), every track octilinear
+(`off45`), no corner past 45 deg (`90`, `acute`), one width per run (`neck`), every dead end on
+its pad's centre (`pad`), no lane jogs (`jog`), every signal net close to its shortest path with
+few vias (`detour`), no redundant parallel chain (`loops`), power at its class width (`widen`).
+`review` prints the do-nothing totals in one line. The writers are in
+[kpcb-writers](kpcb-writers.md); each `-o` run names any do-nothing copper it added on the
+nets it touched (the clean-up passes prune their own new dead branches). After each step
+`kdrc.py COPY drc --refill-save --baseline r0.json` (0 new) and `kpcb.py COPY diff
+BEFORE.kicad_pcb` (no net/layer change on kept tracks; its last line is the do-nothing delta):
 1. `kpcb.py COPY tracks --view census.png` - the baseline numbers, and why each row was left.
-2. `reroute -o n.kicad_pcb` - the detours first (it re-lays whole nets; the others polish what
-   is there): each kept only when shorter or with fewer vias.
-3. `smooth --all -o n.kicad_pcb` - chains tight and octilinear, doubled copper, corners, pad ends.
-4. `smooth --jogs --nudge -o n.kicad_pcb` - lane jogs, lifting a stitching via when one blocks.
-5. `widen -o n.kicad_pcb` (`--uniform-power`) - under-width tracks to their class width.
-6. `loops -o n.kicad_pcb` - redundant chains on signal nets.
-7. `tracks` again: the rest are anchors, width steps or boxed in at the real clearance; quote the
-   before/after counts. `ends at a pad edge` rows left by steps 5-6: `smooth --pads -o n.kicad_pcb`.
+2. `ripup --deadend -o n.kicad_pcb` - copper hanging off one point that serves no pad (a band
+   left round it goes with it when its whole zone is dead; else trim the zone by hand); on GND
+   only track stubs, never a pour island or the via holding it.
+3. `smooth --micro -o n.kicad_pcb`, twice - segments under 0.05 mm merged into their neighbours.
+4. `loops -o n.kicad_pcb` - redundant chains on signal nets.
+5. `smooth --overlaps -o n.kicad_pcb` - doubled copper, hairpin tips, runs joined only through a pad.
+6. Refill, then `ripup GND --inpour -o n.kicad_pcb` for plane tracks inside their own pour
+   (thermal-pad spokes kept; the stubs the rip leaves go with it - before 2026-10-28 they stayed,
+   and Ryan deleted them by hand), then `ripup NET --inpour` for each power net Ryan has opted in
+   (whether a power path may rely on its fill alone is his call); refill + `kdrc --baseline`.
+7. `reroute -o n.kicad_pcb` - the detours (it re-lays whole nets; the rest polish what is there):
+   each kept only when shorter or with fewer vias.
+8. `smooth --all -o n.kicad_pcb` - chains tight and octilinear, corners, pad ends.
+9. `smooth --jogs --nudge -o n.kicad_pcb` - lane jogs, lifting a stitching via when one blocks
+   (twice: one jog per chain per pass); `smooth --twins` for `twin` rows (star -> daisy chain).
+10. `widen -o n.kicad_pcb` (`--uniform-power`, `--uniform`) - under-width tracks to their class
+   width, slivers narrower than their neighbours to theirs.
+11. `tracks` again: done when every do-nothing row (`deadend`, `stub`, `inpour`, and the opted-in
+   `inpourpwr` nets) reads 0 or is one Ryan accepted; the rest are anchors, width steps or boxed
+   in at the real clearance. Quote the before/after counts. `ends at a pad edge` rows left by
+   steps 9-10: `smooth --pads -o n.kicad_pcb`.
 Hand fixes for what is left: `copper BOX` for uuids, `edit seg/del/width`, `movecheck via` for a
-via in the way. Never chase a row the census calls hidden or boxed in by re-routing a dense
-neighbourhood by hand: `reroute NET` it, or leave it. A pin `route` calls boxed in: `vscan NET
-BOX --layers L` shows the cells it saw. A part to re-place without its old routes: `unhook REF
--o n.kicad_pcb`, then `place`/`route`.
+via in the way, `view BOX --by-net --layers L` to see which net a pour belongs to. Never chase a
+row the census calls hidden or boxed in by re-routing a dense neighbourhood by hand: `reroute
+NET` it, or leave it. A pin `route` calls boxed in: `vscan NET BOX --layers L` shows the cells
+it saw. A part to re-place without its old routes: `unhook REF -o n.kicad_pcb`, then
+`place`/`route`. A new power band: `fatten NET --drop-track -o n.kicad_pcb` deletes the tracks the
+refilled band then wholly holds (OUT stays unfilled).
+
+**"Did my hand edit help?" / "evaluate this edit vs HEAD"** (a board Ryan edited in KiCad).
+1. `git show HEAD:parsnip.kicad_pcb > OLD/parsnip.kicad_pcb`; `kdrc.py BOARD scratch NEW` and
+   the same for OLD (each with the project beside it), `kdrc.py X drc --refill-save --report`
+   on both: the DRC delta is `kdrc.py NEW drc --baseline old.json` (0 new is the bar).
+2. `kpcb.py NEW diff OLD --box X0,Y0,X1,Y1 -v` - what changed in the region, per net, with
+   coordinates (re-uuid'd copper counts apart); `tracks --box ..` on both - the census delta.
+3. Power nets the diff names: `ampacity --from A --to B --fills` on both (the diff's series R
+   is a sum, not the path R); planes: `zones REF` under the parts touched; pairs: `pairs STEM`.
+4. Report each change as better / same / worse with the numbers; never "looks fine".
 
 **"Route this dense area" / "how do I fit these traces" (high density, on the scratch copy).**
 Order matters more than any single route; dense boards fail on the last 10 links:
@@ -200,7 +245,8 @@ uvx pyflakes scripts/*.py        # must print nothing (exit 0)
 ```
 
 In the parsnip repo `code/claude/verify.sh` runs all of this, part-search's
-selftest and the goldens (HEAD vs the working tree on a frozen copy) in one go.
+selftest and the goldens (HEAD vs the working tree on a frozen copy) in one go;
+`verify.sh DIR` takes a `DIR/code/claude` snapshot as the baseline instead of HEAD.
 
 `selftest.py` is the source of truth for the exact commands and expected counts -
 one `(label, argv, exit, substrings)` line per check, so covering a new rule is a

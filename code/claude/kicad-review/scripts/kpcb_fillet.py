@@ -158,6 +158,84 @@ def clean(Q, tol=0.002):
     return Q
 
 
+def _pseg(p, a, b):
+    dx, dy = b[0] - a[0], b[1] - a[1]
+    L2 = dx * dx + dy * dy
+    s = max(0.0, min(1.0, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / L2)) if L2 else 0.0
+    return math.dist(p, (a[0] + s * dx, a[1] + s * dy))
+
+
+def _ring_dist(p, Q):
+    return min(_pseg(p, Q[i - 1], Q[i]) for i in range(len(Q)))
+
+
+def octilinear(P, tol=0.05, grid=0.05):
+    """P with every edge that lies within tol of a 0/45/90 line put on that line, the line on
+    the grid (a row or column of it, a diagonal through its points), runs on one line merged
+    and each corner re-cut where its two lines meet: a raster trace's 43.6-deg staircase fit
+    becomes the 45 it stands for and its corners sit on the grid, as a hand-drawn zone's do.
+    An edge further off keeps its own line; two parallel neighbours meet in a square step at
+    their old corner. P itself when the result would cross itself or stray > 2 tol from P"""
+    P = clean(P)
+    n = len(P)
+    if n < 4:
+        return P
+    lines = []                                   # (key, point, unit dir); key (k, c) for a snapped line
+    for i in range(n):
+        a, b = P[i], P[(i + 1) % n]
+        dx, dy = b[0] - a[0], b[1] - a[1]
+        ln = math.hypot(dx, dy)
+        th = math.degrees(math.atan2(dy, dx))
+        k = round(th / 45)
+        mx, my = (a[0] + b[0]) / 2, (a[1] + b[1]) / 2
+        if ln / 2 * abs(math.sin(math.radians(th - 45 * k))) > tol:
+            lines.append((None, (mx, my), (dx / ln, dy / ln)))
+            continue
+        u = (round(math.cos(math.radians(45 * k)), 12), round(math.sin(math.radians(45 * k)), 12))
+        k %= 4
+        if k == 0:
+            c = round(my / grid) * grid; pt = (mx, c)
+        elif k == 2:
+            c = round(mx / grid) * grid; pt = (c, my)
+        elif k == 1:                             # x - y = c
+            c = round((mx - my) / grid) * grid; t = (mx - my - c) / 2; pt = (mx - t, my + t)
+        else:                                    # x + y = c
+            c = round((mx + my) / grid) * grid; t = (mx + my - c) / 2; pt = (mx - t, my - t)
+        lines.append(((k, round(c / grid)), pt, u))
+    s = next((i for i in range(n) if lines[i][0] is None or lines[i][0] != lines[i - 1][0]), None)
+    if s is None:
+        return P
+    merged, olds = [], []                        # one line per run, and the old corner ending the run
+    for j in range(n):
+        i = (s + j) % n
+        if merged and lines[i][0] is not None and lines[i][0] == merged[-1][0]:
+            olds[-1] = P[(i + 1) % n]
+            continue
+        merged.append(lines[i])
+        olds.append(P[(i + 1) % n])
+    m = len(merged)
+    if m < 3:
+        return P
+    Q = []
+    for j in range(m):
+        p1, u1 = merged[j][1:]
+        p2, u2 = merged[(j + 1) % m][1:]
+        cr = u1[0] * u2[1] - u1[1] * u2[0]
+        if abs(cr) < 1e-9:                       # parallel: a square step through the old corner
+            o = olds[j]
+            for p, u in ((p1, u1), (p2, u2)):
+                t = (o[0] - p[0]) * u[0] + (o[1] - p[1]) * u[1]
+                Q.append((p[0] + t * u[0], p[1] + t * u[1]))
+            continue
+        t = ((p2[0] - p1[0]) * u2[1] - (p2[1] - p1[1]) * u2[0]) / cr
+        Q.append((p1[0] + t * u1[0], p1[1] + t * u1[1]))
+    Q = clean([(round(x, 4), round(y, 4)) for x, y in Q], 1e-4)
+    if len(Q) < 3 or not simple(Q) or any(_ring_dist(q, P) > 2 * tol for q in Q) \
+            or any(_ring_dist(p, Q) > 2 * tol for p in P):
+        return P
+    return Q
+
+
 def simple(Q):
     """no two non-adjacent edges cross"""
     n = len(Q)

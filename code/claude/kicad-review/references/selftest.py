@@ -51,11 +51,11 @@ CASES = [
     ("knet draw",    ['knet.py', NET, 'draw', 'U1', '-d', '2', '-o', svg1], 0, []),
     ("ksch render",  ['ksch.py', 'render', '-o', svg2, KSCH],   0, []),   # + no ERROR (checked below)
     ("kdrc selftest", ['kdrc.py', '--selftest'],                0, ["14/14 passed"]),
-    ("kpcb check",   ['kpcb.py', PCB, 'check'],                 2, ["4 error, 7 warn, 3 info"]),
+    ("kpcb check",   ['kpcb.py', PCB, 'check'],                 2, ["4 error, 10 warn, 3 info"]),
     ("kpcb summary", ['kpcb.py', PCB, 'summary'],               0, ["40.00 x 30.00 mm", "placed 16"]),
     # nightly writes (transform (translate X Y) (rotate R)); read as (at) it parks all at 0,0
     ("kpcb nightly", ['kpcb.py', PCB3, 'summary'],              0, ["pcbnew 10.99", "placed 16"]),
-    ("kpcb nightly check", ['kpcb.py', PCB3, 'check'],          2, ["4 error, 7 warn, 3 info"]),
+    ("kpcb nightly check", ['kpcb.py', PCB3, 'check'],          2, ["4 error, 10 warn, 3 info"]),
     ("kpcb map",     ['kpcb.py', PCB, 'map'],                   0, []),
     ("kpcb span",    ['kpcb.py', PCB, 'span'],                  0, ["1 net(s)"]),
     ("kpcb sheet",   ['kpcb.py', PCB, 'sheet'],                 0, ["/Test/", "/Test/Spare/"]),
@@ -79,7 +79,8 @@ CASES = [
      ["100% of samples covered  (continuous)", "27% of samples covered  (MOSTLY MISSING)"]),
     # a +3V3 via dropped on U1 pad 1's centre -> one same-net via-in-pad, no mismatch
     ("kpcb viapad",  ['kpcb.py', PCB, 'viapad'],                 0,
-     ["1 via(s) in 1 SMD pad(s)", "U1", "OK same net (+3V3)"]),
+     ["1 via drill(s) reach into 1 SMD pad mask opening(s)", "U1.1", "drill wholly in", "OK same net (+3V3)",
+      "via protection (Board Setup): none (open vias)"]),
     ("kpcb vias",    ['kpcb.py', PCB, 'vias'],                   0,
      ["2 via(s), 2 net(s)", "0.45  0.20      1  through  +3V3 1"]),
     ("kpcb viapad --signal", ['kpcb.py', PCB, 'viapad', '--signal'], 0, ["1 PWR / 0 SIG", "showing 0"]),
@@ -161,14 +162,17 @@ def mini_project(d):
         '(export (version "E") (design (source "t.kicad_sch"))'
         ' (components' + comp('J1', 'SMA') + comp('R1', '0') + comp('C1', '1p', part='C')
         + comp('L1', '27n', part='L') + comp('C2', '100n', part='C') + comp('U1', 'LNA', 'x', 'ic')
-        + comp('R2', '10') + comp('R3', '10') + ')'
+        + comp('R2', '10') + comp('R3', '10') + comp('J2', 'SMA') + comp('FL1', 'LPF', part='Filter')
+        + comp('JP1', 'BYPASS', part='Jumper')[:-1] + ' (dnp))' + comp('U2', 'PA', 'x', 'ic') + ')'
         ' (libparts (libpart (lib "x") (part "ic") (pins (pin (num "1") (name "IN") (type "input"))'
         ' (pin (num "2") (name "GND") (type "power_in")))))'
         ' (nets' + net(1, 'ANT', 'RF_50OHM', ('J1', '1'), ('R1', '1'), ('C1', '1'), ('L1', '1'), ('U1', '1'))
         + net(2, 'GND', 'Default', ('C1', '2'), ('C2', '2'), ('U1', '2'), ('J1', '2'))
         + net(3, 'VB', 'Default', ('L1', '2'), ('C2', '1'))
         + net(4, 'VCC_RF', 'Default', ('R1', '2'), ('R2', '1'), ('R3', '1'))
-        + net(5, 'N2', 'Default', ('R2', '2')) + net(6, 'N3', 'Default', ('R3', '2')) + '))')
+        + net(5, 'N2', 'Default', ('R2', '2')) + net(6, 'N3', 'Default', ('R3', '2'))
+        + net(7, 'RFA', 'RF_50OHM', ('J2', '1'), ('FL1', '1'), ('JP1', '1'))
+        + net(8, 'RFB', 'RF_50OHM', ('FL1', '2'), ('JP1', '2'), ('U2', '1')) + '))')
     # a second netlist: one cell with a low-side NMOS reverse-polarity FET (gate
     # pulled to the cell's + through R2), a bidirectional ESD part, a zener
     open(os.path.join(d, 'fet.net'), 'w').write(
@@ -518,17 +522,34 @@ def jog_board(d, nudge=False):
     y 5.5) is blocked by a free GND via at 5,6.0; collapse B (onto y 5) by a Q track at y 4.7.
     nudge: no GND via; A blocked by an R track at y 5.8, B by a Q via at 11,4.55 with its Q
     track down to 11,1 (0.1 mm down is exactly the clearance, Exact's margin refuses it: 0.15)"""
-    sd = _typed_dir(os.path.join(d, 'nudge' if nudge else 'jog'))
+    sd = _typed_dir(os.path.join(d, nudge if isinstance(nudge, str) else 'nudge' if nudge else 'jog'))
     v = _tvia(5, 6.0, 'GND').replace('\t\t(net "GND")', '\t\t(free yes)\n\t\t(net "GND")')
-    body = (_tab_fp('TP1', 2, 9, [('1', 0, 0, 1, 1, 'S')], (.6, .6)) + _tab_fp('TP2', 14, 9, [('1', 0, 0, 1, 1, 'S')], (.6, .6))
-            + _tseg(2, 9, 2, 5, 'S') + _tseg(2, 5, 8, 5, 'S') + _tseg(8, 5, 8.5, 5.5, 'S') + _tseg(8.5, 5.5, 14, 5.5, 'S')
-            + _tseg(14, 5.5, 14, 9, 'S'))
-    if nudge:
-        body += _tseg(3, 5.8, 7, 5.8, 'R') + _tvia(11, 4.55, 'Q') + _tseg(11, 4.55, 11, 1, 'Q')
+    # 'fresh': Q's track to the via has a jog of its own, listed first, so it is re-laid (no uuid)
+    # before S's nudge would drag it (KeyError: None in the writer, 2026-10-27)
+    body = (_tseg(11, 4.55, 11, 3, 'Q') + _tseg(11, 3, 13, 3, 'Q') + _tseg(13, 3, 13.3, 2.7, 'Q')
+            + _tseg(13.3, 2.7, 17, 2.7, 'Q') + _tseg(17, 2.7, 17, 1, 'Q') if nudge == 'fresh' else '')
+    body += (_tab_fp('TP1', 2, 9, [('1', 0, 0, 1, 1, 'S')], (.6, .6)) + _tab_fp('TP2', 14, 9, [('1', 0, 0, 1, 1, 'S')], (.6, .6))
+             + _tseg(2, 9, 2, 5, 'S') + _tseg(2, 5, 8, 5, 'S') + _tseg(8, 5, 8.5, 5.5, 'S') + _tseg(8.5, 5.5, 14, 5.5, 'S')
+             + _tseg(14, 5.5, 14, 9, 'S'))
+    if nudge == 'neck':                              # A: S onto y 5.5 leaves GND 0.4 mm beside R at y 6.1
+        body += _tseg(3, 6.1, 7, 6.1, 'R') + _tseg(9, 4.85, 13, 4.85, 'Q')
+    elif nudge:
+        body += _tseg(3, 5.8, 7, 5.8, 'R') + _tvia(11, 4.55, 'Q') + ('' if nudge == 'fresh' else _tseg(11, 4.55, 11, 1, 'Q'))
     else:
         body += v + _tseg(9, 4.7, 13, 4.7, 'Q')
     return _tab_board(sd, 't.kicad_pcb', 20, 12, body + _tzone('GND', 'F.Cu', .5, .5, 19.5, 11.5, 'zf')
                       + _tzone('GND', 'B.Cu', .5, .5, 19.5, 11.5, 'zb'))
+
+def cusp_board(d):
+    """typed rules, GND filled on F and B. Net S leaves via V (5,9) up to (5,8.3), 45 to (6.55,6.75),
+    a 0.55 mm jog leg to (7.1,6.75), 45 to TP2 (8,5.85). Full collapse A bends 0.15 mm off V's
+    centre, inside its antipad (the GPIO_4 In1 cusp): refused; 20% keeps the bend 0.59 mm out"""
+    sd = _typed_dir(os.path.join(d, 'cusp'))
+    body = (_tvia(5, 9, 'S') + _tab_fp('TP2', 8, 5.85, [('1', 0, 0, .6, .6, 'S')], (.4, .4))
+            + _tseg(5, 9, 5, 8.3, 'S') + _tseg(5, 8.3, 6.55, 6.75, 'S') + _tseg(6.55, 6.75, 7.1, 6.75, 'S')
+            + _tseg(7.1, 6.75, 8, 5.85, 'S'))
+    return _tab_board(sd, 't.kicad_pcb', 14, 12, body + _tzone('GND', 'F.Cu', .5, .5, 13.5, 11.5, 'zf')
+                      + _tzone('GND', 'B.Cu', .5, .5, 13.5, 11.5, 'zb'))
 
 def link_board(d):
     """sync by symbol path: R1 linked, R2 refdes-only (no path), FID1 board_only and
@@ -667,16 +688,16 @@ def stub_board(d):
 
 def dup_board(d):
     """Three padless `REF**` logos (KiCad allows duplicate refs; the third is a B.Cu
-    footprint whose art is on F.SilkS) beside one real part, R1."""
-    logo = lambda x, side, art: (f' (footprint "Logo" (layer "{side}") (at {x} 5)'
-                                 ' (property "Reference" "REF**") (property "Value" "LOGO")'
+    footprint whose art is on F.SilkS; only the first is board_only) beside one real part, R1."""
+    logo = lambda x, side, art, at='': (f' (footprint "Logo" (layer "{side}") (at {x} 5){at}'
+                                        ' (property "Reference" "REF**") (property "Value" "LOGO")'
                                  f' (fp_poly (pts (xy -1 -1) (xy 1 -1) (xy 1 1)) (layer "{art}")))')
     p = os.path.join(d, 'dup.kicad_pcb')
     open(p, 'w').write(
         '(kicad_pcb (version 20240108) (generator "pcbnew")'
         ' (layers (0 "F.Cu" signal) (2 "B.Cu" signal) (25 "Edge.Cuts" user))'
         ' (gr_rect (start 0 0) (end 20 20) (layer "Edge.Cuts"))'
-        + logo(5, 'F.Cu', 'F.SilkS') + logo(10, 'F.Cu', 'F.SilkS') + logo(15, 'B.Cu', 'F.SilkS')
+        + logo(5, 'F.Cu', 'F.SilkS', ' (attr board_only)') + logo(10, 'F.Cu', 'F.SilkS') + logo(15, 'B.Cu', 'F.SilkS')
         + ' (footprint "R_0402" (layer "F.Cu") (at 10 12) (property "Reference" "R1") (property "Value" "10k")'
         ' (pad "1" smd rect (at -0.5 0) (size 0.5 0.5) (layers "F.Cu") (net "A"))'
         ' (pad "2" smd rect (at 0.5 0) (size 0.5 0.5) (layers "F.Cu") (net "B"))))')
@@ -1064,7 +1085,7 @@ def channel_board(d):
 
 def graze_board(d):
     """10 x 6 beside typed_board's rules: net G a 0.2 track at y=1 that only grazes TP7 (1,1)
-    and stops 0.2 short of TP8's centre (8,1); net K grazes TP10 (1,4) and TP11 (8,4), with a
+    and stops 0.2 short of TP8's centre (8,1), 0.1 inside its edge: left as laid; net K grazes TP10 (1,4) and TP11 (8,4), with a
     stub from the TP10 graze to its centre (that pad's only entry: no loop); net H ends 0.08
     left of TP12 (5,5.5)'s corner, off its line (a stub, not a slide)"""
     return _tab_board(d, 'g.kicad_pcb', 10, 6,
@@ -1198,6 +1219,173 @@ def utext_board(d):
                         '\t\t(effects\n\t\t\t(font\n\t\t\t\t(size 1.5 1.5)\n\t\t\t\t(thickness 0.2)\n\t\t\t)\n\t\t)\n\t)\n')
 
 
+# ---- 2026-10-27 backlog pass
+
+def ovia_board(d, offc=True):
+    """typed rules. Net A: TP1 (8,5); ti 0.3 wide (8,5)->(10,5) ends on via V's centre, tj 0.6
+    wide (8,5)->(14,5) runs over V; offc: tk ends inside V 0.1 mm off its centre, so deleting
+    ti would leave V with an off-centre end and none centred (TRACK_NOT_CENTERED_ON_VIA)"""
+    sd = _typed_dir(os.path.join(d, 'ovia' + ('1' if offc else '0')))
+    return _tab_board(sd, 't.kicad_pcb', 20, 10, _tab_fp('TP1', 8, 5, [('1', 0, 0, .6, .6, 'A')], (.4, .4))
+                      + _tseg(8, 5, 10, 5, 'A', 0.3) + _tseg(8, 5, 14, 5, 'A', 0.6) + _tvia(10, 5, 'A')
+                      + (_tseg(10.1, 5, 10.1, 9, 'A', 0.2) if offc else ''))
+
+
+def prec_board(d):
+    """net A: a via at 10.12345,5.5 and a track 2,5.5 -> 10.12345,5.5 (copper must print every decimal)"""
+    return _tab_board(d, 'prec.kicad_pcb', 20, 10, _tvia(10.12345, 5.5, 'A') + _tseg(2, 5.5, 10.12345, 5.5, 'A'))
+
+
+def sliver_board(d):
+    """typed rules. Net S: TP1 (2,5) -> 0.3 to (6,5) -> a 0.15 sliver to (6.1,5) -> 0.3 to TP2 (12,5)"""
+    sd = _typed_dir(os.path.join(d, 'sliver'))
+    return _tab_board(sd, 't.kicad_pcb', 14, 10, _tab_fp('TP1', 2, 5, [('1', 0, 0, .6, .6, 'S')], (.4, .4))
+                      + _tab_fp('TP2', 12, 5, [('1', 0, 0, .6, .6, 'S')], (.4, .4))
+                      + _tseg(2, 5, 6, 5, 'S', 0.3) + _tseg(6, 5, 6.1, 5, 'S', 0.15) + _tseg(6.1, 5, 12, 5, 'S', 0.3))
+
+
+def _gzone(ly, outline, fill, name='GND', extra='', net='GND', uid=None):
+    sq = lambda pts: ''.join(f'\t\t\t\t(xy {x} {y})\n' for x, y in pts)   # noqa: E731
+    return (f'\t(zone\n\t\t(net "{net}")\n\t\t(layer "{ly}")\n\t\t(uuid "{uid or f"z{ly[0]}{len(outline)}"}")\n\t\t(name "{name}")\n'
+            f'{extra}\t\t(polygon\n\t\t\t(pts\n{sq(outline)}\t\t\t)\n\t\t)\n'
+            + (f'\t\t(filled_polygon\n\t\t\t(layer "{ly}")\n\t\t\t(pts\n{sq(fill)}\t\t\t)\n\t\t)\n' if fill else '')
+            + '\t)\n')
+
+
+def rect(x0, y0, x1, y1):
+    return [(x0, y0), (x1, y0), (x1, y1), (x0, y1)]
+
+
+def sparse_board(d):
+    """typed rules, 30 x 10: GND poured and filled on F and B, one GND via at 2,5: the far end
+    of the pour is ~26 mm from a via"""
+    sd = _typed_dir(os.path.join(d, 'sparse'))
+    return _tab_board(sd, 't.kicad_pcb', 30, 10, _tvia(2, 5, 'GND') + _tab_fp('TP1', 2, 2, [('1', 0, 0, .6, .6, 'GND')], (.4, .4))
+                      + _gzone('F.Cu', rect(.5, .5, 29.5, 9.5), rect(.5, .5, 29.5, 9.5))
+                      + _gzone('B.Cu', rect(.5, .5, 29.5, 9.5), rect(.5, .5, 29.5, 9.5)))
+
+
+def sparse_tht_board(d):
+    """sparse_board plus J1, a 1.4 mm round GND THT pad (0.8 drill) at 28.5,5 in a notch of both
+    fills (its relief: the centre is not in the fill): it already ties the far end, so the worst
+    point is mid-board, and no via may land on its annular ring (TP1.2 / J4.2, 2026-10-27)"""
+    sd = _typed_dir(os.path.join(d, 'sparse_tht'))
+    tht = ('\t(footprint "x:J"\n\t\t(layer "F.Cu")\n\t\t(uuid "fj1")\n\t\t(at 28.5 5)\n'
+           '\t\t(property "Reference" "J1"\n\t\t\t(at 0 -1.5 0)\n\t\t\t(layer "F.SilkS")\n\t\t\t(uuid "fj1r")\n\t\t)\n'
+           '\t\t(pad "1" thru_hole circle\n\t\t\t(at 0 0)\n\t\t\t(size 1.4 1.4)\n\t\t\t(drill 0.8)\n'
+           '\t\t\t(layers "*.Cu" "*.Mask")\n\t\t\t(net "GND")\n\t\t\t(uuid "fj1p")\n\t\t)\n\t)\n')
+    notch = [(.5, .5), (29.5, .5), (29.5, 4), (27.5, 4), (27.5, 6), (29.5, 6), (29.5, 9.5), (.5, 9.5)]
+    return _tab_board(sd, 't.kicad_pcb', 30, 10, _tvia(2, 5, 'GND') + tht
+                      + _gzone('F.Cu', rect(.5, .5, 29.5, 9.5), notch) + _gzone('B.Cu', rect(.5, .5, 29.5, 9.5), notch))
+
+
+def dead_board(d):
+    """Net P: TP1 (2,5) -> TP2 (16,5) on F, the track overshooting TP2 to 17.5 (cut back to
+    16). Via V1 (6,5) on it starts a pad-less cycle: F (6,5)->(9,8)->(12,8), via V2 (12,8), B
+    (12,8)->(6,8)->(6,5), a B pour band round the B run: dead, V1 with it. TP3 (14,2) tees in
+    at (14,5) with two thermal vias in its pad and a B pour under it: a heatsink, not dead. TP4
+    (12,2) is fed from (9,5) through V3 (9,2) and V4 (11,2) on F and B in parallel: live, until
+    `unhook TP4` leaves that cycle serving nothing"""
+    body = (_tab_fp('TP1', 2, 5, [('1', 0, 0, 1, 1, 'P')], (.6, .6)) + _tab_fp('TP2', 16, 5, [('1', 0, 0, 1, 1, 'P')], (.6, .6))
+            + _tab_fp('TP3', 14, 2, [('1', 0, 0, 2, 1.2, 'P')], (1.1, .7)) + _tab_fp('TP4', 12, 2, [('1', 0, 0, 1, 1, 'P')], (.6, .6))
+            + _tseg(2, 5, 17.5, 5, 'P', 0.3, uid='live') + _tvia(6, 5, 'P')
+            + _tseg(6, 5, 9, 8, 'P', 0.3, uid='df1') + _tseg(9, 8, 12, 8, 'P', 0.3, uid='df2') + _tvia(12, 8, 'P')
+            + _tseg(12, 8, 6, 8, 'P', 0.3, 'B.Cu', uid='db1') + _tseg(6, 8, 6, 5, 'P', 0.3, 'B.Cu', uid='db2')
+            + _tseg(14, 2, 14, 5, 'P', 0.3) + _tvia(13.5, 2, 'P') + _tvia(14.5, 2, 'P')
+            + _tseg(9, 5, 9, 2, 'P', 0.3) + _tvia(9, 2, 'P') + _tvia(11, 2, 'P') + _tseg(9, 2, 11, 2, 'P', 0.3)
+            + _tseg(9, 2, 11, 2, 'P', 0.3, 'B.Cu') + _tseg(11, 2, 12, 2, 'P', 0.3)
+            + _gzone('B.Cu', rect(5.5, 7.6, 12.5, 8.4), rect(5.5, 7.6, 12.5, 8.4), 'band', net='P', uid='zband')
+            + _gzone('B.Cu', rect(12.5, .8, 15.5, 3.2), rect(12.5, .8, 15.5, 3.2), 'sink', net='P', uid='zsink'))
+    return _tab_board(d, 'dead.kicad_pcb', 20, 10, body)
+
+
+def micro_board(d):
+    """typed rules. Net N: TP1 (2,5) -> (8,5), a 30 um link (8,5)->(8.03,5), -> TP2 (14,5): merged.
+    Net M: TP3 (2,8) -> (8,8) w0.3, then a 20 um w0.2 dot at its end, under its cap: deleted"""
+    sd = _typed_dir(os.path.join(d, 'micro'))
+    return _tab_board(sd, 't.kicad_pcb', 16, 10, _tab_fp('TP1', 2, 5, [('1', 0, 0, .6, .6, 'N')]) + _tab_fp('TP2', 14, 5, [('1', 0, 0, .6, .6, 'N')])
+                      + _tab_fp('TP3', 2, 8, [('1', 0, 0, .6, .6, 'M')]) + _tseg(2, 5, 8, 5, 'N') + _tseg(8, 5, 8.03, 5, 'N')
+                      + _tseg(8.03, 5, 14, 5, 'N') + _tseg(2, 8, 8, 8, 'M', 0.3) + _tseg(8, 8, 8.02, 8, 'M', 0.2))
+
+
+def rfbranch_board(d):
+    """RFX: TP1 (2,5) -> TP2 (18,5) on F.Cu, and a 3 mm branch (10,5)->(10,8) to JP1.1, a DNP
+    pad: an open stub, over lambda/50 at --freq 5000 (1.2 mm with no stackup, eeff 1)"""
+    jp = _tab_fp('JP1', 10, 8, [('1', 0, 0, .6, .6, 'RFX')]).replace('\t\t(layer "F.Cu")\n', '\t\t(layer "F.Cu")\n\t\t(attr smd dnp)\n', 1)
+    return _tab_board(d, 'rfbr.kicad_pcb', 20, 12, _tab_fp('TP1', 2, 5, [('1', 0, 0, .6, .6, 'RFX')])
+                      + _tab_fp('TP2', 18, 5, [('1', 0, 0, .6, .6, 'RFX')]) + jp
+                      + _tseg(2, 5, 18, 5, 'RFX', 0.3) + _tseg(10, 5, 10, 8, 'RFX', 0.3))
+
+
+def pwr_inpour_board(d):
+    """PWR (not a plane: 16 of 200 mm2) poured on F.Cu 3..11 x 4..6, its track (4,5)->(10,5) inside"""
+    return _tab_board(d, 'pwrin.kicad_pcb', 20, 10, _tseg(4, 5, 10, 5, 'PWR', 0.3, uid='tpwr')
+                      + _gzone('F.Cu', rect(3, 4, 11, 6), rect(3, 4, 11, 6), 'pwr', net='PWR', uid='zpwr'))
+
+
+def inpour_board(d):
+    """GND filled on F.Cu (a thermal zone: no connect_pads yes). t1 (4,5)->(8,5) lies in the
+    fill; t2 (12,5)->(14,5) too, but ends in TP1, a thermal pad: its track is a spoke"""
+    return _tab_board(d, 'inpour.kicad_pcb', 20, 10, _tab_fp('TP1', 14, 5, [('1', 0, 0, .6, .6, 'GND')], (.4, .4))
+                      + _tseg(4, 5, 8, 5, 'GND', 0.3) + _tseg(12, 5, 14, 5, 'GND', 0.3)
+                      + _gzone('F.Cu', rect(.5, .5, 19.5, 9.5), rect(.5, .5, 19.5, 9.5)))
+
+
+def stale_pour_board(d):
+    """GND zone over all of F.Cu, its saved fill only x < 8 (stale): TP1/TP3 in the fill, TP2
+    at 15,5 inside the zone but not yet in any fill - a refill joins it, route must not"""
+    return _tab_board(d, 'stale.kicad_pcb', 20, 10, _tab_fp('TP1', 3, 3, [('1', 0, 0, .6, .6, 'GND')], (.4, .4))
+                      + _tab_fp('TP3', 3, 7, [('1', 0, 0, .6, .6, 'GND')], (.4, .4))
+                      + _tab_fp('TP2', 15, 5, [('1', 0, 0, .6, .6, 'GND')], (.4, .4))
+                      + _gzone('F.Cu', rect(.5, .5, 19.5, 9.5), rect(.5, .5, 8, 9.5)))
+
+
+def refslot_board(d):
+    """4 layers with a stackup. Net S on F.Cu (2,5)->(18,5); In1 GND filled only x < 12, and
+    an In1 track of X at x=15 cutting across the gap under S"""
+    p = os.path.join(d, 'refslot.kicad_pcb')
+    st = ''.join(f'\t\t\t(layer "{n}"\n\t\t\t\t(type "{t}")\n\t\t\t\t(thickness {th})\n' + ('\t\t\t\t(epsilon_r 4.4)\n' if t != 'copper' else '')
+                 + '\t\t\t)\n' for n, t, th in (('F.Cu', 'copper', 0.035), ('dielectric 1', 'prepreg', 0.2), ('In1.Cu', 'copper', 0.03),
+                                                ('dielectric 2', 'core', 1.0), ('In2.Cu', 'copper', 0.03),
+                                                ('dielectric 3', 'prepreg', 0.2), ('B.Cu', 'copper', 0.035)))
+    open(p, 'w').write('(kicad_pcb\n\t(version 20260901)\n\t(generator "pcbnew")\n\t(generator_version "10.99")\n'
+                       '\t(layers\n\t\t(0 "F.Cu" signal)\n\t\t(4 "In1.Cu" signal)\n\t\t(6 "In2.Cu" signal)\n\t\t(2 "B.Cu" signal)\n'
+                       '\t\t(25 "Edge.Cuts" user)\n\t)\n\t(setup\n\t\t(stackup\n' + st + '\t\t)\n\t)\n'
+                       '\t(gr_rect\n\t\t(start 0 0)\n\t\t(end 20 10)\n\t\t(layer "Edge.Cuts")\n\t)\n'
+                       + _tseg(2, 5, 18, 5, 'S') + _tseg(15, 1, 15, 9, 'X', 0.2, 'In1.Cu')
+                       + _gzone('In1.Cu', rect(.5, .5, 12, 9.5), rect(.5, .5, 12, 9.5)) + ')\n')
+    return p
+
+
+def join_board(d):
+    """typed rules. Net N: run A TP1 (4,5.2) -> (9.8,5.2) ends inside P1 (1.0 x 1.4 at 10,5),
+    run B starts inside it at (10.2,4.8) -> TP2 (16,4.8): joined only through P1's copper"""
+    sd = _typed_dir(os.path.join(d, 'join'))
+    return _tab_board(sd, 't.kicad_pcb', 20, 10, _tab_fp('TP1', 4, 5.2, [('1', 0, 0, .6, .6, 'N')], (.4, .4))
+                      + _tab_fp('TP2', 16, 4.8, [('1', 0, 0, .6, .6, 'N')], (.4, .4))
+                      + _tab_fp('P1', 10, 5, [('1', 0, 0, 1.0, 1.4, 'N')], (.6, .8))
+                      + _tseg(4, 5.2, 9.8, 5.2, 'N', 0.3) + _tseg(10.2, 4.8, 16, 4.8, 'N', 0.3))
+
+
+def stubpad_board(d):
+    """typed rules. Net N: via V (10,7) -> P1's centre (10,5) -> a stub to (10.2,5.15), still
+    inside P1 (1.0 x 0.4) -> TP1 (13,5.15). Both P1 nodes are two-track nodes whose other end
+    sits in P1: neither may be released, or the DP cuts past P1 (U6.5, 2026-10-27)"""
+    sd = _typed_dir(os.path.join(d, 'stubpad'))
+    return _tab_board(sd, 't.kicad_pcb', 16, 10, _tab_fp('P1', 10, 5, [('1', 0, 0, 1.0, .4, 'N')], (.6, .3))
+                      + _tab_fp('TP1', 13, 5.15, [('1', 0, 0, .6, .6, 'N')], (.4, .4)) + _tvia(10, 7, 'N')
+                      + _tseg(10, 7, 10, 5, 'N') + _tseg(10, 5, 10.2, 5.15, 'N') + _tseg(10.2, 5.15, 13, 5.15, 'N'))
+
+
+def twin_board(d):
+    """typed rules. Net T: U1.1 (16,5.25) runs to R1.1 (0.6 x 0.6 at 10,5) along y 5.25, while
+    via V (13,4.75) runs there along y 4.75: twins 0.5 mm apart"""
+    sd = _typed_dir(os.path.join(d, 'twin'))
+    return _tab_board(sd, 't.kicad_pcb', 20, 10, _tab_fp('U1', 16, 5.25, [('1', 0, 0, .6, .3, 'T')], (.4, .4))
+                      + _tab_fp('R1', 10, 5, [('1', 0, 0, .6, .6, 'T')], (.4, .4)) + _tvia(13, 4.75, 'T')
+                      + _tseg(16, 5.25, 10.1, 5.25, 'T') + _tseg(13, 4.75, 10.1, 4.75, 'T'))
+
+
 GOLDEN = [['kpcb.py', '{pcb}', c] for c in ('summary', 'check', 'span', 'zones', 'rf', 'viapad', 'ic',
                                             'height', 'unplaced', 'sheet', 'map', 'review')] \
     + [['kpcb.py', '{pcb}', 'sync', '{net}'], ['kpcb.py', '{pcb}', 'ic', 'U13'],
@@ -1316,11 +1504,22 @@ def main():
     CASES.append(("kpcb smooth --jogs --nudge", ['kpcb.py', jog_board(tmp.name, True), 'smooth', '--jogs', '--nudge',
                                                  '-o', os.path.join(tmp.name, 'nudge', 'j3.kicad_pcb')], 0,
                   ["jogs: 1 collapsed, 1 via(s) moved", "B: collapsed, Q via nudged 0.15 mm to 11.000,4.400"]))
+    CASES.append(("kpcb smooth --jogs plane neck", ['kpcb.py', jog_board(tmp.name, 'neck'), 'smooth', '--jogs', '-o',
+                                                    os.path.join(tmp.name, 'neck', 'j5.kicad_pcb')], 0,
+                  ["S                            F.Cu   0.50 mm at 8.000,5.000  A: collapsed 70% of the way (the jog is now 0.15 mm)"]))
+    CASES.append(("kpcb smooth --jogs antipad cusp", ['kpcb.py', cusp_board(tmp.name), 'smooth', '--jogs', '-o',
+                                                     os.path.join(tmp.name, 'cusp', 'j6.kicad_pcb')], 0,
+                  ["S                            F.Cu   0.39 mm at 6.550,6.750  A: collapsed 20% of the way (the jog is now 0.31 mm)"]))
+    CASES.append(("kpcb smooth --jogs --nudge fresh track", ['kpcb.py', jog_board(tmp.name, 'fresh'), 'smooth', '--jogs',
+                                                           '--nudge', '-o', os.path.join(tmp.name, 'fresh', 'j4.kicad_pcb')], 0,
+                  ["jogs: 2 collapsed", "Q                            F.Cu   0.30 mm at 13.000,3.000  A: collapsed",
+                   "S                            F.Cu   0.50 mm at 8.000,5.000  A: collapsed 90%"]))
     lb, ln = link_board(tmp.name)
     CASES.append(("kpcb sync link+board_only", ['kpcb.py', lb, 'sync', ln], 2,
                   ["1 error, 0 warn, 1 info", "R2 is not linked to its symbol", "board-only footprints", "FID1"]))
     CASES.append(("knet rfstub",['knet.py', os.path.join(tmp.name, 'rf.net'), 'check', '--only', 'RFSTUB'], 0,
-                  ["ANT [RF_50OHM] has 3 populated parts on it (J1, R1, U1)", "1 warn"]))
+                  ["ANT [RF_50OHM] has 3 populated parts on it (J1, R1, U1)", "3 warn",
+                   "RFA [RF_50OHM]: DNP JP1 bridges it to RF net RFB", "RFB [RF_50OHM]: DNP JP1 bridges it to RF net RFA"]))
     # /Root/CS has one node, /Root/Sub/CS the rest: a local label on parent and child
     sp = os.path.join(tmp.name, 'split.net')
     open(sp, 'w').write(
@@ -1423,7 +1622,13 @@ def main():
     T = lambda n: os.path.join(tmp.name, n)             # noqa: E731
     pw = power_board(tmp.name)
     CASES.append(("kpcb fatten", ['kpcb.py', pw, 'fatten', 'P', '--layers', 'F.Cu', '--width', '3', '-o', T('pw2.kicad_pcb')], 0,
-                  ["fatten P F.Cu: 1 track(s) >= 0.5 mm ->", "a 3 mm band", "outline, 27 corners", "wrote "]))
+                  ["fatten P F.Cu: 1 track(s) >= 0.5 mm ->", "a 3 mm band", "outline, 12 corners", "wrote "]))
+    CASES.append(("kpcb fatten needs a purpose", ['kpcb.py', pw, 'fatten', 'P', '-o', T('pw4.kicad_pcb')], 1,
+                  ["fatten needs a purpose: --amps A"]))
+    CASES.append(("kpcb fatten --amps", ['kpcb.py', pw, 'fatten', 'P', '--amps', '3', '-o', T('pw5.kicad_pcb')], 0,
+                  ["fatten P F.Cu: 1 track(s) >= 0.5 mm -> 1 zone(s), a 1.4 mm band", "fatten P B.Cu: 1 track(s)"]))
+    CASES.append(("kpcb fatten --amps carried", ['kpcb.py', pw, 'fatten', 'P', '--amps', '1', '-o', T('pw6.kicad_pcb')], 1,
+                  ["fatten P F.Cu: 1 track(s) already carry 1 A at 10 C (>= 0.35 mm), no band", "fatten: no tracks to widen"]))
     CASES.append(("kpcb edit simplify", ['kpcb.py', stair_zone_board(tmp.name), 'edit', 'simplify', 'zstair', '0.0625',
                                          '-o', T('stair2.kicad_pcb')], 0,
                   ["simplify zstair 242 -> 3 corner(s)", "(1 stale fill polygon(s) dropped: refill)"]))
@@ -1522,12 +1727,13 @@ def main():
                   ["6 unrouted link(s)", "region(s) over 50%, worst first", "nets: N", "over capacity on every layer"]))
     gb = graze_board(T('typed'))
     CASES.append(("kpcb tracks pad ends", ['kpcb.py', gb, 'tracks', '--kind', 'pad'], 0,
-                  ["ends at a pad edge", "0.20 mm off TP8.1", "fix: smooth --pads"]))
+                  ["ends at a pad edge        3 visible  (1 more end inside their pad off centre", "0.35 mm off TP7.1",
+                   "fix: smooth --pads"]))
     CASES.append(("kpcb loops keeps a pad's only entry", ['kpcb.py', gb, 'loops', 'K'], 0, ["loops: no redundant chain"]))
     CASES.append(("kpcb smooth --pads", ['kpcb.py', gb, 'smooth', '--pads', '-o', T('typed/g2.kicad_pcb')], 0,
-                  ["pads: 4 of 4 trace end(s)", "TP12.1", "wrote "]))
+                  ["pads: 3 of 3 trace end(s)", "TP12.1", "wrote "]))
     CASES.append(("kpcb smooth --pads result", ['kpcb.py', T('typed/g2.kicad_pcb'), 'copper', '0,0,10,6'], 0,
-                  ["1.000,1.000 -> 8.000,1.000", "8.000,4.000", "4.700,5.200 -> 5.000,5.500"]))
+                  ["1.000,1.000 -> 7.800,1.000", "8.000,4.000", "4.700,5.200 -> 5.000,5.500"]))
     CASES.append(("kpcb view --tracks", ['kpcb.py', sb, 'view', 'TP3', 'TP4', '--tracks', '--net', 'S', '-o',
                                          T('st.png')], 0, ["tracks/pads/vias, no fills", "S green"]))
     db = drag_board(tmp.name)
@@ -1535,6 +1741,23 @@ def main():
                   ["dragged 2 track end(s)", "moved 1 via(s) inside its pads with it"]))
     CASES.append(("kpcb movecheck dragged segment", ['kpcb.py', db, 'movecheck', 'R1', '10', '10.5'], 2,
                   ["NEW   dragged A F.Cu", "from a C track on F.Cu"]))
+    CASES.append(("kpcb movecheck --no-drag", ['kpcb.py', db, 'movecheck', 'R1', '10', '10.5', '--no-drag'], 0,
+                  ["--no-drag (Move, M)", "left behind: 1 track end(s) on its pads, 1 via(s) in them", "CLEAR: nothing new"]))
+    CASES.append(("kpcb move --no-drag", ['kpcb.py', db, 'move', 'R1', '10', '10.5', '--no-drag', '-o', T('drag3.kicad_pcb')], 0,
+                  ["1 track end(s) on its pads stay behind (--no-drag)"]))
+    CASES.append(("kpcb move --no-drag result", ['kpcb.py', T('drag3.kicad_pcb'), 'diff', db], 0,
+                  ["moved    R1 +0.000,+0.500", "identical: vias (1)"]))
+    dv = _tab_board(_typed_dir(T('dv')), 't.kicad_pcb', 14, 10,     # A via 0.2 into TP1, a B.Cu run to TP2 (B.Cu)
+                    _tab_fp('TP1', 5, 5, [('1', 0, 0, .6, .6, 'A')])
+                    + _tab_fp('TP2', 10, 5, [('1', 0, 0, .6, .6, 'A')]).replace('"F.Cu"', '"B.Cu"')
+                    + _tvia(5.25, 5, 'A').replace('(uuid "', '(uuid "dv1', 1) + _tseg(5.25, 5, 10, 5, 'A', 0.3, 'B.Cu')
+                    + _tseg(5.25, 5, 5.25, 5.1, 'A', 0.3, 'In1.Cu') + _tseg(5.25, 5.1, 5.3, 5.15, 'A', 0.3, 'In1.Cu'))
+    CASES.append(("kpcb edit dragvia auto", ['kpcb.py', dv, 'edit', 'dragvia', 'dv1', 'auto', '-o', T('dv/d2.kicad_pcb')], 0,
+                  ["dragvia dv1", "-> 5.45,5 (0.20 mm): 1 track(s) dragged, 2 in-via sliver(s) folded away"]))
+    CASES.append(("kpcb edit dragvia stub", ['kpcb.py', dv, 'edit', 'dragvia', 'dv1', '5.8,5', '-o', T('dv/d3.kicad_pcb')], 0,
+                  ["-> 5.8,5 (0.55 mm)", "stub 0.3 mm F.Cu from TP1.1"]))
+    CASES.append(("kpcb edit dragvia refuses a pad", ['kpcb.py', dv, 'edit', 'dragvia', 'dv1', '5.3,5', '-o', T('dv/d4.kicad_pcb')], 1,
+                  ["its drill still reaches into a pad's mask opening; nothing written"]))
     pb = prune_board(tmp.name)
     json.dump({'violations': [{'type': 'clearance', 'items': [{'uuid': 't1'}]}]}, open(T('prune.json'), 'w'))
     CASES.append(("kpcb ripup prune stays local", ['kpcb.py', pb, 'ripup', '--drc', T('prune.json')], 1,
@@ -1548,6 +1771,16 @@ def main():
                    "unround zb hand: no arc runs"]))
     CASES.append(("kpcb edit unround again", ['kpcb.py', T('faceted2.kicad_pcb'), 'edit', 'unround', 'za', '-o',
                                               T('faceted3.kicad_pcb')], 0, ["za fatten P: already (smoothing fillet)"]))
+    CASES.append(("kpcb tracks zonepts", ['kpcb.py', fz, 'tracks', '--kind', 'zonepts'], 0,
+                  ["zones hard to edit        1 visible", "'fatten P' 26 corners, 24 edge(s) < 0.3 mm"]))
+    dz = _tab_board(tmp.name, 'dupzone.kicad_pcb', 20, 10, _gzone('F.Cu', rect(2, 2, 10, 8), None, 'hand', net='P', uid='zh')
+                    + _gzone('F.Cu', rect(3, 3, 9, 7), None, 'route P', net='P', uid='zr'))
+    CASES.append(("kpcb tracks zonedup", ['kpcb.py', dz, 'tracks', '--kind', 'zonedup'], 0,
+                  ["zones over own-net zone    1 visible", "'route P' 100% inside 'hand' delete the script band 'route P'"]))
+    dz2 = _tab_board(tmp.name, 'dupzone2.kicad_pcb', 20, 10, _gzone('F.Cu', rect(3, 3, 9, 7), None, 'hand', net='P', uid='zh')
+                     + _gzone('F.Cu', rect(2, 2, 10, 8), None, 'route P', net='P', uid='zr'))
+    CASES.append(("kpcb tracks zonedup keeps a band round his zone", ['kpcb.py', dz2, 'tracks', '--kind', 'zonedup'], 0,
+                  ["'hand' 100% inside 'route P' keep both: band 'route P' reaches 24.0 mm2 past 'hand'"]))
     CASES.append(("kpcb edit del teardrop", ['kpcb.py', pb, 'edit', 'del', 'td1', '-o', T('prune2.kicad_pcb')], 0,
                   ["1 teardrop(s) of deleted tracks dropped"]))
     CASES.append(("kpcb custom pad copper", ['kpcb.py', custom_pad_board(tmp.name), 'net', 'N'], 0,
@@ -1607,7 +1840,9 @@ def main():
                    "STUB-CHECK: 1 pad stub(s) under 2.00 A, each the only copper to one part: U1.1 0.20 mm"]))
     dp = dup_board(tmp.name)
     CASES.append(("kpcb sync art", ['kpcb.py', dp, 'sync', os.path.join(tmp.name, 'dup.net')], 0,
-                  ["IN SYNC", "[INFO] SYNCART", "(3): REF** REF**~dup2 REF**~dup3"]))
+                  ["IN SYNC", "[INFO] SYNCART", "(3): REF** REF**~dup2 REF**~dup3", "[WARN] SYNCART",
+                   "REF**~dup2 (Logo at 10.0,5.0 F) lacks board_only: Update PCB deletes it",
+                   "REF**~dup3 (Logo at 15.0,5.0 B) lacks board_only"]))
     sp = scale_board(tmp.name)
     CASES.append(("kpcb where scale+origin", ['kpcb.py', sp, 'where', 'S1', '--origin', 'grid'], 0,
                   ["relative to the grid origin 5,5", "at        : 5.000, 5.000  rot 0  layer F.Cu  scale 0.5 x 0.5",
@@ -1677,6 +1912,139 @@ def main():
                    "lacks top-level sheet(s) Other"]))
     CASES.append(("kpcb zones --voids", ['kpcb.py', os.path.join(tmp.name, 'voids.kicad_pcb'), 'zones', '--voids'], 0,
                   ["B.Cu    void core", "rescue via at", "GND on F.Cu there, nothing foreign"]))
+    # ---- 2026-10-27 backlog pass
+    CASES.append(("kpcb smooth --overlaps keeps a via's centred end", ['kpcb.py', ovia_board(tmp.name), 'smooth', '--overlaps'],
+                  0, ["overlaps: 0 deleted, 0 cut back"]))
+    CASES.append(("kpcb smooth --overlaps deletes the doubled seg", ['kpcb.py', ovia_board(tmp.name, False), 'smooth',
+                                                                       '--overlaps'], 0, ["overlaps: 1 deleted"]))
+    CASES.append(("kpcb view --tracks two nets", ['kpcb.py', sb, 'view', 'TP3', 'TP4', '--tracks', '--net', 'S', '--net', 'L',
+                                                  '-o', T('st2.png')], 0, ["S L green"]))
+    CASES.append(("kpcb pairs stem", ['kpcb.py', rb, 'pairs', 'D_'], 0, ["pairs: 1 diff pair(s)"]))
+    pc = prec_board(tmp.name)
+    CASES.append(("kpcb copper full precision", ['kpcb.py', pc, 'copper', '9,5,11,6'], 0,
+                  ["10.12345,5.500", "2.000,5.500 -> 10.12345,5.500"]))
+    CASES.append(("kpcb edit seg snaps to a via centre", ['kpcb.py', pc, 'edit', 'seg', 'A', 'F.Cu', '0.2', '10.1239,5.5',
+                                                          '10.1239,8', '-o', T('prec2.kicad_pcb')], 0, ["(snapped onto the centre"]))
+    CASES.append(("kpcb edit seg snapped", ['kpcb.py', T('prec2.kicad_pcb'), 'copper', '9,5,11,9'], 0,
+                  ["10.12345,5.500 -> 10.1239,8.000"]))
+    CASES.append(("kpcb edit text keep shifts the render_cache", ['kpcb.py', sab, 'edit', 'text', 'gtRC', '6,18', 'keep',
+                                                                  '-o', T('silkart/rc2.kicad_pcb')], 0, ["text  gtRC -> 6,18 keep"]))
+    CASES.append(("kpcb diff vias + box -v", ['kpcb.py', T('pe.kicad_pcb'), 'diff', po, '--box', '9,0,11,10', '-v'], 0,
+                  ["added   P 0.6/0.3 10.000,8.000  free", "a SUM over them", "- F.Cu    w0.2  10.0000,5.6000", "~ F.Cu    w0.2->0.3"]))
+    CASES.append(("kpcb tracks --box", ['kpcb.py', sb, 'tracks', '--box', '0,0,10,9'], 0, ["tracks in 0,0,10,9: "]))
+    CASES.append(("kpcb widen --uniform", ['kpcb.py', sliver_board(tmp.name), 'widen', '--uniform', '--width', '0.01'], 0,
+                  ["widen: 1 track(s)", "0.15 -> 0.3"]))
+    CASES.append(("kpcb stitch --sparse", ['kpcb.py', sparse_board(tmp.name), 'stitch', 'GND', '--sparse', '5'], 0,
+                  ["stitch GND --sparse 5", "via 0.6/0.3 at", "pour > 5 mm from a via:", "(dry run: -o OUT writes them, free)"]))
+    stb = sparse_tht_board(tmp.name)
+    CASES.append(("kpcb stitch --sparse THT anchor", ['kpcb.py', stb, 'stitch', 'GND', '--sparse', '5'], 0,
+                  ["for 14.0 mm at 15.25,0.50", "worst 14.0 -> 4.7 mm"]))
+    CASES.append(("kpcb stitch off a THT ring", ['kpcb.py', stb, 'stitch', 'GND', '28.5,5', '-r', '1.5', '--n', '4'], 0,
+                  ["near 28.50,5.00: 28.50,6.30 (1.30 mm), 28.50,3.65 (1.35 mm)"]))
+    mb = micro_board(tmp.name)
+    CASES.append(("kpcb smooth --micro", ['kpcb.py', mb, 'smooth', '--micro', '-o', os.path.join(tmp.name, 'micro', 'm2.kicad_pcb')], 0,
+                  ["micro: 1 segment(s) < 0.05 mm merged into a neighbour, 1 deleted (under other copper), 0 left"]))
+    CASES.append(("kpcb smooth --micro result", ['kpcb.py', os.path.join(tmp.name, 'micro', 'm2.kicad_pcb'), 'tracks'], 0,
+                  ["segments < 0.05 mm        0 visible", "tracks: 3 segments, 18.0 mm"]))
+    pib = pwr_inpour_board(tmp.name)
+    CASES.append(("kpcb tracks inpourpwr", ['kpcb.py', pib, 'tracks', '--kind', 'inpourpwr'], 0,
+                  ["plane tracks inside fill    0 visible", "other tracks inside fill    1 visible",
+                   "ripup PWR --inpour (opt-in: may it rely on its fill?)"]))
+    CASES.append(("kpcb ripup NET --inpour non-plane", ['kpcb.py', pib, 'ripup', 'PWR', '--inpour', '-o',
+                                                       os.path.join(tmp.name, 'pwrin2.kicad_pcb')], 0,
+                  ["inpour: 1 track(s) wholly inside their own saved fill", "1 track(s) + 0 via(s) on 1 net(s)"]))
+    CASES.append(("kpcb ripup --inpour leaves non-plane", ['kpcb.py', pib, 'ripup', '--inpour'], 0,
+                  ["inpour: 0 plane-net track(s)"]))
+    CASES.append(("kpcb rf branch", ['kpcb.py', rfbranch_board(tmp.name), 'rf', 'RFX', '--freq', '5000'], 2,
+                  ["branch off F.Cu track @10.00,5.00: 3.00 mm, 18 deg at 5000 MHz, ends in JP1.1 DNP  <-- OPEN STUB > lambda/50 (1.2 mm)"]))
+    db = dead_board(tmp.name)
+    CASES.append(("kpcb view --by-net", ['kpcb.py', db, 'view', '--box', '0,0,20,10', '--by-net', '-o',
+                                         os.path.join(tmp.name, 'bynet.svg')], 0,
+                  ["F.Cu/B.Cu by net, fills included, GND grey", "largest: P "]))
+    CASES.append(("kpcb tracks deadend", ['kpcb.py', db, 'tracks', '--kind', 'deadend'], 0,
+                  ["dead branches (no pad)    2 visible", "F.Cu/B.Cu 16.2 mm, 2 via, 6 mm2 pour off F.Cu track; ripup --deadend",
+                   "df1 df2 db2 db1", "zone zband", "F.Cu 1.5 mm          off TP2.1; ripup --deadend", "cut live"]))
+    CASES.append(("kpcb check DEADCU", ['kpcb.py', db, 'check', '--only', 'DEADCU'], 0,
+                  ["[WARN] DEADCU", "P F.Cu 1.5 mm off TP2.1 @16.00,5.00 serves no pad - `ripup --deadend P`"]))
+    CASES.append(("kpcb net dead branch", ['kpcb.py', db, 'net', 'P'], 0,
+                  ["dead    branch F.Cu/B.Cu 16.2 mm, 2 via, 6 mm2 pour off F.Cu track @6.00,5.00: serves no pad"]))
+    CASES.append(("kpcb ripup --deadend", ['kpcb.py', db, 'ripup', '--deadend', '-o', os.path.join(tmp.name, 'dead2.kicad_pcb')], 0,
+                  ["deadend: 2 branch(es) serving no pad, 5 track(s), 2 via(s), 1 whole zone(s)",
+                   "6 item(s) deleted (0 more pruned as dangling), 1 cut back, 1 zone(s)"]))
+    CASES.append(("kpcb ripup --deadend result", ['kpcb.py', os.path.join(tmp.name, 'dead2.kicad_pcb'), 'tracks', '--kind', 'deadend'], 0,
+                  ["dead branches (no pad)    0 visible"]))
+    CASES.append(("kpcb unhook leaves no cycle", ['kpcb.py', db, 'unhook', 'TP4', '-o', os.path.join(tmp.name, 'dead3.kicad_pcb')], 0,
+                  ["unhook: 1 item(s) selected, 5 more pruned as dangling", "4 trk  2 via"]))
+    CASES.append(("kpcb fatten/stitch skip dead", ['kpcb.py', db, 'fatten', 'P', '--layers', 'B.Cu', '--minw', '0.2', '--width', '2', '-o',
+                                                    os.path.join(tmp.name, 'dead4.kicad_pcb')], 0,
+                  ["fatten P: 4 track(s) serve no pad, left out", "fatten P B.Cu: 1 track(s) >= 0.2 mm -> 1 zone(s)"]))
+    CASES.append(("kpcb refslots", ['kpcb.py', refslot_board(tmp.name), 'refslots'], 0,
+                  ["refslots: 1 signal net(s)", "S                          F.Cu/In1  gnd  10.", "void/pad/via", ", X 0.8"]))
+    ib = inpour_board(tmp.name)
+    CASES.append(("kpcb tracks inpour", ['kpcb.py', ib, 'tracks', '--kind', 'inpour'], 0,
+                  ["plane tracks inside fill    2 visible", "ripup --inpour"]))
+    gs = _tab_board(tmp.name, 'gstub.kicad_pcb', 20, 10, _tab_fp('TP1', 6, 5, [('1', 0, 0, .6, .6, 'GND')], (.4, .4))
+                    + _tseg(6, 5, 11, 5, 'GND', 0.3) + _gzone('F.Cu', rect(.5, .5, 19.5, 9.5), rect(.5, .5, 8, 9.5)))
+    CASES.append(("kpcb tracks deadend plane stub", ['kpcb.py', gs, 'tracks', '--kind', 'deadend'], 0,
+                  ["dead branches (no pad)    1 visible", "F.Cu 5.0 mm          off TP1.1; ripup --deadend"]))
+    CASES.append(("kpcb ripup --inpour", ['kpcb.py', ib, 'ripup', 'GND', '--inpour'], 0,
+                  ["inpour: 2 plane-net track(s) wholly inside their own saved fill, 1 run(s) kept", "(feeds TP1.1)",
+                   "(dry run: 1 track(s)"]))
+    CASES.append(("kpcb route leaves a stale pour's pad to the refill", ['kpcb.py', stale_pour_board(tmp.name), 'route', 'GND'],
+                  0, ["GND: TP2.1 - left to the pour: TP2.1 sits in its F.Cu zone 'GND' and 4 spoke(s) land"]))
+    jn = join_board(tmp.name)
+    CASES.append(("kpcb tracks overlap", ['kpcb.py', jn, 'tracks', '--kind', 'overlap'], 0,
+                  ["joined only through pad    1 visible", "two runs only through P1.1"]))
+    CASES.append(("kpcb smooth --overlaps merge", ['kpcb.py', jn, 'smooth', '--overlaps', '-o', T('join/j2.kicad_pcb')], 0,
+                  ["merge: 1 pair(s) of runs joined only through a pad", "wrote "]))
+    CASES.append(("kpcb smooth --overlaps merge result", ['kpcb.py', T('join/j2.kicad_pcb'), 'tracks', '--kind', 'overlap'], 0,
+                  ["joined only through pad    0 visible"]))
+    jg = _tab_board(_typed_dir(T('joing')), 't.kicad_pcb', 20, 10,   # both runs near P1's top edge: one straight
+                    _tab_fp('TP1', 4, 5.55, [('1', 0, 0, .6, .6, 'N')], (.4, .4))   # run 0.55 off its centre would only graze it
+                    + _tab_fp('TP2', 16, 5.55, [('1', 0, 0, .6, .6, 'N')], (.4, .4)) + _tab_fp('P1', 10, 5, [('1', 0, 0, 1.0, 1.4, 'N')], (.6, .8))
+                    + _tseg(4, 5.55, 9.8, 5.55, 'N', 0.3) + _tseg(10.2, 5.55, 16, 5.55, 'N', 0.3))
+    CASES.append(("kpcb smooth --overlaps merge refuses a graze", ['kpcb.py', jg, 'smooth', '--overlaps', '-o', T('joing/j2.kicad_pcb')], 0,
+                  ["merge: 0 pair(s) of runs joined only through a pad"]))
+    mk = _tab_board(_typed_dir(T('mk')), 't.kicad_pcb', 16, 10,     # a 40 um side-step between 2 mm legs: either merge tilts one
+                    _tab_fp('TP1', 6, 2, [('1', 0, 0, .6, .6, 'K')]) + _tab_fp('TP2', 10, 2.04, [('1', 0, 0, .6, .6, 'K')])
+                    + _tseg(6, 2, 8, 2, 'K') + _tseg(8, 2, 8, 2.04, 'K') + _tseg(8, 2.04, 10, 2.04, 'K'))
+    CASES.append(("kpcb smooth --micro keeps 0/45/90", ['kpcb.py', mk, 'smooth', '--micro', '-o', T('mk/m2.kicad_pcb')], 0,
+                  ["micro: 0 segment(s) < 0.05 mm merged into a neighbour, 0 deleted (under other copper), 1 left",
+                   "tilts one off 0/45/90"]))
+    vc = _tab_board(tmp.name, 'viacut.kicad_pcb', 20, 10,          # the strap overshoots a live via 0.1 off its line
+                    _tab_fp('TP1', 2, 5, [('1', 0, 0, 1, 1, 'P')], (.6, .6)) + _tab_fp('TP2', 16, 5.1, [('1', 0, 0, 1, 1, 'P')], (.6, .6))
+                    + _tseg(2, 5, 10, 5, 'P', 0.3) + _tvia(8, 5.1, 'P') + _tseg(8, 5.1, 14, 5.1, 'P', 0.3, 'B.Cu')
+                    + _tvia(14, 5.1, 'P') + _tseg(14, 5.1, 16, 5.1, 'P', 0.3))
+    CASES.append(("kpcb ripup --deadend stubs onto an off-line via", ['kpcb.py', vc, 'ripup', '--deadend', '-o', T('viacut2.kicad_pcb')], 0,
+                  ["ends in a via off its line: to 8,5 + a 0.3 mm stub onto the centre 8,5.1 (clear)",
+                   "1 cut back (1 with a stub onto its via)"]))
+    vb = _tab_board(_typed_dir(T('viacutb')), 't.kicad_pcb', 20, 10,   # a Q track 0.35 past the via centre blocks the stub
+                    _tab_fp('TP1', 2, 5, [('1', 0, 0, 1, 1, 'P')], (.6, .6)) + _tab_fp('TP2', 16, 5.1, [('1', 0, 0, 1, 1, 'P')], (.6, .6))
+                    + _tseg(2, 5, 10, 5, 'P', 0.3) + _tvia(8, 5.1, 'P') + _tseg(8, 5.1, 14, 5.1, 'P', 0.3, 'B.Cu')
+                    + _tvia(14, 5.1, 'P') + _tseg(14, 5.1, 16, 5.1, 'P', 0.3) + _tseg(7, 5.45, 9, 5.45, 'Q', 0.2))
+    CASES.append(("kpcb ripup --deadend leaves a blocked stub", ['kpcb.py', vb, 'ripup', '--deadend', '-o', T('viacutb/v2.kicad_pcb')], 0,
+                  ["1 track(s) reported, not cut", "0 cut back"]))
+    ip2 = _tab_board(tmp.name, 'inpour2.kicad_pcb', 20, 10,        # a via-to-via pair in the fill goes as one run; a leg whose
+                     _tab_fp('TP1', 17, 5, [('1', 0, 0, .6, .6, 'GND')], (.4, .4))   # rest runs on out of the fill stays
+                     + _tvia(3, 5, 'GND') + _tseg(3, 5, 6, 5, 'GND', 0.3) + _tseg(6, 5, 6, 8, 'GND', 0.3) + _tvia(6, 8, 'GND')
+                     + _tvia(10, 5, 'GND') + _tseg(10, 5, 13, 5, 'GND', 0.3) + _tseg(13, 5, 17, 5, 'GND', 0.3)
+                     + _gzone('F.Cu', rect(.5, .5, 19.5, 9.5), rect(.5, .5, 14, 9.5)))
+    CASES.append(("kpcb ripup --inpour guards", ['kpcb.py', ip2, 'ripup', 'GND', '--inpour'], 0,
+                  ["inpour: 3 plane-net track(s) wholly inside their own saved fill, 1 run(s) kept",
+                   "(the rest would end loose @13.00,5.00)", "(dry run: 2 track(s)"]))
+    sp2 = stubpad_board(tmp.name)
+    CASES.append(("kpcb smooth keeps a pad a chain ran through", ['kpcb.py', sp2, 'smooth', '-o', T('stubpad/s2.kicad_pcb')],
+                  0, ["chains: "]))
+    CASES.append(("kpcb smooth keeps a pad: result", ['kpcb.py', T('stubpad/s2.kicad_pcb') if True else sp2, 'net', 'N'], 0,
+                  ["copper  one piece joins all 2 pad(s)"]))
+    tw = twin_board(tmp.name)
+    CASES.append(("kpcb tracks twin", ['kpcb.py', tw, 'tracks', '--kind', 'twin'], 0,
+                  ["twin runs into one pad    1 visible", "smooth --twins"]))
+    CASES.append(("kpcb smooth --twins", ['kpcb.py', tw, 'smooth', '--twins', '-o', T('twin/t2.kicad_pcb')], 0,
+                  ["twins: 1 pair(s)", "to R1.1: ", "-> 3.0", "to 13.00,4.75"]))
+    CASES.append(("kpcb smooth --jogs partial", ['kpcb.py', jog_board(T('part'), True), 'smooth', '--jogs',
+                                                 '-o', os.path.join(T('part'), 'nudge', 'j4.kicad_pcb')], 0,
+                  ["jogs: 1 collapsed", "of the way (the jog is now"]))
     for label, argv, want_exit, needles in CASES:
         code, out = run(argv)
         prob = []
@@ -1685,6 +2053,8 @@ def main():
         prob += [f"missing {n!r}" for n in needles if n not in out]
         if label in ("ksch render", "knet draw multi-pin verify") and ("ERROR" in out or "overlaps" in out):
             prob.append("ERROR line in render output")
+        if label == "kpcb sync art" and "REF** (Logo" in out:
+            prob.append("the board_only logo was warned as deletable")
         if label == "kpcb amp-tap" and "near TH2" in out:
             prob.append("thermistor tap TH2 leaked into the bottleneck (tap exclusion broke)")
         if label == "kpcb zones --voids" and 'rescue via at' in out:
@@ -1698,6 +2068,11 @@ def main():
             print(f"FAIL  {label}: {'; '.join(prob)}")
         else:
             print(f"ok    {label}")
+    rc2 = open(os.path.join(tmp.name, 'silkart', 'rc2.kicad_pcb')).read() if os.path.exists(
+        os.path.join(tmp.name, 'silkart', 'rc2.kicad_pcb')) else ''
+    fails += check('(render_cache "RC"' in rc2 and '(xy 6 16.5) (xy 8 16.5)' in rc2.replace('\n\t\t\t\t\t', ' ')
+                   or '(xy 6 16.5)' in rc2 and '(xy 8 18)' in rc2,
+                   "edit text keep: a TrueType text's render_cache moves with it (5..7 -> 6..8), not dropped")
     t4 = open(os.path.join(tmp.name, 'silkrev', 't4.kicad_pcb')).read()
     fails += check('(property "Value" "VR1"\n\t\t\t(at 0 2 0)' in t4 and t4.count('(hide yes)') == 1,
                    "edit value: R1's Value at local 0,2 (board 5,7), R2's hidden, nothing else")
@@ -1806,6 +2181,104 @@ def main():
     ok7 = len(sl) == 1 and sl[0][0] == 'SIG' and abs(sl[0][1][0] - 10) < 1e-6 and sl[0][1][2] == 'x=12.0' \
         and not kpcb_zones._slots(vb, 'F.Cu', 'GND', (0, 0, 20, 20), min_len=19)
     fails += check(ok7, f"zones SLOT measure {sl}")
+    # touches() with tol > cell/2 must scan the middle grid cell too (0.10 mm from the edge)
+    sqi = kpcb_board.PolyIndex([(0.55, 0.55), (0.65, 0.55), (0.65, 0.95), (0.55, 0.95)])
+    fails += check(sqi.touches((0.75, 0.75), 0.3) and not sqi.touches((0.75, 0.75), 0.05),
+                   "PolyIndex.touches scans every cell inside tol")
+    # a 1 mm band of Q's own pour across a 17 mm Q track between the old 0/.25/.5/.75/1 samples,
+    # no outline vertex on the track: one piece (+3V3 In2, 2026-10-27)
+    import kpcb_copper
+    bnd = kpcb_board.Board(_tab_board(tmp.name, 'band.kicad_pcb', 20, 10, _tab_fp('TP1', 1, 5, [('1', 0, 0, .6, .6, 'Q')])
+                                      + _tab_fp('TP2', 18, 5, [('1', 0, 0, .6, .6, 'Q')]) + _tseg(1, 5, 18, 5, 'Q', 0.3)
+                                      + _gzone('F.Cu', rect(3, 3, 4, 7), rect(3, 3, 4, 7), 'band', net='Q', uid='zq')))
+    fails += check(len(kpcb_copper.Copper(bnd, 'Q').pieces()) == 1, "Copper joins a fill crossing a track mid-span")
+    # 1 x 1 roundrect pads (r 0.25), 0.1 mm tracks: Q's end 0.03 past the corner diagonally is
+    # 0.146 off the rounded copper (the old box grown by w/2 joined it); R's end 0.04 off the
+    # straight edge has its cap on the pad
+    rr = lambda s: s.replace('smd rect', 'smd roundrect').replace('(layers "F.Cu")', '(layers "F.Cu")\n\t\t\t(roundrect_rratio 0.25)')  # noqa: E731
+    rnd = kpcb_board.Board(_tab_board(tmp.name, 'round.kicad_pcb', 20, 10, rr(
+        _tab_fp('TP1', 5, 3, [('1', 0, 0, 1, 1, 'Q')]) + _tab_fp('TP2', 5, 7, [('1', 0, 0, 1, 1, 'R')]))
+        + _tab_fp('TP3', 15, 3, [('1', 0, 0, .6, .6, 'Q')]) + _tab_fp('TP4', 15, 7, [('1', 0, 0, .6, .6, 'R')])
+        + _tseg(15, 3, 5.53, 2.47, 'Q', 0.1) + _tseg(15, 7, 5.54, 7, 'R', 0.1)))
+    fails += check(len(kpcb_copper.Copper(rnd, 'Q').pieces()) == 2 and len(kpcb_copper.Copper(rnd, 'R').pieces()) == 1,
+                   "Copper joins a cap on a roundrect's edge, not one past its rounded corner")
+    # a 0.2 track along x + y = 11.1 passes 0.071 off TP1's corner (5.5,5.5): no end on TP1, its
+    # centreline misses, its edge overlaps 29 um. KiCad joins it (CC2 / C33.1, 2026-10-28)
+    clb = kpcb_board.Board(_tab_board(tmp.name, 'clip.kicad_pcb', 12, 10, _tab_fp('TP1', 5, 5, [('1', 0, 0, 1, 1, 'Q')])
+                                      + _tab_fp('TP2', 4.1, 7, [('1', 0, 0, .6, .6, 'Q')]) + _tseg(4.1, 7, 7, 4.1, 'Q', 0.2)))
+    cq = kpcb_copper.Copper(clb, 'Q')
+    co = cq.clip_only()
+    fails += check(len(cq.pieces()) == 1 and len(co) == 1 and co[0][1].ref == 'TP1' and abs(co[0][3] - 0.0293) < 1e-3,
+                   "Copper joins a track body clipping a pad's corner; clip_only names it")
+    import random
+    rg = random.Random(7)
+    pads = [p for f in kpcb_board.Board(PCB).fps.values() for p in f.pads] + [p for f in rnd.fps.values() for p in f.pads]
+    agree = all(kpcb_copper.pad_within(p, pt, d, r) == (kpcb_copper.pad_dist(p, pt, r) <= d)
+                for p in pads for _ in range(40)
+                for pt in [(p['x'] + rg.uniform(-2, 2), p['y'] + rg.uniform(-2, 2))] for d in (-0.1, 0, 0.3)
+                for r in (False, True))
+    fl1, fl2, ns = {'pts': [(0, 0), (1, 0), (1, 1)]}, {'pts': [(5, 5), (6, 5), (6, 6)]}, type('B', (), {})()
+    i1 = kpcb_board._pidx(ns, fl1)
+    ns._pidx[id(fl2)] = (fl1, i1)                    # a freed fill's id now naming another fill
+    fails += check(agree and kpcb_board._pidx(ns, fl2) is not i1 and (5.5, 5.2) in kpcb_board._pidx(ns, fl2),
+                   "pad_within agrees with pad_dist; _pidx never serves a reused id's index")
+    # viapad: a 0.3 drill 0.6 off a 1 x 1 roundrect (r 0.25) reaches 0.05 in past the edge; one
+    # 0.55,0.55 off sits past the rounded corner (the old box test took it); -0.05 mask shrinks it
+    import kpcb_viapad
+    vp = {'x': 0, 'y': 0, 'prot': 0, 'sx': 1, 'sy': 1, 'shape': 'roundrect', 'rr': 0.25, 'prims': [], 'mask': 0}
+    dd = lambda x, y, m=0: kpcb_viapad.drill_depth({**vp, 'mask': m}, {'x': x, 'y': y, 'drill': 0.3})   # noqa: E731
+    fails += check(abs(dd(0.6, 0) - 0.05) < 1e-9 and dd(0.55, 0.55) < 0 and dd(0.6, 0, -0.05) < 1e-9
+                   and kpcb_viapad.protection({'tenting': (1, 1), 'covering': (0, 0), 'plugging': (1, 1),
+                                               'capping': False, 'filling': False})[0] == 'IV-b mask-plugged',
+                   "viapad: drill vs the real pad shape + mask margin; tent + plug both sides = IV-b")
+    # drop_layer: an F+B zone, F joining TP1/TP2, its B fill one fragment on a via joined by F:
+    # B can go. A B.Cu pad TP3 in a second B fragment (via to F): B carries a pad, so no
+    sq = lambda pts: ''.join(f'\t\t\t\t(xy {x} {y})\n' for x, y in pts)   # noqa: E731
+    fz = lambda ly, pts: f'\t\t(filled_polygon\n\t\t\t(layer "{ly}")\n\t\t\t(pts\n{sq(pts)}\t\t\t)\n\t\t)\n'   # noqa: E731
+    mz = lambda extra: ('\t(zone\n\t\t(net "Z")\n\t\t(layers "F.Cu" "B.Cu")\n\t\t(uuid "zz")\n\t\t(name "Z")\n'   # noqa: E731
+                        f'\t\t(polygon\n\t\t\t(pts\n{sq(rect(1, 1, 19, 9))}\t\t\t)\n\t\t)\n'
+                        + fz('F.Cu', rect(1, 1, 19, 9)) + fz('B.Cu', rect(8, 3, 10, 7)) + extra + '\t)\n')
+    zb = _tab_fp('TP1', 3, 5, [('1', 0, 0, 1, 1, 'Z')]) + _tab_fp('TP2', 17, 5, [('1', 0, 0, 1, 1, 'Z')]) + _tvia(9, 5, 'Z')
+    dz1 = kpcb_board.Board(_tab_board(tmp.name, 'drop1.kicad_pcb', 20, 10, zb + mz('')))
+    dz2 = kpcb_board.Board(_tab_board(tmp.name, 'drop2.kicad_pcb', 20, 10, zb + _tvia(13, 5, 'Z')
+                                      + _tab_fp('TP3', 15, 5, [('1', 0, 0, 1, 1, 'Z')]).replace('"F.Cu"', '"B.Cu"')
+                                      + mz(fz('B.Cu', rect(12, 3, 17, 7)))))
+    fails += check(kpcb_copper.drop_layer(dz1, 'zz', 'B.Cu') == ['F.Cu'] and kpcb_copper.drop_layer(dz2, 'zz', 'B.Cu') is None
+                   and kpcb_copper.drop_layer(dz1, 'zz', 'F.Cu') is None,
+                   "drop_layer: a zone's B fill joining only an F-joined via can go; not with a pad on it")
+    # census on the drawn pad: runs A/B into P1 (1 x 1 roundrect, r 0.25) joined only through it,
+    # plus a dead-end sliver ending 12 um past the corner arc (a box called it inside): a bridge
+    import kpcb_smooth
+    pj = kpcb_board.Board(_tab_board(tmp.name, 'pj.kicad_pcb', 20, 10, rr(_tab_fp('P1', 10, 5, [('1', 0, 0, 1, 1, 'N')]))
+                                     + _tab_fp('TP1', 5, 5, [('1', 0, 0, .6, .6, 'N')])
+                                     + _tab_fp('TP2', 15, 5, [('1', 0, 0, .6, .6, 'N')])
+                                     + _tseg(5, 5, 9.8, 5, 'N') + _tseg(10.2, 5, 15, 5, 'N') + _tseg(10, 5.2, 10.4355, 5.4355, 'N')))
+    rows = kpcb_smooth.pad_joins(pj, set())
+    fails += check(len(rows) == 1 and rows[0][2] == 'P1.1' and len(rows[0][6]) == 1,
+                   f"pad_joins on the drawn roundrect: a sliver capped past the corner arc is a bridge {[(r[2], len(r[6])) for r in rows]}")
+    tk = lambda a, b, w: {'a': a, 'b': b, 'w': w, 'mid': ((a[0] + b[0]) / 2, (a[1] + b[1]) / 2)}   # noqa: E731
+    fat = tk((0, 0), (5, 0), 3)                      # a 0.1 mm leg at 90 deg under its 1.5 mm end cap: hidden
+    fails += check(kpcb_smooth.leg_in_cap(tk((5, 0), (5, 0.1), 0.2), fat)
+                   and not kpcb_smooth.leg_in_cap(tk((5, 0), (5, 1.5), 0.2), fat)
+                   and not kpcb_smooth.leg_in_cap(fat, tk((5, 0), (5, 0.1), 0.2)),
+                   "leg_in_cap: a stub under a fat end cap, not one poking out")
+    import kpcb_route
+    win = (-1, -1, 6, 4)                             # straddles the outline corner
+    gf = kpcb_route.Grid(rnd, 'Q', win, 0.05, 0.1, 0.6, 0.3, ['F.Cu'])
+    gt = kpcb_route.Grid(rnd, 'Q', win, 0.05, 0.1, 0.6, 0.3, ['F.Cu'], vias=False)
+    try:
+        gt.vblk[0]
+        rd = False
+    except TypeError:
+        rd = True                                    # reading the skipped raster fails loudly
+    fails += check(gf.blk == gt.blk and any(gf.blk['F.Cu']) and rd,
+                   "Grid(vias=False) paints the same track raster, its via raster unreadable")
+    # a raster trace's near-45 end goes on the 0/45/90 grid lines; a 30 deg edge keeps its angle
+    import kpcb_fillet
+    q1 = kpcb_fillet.octilinear([(0, 0), (10, 0), (10.98, 1.0), (11, 5), (0, 5)])
+    q2 = kpcb_fillet.octilinear([(0, 0), (4, 0), (5.732, 1), (0, 1)])
+    fails += check(sorted(q1) == [(0, 0), (0, 5), (10, 0), (11, 1), (11, 5)] and (5.732, 1.0) in q2,
+                   f"octilinear: 45.6/89.7 deg edges snapped {q1}, 30 deg kept {q2}")
     # rf's microstrip Zo: 0.36 mm on 0.203 mm / er 4.4 / 35 um is ~49.7 ohm (hand-computed)
     sys.path.insert(0, S)
     import kzo, kpcb_height

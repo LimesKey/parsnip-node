@@ -53,9 +53,11 @@ def cached(tag, key, fn, fresh=False, ttl=TTL):
     # http() returns {'_error': ...} on failure; caching that would replay a
     # transient outage for the whole TTL
     if v is not None and not (isinstance(v, dict) and '_error' in v):
-        try:
-            with open(p, 'w') as f:
+        try:                                         # atomic: a killed or parallel run never
+            tmp = f"{p}.{os.getpid()}.tmp"           # leaves a truncated entry to re-fetch over
+            with open(tmp, 'w') as f:
                 json.dump(v, f)
+            os.replace(tmp, p)
         except Exception:
             pass
     return v
