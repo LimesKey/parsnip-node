@@ -137,7 +137,7 @@
         "zones": {
           "border_display_style": 2,
           "border_hatch_pitch": 0.5,
-          "corner_radius": 0.2,
+          "corner_radius": 0.4,
           "corner_smoothing": 2,
           "fill_mode": 0,
           "hatch_gap": 1.5,
