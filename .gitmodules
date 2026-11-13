@@ -2,3 +2,7 @@
     path = firmware
     url = https://github.com/LimesKey/firmware.git
 	branch = limeskey-node-spi-gnss
+[submodule "code/claude/pcb-skills"]
+	path = code/claude/pcb-skills
+	url = ../claude-pcb-skills.git
+	branch = main

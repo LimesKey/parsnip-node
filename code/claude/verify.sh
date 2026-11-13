@@ -8,5 +8,5 @@
 cd "$(git rev-parse --show-toplevel)" || exit 1
 S=code/claude/pcb-skills
 echo "== tool commands named in CLAUDE.md, agents, TODO"
-python3 $S/skills/kicad-review/references/selftest.py --lint CLAUDE.md .claude/agents/*.md docs/TODO.md || exit 1
+python3 $S/skills/kicad-review/tests/selftest.py --lint CLAUDE.md .claude/agents/*.md docs/TODO.md || exit 1
 exec $S/tools/verify.sh "${1:-HEAD}" . code/claude/golden.json
