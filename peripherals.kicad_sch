@@ -8704,7 +8704,7 @@
 				)
 			)
 		)
-		(property "Value" "SN74LV1T34DCK"
+		(property "Value" "74LV1T34GW"
 			(at 144.018 34.036 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -8725,7 +8725,7 @@
 				)
 			)
 		)
-		(property "Datasheet" "https://www.ti.com/lit/ds/symlink/sn74lv1t34.pdf"
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/df19ec8cb2d6ea0eac24c61fbab5c99e.pdf?productCode=C5199768"
 			(at 124.46 45.72 0)
 			(hide yes)
 			(show_name no)
@@ -8736,7 +8736,7 @@
 				)
 			)
 		)
-		(property "Description" "IC BUFFER single, level-shifting input, 1.6-5.5V, SC-70-5"
+		(property "Description" "IC BUFFER single, level-shifting input, 1.6-5.5V, TSSOP-5 (SOT353-1)"
 			(at 134.62 40.64 0)
 			(hide yes)
 			(show_name no)
@@ -8747,7 +8747,7 @@
 				)
 			)
 		)
-		(property "MPN" "SN74LV1T34DCKR"
+		(property "MPN" "74LV1T34GWH"
 			(at 154.94 46.99 0)
 			(hide yes)
 			(show_name no)
@@ -8758,7 +8758,7 @@
 				)
 			)
 		)
-		(property "Manufacturer" "Texas Instruments"
+		(property "Manufacturer" "Nexperia"
 			(at 154.94 46.99 0)
 			(hide yes)
 			(show_name no)
@@ -8769,7 +8769,7 @@
 				)
 			)
 		)
-		(property "LCSC Part" "C78541"
+		(property "LCSC Part" "C5199768"
 			(at 134.62 40.64 0)
 			(hide yes)
 			(show_name no)

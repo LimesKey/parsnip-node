@@ -188,6 +188,13 @@
    "example": "C21709333",
    "note": "u-blox NEO form factor: LCC-24 12.2x16.0mm, 24 pads; RF_GPS:ublox_NEO is the same land (NEO-6/7/8/M9/F10 share it)",
    "added": "2026-09-24"
+  },
+  {
+   "lcsc_pkg": "TSSOP-5",
+   "footprint": "SOT-353_SC-70-5",
+   "example": "C5199768",
+   "note": "Nexperia 74LV1T34GW = SOT353-1 (TSSOP5), 5 leads, body 1.25 mm: same land as KiCad SOT-353_SC-70-5 (datasheet p1 ordering table)",
+   "added": "2026-11-12"
   }
  ],
  "land": [

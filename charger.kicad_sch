@@ -9565,7 +9565,7 @@
 				)
 			)
 		)
-		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/d0d02de47642fe4f4639912f1a5cccad.pdf?productCode=C29269950"
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/3ac5aea2c6d0ef59e7c328983fdc1e52.pdf?productCode=C191823"
 			(at 138.43 104.14 0)
 			(hide yes)
 			(show_name no)
@@ -9576,7 +9576,7 @@
 				)
 			)
 		)
-		(property "Description" "RES 3kΩ ±0.1% 25ppm 62.5mW 0402 thin film"
+		(property "Description" "RES 3kΩ ±1% 100ppm 63mW 0402 thick film"
 			(at 138.43 104.14 0)
 			(hide yes)
 			(show_name no)
@@ -9587,7 +9587,7 @@
 				)
 			)
 		)
-		(property "MPN" "TC0225B3001TCC"
+		(property "MPN" "CRCW04023K00FKED"
 			(at 138.43 104.14 0)
 			(hide yes)
 			(show_name no)
@@ -9598,7 +9598,7 @@
 				)
 			)
 		)
-		(property "Manufacturer" "UNI-ROYAL"
+		(property "Manufacturer" "Vishay"
 			(at 138.43 104.14 0)
 			(hide yes)
 			(show_name no)
@@ -9609,7 +9609,7 @@
 				)
 			)
 		)
-		(property "LCSC Part" "C29269950"
+		(property "LCSC Part" "C191823"
 			(at 138.43 104.14 0)
 			(hide yes)
 			(show_name no)
@@ -9620,7 +9620,7 @@
 				)
 			)
 		)
-		(property "Tolerance" "0.1%"
+		(property "Tolerance" "1%"
 			(at 138.43 104.14 0)
 			(hide yes)
 			(show_name no)
@@ -9631,7 +9631,7 @@
 				)
 			)
 		)
-		(property "Power Rating" "62.5mW"
+		(property "Power Rating" "63mW"
 			(at 138.43 104.14 0)
 			(hide yes)
 			(show_name no)
@@ -16260,7 +16260,7 @@
 				)
 			)
 		)
-		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/96521737ad0f9ef1479d185ba532c802.pdf?productCode=C3154661"
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/235eb95183ff04d8ebcd64ad74d822ff.pdf?productCode=C89600"
 			(at 200.66 149.86 0)
 			(hide yes)
 			(show_name no)
@@ -16282,7 +16282,7 @@
 				)
 			)
 		)
-		(property "MPN" "NCU18XH103D60RB"
+		(property "MPN" "NCP18XH103D03RB"
 			(at 200.66 149.86 0)
 			(hide yes)
 			(show_name no)
@@ -16304,7 +16304,7 @@
 				)
 			)
 		)
-		(property "LCSC Part" "C3154661"
+		(property "LCSC Part" "C89600"
 			(at 200.66 151.13 0)
 			(hide yes)
 			(show_name no)

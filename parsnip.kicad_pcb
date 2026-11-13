@@ -12975,7 +12975,7 @@
 				)
 			)
 		)
-		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/ab245271d0a5d84ab94e85543b99f406.pdf?productCode=C2918201"
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/3ac5aea2c6d0ef59e7c328983fdc1e52.pdf?productCode=C482082"
 			(at 0 0 90)
 			(layer "F.Fab")
 			(hide yes)
@@ -12986,7 +12986,7 @@
 				)
 			)
 		)
-		(property "Description" "RES 1MΩ ±0.1% 100mW 0402"
+		(property "Description" "RES 1MΩ ±1% 63mW 0402"
 			(at 0 0 90)
 			(layer "F.Fab")
 			(hide yes)
@@ -12997,7 +12997,7 @@
 				)
 			)
 		)
-		(property "LCSC Part" "C2918201"
+		(property "LCSC Part" "C482082"
 			(at 0 0 270)
 			(unlocked yes)
 			(layer "F.Fab")
@@ -13010,7 +13010,7 @@
 				)
 			)
 		)
-		(property "Tolerance" "0.1%"
+		(property "Tolerance" "1%"
 			(at 0 0 270)
 			(unlocked yes)
 			(layer "F.Fab")
@@ -13023,7 +13023,7 @@
 				)
 			)
 		)
-		(property "MPN" "WF04H1004BTL"
+		(property "MPN" "CRCW04021M00FKED"
 			(at 0 0 180)
 			(unlocked yes)
 			(layer "F.Fab")
@@ -13036,7 +13036,7 @@
 				)
 			)
 		)
-		(property "Manufacturer" "Walsin"
+		(property "Manufacturer" "Vishay"
 			(at 0 0 180)
 			(unlocked yes)
 			(layer "F.Fab")
@@ -13049,7 +13049,7 @@
 				)
 			)
 		)
-		(property "Power Rating" "100mW"
+		(property "Power Rating" "63mW"
 			(at 0 0 180)
 			(unlocked yes)
 			(layer "F.Fab")
@@ -39089,7 +39089,7 @@
 				)
 			)
 		)
-		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/d0d02de47642fe4f4639912f1a5cccad.pdf?productCode=C29269950"
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/3ac5aea2c6d0ef59e7c328983fdc1e52.pdf?productCode=C191823"
 			(at 0 0 0)
 			(layer "F.Fab")
 			(hide yes)
@@ -39100,7 +39100,7 @@
 				)
 			)
 		)
-		(property "Description" "RES 3kΩ ±0.1% 25ppm 62.5mW 0402 thin film"
+		(property "Description" "RES 3kΩ ±1% 100ppm 63mW 0402 thick film"
 			(at 0 0 0)
 			(layer "F.Fab")
 			(hide yes)
@@ -39111,7 +39111,7 @@
 				)
 			)
 		)
-		(property "LCSC Part" "C29269950"
+		(property "LCSC Part" "C191823"
 			(at 0 0 0)
 			(unlocked yes)
 			(layer "F.Fab")
@@ -39124,7 +39124,7 @@
 				)
 			)
 		)
-		(property "Tolerance" "0.1%"
+		(property "Tolerance" "1%"
 			(at 0 0 0)
 			(unlocked yes)
 			(layer "F.Fab")
@@ -39137,7 +39137,7 @@
 				)
 			)
 		)
-		(property "MPN" "TC0225B3001TCC"
+		(property "MPN" "CRCW04023K00FKED"
 			(at 0 0 0)
 			(unlocked yes)
 			(layer "F.Fab")
@@ -39150,7 +39150,7 @@
 				)
 			)
 		)
-		(property "Manufacturer" "UNI-ROYAL"
+		(property "Manufacturer" "Vishay"
 			(at 0 0 0)
 			(unlocked yes)
 			(layer "F.Fab")
@@ -39163,7 +39163,7 @@
 				)
 			)
 		)
-		(property "Power Rating" "62.5mW"
+		(property "Power Rating" "63mW"
 			(at 0 0 0)
 			(unlocked yes)
 			(layer "F.Fab")
@@ -91090,7 +91090,7 @@
 				)
 			)
 		)
-		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/ab245271d0a5d84ab94e85543b99f406.pdf?productCode=C2918201"
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/3ac5aea2c6d0ef59e7c328983fdc1e52.pdf?productCode=C482082"
 			(at 0 0 90)
 			(layer "F.Fab")
 			(hide yes)
@@ -91101,7 +91101,7 @@
 				)
 			)
 		)
-		(property "Description" "RES 1MΩ ±0.1% 100mW 0402"
+		(property "Description" "RES 1MΩ ±1% 63mW 0402"
 			(at 0 0 90)
 			(layer "F.Fab")
 			(hide yes)
@@ -91112,7 +91112,7 @@
 				)
 			)
 		)
-		(property "LCSC Part" "C2918201"
+		(property "LCSC Part" "C482082"
 			(at 0 0 270)
 			(unlocked yes)
 			(layer "F.Fab")
@@ -91125,7 +91125,7 @@
 				)
 			)
 		)
-		(property "Tolerance" "0.1%"
+		(property "Tolerance" "1%"
 			(at 0 0 270)
 			(unlocked yes)
 			(layer "F.Fab")
@@ -91138,7 +91138,7 @@
 				)
 			)
 		)
-		(property "MPN" "WF04H1004BTL"
+		(property "MPN" "CRCW04021M00FKED"
 			(at 0 0 180)
 			(unlocked yes)
 			(layer "F.Fab")
@@ -91151,7 +91151,7 @@
 				)
 			)
 		)
-		(property "Manufacturer" "Walsin"
+		(property "Manufacturer" "Vishay"
 			(at 0 0 180)
 			(unlocked yes)
 			(layer "F.Fab")
@@ -91164,7 +91164,7 @@
 				)
 			)
 		)
-		(property "Power Rating" "100mW"
+		(property "Power Rating" "63mW"
 			(at 0 0 180)
 			(unlocked yes)
 			(layer "F.Fab")
@@ -103559,362 +103559,6 @@
 			)
 		)
 	)
-	(footprint "Diode_SMD:D_SOD-123"
-		(layer "F.Cu")
-		(uuid "e73bad85-ddca-48fa-88d6-a043e7aefe0e")
-		(transform
-			(translate 150.1 125.45)
-			(rotate 90)
-			(scale 1 1)
-		)
-		(descr "SOD-123")
-		(tags "SOD-123")
-		(property "Reference" "D5"
-			(at -1.05 1.97 0)
-			(layer "F.SilkS")
-			(hide yes)
-			(uuid "b0195d7d-73b7-41b0-826c-0edd02c11588")
-			(effects
-				(font
-					(size 1 1)
-					(thickness 0.15)
-				)
-			)
-		)
-		(property "Value" "SMF10A"
-			(at 0 2.1 90)
-			(layer "F.Fab")
-			(uuid "5ccdb789-c19c-46b6-88dd-0c7280b49608")
-			(effects
-				(font
-					(size 1 1)
-					(thickness 0.15)
-				)
-			)
-		)
-		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/d549773c39b3657663783a03a169768c.pdf?productCode=C435474"
-			(at 0 0 90)
-			(unlocked yes)
-			(layer "F.Fab")
-			(hide yes)
-			(uuid "a9a32197-7a47-43cc-81ee-ed41d0545d65")
-			(effects
-				(font
-					(size 1.27 1.27)
-					(thickness 0.15)
-				)
-			)
-		)
-		(property "Description" "TVS 10V Vrwm, 17V clamp, 200W 10/1000us, unidirectional, SOD-123"
-			(at 0 0 90)
-			(unlocked yes)
-			(layer "F.Fab")
-			(hide yes)
-			(uuid "50897b89-7d2b-4fa2-b3a6-d5f7e141557b")
-			(effects
-				(font
-					(size 1.27 1.27)
-					(thickness 0.15)
-				)
-			)
-		)
-		(property "LCSC Part" "C435474"
-			(at 0 0 90)
-			(unlocked yes)
-			(layer "F.Fab")
-			(hide yes)
-			(uuid "1b7a5156-ceb2-4b95-a646-cd834f3d8806")
-			(effects
-				(font
-					(size 1 1)
-					(thickness 0.15)
-				)
-			)
-		)
-		(property "MPN" "SMF10A"
-			(at 0 0 180)
-			(unlocked yes)
-			(layer "F.Fab")
-			(hide yes)
-			(uuid "2f2315c0-278e-4713-8cb1-451ebf3b7540")
-			(effects
-				(font
-					(size 1 1)
-					(thickness 0.15)
-				)
-			)
-		)
-		(property "Manufacturer" "AnBon"
-			(at 0 0 180)
-			(unlocked yes)
-			(layer "F.Fab")
-			(hide yes)
-			(uuid "366f338b-80fc-4ea9-931f-4ecd941204f0")
-			(effects
-				(font
-					(size 1 1)
-					(thickness 0.15)
-				)
-			)
-		)
-		(property ki_fp_filters "D*SMF*")
-		(path "/4b355587-0e68-42ab-b4ff-3d5bec3cfd3d")
-		(sheetname "/BMS/")
-		(sheetfile "bms.kicad_sch")
-		(units
-			(unit
-				(name "A")
-				(pins "1" "2")
-			)
-		)
-		(attr smd)
-		(duplicate_pad_numbers_are_jumpers no)
-		(fp_line
-			(start -2.36 -1)
-			(end -2.36 1)
-			(stroke
-				(width 0.12)
-				(type solid)
-			)
-			(layer "F.SilkS")
-			(uuid "9d331942-78d3-4752-8dbf-4dcd0af21cb6")
-		)
-		(fp_line
-			(start -2.36 -1)
-			(end 1.65 -1)
-			(stroke
-				(width 0.12)
-				(type solid)
-			)
-			(layer "F.SilkS")
-			(uuid "abf33b18-f1c7-4516-b4ac-999c8585b04e")
-		)
-		(fp_line
-			(start -2.36 1)
-			(end 1.65 1)
-			(stroke
-				(width 0.12)
-				(type solid)
-			)
-			(layer "F.SilkS")
-			(uuid "1b31011f-932f-4c43-93e2-bf738ba8edfa")
-		)
-		(fp_line
-			(start -2.35 -1.15)
-			(end -2.35 1.15)
-			(stroke
-				(width 0.05)
-				(type solid)
-			)
-			(layer "F.CrtYd")
-			(uuid "3f5dc003-498a-4f42-b44a-539f5167424b")
-		)
-		(fp_line
-			(start -2.35 -1.15)
-			(end 2.35 -1.15)
-			(stroke
-				(width 0.05)
-				(type solid)
-			)
-			(layer "F.CrtYd")
-			(uuid "8fc48b32-8145-4dab-8a7f-9cc3a3490247")
-		)
-		(fp_line
-			(start 2.35 -1.15)
-			(end 2.35 1.15)
-			(stroke
-				(width 0.05)
-				(type solid)
-			)
-			(layer "F.CrtYd")
-			(uuid "5b173127-1200-4c7b-a7a5-7feea3eb97a3")
-		)
-		(fp_line
-			(start 2.35 1.15)
-			(end -2.35 1.15)
-			(stroke
-				(width 0.05)
-				(type solid)
-			)
-			(layer "F.CrtYd")
-			(uuid "5c880dd8-aa0b-48dd-aee8-08dde423c76c")
-		)
-		(fp_line
-			(start -1.4 -0.9)
-			(end 1.4 -0.9)
-			(stroke
-				(width 0.1)
-				(type solid)
-			)
-			(layer "F.Fab")
-			(uuid "b66e7ebb-7ac5-4a40-8a14-c536d2f21f5f")
-		)
-		(fp_line
-			(start -1.4 0.9)
-			(end -1.4 -0.9)
-			(stroke
-				(width 0.1)
-				(type solid)
-			)
-			(layer "F.Fab")
-			(uuid "93e29143-7aa9-44f9-b495-9b65c4854c20")
-		)
-		(fp_line
-			(start -0.75 0)
-			(end -0.35 0)
-			(stroke
-				(width 0.1)
-				(type solid)
-			)
-			(layer "F.Fab")
-			(uuid "03826323-98b2-4ed9-9657-74200ab8d8e1")
-		)
-		(fp_line
-			(start -0.35 0)
-			(end -0.35 -0.55)
-			(stroke
-				(width 0.1)
-				(type solid)
-			)
-			(layer "F.Fab")
-			(uuid "183b15b5-f606-4933-9984-7ce43df7be1c")
-		)
-		(fp_line
-			(start -0.35 0)
-			(end -0.35 0.55)
-			(stroke
-				(width 0.1)
-				(type solid)
-			)
-			(layer "F.Fab")
-			(uuid "6940ccd5-3fed-4f00-b50c-c862da9fb531")
-		)
-		(fp_line
-			(start -0.35 0)
-			(end 0.25 -0.4)
-			(stroke
-				(width 0.1)
-				(type solid)
-			)
-			(layer "F.Fab")
-			(uuid "6296ef6c-4f0c-4199-9608-196ca838b00b")
-		)
-		(fp_line
-			(start 0.25 -0.4)
-			(end 0.25 0.4)
-			(stroke
-				(width 0.1)
-				(type solid)
-			)
-			(layer "F.Fab")
-			(uuid "826dfc03-f31d-4dda-8d3d-bc02d2a1d4df")
-		)
-		(fp_line
-			(start 0.25 0)
-			(end 0.75 0)
-			(stroke
-				(width 0.1)
-				(type solid)
-			)
-			(layer "F.Fab")
-			(uuid "dc52f6fe-5884-44a4-8093-349c823b9c55")
-		)
-		(fp_line
-			(start 0.25 0.4)
-			(end -0.35 0)
-			(stroke
-				(width 0.1)
-				(type solid)
-			)
-			(layer "F.Fab")
-			(uuid "3f3f7974-8f7f-48be-b159-34f20544d7ce")
-		)
-		(fp_line
-			(start 1.4 -0.9)
-			(end 1.4 0.9)
-			(stroke
-				(width 0.1)
-				(type solid)
-			)
-			(layer "F.Fab")
-			(uuid "f4cef5d8-ff32-4f04-97db-26841c51d84b")
-		)
-		(fp_line
-			(start 1.4 0.9)
-			(end -1.4 0.9)
-			(stroke
-				(width 0.1)
-				(type solid)
-			)
-			(layer "F.Fab")
-			(uuid "81e5836a-5722-4fd0-a469-b3ba32c06e11")
-		)
-		(fp_text user "${REFERENCE}"
-			(at 0 -2 90)
-			(layer "F.Fab")
-			(uuid "c701e296-6b92-48de-88f8-1b61504fe7b9")
-			(effects
-				(font
-					(size 1 1)
-					(thickness 0.15)
-				)
-			)
-		)
-		(pad "1" smd roundrect
-			(at -1.65 0 90)
-			(size 0.9 1.2)
-			(layers "F.Cu" "F.Mask" "F.Paste")
-			(roundrect_rratio 0.25)
-			(net "+BATT")
-			(pinfunction "A1_1")
-			(pintype "passive")
-			(teardrops
-				(best_length_ratio 0.5)
-				(max_length 1)
-				(best_width_ratio 1)
-				(max_width 2)
-				(curved_edges yes)
-				(filter_ratio 0.9)
-				(enabled yes)
-				(allow_two_segments yes)
-				(prefer_zone_connections yes)
-			)
-			(uuid "81c55596-c50a-41a0-a4d8-d6044ec12269")
-		)
-		(pad "2" smd roundrect
-			(at 1.65 0 90)
-			(size 0.9 1.2)
-			(layers "F.Cu" "F.Mask" "F.Paste")
-			(roundrect_rratio 0.25)
-			(net "-BATT")
-			(pinfunction "A2_2")
-			(pintype "passive")
-			(teardrops
-				(best_length_ratio 0.5)
-				(max_length 1)
-				(best_width_ratio 1)
-				(max_width 2)
-				(curved_edges yes)
-				(filter_ratio 0.9)
-				(enabled yes)
-				(allow_two_segments yes)
-				(prefer_zone_connections yes)
-			)
-			(uuid "ae3c930b-2701-40bc-8d65-ac06ba0adfab")
-		)
-		(embedded_fonts no)
-		(model "${KICAD10_3DMODEL_DIR}/Diode_SMD.3dshapes/D_SOD-123.step"
-			(offset
-				(xyz 0 0 0)
-			)
-			(scale
-				(xyz 1 1 1)
-			)
-			(rotate
-				(xyz 0 0 0)
-			)
-		)
-	)
 	(footprint "Button_Switch_SMD:SW_Push_SPST_NO_Alps_SKRK"
 		(layer "F.Cu")
 		(uuid "e7aa2d86-3c02-4930-90d8-aa4a194bda11")
@@ -105479,7 +105123,7 @@
 				)
 			)
 		)
-		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/ab245271d0a5d84ab94e85543b99f406.pdf?productCode=C2918201"
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/3ac5aea2c6d0ef59e7c328983fdc1e52.pdf?productCode=C482082"
 			(at 0 0 90)
 			(layer "F.Fab")
 			(hide yes)
@@ -105490,7 +105134,7 @@
 				)
 			)
 		)
-		(property "Description" "RES 1MΩ ±0.1% 100mW 0402"
+		(property "Description" "RES 1MΩ ±1% 63mW 0402"
 			(at 0 0 90)
 			(layer "F.Fab")
 			(hide yes)
@@ -105501,7 +105145,7 @@
 				)
 			)
 		)
-		(property "LCSC Part" "C2918201"
+		(property "LCSC Part" "C482082"
 			(at 0 0 90)
 			(unlocked yes)
 			(layer "F.Fab")
@@ -105514,7 +105158,7 @@
 				)
 			)
 		)
-		(property "Tolerance" "0.1%"
+		(property "Tolerance" "1%"
 			(at 0 0 90)
 			(unlocked yes)
 			(layer "F.Fab")
@@ -105527,7 +105171,7 @@
 				)
 			)
 		)
-		(property "MPN" "WF04H1004BTL"
+		(property "MPN" "CRCW04021M00FKED"
 			(at 0 0 180)
 			(unlocked yes)
 			(layer "F.Fab")
@@ -105540,7 +105184,7 @@
 				)
 			)
 		)
-		(property "Manufacturer" "Walsin"
+		(property "Manufacturer" "Vishay"
 			(at 0 0 180)
 			(unlocked yes)
 			(layer "F.Fab")
@@ -105553,7 +105197,7 @@
 				)
 			)
 		)
-		(property "Power Rating" "100mW"
+		(property "Power Rating" "63mW"
 			(at 0 0 180)
 			(unlocked yes)
 			(layer "F.Fab")
@@ -116015,7 +115659,7 @@
 				)
 			)
 		)
-		(property "Value" "SN74LV1T34DCK"
+		(property "Value" "74LV1T34GW"
 			(at 0 1.8 90)
 			(layer "F.Fab")
 			(uuid "a896843d-e35e-4c06-8eac-34c10ba8a125")
@@ -116026,7 +115670,7 @@
 				)
 			)
 		)
-		(property "Datasheet" "https://www.ti.com/lit/ds/symlink/sn74lv1t34.pdf"
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/df19ec8cb2d6ea0eac24c61fbab5c99e.pdf?productCode=C5199768"
 			(at 0 0 90)
 			(layer "F.Fab")
 			(hide yes)
@@ -116037,7 +115681,7 @@
 				)
 			)
 		)
-		(property "Description" "IC BUFFER single, level-shifting input, 1.6-5.5V, SC-70-5"
+		(property "Description" "IC BUFFER single, level-shifting input, 1.6-5.5V, TSSOP-5 (SOT353-1)"
 			(at 0 0 90)
 			(layer "F.Fab")
 			(hide yes)
@@ -116048,7 +115692,7 @@
 				)
 			)
 		)
-		(property "LCSC Part" "C78541"
+		(property "LCSC Part" "C5199768"
 			(at 0 0 90)
 			(unlocked yes)
 			(layer "F.Fab")
@@ -116061,7 +115705,7 @@
 				)
 			)
 		)
-		(property "MPN" "SN74LV1T34DCKR"
+		(property "MPN" "74LV1T34GWH"
 			(at 0 0 180)
 			(unlocked yes)
 			(layer "F.Fab")
@@ -116074,7 +115718,7 @@
 				)
 			)
 		)
-		(property "Manufacturer" "Texas Instruments"
+		(property "Manufacturer" "Nexperia"
 			(at 0 0 180)
 			(unlocked yes)
 			(layer "F.Fab")
@@ -122927,7 +122571,7 @@
 				(justify mirror)
 			)
 		)
-		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/96521737ad0f9ef1479d185ba532c802.pdf?productCode=C3154661"
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/235eb95183ff04d8ebcd64ad74d822ff.pdf?productCode=C89600"
 			(at 0 0 0)
 			(layer "B.Fab")
 			(hide yes)
@@ -122951,7 +122595,7 @@
 				(justify mirror)
 			)
 		)
-		(property "LCSC Part" "C3154661"
+		(property "LCSC Part" "C89600"
 			(at 0 0 0)
 			(unlocked yes)
 			(layer "B.Fab")
@@ -122979,7 +122623,7 @@
 				(justify mirror)
 			)
 		)
-		(property "MPN" "NCU18XH103D60RB"
+		(property "MPN" "NCP18XH103D03RB"
 			(at 0 0 0)
 			(unlocked yes)
 			(layer "B.Fab")
@@ -131677,7 +131321,7 @@
 				(justify mirror)
 			)
 		)
-		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/96521737ad0f9ef1479d185ba532c802.pdf?productCode=C3154661"
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/235eb95183ff04d8ebcd64ad74d822ff.pdf?productCode=C89600"
 			(at 0 0 0)
 			(layer "B.Fab")
 			(hide yes)
@@ -131701,7 +131345,7 @@
 				(justify mirror)
 			)
 		)
-		(property "LCSC Part" "C3154661"
+		(property "LCSC Part" "C89600"
 			(at 0 0 0)
 			(unlocked yes)
 			(layer "B.Fab")
@@ -131729,7 +131373,7 @@
 				(justify mirror)
 			)
 		)
-		(property "MPN" "NCU18XH103D60RB"
+		(property "MPN" "NCP18XH103D03RB"
 			(at 0 0 180)
 			(unlocked yes)
 			(layer "B.Fab")
@@ -133457,7 +133101,7 @@
 				(justify mirror)
 			)
 		)
-		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/96521737ad0f9ef1479d185ba532c802.pdf?productCode=C3154661"
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/235eb95183ff04d8ebcd64ad74d822ff.pdf?productCode=C89600"
 			(at 0 0 0)
 			(layer "B.Fab")
 			(hide yes)
@@ -133481,7 +133125,7 @@
 				(justify mirror)
 			)
 		)
-		(property "LCSC Part" "C3154661"
+		(property "LCSC Part" "C89600"
 			(at 0 0 180)
 			(unlocked yes)
 			(layer "B.Fab")
@@ -133509,7 +133153,7 @@
 				(justify mirror)
 			)
 		)
-		(property "MPN" "NCU18XH103D60RB"
+		(property "MPN" "NCP18XH103D03RB"
 			(at 0 0 0)
 			(unlocked yes)
 			(layer "B.Fab")
@@ -133692,7 +133336,7 @@
 				(justify mirror)
 			)
 		)
-		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/96521737ad0f9ef1479d185ba532c802.pdf?productCode=C3154661"
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/235eb95183ff04d8ebcd64ad74d822ff.pdf?productCode=C89600"
 			(at 0 0 0)
 			(layer "B.Fab")
 			(hide yes)
@@ -133716,7 +133360,7 @@
 				(justify mirror)
 			)
 		)
-		(property "LCSC Part" "C3154661"
+		(property "LCSC Part" "C89600"
 			(at 0 0 180)
 			(unlocked yes)
 			(layer "B.Fab")
@@ -133744,7 +133388,7 @@
 				(justify mirror)
 			)
 		)
-		(property "MPN" "NCU18XH103D60RB"
+		(property "MPN" "NCP18XH103D03RB"
 			(at 0 0 180)
 			(unlocked yes)
 			(layer "B.Fab")
@@ -143514,7 +143158,7 @@
 				(justify mirror)
 			)
 		)
-		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/96521737ad0f9ef1479d185ba532c802.pdf?productCode=C3154661"
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/235eb95183ff04d8ebcd64ad74d822ff.pdf?productCode=C89600"
 			(at 0 0 0)
 			(layer "B.Fab")
 			(hide yes)
@@ -143538,7 +143182,7 @@
 				(justify mirror)
 			)
 		)
-		(property "LCSC Part" "C3154661"
+		(property "LCSC Part" "C89600"
 			(at 0 0 180)
 			(unlocked yes)
 			(layer "B.Fab")
@@ -143566,7 +143210,7 @@
 				(justify mirror)
 			)
 		)
-		(property "MPN" "NCU18XH103D60RB"
+		(property "MPN" "NCP18XH103D03RB"
 			(at 0 0 0)
 			(unlocked yes)
 			(layer "B.Fab")

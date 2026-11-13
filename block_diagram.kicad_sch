@@ -1025,7 +1025,7 @@
 		)
 		(uuid "892715ea-57e4-4fd0-97c5-fa26757f73ba")
 	)
-	(text "SN74LV1T34 (U19)"
+	(text "74LV1T34 (U19)"
 		(exclude_from_sim no)
 		(at 201 136.375 0)
 		(effects

@@ -6893,7 +6893,7 @@
 				)
 			)
 		)
-		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/96521737ad0f9ef1479d185ba532c802.pdf?productCode=C3154661"
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/235eb95183ff04d8ebcd64ad74d822ff.pdf?productCode=C89600"
 			(at 200.66 100.33 0)
 			(hide yes)
 			(show_name no)
@@ -6915,7 +6915,7 @@
 				)
 			)
 		)
-		(property "MPN" "NCU18XH103D60RB"
+		(property "MPN" "NCP18XH103D03RB"
 			(at 182.626 101.6 90)
 			(hide yes)
 			(show_name no)
@@ -6937,7 +6937,7 @@
 				)
 			)
 		)
-		(property "LCSC Part" "C3154661"
+		(property "LCSC Part" "C89600"
 			(at 201.93 100.33 0)
 			(hide yes)
 			(show_name no)
@@ -10405,7 +10405,7 @@
 				)
 			)
 		)
-		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/96521737ad0f9ef1479d185ba532c802.pdf?productCode=C3154661"
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/235eb95183ff04d8ebcd64ad74d822ff.pdf?productCode=C89600"
 			(at 189.23 123.19 0)
 			(hide yes)
 			(show_name no)
@@ -10427,7 +10427,7 @@
 				)
 			)
 		)
-		(property "MPN" "NCU18XH103D60RB"
+		(property "MPN" "NCP18XH103D03RB"
 			(at 189.23 123.19 0)
 			(hide yes)
 			(show_name no)
@@ -10449,7 +10449,7 @@
 				)
 			)
 		)
-		(property "LCSC Part" "C3154661"
+		(property "LCSC Part" "C89600"
 			(at 190.5 123.19 0)
 			(hide yes)
 			(show_name no)
@@ -11521,7 +11521,7 @@
 				)
 			)
 		)
-		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/96521737ad0f9ef1479d185ba532c802.pdf?productCode=C3154661"
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/235eb95183ff04d8ebcd64ad74d822ff.pdf?productCode=C89600"
 			(at 189.23 111.76 0)
 			(hide yes)
 			(show_name no)
@@ -11543,7 +11543,7 @@
 				)
 			)
 		)
-		(property "MPN" "NCU18XH103D60RB"
+		(property "MPN" "NCP18XH103D03RB"
 			(at 189.23 111.76 0)
 			(hide yes)
 			(show_name no)
@@ -11565,7 +11565,7 @@
 				)
 			)
 		)
-		(property "LCSC Part" "C3154661"
+		(property "LCSC Part" "C89600"
 			(at 190.5 111.76 0)
 			(hide yes)
 			(show_name no)
@@ -14508,7 +14508,7 @@
 				)
 			)
 		)
-		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/96521737ad0f9ef1479d185ba532c802.pdf?productCode=C3154661"
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/235eb95183ff04d8ebcd64ad74d822ff.pdf?productCode=C89600"
 			(at 189.23 134.62 0)
 			(hide yes)
 			(show_name no)
@@ -14530,7 +14530,7 @@
 				)
 			)
 		)
-		(property "MPN" "NCU18XH103D60RB"
+		(property "MPN" "NCP18XH103D03RB"
 			(at 189.23 134.62 0)
 			(hide yes)
 			(show_name no)
@@ -14552,7 +14552,7 @@
 				)
 			)
 		)
-		(property "LCSC Part" "C3154661"
+		(property "LCSC Part" "C89600"
 			(at 190.5 134.62 0)
 			(hide yes)
 			(show_name no)

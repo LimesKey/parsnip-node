@@ -6020,7 +6020,7 @@
 				)
 			)
 		)
-		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/ab245271d0a5d84ab94e85543b99f406.pdf?productCode=C2918201"
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/3ac5aea2c6d0ef59e7c328983fdc1e52.pdf?productCode=C482082"
 			(at 215.9 104.14 0)
 			(hide yes)
 			(show_name no)
@@ -6031,7 +6031,7 @@
 				)
 			)
 		)
-		(property "Description" "RES 1MΩ ±0.1% 100mW 0402"
+		(property "Description" "RES 1MΩ ±1% 63mW 0402"
 			(at 215.9 104.14 0)
 			(hide yes)
 			(show_name no)
@@ -6042,7 +6042,7 @@
 				)
 			)
 		)
-		(property "MPN" "WF04H1004BTL"
+		(property "MPN" "CRCW04021M00FKED"
 			(at 215.9 104.14 0)
 			(hide yes)
 			(show_name no)
@@ -6053,7 +6053,7 @@
 				)
 			)
 		)
-		(property "Manufacturer" "Walsin"
+		(property "Manufacturer" "Vishay"
 			(at 215.9 104.14 0)
 			(hide yes)
 			(show_name no)
@@ -6064,7 +6064,7 @@
 				)
 			)
 		)
-		(property "LCSC Part" "C2918201"
+		(property "LCSC Part" "C482082"
 			(at 215.9 104.14 0)
 			(hide yes)
 			(show_name no)
@@ -6075,7 +6075,7 @@
 				)
 			)
 		)
-		(property "Tolerance" "0.1%"
+		(property "Tolerance" "1%"
 			(at 215.9 104.14 0)
 			(hide yes)
 			(show_name no)
@@ -6086,7 +6086,7 @@
 				)
 			)
 		)
-		(property "Power Rating" "100mW"
+		(property "Power Rating" "63mW"
 			(at 215.9 104.14 0)
 			(hide yes)
 			(show_name no)
