@@ -1,5 +1,5 @@
 (kicad_sch
-	(version 20261025)
+	(version 20261106)
 	(generator "eeschema")
 	(generator_version "10.99")
 	(uuid "63083088-7666-4a3a-8878-9789c1decff5")
@@ -6363,7 +6363,7 @@
 	)
 	(wire
 		(pts
-			(xy 144.78 139.7) (xy 144.78 144.78)
+			(xy 143.51 139.7) (xy 143.51 144.78)
 		)
 		(stroke
 			(width 0)
@@ -6763,7 +6763,7 @@
 	)
 	(wire
 		(pts
-			(xy 144.78 139.7) (xy 147.32 139.7)
+			(xy 143.51 139.7) (xy 147.32 139.7)
 		)
 		(stroke
 			(width 0)
@@ -6793,7 +6793,7 @@
 	)
 	(wire
 		(pts
-			(xy 135.89 149.86) (xy 138.43 149.86)
+			(xy 135.89 149.86) (xy 137.16 149.86)
 		)
 		(stroke
 			(width 0)
@@ -7343,7 +7343,7 @@
 	)
 	(wire
 		(pts
-			(xy 135.89 147.32) (xy 138.43 147.32)
+			(xy 135.89 147.32) (xy 137.16 147.32)
 		)
 		(stroke
 			(width 0)
@@ -7443,7 +7443,7 @@
 	)
 	(wire
 		(pts
-			(xy 143.51 147.32) (xy 144.78 147.32)
+			(xy 142.24 147.32) (xy 144.78 147.32)
 		)
 		(stroke
 			(width 0)
@@ -7613,7 +7613,7 @@
 	)
 	(wire
 		(pts
-			(xy 143.51 149.86) (xy 144.78 149.86)
+			(xy 142.24 149.86) (xy 144.78 149.86)
 		)
 		(stroke
 			(width 0)
@@ -7980,6 +7980,16 @@
 			(type default)
 		)
 		(uuid "d9852b87-d8ee-4a66-bc52-58226d6dc81f")
+	)
+	(wire
+		(pts
+			(xy 143.51 144.78) (xy 144.78 144.78)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "db5a0aa1-ca54-4a4d-aa75-c36943bd4ee7")
 	)
 	(wire
 		(pts
@@ -11256,7 +11266,7 @@
 	)
 	(symbol
 		(lib_id "Device:R_Small")
-		(at 140.97 149.86 90)
+		(at 139.7 149.86 90)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -11266,7 +11276,7 @@
 		(dnp no)
 		(uuid "26c04527-d7b2-4aa8-833b-60f02a51c473")
 		(property "Reference" "R33"
-			(at 140.97 143.256 90)
+			(at 139.7 151.638 90)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -11276,7 +11286,7 @@
 			)
 		)
 		(property "Value" "0"
-			(at 140.97 151.892 90)
+			(at 139.7 149.86 90)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -11286,7 +11296,7 @@
 			)
 		)
 		(property "Footprint" "Resistor_SMD:R_0402_1005Metric"
-			(at 140.97 149.86 0)
+			(at 139.7 149.86 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -11297,7 +11307,7 @@
 			)
 		)
 		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/26cdfc55b8426b7658fe52a27bb4d16c.pdf?productCode=C844711"
-			(at 140.97 149.86 0)
+			(at 139.7 149.86 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -11308,7 +11318,7 @@
 			)
 		)
 		(property "Description" "RES 0Ω jumper 0402"
-			(at 140.97 149.86 0)
+			(at 139.7 149.86 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -11319,7 +11329,7 @@
 			)
 		)
 		(property "MPN" "CRCW04020000Z0EDHP"
-			(at 140.97 149.86 0)
+			(at 139.7 149.86 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -11330,7 +11340,7 @@
 			)
 		)
 		(property "Manufacturer" "Vishay"
-			(at 140.97 149.86 0)
+			(at 139.7 149.86 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -11341,7 +11351,7 @@
 			)
 		)
 		(property "LCSC Part" "C844711"
-			(at 140.97 149.86 0)
+			(at 139.7 149.86 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -13376,7 +13386,7 @@
 	)
 	(symbol
 		(lib_id "Device:R_Small")
-		(at 140.97 147.32 90)
+		(at 139.7 147.32 90)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -13386,7 +13396,7 @@
 		(dnp no)
 		(uuid "548961e6-9446-43cc-b19c-b965e4a77365")
 		(property "Reference" "R32"
-			(at 140.97 153.67 90)
+			(at 139.7 145.542 90)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -13396,7 +13406,7 @@
 			)
 		)
 		(property "Value" "0"
-			(at 140.97 145.288 90)
+			(at 139.7 147.32 90)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -13406,7 +13416,7 @@
 			)
 		)
 		(property "Footprint" "Resistor_SMD:R_0402_1005Metric"
-			(at 140.97 147.32 0)
+			(at 139.7 147.32 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -13417,7 +13427,7 @@
 			)
 		)
 		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/26cdfc55b8426b7658fe52a27bb4d16c.pdf?productCode=C844711"
-			(at 140.97 147.32 0)
+			(at 139.7 147.32 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -13428,7 +13438,7 @@
 			)
 		)
 		(property "Description" "RES 0Ω jumper 0402"
-			(at 140.97 147.32 0)
+			(at 139.7 147.32 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -13439,7 +13449,7 @@
 			)
 		)
 		(property "MPN" "CRCW04020000Z0EDHP"
-			(at 140.97 147.32 0)
+			(at 139.7 147.32 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -13450,7 +13460,7 @@
 			)
 		)
 		(property "Manufacturer" "Vishay"
-			(at 140.97 147.32 0)
+			(at 139.7 147.32 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -13461,7 +13471,7 @@
 			)
 		)
 		(property "LCSC Part" "C844711"
-			(at 140.97 147.32 0)
+			(at 139.7 147.32 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)

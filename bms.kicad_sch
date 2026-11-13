@@ -1,5 +1,5 @@
 (kicad_sch
-	(version 20261025)
+	(version 20261106)
 	(generator "eeschema")
 	(generator_version "10.99")
 	(uuid "36f1dd35-7641-4142-9b4b-ec28c38a5953")
@@ -4579,7 +4579,7 @@
 	)
 	(text "20A Trip"
 		(exclude_from_sim no)
-		(at 78.74 62.484 0)
+		(at 78.994 60.706 0)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -4627,6 +4627,26 @@
 		)
 		(uuid "a39e4da2-a05f-416a-a2f5-71a0bc775679")
 	)
+	(text_box "make sure D5 never fails shorted or bad things happens.."
+		(exclude_from_sim no)
+		(at 49.53 42.7191 0)
+		(size 17.78 6.8109)
+		(margins 0.9525 0.9525 0.9525 0.9525)
+		(stroke
+			(width 0)
+			(type solid)
+		)
+		(fill
+			(type none)
+		)
+		(effects
+			(font
+				(size 1.016 1.016)
+			)
+			(justify left top)
+		)
+		(uuid "c85048c5-75c9-4f76-9d4d-79d38c823403")
+	)
 	(junction
 		(at 62.23 110.49)
 		(diameter 0)
@@ -4662,12 +4682,6 @@
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "0ae7d5aa-a1fe-4957-8234-80dc601ddcae")
-	)
-	(junction
-		(at 54.61 53.34)
-		(diameter 0)
-		(color 0 0 0 0)
-		(uuid "0e9680e3-ad16-4b4d-a959-511342f9f99b")
 	)
 	(junction
 		(at 222.25 58.42)
@@ -4802,12 +4816,6 @@
 		(uuid "611f195e-089f-4435-bc5b-d6281add5a76")
 	)
 	(junction
-		(at 85.09 53.34)
-		(diameter 0)
-		(color 0 0 0 0)
-		(uuid "6b12912a-8d2f-4b3a-bc75-0edcbcae3476")
-	)
-	(junction
 		(at 198.12 144.78)
 		(diameter 0)
 		(color 0 0 0 0)
@@ -4884,6 +4892,12 @@
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "8761f4d7-f3ab-4523-a9c6-eb17295496a1")
+	)
+	(junction
+		(at 67.31 67.31)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "9144f41a-a372-4e09-a9d4-3dc609b50e17")
 	)
 	(junction
 		(at 125.73 99.06)
@@ -5190,16 +5204,6 @@
 			(type default)
 		)
 		(uuid "13bb97f6-3b42-41a9-8a71-22c27fbe366e")
-	)
-	(wire
-		(pts
-			(xy 54.61 57.15) (xy 54.61 53.34)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "14963f03-b176-43dd-8bfb-2393de9625af")
 	)
 	(wire
 		(pts
@@ -5593,7 +5597,7 @@
 	)
 	(wire
 		(pts
-			(xy 44.45 53.34) (xy 85.09 53.34)
+			(xy 58.42 50.8) (xy 85.09 50.8)
 		)
 		(stroke
 			(width 0)
@@ -5680,6 +5684,16 @@
 			(type default)
 		)
 		(uuid "57acb7f2-eca9-438b-a76d-5dbd4e87be03")
+	)
+	(wire
+		(pts
+			(xy 85.09 50.8) (xy 85.09 54.61)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "59be1211-c760-4a8c-a123-74e5545119c0")
 	)
 	(wire
 		(pts
@@ -5943,7 +5957,7 @@
 	)
 	(wire
 		(pts
-			(xy 44.45 63.5) (xy 44.45 66.04)
+			(xy 58.42 60.96) (xy 58.42 63.5)
 		)
 		(stroke
 			(width 0)
@@ -6000,6 +6014,16 @@
 			(type default)
 		)
 		(uuid "83668c40-9b6d-4679-a1f8-5fdd54b8e065")
+	)
+	(wire
+		(pts
+			(xy 67.31 66.04) (xy 67.31 67.31)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "8413bff3-5580-4c3c-8f8d-d0068e6f6d28")
 	)
 	(wire
 		(pts
@@ -6093,7 +6117,7 @@
 	)
 	(wire
 		(pts
-			(xy 85.09 63.5) (xy 85.09 67.31)
+			(xy 85.09 62.23) (xy 85.09 67.31)
 		)
 		(stroke
 			(width 0)
@@ -6263,7 +6287,7 @@
 	)
 	(wire
 		(pts
-			(xy 85.09 67.31) (xy 67.31 67.31)
+			(xy 67.31 67.31) (xy 85.09 67.31)
 		)
 		(stroke
 			(width 0)
@@ -6423,26 +6447,6 @@
 	)
 	(wire
 		(pts
-			(xy 85.09 50.8) (xy 85.09 53.34)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "bb690751-9f08-44a8-b11c-5e2f7a6b08da")
-	)
-	(wire
-		(pts
-			(xy 54.61 62.23) (xy 54.61 66.04)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "bb939d99-11a9-455b-9b54-b660d31fa582")
-	)
-	(wire
-		(pts
 			(xy 177.8 66.04) (xy 173.99 66.04)
 		)
 		(stroke
@@ -6583,7 +6587,7 @@
 	)
 	(wire
 		(pts
-			(xy 44.45 55.88) (xy 44.45 53.34)
+			(xy 58.42 53.34) (xy 58.42 50.8)
 		)
 		(stroke
 			(width 0)
@@ -6660,16 +6664,6 @@
 			(type default)
 		)
 		(uuid "e143ee6d-ff4d-465b-bddc-ec6407163513")
-	)
-	(wire
-		(pts
-			(xy 85.09 53.34) (xy 85.09 55.88)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "e4c5cbfd-1d72-4d48-931b-7888a9bdb76e")
 	)
 	(wire
 		(pts
@@ -6833,6 +6827,16 @@
 	)
 	(wire
 		(pts
+			(xy 87.63 50.8) (xy 85.09 50.8)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "fb0d032f-5fa2-4dad-9a9c-5345dad49bdd")
+	)
+	(wire
+		(pts
 			(xy 53.34 99.06) (xy 55.88 99.06)
 		)
 		(stroke
@@ -6872,7 +6876,7 @@
 		(uuid "031852ad-6d20-4ebf-a7ec-292ae5ed49e2")
 	)
 	(label "CELL_TOP"
-		(at 71.12 67.31 0)
+		(at 67.31 66.04 0)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -7567,83 +7571,6 @@
 			(project "parsnip"
 				(path "/9f6a091f-857b-49d0-a04b-55dd2f7de6dd"
 					(reference "#PWR066")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "power:-BATT")
-		(at 54.61 66.04 180)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "1642fcfa-cfee-458a-a1b9-ee011f90dddd")
-		(property "Reference" "#PWR0193"
-			(at 54.61 62.23 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "-BATT"
-			(at 54.61 69.596 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 54.61 66.04 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 54.61 66.04 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "Power symbol creates a global label with name \"-BATT\""
-			(at 54.61 66.04 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "9b879106-fe92-47c5-9662-1e6e2955cdf4")
-		)
-		(instances
-			(project "parsnip"
-				(path "/9f6a091f-857b-49d0-a04b-55dd2f7de6dd"
-					(reference "#PWR0193")
 					(unit 1)
 				)
 			)
@@ -8465,6 +8392,83 @@
 		)
 	)
 	(symbol
+		(lib_id "power:GND")
+		(at 242.57 82.55 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "3513155d-947c-4000-a3f8-12c4d5586212")
+		(property "Reference" "#PWR0127"
+			(at 242.57 88.9 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "GND"
+			(at 242.57 86.868 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 242.57 82.55 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 242.57 82.55 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
+			(at 242.57 82.55 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "6b218401-1bf2-4920-849d-a5b8f61574b0")
+		)
+		(instances
+			(project "parsnip"
+				(path "/9f6a091f-857b-49d0-a04b-55dd2f7de6dd"
+					(reference "#PWR0127")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
 		(lib_id "Device:C_Small")
 		(at 119.38 144.78 180)
 		(unit 1)
@@ -8824,7 +8828,7 @@
 	)
 	(symbol
 		(lib_id "Diode:SMF10A")
-		(at 44.45 59.69 270)
+		(at 58.42 57.15 270)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -8834,7 +8838,7 @@
 		(dnp no)
 		(uuid "4b355587-0e68-42ab-b4ff-3d5bec3cfd3d")
 		(property "Reference" "D5"
-			(at 40.386 57.15 90)
+			(at 54.356 54.61 90)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -8845,7 +8849,7 @@
 			)
 		)
 		(property "Value" "SMF10A"
-			(at 36.322 62.738 90)
+			(at 50.292 60.198 90)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -8856,7 +8860,7 @@
 			)
 		)
 		(property "Footprint" "Diode_SMD:D_SOD-123"
-			(at 39.37 59.69 0)
+			(at 53.34 57.15 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -8867,7 +8871,7 @@
 			)
 		)
 		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/d549773c39b3657663783a03a169768c.pdf?productCode=C435474"
-			(at 44.45 58.42 0)
+			(at 58.42 55.88 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -8878,7 +8882,7 @@
 			)
 		)
 		(property "Description" "TVS 10V Vrwm, 17V clamp, 200W 10/1000us, unidirectional, SOD-123"
-			(at 44.45 59.69 0)
+			(at 58.42 57.15 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -8889,7 +8893,7 @@
 			)
 		)
 		(property "MPN" "SMF10A"
-			(at 39.37 59.69 0)
+			(at 53.34 57.15 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -8900,7 +8904,7 @@
 			)
 		)
 		(property "Manufacturer" "AnBon"
-			(at 39.37 59.69 0)
+			(at 53.34 57.15 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -8911,7 +8915,7 @@
 			)
 		)
 		(property "LCSC Part" "C435474"
-			(at 44.45 59.69 0)
+			(at 58.42 57.15 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -10170,7 +10174,7 @@
 	)
 	(symbol
 		(lib_id "Device:Polyfuse")
-		(at 85.09 59.69 180)
+		(at 85.09 58.42 180)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -10180,7 +10184,7 @@
 		(dnp no)
 		(uuid "6ff9829c-b91c-49c2-a866-92f1575e423c")
 		(property "Reference" "F5"
-			(at 80.772 57.15 0)
+			(at 80.772 55.88 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -10191,7 +10195,7 @@
 			)
 		)
 		(property "Value" "10A Hold"
-			(at 74.676 59.69 0)
+			(at 74.676 58.42 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -10202,7 +10206,7 @@
 			)
 		)
 		(property "Footprint" "Fuse:Fuse_2920_7451Metric"
-			(at 83.82 54.61 0)
+			(at 83.82 53.34 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -10214,7 +10218,7 @@
 			)
 		)
 		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/14d81d7958d374dbae10273735207212.pdf?productCode=C50338483"
-			(at 85.09 59.69 0)
+			(at 85.09 58.42 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -10225,7 +10229,7 @@
 			)
 		)
 		(property "Description" "FUSE PTC resettable 10A hold, 20A trip, 21V, 2920"
-			(at 85.09 59.69 0)
+			(at 85.09 58.42 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -10236,7 +10240,7 @@
 			)
 		)
 		(property "MPN" "BSMD2920L-1000-21V"
-			(at 83.82 54.61 0)
+			(at 83.82 53.34 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -10248,7 +10252,7 @@
 			)
 		)
 		(property "Manufacturer" "BHFUSE"
-			(at 83.82 54.61 0)
+			(at 83.82 53.34 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -10260,7 +10264,7 @@
 			)
 		)
 		(property "LCSC Part" "C50338483"
-			(at 85.09 59.69 0)
+			(at 85.09 58.42 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -12787,7 +12791,7 @@
 	)
 	(symbol
 		(lib_id "power:PWR_FLAG")
-		(at 85.09 50.8 270)
+		(at 87.63 50.8 270)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -12797,7 +12801,7 @@
 		(dnp no)
 		(uuid "ab5e5723-f87a-42b1-a6fd-44306e975a8a")
 		(property "Reference" "#FLG015"
-			(at 86.995 50.8 90)
+			(at 89.535 50.8 90)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -12808,7 +12812,7 @@
 			)
 		)
 		(property "Value" "PWR_FLAG"
-			(at 88.9 50.8 90)
+			(at 91.44 50.8 90)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -12819,7 +12823,7 @@
 			)
 		)
 		(property "Footprint" ""
-			(at 85.09 50.8 0)
+			(at 87.63 50.8 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -12830,7 +12834,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 85.09 50.8 0)
+			(at 87.63 50.8 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -12841,7 +12845,7 @@
 			)
 		)
 		(property "Description" "Special symbol for telling ERC where power comes from"
-			(at 85.09 50.8 0)
+			(at 87.63 50.8 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -12864,155 +12868,8 @@
 		)
 	)
 	(symbol
-		(lib_id "Device:C_Small")
-		(at 54.61 59.69 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "b26ef7e5-138e-4d3f-b1c0-4e7336610b6d")
-		(property "Reference" "C48"
-			(at 56.388 57.658 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Value" "10uF"
-			(at 56.134 61.722 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Footprint" "Capacitor_SMD:C_0805_2012Metric"
-			(at 54.61 59.69 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/84e3a6fd29786b629e1e2892084b001d.pdf?productCode=C6119892"
-			(at 54.61 59.69 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "CAP MLCC 10uF ±20% 50V X5R 0805"
-			(at 54.61 59.69 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "MPN" "CGA0805X5R106M500MT"
-			(at 54.61 59.69 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Manufacturer" "HRE"
-			(at 54.61 59.69 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "LCSC Part" "C6119892"
-			(at 54.61 59.69 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Voltage Rating" "50V"
-			(at 54.61 59.69 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Dielectric" "X5R"
-			(at 54.61 59.69 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Tolerance" "20%"
-			(at 54.61 59.69 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "2"
-			(uuid "5647a57e-bfa0-4d87-9682-3f7947f39d01")
-		)
-		(pin "1"
-			(uuid "35d7c38c-cc3a-402b-b01c-c8cfecb931dc")
-		)
-		(instances
-			(project "parsnip"
-				(path "/9f6a091f-857b-49d0-a04b-55dd2f7de6dd"
-					(reference "C48")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
 		(lib_id "power:-BATT")
-		(at 44.45 66.04 180)
+		(at 58.42 63.5 180)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -13022,7 +12879,7 @@
 		(dnp no)
 		(uuid "b56c021b-5afe-47f8-a075-fc858966075a")
 		(property "Reference" "#PWR0194"
-			(at 44.45 62.23 0)
+			(at 58.42 59.69 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -13033,7 +12890,7 @@
 			)
 		)
 		(property "Value" "-BATT"
-			(at 44.45 69.596 0)
+			(at 58.42 67.056 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -13043,7 +12900,7 @@
 			)
 		)
 		(property "Footprint" ""
-			(at 44.45 66.04 0)
+			(at 58.42 63.5 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -13054,7 +12911,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 44.45 66.04 0)
+			(at 58.42 63.5 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -13065,7 +12922,7 @@
 			)
 		)
 		(property "Description" "Power symbol creates a global label with name \"-BATT\""
-			(at 44.45 66.04 0)
+			(at 58.42 63.5 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -14359,83 +14216,6 @@
 			(project "parsnip"
 				(path "/9f6a091f-857b-49d0-a04b-55dd2f7de6dd"
 					(reference "#PWR0195")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "power:-BATT")
-		(at 242.57 82.55 180)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "d926f271-ae35-4854-bb8c-0d0782d5fe6f")
-		(property "Reference" "#PWR070"
-			(at 242.57 78.74 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "-BATT"
-			(at 242.57 86.614 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 242.57 82.55 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 242.57 82.55 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "Power symbol creates a global label with name \"-BATT\""
-			(at 242.57 82.55 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "8374b603-754f-4f90-a3b0-c6c0f9c0e714")
-		)
-		(instances
-			(project "parsnip"
-				(path "/9f6a091f-857b-49d0-a04b-55dd2f7de6dd"
-					(reference "#PWR070")
 					(unit 1)
 				)
 			)

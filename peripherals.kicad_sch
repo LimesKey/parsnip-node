@@ -1,5 +1,5 @@
 (kicad_sch
-	(version 20261025)
+	(version 20261106)
 	(generator "eeschema")
 	(generator_version "10.99")
 	(uuid "4f4c527a-9624-452f-aa82-08eb8565f0e1")
@@ -5350,7 +5350,7 @@
 				)
 			)
 		)
-		(property "Footprint" "easyeda2kicad:X1-WLB0808-4_L0.8-W0.8-P0.40-TL"
+		(property "Footprint" "footprints:QMC6309_WLCSP-4_0.79x0.79mm_P0.4mm"
 			(at 236.22 146.05 0)
 			(hide yes)
 			(show_name no)
