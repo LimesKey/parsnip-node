@@ -24,7 +24,7 @@ known-benign noise, confirm what's left, and report it ranked by severity.
    go stale within a session. Run the tool every time.
 
 Scripts (stdlib Python, already permitted):
-`S=code/claude/kicad-review/scripts`. Run `python3 $S/<tool>.py ...`.
+`S=.claude/skills/kicad-review/scripts`. Run `python3 $S/<tool>.py ...`.
 
 ## The sequence (run in this order, one call each)
 
@@ -57,6 +57,11 @@ Scripts (stdlib Python, already permitted):
    `kpcb.py parsnip.kicad_pcb ampacity --from PAD --to PAD --amps X` (e.g. Q16.1 ->
    R41.1 at 6 A OTG, the charge path at 2.7 A), and `ksheet.py parsnip-merged.net
    lint` for schematic readability (WARNs are drawing defects, not netlist bugs).
+4c. Footprints: `kfp.py parsnip.kicad_pcb diff` explains every DRC
+   lib_footprint_mismatch field by field. Report one only from its first-tier
+   lines (a real pad/shape/keepout change); a "sub-um rounding only" footprint is
+   noise that Update Footprint clears. Then `kfp.py lib/footprints.pretty lint` for
+   the project's own footprints (unused ones: `kfp.py parsnip.kicad_pcb libs`).
 5. For each surviving finding, before you report it: `knet.py parsnip-merged.net
    around REF` for connectivity, `kdoc.py grep '<string>' -d <doc>` for the
    datasheet rule, `kpcb.py parsnip.kicad_pcb where REF` for geometry.

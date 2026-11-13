@@ -1,0 +1,10 @@
+[["kpcb.py", "{pcb}", "ic", "U13"],
+ ["kpcb.py", "{pcb}", "ampacity", "VSYS"],
+ ["kpcb.py", "{pcb}", "where", "U12"],
+ ["kpcb.py", "{pcb}", "net", "VSYS"],
+ ["kpcb.py", "{pcb}", "zones", "U12"],
+ ["kpcb.py", "{pcb}", "ic", "U8"],
+ ["kpcb.py", "{pcb}", "ampacity", "--from", "Q16.1", "--to", "R41.1", "--amps", "6"],
+ ["knet.py", "{net}", "divider", "U8.TS"],
+ ["knet.py", "{net}", "draw", "U7", "--spec"],
+ ["ksheet.py", "{net}", "sch", "U7"]]

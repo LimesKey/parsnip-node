@@ -1,9 +1,0 @@
-# The .skill files are build artefacts: zipped copies of the folders beside
-# them, produced by ./pack.sh. The folders are what git tracks, so that a diff
-# shows the actual change instead of a new binary blob every time.
-*.skill
-
-# The repo root ignores *.net (KiCad netlist exports). These are not exports,
-# they are the tools' self-test fixtures - without them the checks cannot be
-# verified after an edit.
-!kicad-review/references/*.net
