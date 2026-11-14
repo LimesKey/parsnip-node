@@ -16294,7 +16294,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Package_DFN_QFN:DFN-8-1EP_3x2mm_P0.5mm_EP1.36x1.46mm"
+		(property "Footprint" "footprints:DFN-8-1EP_3x2mm_P0.5mm_EP1.36x1.46mm"
 			(at 243.84 109.728 0)
 			(hide yes)
 			(show_name no)

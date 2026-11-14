@@ -10,7 +10,6 @@ BOARD=${1:-$ROOT/parsnip.kicad_pcb} OUT=${2:-$ROOT/lib/img}
 W=${W:-${XDG_CACHE_HOME:-$HOME/.cache}/parsnip-render}    # ~3 GB of 16-bit frames: keep it off tmpfs
 blender() { PATH=/usr/bin:$PATH command blender -b "$@"; }  # a uv python3.x earlier on PATH breaks Blender's stdlib
 if [ -n "${PREVIEW:-}" ]; then SW=360 SH=504 SPP=16; else SW=1080 SH=1512 SPP=200; fi
-OW=$(( SW < 720 ? SW : 720 ))
 mkdir -p "$W/frames" && rm -f "$W"/frames/f*.png
 
 kicad-cli-nightly pcb export glb --no-dnp --subst-models --include-tracks --include-pads --include-zones \
@@ -22,7 +21,9 @@ blender "$W/base.blend" --python "$HERE/dress.py" -- "$W/scene.blend" "$W/screen
 blender "$W/scene.blend" -o "$W/frames/f####" -a
 python3 "$HERE/bg.py" $SW $SH "$W/bg"
 ffmpeg -hide_banner -loglevel error -y -f rawvideo -pix_fmt rgb48le -s ${SW}x$SH -i "$W/bg.rgb48" -frames:v 1 "$W/bg.png"
-"$HERE/encode.sh" "$W/frames" "$W/bg.png" $OW 30 "$OUT/render-spin.avif"
+# Full render width, shown at half of it in the README (width="540"): 1:1 on 2x screens, an exact 2:1
+# on 1x ones (browsers scale animated images with plain bilinear, which aliases at odd ratios like 1.5:1).
+"$HERE/encode.sh" "$W/frames" "$W/bg.png" $SW 22 "$OUT/render-spin.avif"
 ffmpeg -hide_banner -loglevel error -y -i "$W/bg.png" -i "$W/frames/f0001.png" \
-  -filter_complex "overlay=format=yuv444p10,scale=$OW:-2:flags=lanczos" -frames:v 1 -q:v 3 "$OUT/render-spin.jpg"
+  -filter_complex "overlay=format=yuv444p10" -frames:v 1 -q:v 3 "$OUT/render-spin.jpg"
 ls -l "$OUT/render-spin.avif" "$OUT/render-spin.jpg"

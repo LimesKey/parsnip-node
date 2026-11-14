@@ -310,7 +310,7 @@
 		(uuid "a3fe726e-d9d2-4586-b39f-5a6a8b235bbe")
 	)
 	(embedded_fonts no)
-	(model "${KICAD10_3DMODEL_DIR}/Package_SON.3dshapes/VSONP-8-1EP_5x6_P1.27mm.step"
+	(model "${KIPRJMOD}/lib/3d-models/VSON-CLIP-8_L6.0-W5.0-P1.27-BL.wrl"
 		(offset
 			(xyz 0 0 0)
 		)
@@ -318,7 +318,7 @@
 			(xyz 1 1 1)
 		)
 		(rotate
-			(xyz 0 0 0)
+			(xyz -0 -0 90)
 		)
 	)
 )

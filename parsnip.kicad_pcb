@@ -73019,17 +73019,6 @@
 			(uuid "ea364802-5ec6-441a-831a-c3a64204232d")
 		)
 		(embedded_fonts no)
-		(model "${KICAD10_3DMODEL_DIR}/Package_SON.3dshapes/VSONP-8-1EP_5x6_P1.27mm.step"
-			(offset
-				(xyz 0 0 0)
-			)
-			(scale
-				(xyz 1 1 1)
-			)
-			(rotate
-				(xyz 0 0 0)
-			)
-		)
 		(model "${KIPRJMOD}/lib/3d-models/VSON-CLIP-8_L6.0-W5.0-P1.27-BL.wrl"
 			(offset
 				(xyz 0 0 0)
@@ -94524,17 +94513,6 @@
 			(uuid "ee32f0be-6ec8-45a9-8d63-fd90b653f5d1")
 		)
 		(embedded_fonts no)
-		(model "${KICAD10_3DMODEL_DIR}/RF_GPS.3dshapes/ublox_NEO.step"
-			(offset
-				(xyz 0 0 0)
-			)
-			(scale
-				(xyz 1 1 1)
-			)
-			(rotate
-				(xyz 0 0 0)
-			)
-		)
 		(model "${KIPRJMOD}/lib/3d-models/NEO-M9N--3DModel-STEP-510211.step"
 			(offset
 				(xyz 0 0 0)
@@ -101279,17 +101257,6 @@
 			(uuid "027d0e01-a985-46d5-bce7-c179c936ec2c")
 		)
 		(embedded_fonts no)
-		(model "${KICAD10_3DMODEL_DIR}/Package_SON.3dshapes/VSONP-8-1EP_5x6_P1.27mm.step"
-			(offset
-				(xyz 0 0 0)
-			)
-			(scale
-				(xyz 1 1 1)
-			)
-			(rotate
-				(xyz 0 0 0)
-			)
-		)
 		(model "${KIPRJMOD}/lib/3d-models/VSON-CLIP-8_L6.0-W5.0-P1.27-BL.wrl"
 			(offset
 				(xyz 0 0 0)
@@ -121122,17 +121089,6 @@
 			(uuid "401eb3f3-88e7-43d9-9db3-0a8bae42e4d5")
 		)
 		(embedded_fonts no)
-		(model "${KICAD10_3DMODEL_DIR}/Package_DFN_QFN.3dshapes/Texas_REF0038A_WQFN-38-2EP_6x4mm_P0.4.step"
-			(offset
-				(xyz 0 0 0)
-			)
-			(scale
-				(xyz 1 1 1)
-			)
-			(rotate
-				(xyz 0 0 0)
-			)
-		)
 		(model "${KIPRJMOD}/lib/3d-models/TPS25751DREFR--3DModel-STEP-56544.step"
 			(offset
 				(xyz 0 0 0)
@@ -138454,7 +138410,7 @@
 			)
 		)
 	)
-	(footprint "Package_DFN_QFN:DFN-8-1EP_3x2mm_P0.5mm_EP1.36x1.46mm"
+	(footprint "footprints:DFN-8-1EP_3x2mm_P0.5mm_EP1.36x1.46mm"
 		(layer "B.Cu")
 		(uuid "95a5e2e5-f2b5-498c-9a8d-4bcc85512d51")
 		(transform
@@ -138954,7 +138910,7 @@
 			(uuid "63dc86d1-7b0a-49a2-99c5-4603288bb44c")
 		)
 		(embedded_fonts no)
-		(model "${KICAD10_3DMODEL_DIR}/Package_DFN_QFN.3dshapes/DFN-8-1EP_3x2mm_P0.5mm_EP1.36x1.46mm.step"
+		(model "${KICAD10_3DMODEL_DIR}/Package_DFN_QFN.3dshapes/DFN-8-1EP_3x2mm_P0.5mm_EP1.3x1.5mm.step"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -142181,6 +142137,17 @@
 			(uuid "efe2bf66-ebae-4648-bd49-2878a9d29254")
 		)
 		(embedded_fonts no)
+		(model "${KICAD10_3DMODEL_DIR}/Connector_PinSocket_2.54mm.3dshapes/PinSocket_2x08_P2.54mm_Vertical_SMD.step"
+			(offset
+				(xyz 0 0 0)
+			)
+			(scale
+				(xyz 1 1 1)
+			)
+			(rotate
+				(xyz 0 0 90)
+			)
+		)
 	)
 	(footprint "Capacitor_SMD:C_0402_1005Metric"
 		(layer "B.Cu")
