@@ -10162,7 +10162,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Package_SON:VSONP-8-1EP_5x6_P1.27mm"
+		(property "Footprint" "footprints:VSONP-8-1EP_5x6_P1.27mm_CSD18512Q5B"
 			(at 113.03 26.67 0)
 			(hide yes)
 			(show_name no)
@@ -14328,7 +14328,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Package_SON:VSONP-8-1EP_5x6_P1.27mm"
+		(property "Footprint" "footprints:VSONP-8-1EP_5x6_P1.27mm_CSD18512Q5B"
 			(at 83.82 26.67 0)
 			(hide yes)
 			(show_name no)

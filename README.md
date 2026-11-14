@@ -13,9 +13,9 @@ on every external port.
 <p align="center">
   <picture>
     <source srcset="lib/img/render-spin.avif" type="image/avif">
-    <img src="lib/img/render-spin.gif" alt="parsnip-node v2 spinning: E-Ink module on the front, two 21700 cells on the back" width="480">
+    <img src="lib/img/render-spin.jpg" alt="parsnip-node v2 on a turntable: E-Ink module on the front, two 21700 cells on the back" width="480">
   </picture>
-  <br><sub>Render with two 21700 cells and the optional WeAct 3.7" E-Ink module on M2 standoffs and a clear top plate. The display mount is a mock-up, not part of the board yet.</sub>
+  <br><sub>Render, see (<a href="code/render/render.sh"> for code/render</a>), with two 21700 cells and the optional WeAct 3.7" E-Ink module on M2 standoffs and a clear top plate. The display mount is a mock-up, not part of the board yet.</sub>
 </p>
 
 ## Status
