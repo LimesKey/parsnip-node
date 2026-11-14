@@ -1,13 +1,15 @@
 """Dress base.blend (KiCad GLB import) for the README turntable: PBR materials, render-only extras
-(2x 21700 cells, M2 standoffs, acrylic plate, WeAct 3.7" e-paper), stand-ins for the parts that have
-no 3D model, studio lights, camera, 60 fps turntable, Cycles on the HIP GPU. Run by render.sh.
+(2x 21700 cells, M2 standoffs, acrylic plate, WeAct 3.7" e-paper),
+studio lights, camera, 60 fps turntable, Cycles on the HIP GPU. Run by render.sh.
 
 blender -b base.blend -P dress.py -- OUT.blend SCREEN.png SECONDS [--test DIR deg,deg,...] [--res W H] [--spp N]
 GLB frame: metres, X = pcb x, Y = -pcb y, Z = out of the front; board body z 0..1.5 mm.
-Board coordinates below (holes, BT1/BT2, stand-in fab bodies) come from `kpcb.py parsnip.kicad_pcb where REF`:
+Board coordinates below (holes, BT1/BT2) come from `kpcb.py parsnip.kicad_pcb where REF`:
 re-check them after a layout change."""
-import bpy, bmesh, math, os, sys, colorsys
+import bpy, bmesh, math, os, sys, colorsys, random
 from mathutils import Vector, Matrix
+from mathutils.bvhtree import BVHTree
+from PIL import Image, ImageDraw, ImageFont
 
 argv = sys.argv[sys.argv.index('--') + 1:]
 OUT, SCREEN, SECONDS = argv[0], argv[1], float(argv[2])
@@ -57,7 +59,6 @@ M = {
     'mask':   mat('mask', (0.010, 0.011, 0.012), 0.0, 0.42, **{'Coat Weight': 1.0, 'Coat Roughness': 0.10, 'Alpha': 0.93}),
     'silk':   mat('silk', (0.80, 0.80, 0.78), 0.0, 0.7),
     'fr4':    mat('fr4', (0.42, 0.40, 0.24), 0.0, 0.65),
-    'wrap':   mat('wrap', (0.003, 0.045, 0.27), 0.0, 0.32, **{'Coat Weight': 0.5, 'Coat Roughness': 0.18}),
     'nickel': mat('nickel', (0.70, 0.68, 0.63), 1.0, 0.30),
     'insul':  mat('insul', (0.75, 0.72, 0.62), 0.0, 0.6),
     'brass':  mat('brass', (0.86, 0.66, 0.34), 1.0, 0.28),
@@ -68,9 +69,6 @@ M = {
     'modpcb': mat('module_pcb', (0.008, 0.009, 0.010), 0.0, 0.35, **{'Coat Weight': 1.0, 'Coat Roughness': 0.12}),
     'subst':  mat('panel_glass', (0.30, 0.31, 0.31), 0.0, 0.15),
     'fpc':    mat('fpc', (0.42, 0.17, 0.015), 0.0, 0.3, **{'Coat Weight': 0.5}),
-    'shield': mat('shield', (0.80, 0.80, 0.78), 1.0, 0.22),
-    'epoxy':  mat('epoxy', (0.012, 0.012, 0.013), 0.0, 0.5),
-    'carrier': mat('carrier', (0.02, 0.08, 0.035), 0.0, 0.35, **{'Coat Weight': 1.0}),
 }
 # e-paper: texture on the paper area, matte with a faint protective-film sheen
 paper = mat('paper', (1, 1, 1), 0.0, 0.62, **{'Coat Weight': 0.35, 'Coat Roughness': 0.25})
@@ -175,32 +173,132 @@ def box(name, material, x0, y0, x1, y1, z0, z1, bevel=0.08):
     return prism(name, material, [(x0, y0), (x1, y0), (x1, y1), (x0, y1)], z0, z1, bevel, None)
 
 
-def cyl_y(name, material, cx, cy, cz, r, y0, y1, seg=96, bevel=None):
-    """Cylinder along pcb y from y0 to y1 at pcb x = cx, GLB z = cz (mm)."""
-    bm = bmesh.new()
-    rings = []
-    for y in (y0, y1):
-        rings.append([bm.verts.new(P(cx + r * math.cos(2 * math.pi * k / seg), y, cz + r * math.sin(2 * math.pi * k / seg)))
-                      for k in range(seg)])
-    bm.faces.new(rings[0]); bm.faces.new(list(reversed(rings[1])))
-    for i in range(seg):
-        j = (i + 1) % seg
-        bm.faces.new((rings[0][i], rings[0][j], rings[1][j], rings[1][i]))
-    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
-    return mesh_obj(name, bm, material, 30, bevel)
-
-
 # ---------------------------------------------------------------- 21700 cells in BT1 / BT2
-AXIS_Z = BACK - 12.6
-for ref, x, y, pos_to_plus_y in (('BT1', 138.45, 83.06, True), ('BT2', 113.30, 83.15, False)):
-    L, R = 70.15, 10.6
-    y0, y1 = y - L / 2, y + L / 2
-    cyl_y(f'{ref}_wrap', M['wrap'], x, y, AXIS_Z, R, y0 + 0.35, y1 - 0.35, bevel=0.9)
-    neg, pos = (y0, y1) if pos_to_plus_y else (y1, y0)
-    d = 1 if pos > neg else -1
-    cyl_y(f'{ref}_neg', M['nickel'], x, y, AXIS_Z, 8.8, neg - d * 0.05, neg + d * 0.5, bevel=0.3)
-    cyl_y(f'{ref}_ins', M['insul'], x, y, AXIS_Z, 8.6, pos - d * 0.5, pos + d * 0.05)
-    cyl_y(f'{ref}_btn', M['nickel'], x, y, AXIS_Z, 4.2, pos - d * 0.2, pos + d * 0.75, bevel=0.3)
+# Generic 21700 (21.15 x 70.35 mm) lathed from one profile: printed PVC sleeve rolled over both shoulders, crimp
+# bead under the + end, nickel-plated can ends, paper insulator ring, black gasket, + button. Seated by ray-casting
+# the holder model (resting on its cradle, + button on the + contact, a leaf spring taking the slack at the - end).
+# The holder housing is black PA66 per its datasheet, not the export's grey.
+CELL_R, CELL_L, SH = 10.575, 70.35, 0.875           # radius, length to the + button top, shoulder radius
+TOP = CELL_L - 1.0                                   # crimped rim: the + button stands 1.0 mm proud of it
+BEAD = TOP - 3.4                                     # crimp bead centre
+WR, CN, IN, GK = range(4)                            # sleeve, nickel can/cap, insulator, gasket
+
+
+def arc(cr, cs, rad, a0, a1, m, k=6):
+    return [(cr + rad * math.cos(math.radians(a0 + (a1 - a0) * t / k)),
+             cs + rad * math.sin(math.radians(a0 + (a1 - a0) * t / k)), m) for t in range(k + 1)]
+
+
+# (radius, distance from the - face, material of the strip up to the next point)
+PROFILE = ([(0, 0.10, CN), (8.70, 0.10, WR), (8.80, 0.0, WR)] + arc(CELL_R - SH, SH, SH, -90, 0, WR)
+           + [(CELL_R - 0.25 * (1 + math.cos(math.pi * t / 6)), BEAD + 0.9 * t / 6, WR) for t in range(-6, 7)]
+           + arc(CELL_R - SH, TOP - SH, SH, 0, 90, WR)
+           + [(9.15, TOP, IN), (9.10, TOP + 0.15, IN), (4.95, TOP + 0.15, IN), (4.90, TOP, GK), (4.30, TOP - 0.05, CN),
+              (4.20, TOP + 0.05, CN)] + arc(3.85, CELL_L - 0.35, 0.35, 0, 90, CN) + [(0, CELL_L, CN)])
+
+
+def lathe(name, prof, mats, cx, y_neg, d, zc, n=144):
+    """Revolve prof about a pcb-y axis at pcb x cx, GLB z zc; s runs from pcb y y_neg in direction d (+-1).
+    UV: u around (0.5 faces away from the board, handedness kept so the print reads right), v = s / CELL_L."""
+    bm = bmesh.new()
+    uvl = bm.loops.layers.uv.new()
+    ang = lambda j: -math.pi / 2 + d * 2 * math.pi * (j / n - 0.5)
+    rings = [[bm.verts.new(P(cx + r * math.cos(ang(j)), y_neg + d * s, zc + r * math.sin(ang(j)))) for j in range(n if r else 1)]
+             for r, s, _ in prof]
+    for i in range(len(prof) - 1):
+        a, b, sa, sb = rings[i], rings[i + 1], prof[i][1], prof[i + 1][1]
+        for j in range(n):
+            quad = []
+            for ring, k, s in ((a, j, sa), (a, j + 1, sa), (b, j + 1, sb), (b, j, sb)):
+                v = ring[k % len(ring)]
+                if all(v is not q[0] for q in quad):   # a pole ring is one vertex: the quad becomes a triangle
+                    quad.append((v, k, s))
+            f = bm.faces.new([q[0] for q in quad])
+            f.material_index = prof[i][2]
+            for loop, (_, k, s) in zip(f.loops, quad):
+                loop[uvl].uv = (k / n, s / CELL_L)
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    o = mesh_obj(name, bm, mats[0], 40)
+    for m in mats[1:]:
+        o.data.materials.append(m)
+    return o
+
+
+def seat(ref, xc, yc, r):
+    """Ray-cast the holder model: (cell axis GLB z resting on the cradle, contact pcb y on the -y side, on the +y side)."""
+    verts, polys = [], []
+    for o in (bpy.data.objects[ref], *bpy.data.objects[ref].children_recursive):
+        if o.type == 'MESH':
+            k = len(verts)
+            verts += [o.matrix_world @ v.co for v in o.data.vertices]
+            polys += [[k + i for i in p.vertices] for p in o.data.polygons]
+    bvh = BVHTree.FromPolygons(verts, polys)
+    hit = lambda x, y, z, dy, dz: bvh.ray_cast(P(x, y, z), Vector((0, dy, dz)))[0]
+    zc = BACK
+    for yy in range(-30, 31, 3):                     # the middle 60 mm, clear of the end contacts
+        for k in range(-40, 41):
+            dx = r * k / 41
+            h = hit(xc + dx, yc + yy, -40, 0, 1)
+            zc = min(zc, (h.z / MM if h else BACK) - math.sqrt(r * r - dx * dx))
+    lo, hi = hit(xc, yc, zc, 1, 0), hit(xc, yc, zc, -1, 0)    # GLB +Y is pcb -y
+    return zc, -lo.y / MM, -hi.y / MM
+
+
+def leaf(name, cx, y_wall, y_face, zc):
+    """Stamped - contact: a 5 mm strip from low on the end wall to the middle of the - cap."""
+    bm = bmesh.new()
+    (y0, z0), (y1, z1) = (y_wall, zc + 4.5), (y_face, zc)
+    n = math.hypot(y1 - y0, z1 - z0)
+    ny, nz = -(z1 - z0) / n * 0.15, (y1 - y0) / n * 0.15
+    vs = [bm.verts.new(P(cx + sx, y + sy, z + sz)) for sx in (-2.5, 2.5) for y, z in ((y0, z0), (y1, z1))
+          for sy, sz in ((ny, nz), (-ny, -nz))]
+    bmesh.ops.convex_hull(bm, input=vs)
+    return mesh_obj(name, bm, M['nickel'], 30)
+
+
+# sleeve print, drawn along the cell (x: - end to + end) and around it (y: its middle faces away from the board)
+PX = 16                                              # label pixels per mm
+px = lambda v: round(v * PX)
+font = lambda h, bold=True: ImageFont.truetype(f'/usr/share/fonts/TTF/DejaVuSansCondensed{"-Bold" if bold else ""}.ttf', px(h))
+SLEEVE, INK, ACC = (24, 60, 124), (236, 240, 244), (126, 178, 228)
+lab = Image.new('RGB', (px(CELL_L), px(2 * math.pi * CELL_R)), SLEEVE)
+g, yc = ImageDraw.Draw(lab), lab.height / 2
+for s in (-11, 11):
+    g.line([(px(1.5), yc + px(s)), (px(64), yc + px(s))], fill=ACC, width=px(0.35))
+g.text((px(5), yc - px(3.2)), '21700', font=font(6.2), fill=INK, anchor='lm')
+g.text((px(5) + g.textlength('21700', font=font(6.2)) + px(1.6), yc - px(2.6)), 'Li-ion', font=font(3.0, False), fill=ACC, anchor='lm')
+g.text((px(5), yc + px(3.6)), '3.6 V  ·  5330 mAh  ·  19.2 Wh', font=font(2.4, False), fill=INK, anchor='lm')
+g.text((px(5), yc + px(7.4)), 'INR21700  rechargeable lithium-ion cell', font=font(1.5, False), fill=INK, anchor='lm')
+for i, t in enumerate(('WARNING: Do not short-circuit,', 'crush, disassemble, heat above', '100 °C, incinerate or immerse.',
+                       'Charge only with a Li-ion', 'charger at 0-45 °C.', 'Keep away from children.')):
+    g.text((px(38), yc - px(9.2) + i * px(1.45)), t, font=font(1.0, False), fill=INK, anchor='lm')
+rng, xb = random.Random(21700), px(38)               # a barcode-like block
+while xb < px(53):
+    w = rng.choice((1, 1, 2, 3)) * PX // 8
+    g.rectangle([xb, yc + px(1.6), xb + w - 1, yc + px(5.4)], fill=INK)
+    xb += w + rng.choice((1, 2, 3)) * PX // 8
+g.text((px(60), yc), '+', font=font(4.4), fill=INK, anchor='mm')
+label_path = os.path.splitext(OUT)[0] + '_cell.png'
+lab.rotate(90, expand=True).save(label_path)         # -> columns around (u), rows along (v, + end at the top)
+sleeve = mat('cell_sleeve', (1, 1, 1), 0.0, 0.28, **{'Coat Weight': 0.6, 'Coat Roughness': 0.08})
+tx = sleeve.node_tree.nodes.new('ShaderNodeTexImage')
+tx.image = bpy.data.images.load(label_path)
+tx.image.pack()
+tx.interpolation = 'Cubic'
+sleeve.node_tree.links.new(tx.outputs['Color'], sleeve.node_tree.nodes['Principled BSDF'].inputs['Base Color'])
+
+for ref, x, y, plus_to_plus_y in (('BT1', 138.45, 83.06, True), ('BT2', 113.30, 83.15, False)):
+    for o in (bpy.data.objects[ref], *bpy.data.objects[ref].children_recursive):   # dark plastic -> black PA66
+        for s in getattr(o, 'material_slots', ()):
+            b = s.material.node_tree.nodes.get('Principled BSDF') if s.material and s.material.node_tree else None
+            if b and b.inputs['Metallic'].default_value < 0.5 and max(b.inputs['Base Color'].default_value[:3]) < 0.1:
+                s.material = M['nylon']
+    zc, c_lo, c_hi = seat(ref, x, y, CELL_R)
+    d = 1 if plus_to_plus_y else -1
+    y_neg = (c_hi if d > 0 else c_lo) - d * (CELL_L + 0.02)
+    lathe(f'{ref}_cell', PROFILE, [sleeve, M['nickel'], M['insul'], M['nylon']], x, y_neg, d, zc)
+    leaf(f'{ref}_spring', x, c_lo if d > 0 else c_hi, y_neg + d * 0.10, zc)
+    print(f'{ref}: axis {zc:.2f} mm, contacts y {c_lo:.2f} / {c_hi:.2f}, - end gap {abs(y_neg - (c_lo if d > 0 else c_hi)):.2f} mm')
 
 # ---------------------------------------------------------------- standoffs, acrylic plate, screws
 HOLES = [(98.25, 37.66), (153.45, 37.66), (98.25, 162.86), (153.45, 162.86)]
@@ -236,15 +334,6 @@ for loop in pp.data.loops:
     uv.data[loop.index].uv[1] = 1 - uv.data[loop.index].uv[1]
 box('fpc_flat', M['fpc'], CX - 5, pan_bot - 0.5, CX + 5, CY + ML / 2 - 0.6, z, z + 0.12, 0.03)
 box('fpc_bend', M['fpc'], CX - 5, CY + ML / 2 - 0.6, CX + 5, CY + ML / 2 - 0.45, z - 1.6, z + 0.12, 0.03)
-
-# ---------------------------------------------------------------- stand-ins: footprints whose 3D model is missing from the
-# KiCad library (the GLB export logs 'File not found'); drop an entry once its model exists
-box('U9_carrier', M['carrier'], 102.75, 57.55, 118.75, 69.75, FRONT, FRONT + 0.8)
-box('U9_shield', M['shield'], 102.95, 57.75, 118.55, 69.55, FRONT + 0.8, FRONT + 2.4, 0.2)
-for ref, (x0, y0, x1, y1), h in (('Q7', (100.83, 95.09, 106.83, 100.00), 1.0), ('Q8', (100.83, 100.55, 106.83, 105.45), 1.0),
-                                 ('U5', (132.93, 142.73, 136.93, 148.73), 0.75)):
-    box(f'{ref}_body', M['epoxy'], x0, y0, x1, y1, FRONT, FRONT + h)
-box('U21_body', M['epoxy'], 129.57, 146.40, 132.57, 148.40, BACK - 0.55, BACK)
 
 # ---------------------------------------------------------------- one rigid object: centre it, stand it up, put it on a turntable
 roots = [o for o in sc.objects if o.parent is None]
