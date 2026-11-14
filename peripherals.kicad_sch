@@ -1905,7 +1905,7 @@
 			)
 			(embedded_fonts no)
 		)
-		(symbol "Sensor_Motion:LSM6DSM"
+		(symbol "parsnip-node:LSM6DSM"
 			(exclude_from_sim no)
 			(in_bom yes)
 			(on_board yes)
@@ -2314,7 +2314,7 @@
 			)
 			(embedded_fonts no)
 		)
-		(symbol "easyeda2kicad:QMC6309"
+		(symbol "parsnip-node:QMC6309"
 			(exclude_from_sim no)
 			(in_bom yes)
 			(on_board yes)
@@ -2483,7 +2483,7 @@
 			(symbol "QMC6309_1_1")
 			(embedded_fonts no)
 		)
-		(symbol "easyeda2kicad:TCAL9539RTWR_C22445413"
+		(symbol "parsnip-node:TCAL9539RTWR_C22445413"
 			(exclude_from_sim no)
 			(in_bom yes)
 			(on_board yes)
@@ -2509,7 +2509,7 @@
 					)
 				)
 			)
-			(property "Footprint" "easyeda2kicad:TQFN-24_L4.0-W4.0-P0.50-BL-EP2.3"
+			(property "Footprint" "footprints:TQFN-24_L4.0-W4.0-P0.50-BL-EP2.3"
 				(at 0 -38.1 0)
 				(show_name no)
 				(do_not_autoplace no)
@@ -3052,7 +3052,7 @@
 			(symbol "TCAL9539RTWR_C22445413_1_1")
 			(embedded_fonts no)
 		)
-		(symbol "easyeda2kicad:WS2816B_C22371534"
+		(symbol "parsnip-node:WS2816B_C22371534"
 			(exclude_from_sim no)
 			(in_bom yes)
 			(on_board yes)
@@ -3078,7 +3078,7 @@
 					)
 				)
 			)
-			(property "Footprint" "easyeda2kicad:LED-SMD_6P-L5.0-W5.0-TL"
+			(property "Footprint" "footprints:LED-SMD_6P-L5.0-W5.0-TL"
 				(at 0 -10.16 0)
 				(show_name no)
 				(do_not_autoplace no)
@@ -5319,7 +5319,7 @@
 		(uuid "df53ddb2-5a63-459c-b1ed-acb89481dbdd")
 	)
 	(symbol
-		(lib_id "easyeda2kicad:QMC6309")
+		(lib_id "parsnip-node:QMC6309")
 		(at 236.22 137.16 0)
 		(unit 1)
 		(body_style 1)
@@ -6273,7 +6273,7 @@
 		)
 	)
 	(symbol
-		(lib_id "easyeda2kicad:TCAL9539RTWR_C22445413")
+		(lib_id "parsnip-node:TCAL9539RTWR_C22445413")
 		(at 86.36 115.57 0)
 		(unit 1)
 		(body_style 1)
@@ -6304,7 +6304,7 @@
 				)
 			)
 		)
-		(property "Footprint" "easyeda2kicad:TQFN-24_L4.0-W4.0-P0.50-BL-EP2.3"
+		(property "Footprint" "footprints:TQFN-24_L4.0-W4.0-P0.50-BL-EP2.3"
 			(at 86.36 153.67 0)
 			(hide yes)
 			(show_name no)
@@ -7617,7 +7617,7 @@
 		)
 	)
 	(symbol
-		(lib_id "easyeda2kicad:WS2816B_C22371534")
+		(lib_id "parsnip-node:WS2816B_C22371534")
 		(at 194.31 43.18 180)
 		(unit 1)
 		(body_style 1)
@@ -7648,7 +7648,7 @@
 				)
 			)
 		)
-		(property "Footprint" "easyeda2kicad:LED-SMD_6P-L5.0-W5.0-TL"
+		(property "Footprint" "footprints:LED-SMD_6P-L5.0-W5.0-TL"
 			(at 194.31 33.02 0)
 			(hide yes)
 			(show_name no)
@@ -9031,7 +9031,7 @@
 		)
 	)
 	(symbol
-		(lib_id "easyeda2kicad:WS2816B_C22371534")
+		(lib_id "parsnip-node:WS2816B_C22371534")
 		(at 163.83 43.18 180)
 		(unit 1)
 		(body_style 1)
@@ -9062,7 +9062,7 @@
 				)
 			)
 		)
-		(property "Footprint" "easyeda2kicad:LED-SMD_6P-L5.0-W5.0-TL"
+		(property "Footprint" "footprints:LED-SMD_6P-L5.0-W5.0-TL"
 			(at 163.83 33.02 0)
 			(hide yes)
 			(show_name no)
@@ -9156,7 +9156,7 @@
 		)
 	)
 	(symbol
-		(lib_id "Sensor_Motion:LSM6DSM")
+		(lib_id "parsnip-node:LSM6DSM")
 		(at 234.95 93.98 0)
 		(unit 1)
 		(body_style 1)

@@ -1,0 +1,225 @@
+(footprint "CONN-SMD_4P-P2.54_HX-PM2.54-1X4PWT"
+	(version 20261031)
+	(generator "kfp")
+	(layer "F.Cu")
+	(property "Reference" "REF**"
+		(at 5.09 1.5 -90)
+		(layer "F.SilkS")
+		(uuid "1f5e2048-022b-454a-b50b-343cc54ceb8a")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property "Value" "I2C1"
+		(at 0 4 0)
+		(layer "F.Fab")
+		(uuid "df66ae2a-9cf3-4ac9-a8e5-439f9bec907b")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/99ddc9d8507d86889040b9d15f9062e7.pdf?productCode=C46061768"
+		(at 0 0 0)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "bc8ed7de-1045-4e81-9c49-450f973a25ab")
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+	)
+	(property "Description" "CONN RCPT female 1x4 2.54mm, SMD"
+		(at 0 0 0)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "16d1e7f8-3f76-4218-90b6-51866d56a2a9")
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+	)
+	(property "LCSC Part" "C46061768"
+		(at 0 0 0)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "4f0af7a0-7292-42a3-af25-15da28ae4401")
+		(effects
+			(font
+				(size 1.27 1.27)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property "MPN" "HX PM2.54-1x4P WT"
+		(at 0 0 90)
+		(unlocked yes)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "c3737409-9aff-49d0-9e65-c07a93b8410e")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property "Manufacturer" "HANXIA"
+		(at 0 0 90)
+		(unlocked yes)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "1fdb6556-325e-41b2-8eac-bdb727eed4fc")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property ki_fp_filters "Connector*:*_1x??_*")
+	(attr smd)
+	(duplicate_pad_numbers_are_jumpers no)
+	(fp_line
+		(start -5.09 2.55)
+		(end -5.09 11.05)
+		(stroke
+			(width 0.25)
+			(type solid)
+		)
+		(layer "F.SilkS")
+		(uuid "d1ca854b-83e7-481f-8de2-b8bb30a07db3")
+	)
+	(fp_line
+		(start 5.08 2.55)
+		(end -5.09 2.55)
+		(stroke
+			(width 0.25)
+			(type solid)
+		)
+		(layer "F.SilkS")
+		(uuid "f3d9ea2e-4fe2-4b7d-b38d-7ad8527239c7")
+	)
+	(fp_line
+		(start 5.08 11.05)
+		(end -5.08 11.05)
+		(stroke
+			(width 0.25)
+			(type solid)
+		)
+		(layer "F.SilkS")
+		(uuid "70e7811d-e8e8-408b-93ef-c6b987f37f6c")
+	)
+	(fp_line
+		(start 5.08 11.05)
+		(end 5.08 2.55)
+		(stroke
+			(width 0.25)
+			(type solid)
+		)
+		(layer "F.SilkS")
+		(uuid "7091b748-61e8-4306-8822-a32bed887794")
+	)
+	(fp_circle
+		(center -5.08 11.05)
+		(end -5.05 11.05)
+		(stroke
+			(width 0.06)
+			(type solid)
+		)
+		(fill no)
+		(layer "F.SilkS")
+		(uuid "b3161b74-9585-4587-9dff-84329f680ec7")
+	)
+	(fp_line
+		(start -5.08 2.55)
+		(end 5.08 2.55)
+		(stroke
+			(width 0.05)
+			(type solid)
+		)
+		(layer "F.CrtYd")
+		(uuid "888d3f9a-6f35-4325-abad-89874db2ba51")
+	)
+	(fp_line
+		(start -5.08 11.05)
+		(end -5.08 2.55)
+		(stroke
+			(width 0.05)
+			(type solid)
+		)
+		(layer "F.CrtYd")
+		(uuid "9f4a4bc0-0867-41ee-b64a-406514d3673c")
+	)
+	(fp_line
+		(start 5.08 2.55)
+		(end 5.08 11.05)
+		(stroke
+			(width 0.05)
+			(type solid)
+		)
+		(layer "F.CrtYd")
+		(uuid "2a55d0fd-1f7c-42fd-9c84-3d3d258ac89a")
+	)
+	(fp_line
+		(start 5.08 11.05)
+		(end -5.08 11.05)
+		(stroke
+			(width 0.05)
+			(type solid)
+		)
+		(layer "F.CrtYd")
+		(uuid "aa1bc4e1-b356-476f-949b-4c52b74a74b5")
+	)
+	(fp_text user "${REFERENCE}"
+		(at 0 0 0)
+		(layer "F.Fab")
+		(uuid "e33c5539-878d-4885-be78-9caf4b8e48c4")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(pad "1" smd rect
+		(at -3.81 0)
+		(size 1.02 3)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+	)
+	(pad "2" smd rect
+		(at -1.27 0)
+		(size 1.02 3)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+	)
+	(pad "3" smd rect
+		(at 1.27 0)
+		(size 1.02 3)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+		(zone_connect 2)
+	)
+	(pad "4" smd rect
+		(at 3.81 0)
+		(size 1.02 3)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+	)
+	(embedded_fonts no)
+	(model "${KIPRJMOD}/lib/3d-models/CONN-SMD_4P-P2.54_HX-PM2.54-1X4PWT.step"
+		(offset
+			(xyz 0 -6.5 1)
+		)
+		(scale
+			(xyz 1 1 1)
+		)
+		(rotate
+			(xyz -0 -0 -0)
+		)
+	)
+)

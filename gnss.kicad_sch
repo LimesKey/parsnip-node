@@ -3384,7 +3384,7 @@
 			)
 			(embedded_fonts no)
 		)
-		(symbol "RF_GPS:NEO-M9N"
+		(symbol "parsnip-node:NEO-M9N"
 			(exclude_from_sim no)
 			(in_bom yes)
 			(on_board yes)
@@ -4151,7 +4151,7 @@
 			(symbol "SW_Push_1_1")
 			(embedded_fonts no)
 		)
-		(symbol "easyeda2kicad:TPS22945DCKR"
+		(symbol "parsnip-node:TPS22945DCKR"
 			(exclude_from_sim no)
 			(in_bom yes)
 			(on_board yes)
@@ -4395,7 +4395,7 @@
 			(symbol "TPS22945DCKR_1_1")
 			(embedded_fonts no)
 		)
-		(symbol "easyeda2kicad:TPS259474LRPWR"
+		(symbol "parsnip-node:TPS259474LRPWR"
 			(exclude_from_sim no)
 			(in_bom yes)
 			(on_board yes)
@@ -4421,7 +4421,7 @@
 					)
 				)
 			)
-			(property "Footprint" "easyeda2kicad:VQFN-10_L2.0-W2.0-P0.45-TL"
+			(property "Footprint" "footprints:VQFN-10_L2.0-W2.0-P0.45-TL"
 				(at 0 -12.7 0)
 				(show_name no)
 				(do_not_autoplace no)
@@ -4683,7 +4683,7 @@
 			(symbol "TPS259474LRPWR_1_1")
 			(embedded_fonts no)
 		)
-		(symbol "easyeda2kicad:TPS7A2033PDBVR"
+		(symbol "parsnip-node:TPS7A2033PDBVR"
 			(exclude_from_sim no)
 			(in_bom yes)
 			(on_board yes)
@@ -4709,7 +4709,7 @@
 					)
 				)
 			)
-			(property "Footprint" "easyeda2kicad:SOT-23-5_L2.9-W1.6-P0.95-LS2.8-BR"
+			(property "Footprint" "footprints:SOT-23-5_L2.9-W1.6-P0.95-LS2.8-BR"
 				(at 0 -10.16 0)
 				(show_name no)
 				(do_not_autoplace no)
@@ -8738,7 +8738,7 @@
 		)
 	)
 	(symbol
-		(lib_id "easyeda2kicad:TPS7A2033PDBVR")
+		(lib_id "parsnip-node:TPS7A2033PDBVR")
 		(at 177.8 53.34 0)
 		(unit 1)
 		(body_style 1)
@@ -8769,7 +8769,7 @@
 				)
 			)
 		)
-		(property "Footprint" "easyeda2kicad:SOT-23-5_L2.9-W1.6-P0.95-LS2.8-BR"
+		(property "Footprint" "footprints:SOT-23-5_L2.9-W1.6-P0.95-LS2.8-BR"
 			(at 177.8 63.5 0)
 			(hide yes)
 			(show_name no)
@@ -9296,7 +9296,7 @@
 		)
 	)
 	(symbol
-		(lib_id "RF_GPS:NEO-M9N")
+		(lib_id "parsnip-node:NEO-M9N")
 		(at 121.92 69.85 0)
 		(unit 1)
 		(body_style 1)
@@ -11152,7 +11152,7 @@
 		)
 	)
 	(symbol
-		(lib_id "easyeda2kicad:TPS22945DCKR")
+		(lib_id "parsnip-node:TPS22945DCKR")
 		(at 85.09 173.99 0)
 		(unit 1)
 		(body_style 1)
@@ -16793,7 +16793,7 @@
 		)
 	)
 	(symbol
-		(lib_id "easyeda2kicad:TPS259474LRPWR")
+		(lib_id "parsnip-node:TPS259474LRPWR")
 		(at 229.87 66.04 0)
 		(unit 1)
 		(body_style 1)
@@ -16823,7 +16823,7 @@
 				)
 			)
 		)
-		(property "Footprint" "easyeda2kicad:VQFN-10_L2.0-W2.0-P0.45-TL"
+		(property "Footprint" "footprints:VQFN-10_L2.0-W2.0-P0.45-TL"
 			(at 229.87 78.74 0)
 			(hide yes)
 			(show_name no)

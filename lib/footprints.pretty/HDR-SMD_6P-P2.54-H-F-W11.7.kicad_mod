@@ -1,0 +1,272 @@
+(footprint "HDR-SMD_6P-P2.54-H-F-W11.7"
+	(version 20261031)
+	(generator "kfp")
+	(layer "F.Cu")
+	(property "Reference" "REF**"
+		(at -7.63 0.75 -90)
+		(layer "F.SilkS")
+		(hide yes)
+		(uuid "d79bf3a6-d4ea-4318-9c21-7b7ce1b95996")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property "Value" "SPI0"
+		(at -0.215 3.9625 -180)
+		(layer "F.Fab")
+		(uuid "4241356a-d729-4910-bdd3-c2a74a41a34d")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/36e50f33715c9e0afff257c29c686749.pdf?productCode=C46061770"
+		(at 0 0 -180)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "671a3982-ed3b-47f2-8401-1cf93c0d01af")
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+	)
+	(property "Description" "CONN RCPT female 1x6 2.54mm, SMD"
+		(at 0 0 -180)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "04eb60d4-2f9c-4416-9467-c01fecd9a8b8")
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+	)
+	(property "LCSC Part" "C46061770"
+		(at 0 0 -180)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "a6e9ee2d-331b-4922-a65b-c1b3e6edf22e")
+		(effects
+			(font
+				(size 1.27 1.27)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property "MPN" "HX PM2.54-1x6P WT"
+		(at 0 0 90)
+		(unlocked yes)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "552e86d9-16c9-4193-92f1-5ca53ce53809")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property "Manufacturer" "HANXIA"
+		(at 0 0 90)
+		(unlocked yes)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "ba7b5fbe-27f0-44cf-a696-d733810d0f58")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property "Voltage Rating" ""
+		(at 0 0 90)
+		(unlocked yes)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "ef391e85-4d31-45ab-af2d-8c9c3ccd02ad")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property "Tolerance" ""
+		(at 0 0 90)
+		(unlocked yes)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "2a062ff3-ab4b-4207-b4f7-6bc3a0f1363a")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property ki_fp_filters "Connector*:*_1x??_*")
+	(attr smd)
+	(duplicate_pad_numbers_are_jumpers no)
+	(fp_line
+		(start -7.87 10.9)
+		(end -7.87 2.4)
+		(stroke
+			(width 0.25)
+			(type solid)
+		)
+		(layer "F.SilkS")
+		(uuid "554b7b38-85a5-415d-8a99-ae9386a59bbb")
+	)
+	(fp_line
+		(start -7.84 2.4)
+		(end 2.76 2.4)
+		(stroke
+			(width 0.25)
+			(type solid)
+		)
+		(layer "F.SilkS")
+		(uuid "0e6813ae-7ab9-45b9-aa9b-4bf3039516b7")
+	)
+	(fp_line
+		(start 7.84 10.9)
+		(end -7.87 10.9)
+		(stroke
+			(width 0.25)
+			(type solid)
+		)
+		(layer "F.SilkS")
+		(uuid "bc4b7587-bb7d-4e0e-bbf6-45916192a462")
+	)
+	(fp_line
+		(start 7.84 2.4)
+		(end 2.76 2.4)
+		(stroke
+			(width 0.25)
+			(type solid)
+		)
+		(layer "F.SilkS")
+		(uuid "b989b341-36b4-4f90-8647-5c4c1407461f")
+	)
+	(fp_line
+		(start 7.84 2.4)
+		(end 7.84 10.9)
+		(stroke
+			(width 0.25)
+			(type solid)
+		)
+		(layer "F.SilkS")
+		(uuid "29a13362-63d7-410e-add1-84f5ccb8ba34")
+	)
+	(fp_circle
+		(center -7.84 10.9)
+		(end -7.81 10.9)
+		(stroke
+			(width 0.06)
+			(type solid)
+		)
+		(fill no)
+		(layer "F.SilkS")
+		(uuid "d97745d3-2f9c-41fd-9ab8-2f14d43e3b10")
+	)
+	(fp_line
+		(start -7.84 10.9)
+		(end -7.84 2.4)
+		(stroke
+			(width 0.05)
+			(type solid)
+		)
+		(layer "F.CrtYd")
+		(uuid "d97cd9c4-96cf-4768-81cb-89f5a9ee467a")
+	)
+	(fp_line
+		(start -7.84 2.4)
+		(end 7.84 2.4)
+		(stroke
+			(width 0.05)
+			(type solid)
+		)
+		(layer "F.CrtYd")
+		(uuid "b19bbf1f-45e8-4bc7-b18e-cb29ea785e5e")
+	)
+	(fp_line
+		(start 7.84 10.9)
+		(end -7.84 10.9)
+		(stroke
+			(width 0.05)
+			(type solid)
+		)
+		(layer "F.CrtYd")
+		(uuid "19326ae9-08e0-469e-a14d-c77e0535ce10")
+	)
+	(fp_line
+		(start 7.84 2.4)
+		(end 7.84 10.9)
+		(stroke
+			(width 0.05)
+			(type solid)
+		)
+		(layer "F.CrtYd")
+		(uuid "591b9f03-587c-4731-9087-ecc1e59979a8")
+	)
+	(fp_text user "${REFERENCE}"
+		(at 0 0 -180)
+		(layer "F.Fab")
+		(uuid "6fb1c746-a31e-471b-89b5-1c476c7aef23")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(pad "1" smd oval
+		(at -6.35 0)
+		(size 1.02 3)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+	)
+	(pad "2" smd rect
+		(at -3.81 0)
+		(size 1.02 3)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+		(zone_connect 2)
+	)
+	(pad "3" smd rect
+		(at -1.27 0)
+		(size 1.02 3)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+	)
+	(pad "4" smd rect
+		(at 1.27 0)
+		(size 1.02 3)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+	)
+	(pad "5" smd rect
+		(at 3.81 0)
+		(size 1.02 3)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+	)
+	(pad "6" smd rect
+		(at 6.35 0)
+		(size 1.02 3)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+	)
+	(embedded_fonts no)
+	(model "${KIPRJMOD}/lib/3d-models/HDR-SMD_6P-P2.54-H-F-W11.7.step"
+		(offset
+			(xyz 0 -6.5 1)
+		)
+		(scale
+			(xyz 1 1 1)
+		)
+		(rotate
+			(xyz -0 -0 -0)
+		)
+	)
+)

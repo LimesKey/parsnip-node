@@ -1,8 +1,4 @@
 (sym_lib_table
 	(version 7)
-	(lib (name "Seeed_Studio_XIAO_Series") (type "KiCad") (uri "${KIPRJMOD}/lib/Seeed_Studio_XIAO_Series.kicad_sym") (options "") (descr ""))
 	(lib (name "parsnip-node") (type "KiCad") (uri "${KIPRJMOD}/lib/parsnip-node.kicad_sym") (options "") (descr ""))
-	(lib (name "FS8205") (type "KiCad") (uri "${KIPRJMOD}/lib/FS8205.kicad_sym") (options "") (descr ""))
-	(lib (name "TPS259573DSGR") (type "KiCad") (uri "${KIPRJMOD}/lib/TPS259573DSGR.kicad_sym") (options "") (descr ""))
-	(lib (name "BQ40Z50RSMT") (type "KiCad") (uri "${KIPRJMOD}/lib/BQ40Z50RSMT.kicad_sym") (options "") (descr ""))
 )

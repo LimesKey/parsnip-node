@@ -1,0 +1,281 @@
+(footprint "TSON-8_L3.1-W3.1-P0.65-LS3.3-BL-EP"
+	(version 20261031)
+	(generator "kfp")
+	(layer "F.Cu")
+	(property "Reference" "REF**"
+		(at -2.58 -0.01 90)
+		(layer "F.SilkS")
+		(uuid "de02fa30-e48a-4ff5-ab1f-b68e65d08fde")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property "Value" "TPN2R203NC"
+		(at 0 5.675 0)
+		(layer "F.Fab")
+		(uuid "5dfb5bf0-6917-4099-8fbd-bae4a53a0724")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/c504eca6fa6e6679e9133e3d84b63218.pdf?productCode=C471286"
+		(at 0 0 0)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "1cc673ca-31f4-4a23-87ac-b5d53c96a8bf")
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+	)
+	(property "Description" "MOSFET N-ch 30V 45A, 2.2mΩ @10V, TSON-Advance 3.1x3.1"
+		(at 0 0 0)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "dab7fea5-7ae7-4eea-83f3-8f47c19698be")
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+	)
+	(property "LCSC Part" "C471286"
+		(at 0 0 0)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "01ea8ba3-2fc4-4ccb-9a5d-95d542ef9307")
+		(effects
+			(font
+				(size 1.27 1.27)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property "MPN" "TPN2R203NC,L1Q(M"
+		(at 0 0 90)
+		(unlocked yes)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "8e3ff518-806f-4116-8ef4-314434fdf233")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property "Manufacturer" "Toshiba"
+		(at 0 0 90)
+		(unlocked yes)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "df313cee-e207-44b6-a39f-e597f3a991d7")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property ki_fp_filters "VSON*3.3x3.3mm*P0.65mm*NexFET*")
+	(attr smd)
+	(duplicate_pad_numbers_are_jumpers no)
+	(fp_line
+		(start -1.58 1.48)
+		(end -1.58 0.43)
+		(stroke
+			(width 0.25)
+			(type solid)
+		)
+		(layer "F.SilkS")
+		(uuid "2351d322-18dc-4f52-9cf7-1911895672d9")
+	)
+	(fp_line
+		(start -1.58 -0.43)
+		(end -1.58 -1.72)
+		(stroke
+			(width 0.25)
+			(type solid)
+		)
+		(layer "F.SilkS")
+		(uuid "7b79a527-224b-4c99-9ccd-6930859dddb4")
+	)
+	(fp_line
+		(start 1.62 0.43)
+		(end 1.62 1.48)
+		(stroke
+			(width 0.25)
+			(type solid)
+		)
+		(layer "F.SilkS")
+		(uuid "d2b6b7e6-3eb6-4e24-9303-1092e64505ae")
+	)
+	(fp_line
+		(start 1.62 -1.72)
+		(end 1.62 -0.43)
+		(stroke
+			(width 0.25)
+			(type solid)
+		)
+		(layer "F.SilkS")
+		(uuid "cd1449a3-0a92-4020-8329-fbc65685de72")
+	)
+	(fp_circle
+		(center -1.55 1.65)
+		(end -1.52 1.65)
+		(stroke
+			(width 0.06)
+			(type solid)
+		)
+		(fill no)
+		(layer "F.SilkS")
+		(uuid "4074cd90-555e-4c84-8b5c-82a0c465a3fd")
+	)
+	(fp_circle
+		(center -1.49 1.97)
+		(end -1.36 1.97)
+		(stroke
+			(width 0.25)
+			(type solid)
+		)
+		(fill no)
+		(layer "F.SilkS")
+		(uuid "7664747b-f846-4565-8a66-17db22dc4b54")
+	)
+	(fp_circle
+		(center -1.24 1.93)
+		(end -1.11 1.93)
+		(stroke
+			(width 0.25)
+			(type solid)
+		)
+		(fill no)
+		(layer "Cmts.User")
+		(uuid "05153ac7-b1d1-482c-9e9e-0df754601dda")
+	)
+	(fp_line
+		(start -1.55 1.55)
+		(end -1.55 -1.55)
+		(stroke
+			(width 0.05)
+			(type solid)
+		)
+		(layer "F.CrtYd")
+		(uuid "10564da2-113b-407f-a1a3-954f058900db")
+	)
+	(fp_line
+		(start -1.55 -1.55)
+		(end 1.55 -1.55)
+		(stroke
+			(width 0.05)
+			(type solid)
+		)
+		(layer "F.CrtYd")
+		(uuid "d1a7e5d2-37e2-4b90-93f2-0ed24bfde7d1")
+	)
+	(fp_line
+		(start 1.55 1.55)
+		(end -1.55 1.55)
+		(stroke
+			(width 0.05)
+			(type solid)
+		)
+		(layer "F.CrtYd")
+		(uuid "f74d0788-b4d8-4d83-ada2-a2bed78709f9")
+	)
+	(fp_line
+		(start 1.55 -1.55)
+		(end 1.55 1.55)
+		(stroke
+			(width 0.05)
+			(type solid)
+		)
+		(layer "F.CrtYd")
+		(uuid "2a1fa57b-2513-4f54-b659-6e1518b38063")
+	)
+	(fp_text user "${REFERENCE}"
+		(at 0 0 0)
+		(layer "F.Fab")
+		(uuid "76064966-5390-4409-8a6e-248efa968aa7")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(pad "1" smd rect
+		(at -0.97 1.68 90)
+		(size 0.6 0.4)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+	)
+	(pad "2" smd rect
+		(at -0.32 1.68 90)
+		(size 0.6 0.4)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+	)
+	(pad "3" smd rect
+		(at 0.32 1.68 90)
+		(size 0.6 0.4)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+	)
+	(pad "4" smd rect
+		(at 0.97 1.68 90)
+		(size 0.6 0.4)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+	)
+	(pad "5" smd rect
+		(at 0.97 -1.68 -180)
+		(size 0.4 0.6)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+	)
+	(pad "6" smd rect
+		(at 0.32 -1.68 -180)
+		(size 0.4 0.6)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+	)
+	(pad "7" smd rect
+		(at -0.32 -1.68 -180)
+		(size 0.4 0.6)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+	)
+	(pad "8" smd rect
+		(at -0.97 -1.68 -180)
+		(size 0.4 0.6)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+	)
+	(pad "9" smd rect
+		(at -1.42 0 -90)
+		(size 0.4 0.6)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+	)
+	(pad "9" smd rect
+		(at 0.02 -0.32 -180)
+		(size 2.7 2.3)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+	)
+	(pad "9" smd rect
+		(at 1.42 0 -90)
+		(size 0.4 0.6)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+	)
+	(embedded_fonts no)
+	(model "${KIPRJMOD}/lib/3d-models/TSON-8_L3.1-W3.1-H0.9-P0.65-LS3.3-BL-EP.wrl"
+		(offset
+			(xyz 0 0 0)
+		)
+		(scale
+			(xyz 1 1 1)
+		)
+		(rotate
+			(xyz 0 0 270)
+		)
+	)
+)

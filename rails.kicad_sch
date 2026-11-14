@@ -10,7 +10,7 @@
 		(company "LimesKey")
 	)
 	(lib_symbols
-		(symbol "74xGxx:74LVC2G74"
+		(symbol "parsnip-node:74LVC2G74"
 			(pin_names
 				(offset 1.016)
 			)
@@ -2163,7 +2163,7 @@
 			)
 			(embedded_fonts no)
 		)
-		(symbol "LM61460AASQRJRRQ1_1"
+		(symbol "parsnip-node:LM61460AASQRJRRQ1_1"
 			(exclude_from_sim no)
 			(in_bom yes)
 			(on_board yes)
@@ -2189,7 +2189,7 @@
 					)
 				)
 			)
-			(property "Footprint" "easyeda2kicad:VQFN-14-HR_L4.0-W3.5-TL_LM61460AASQRJRRQ1"
+			(property "Footprint" "footprints:VQFN-14-HR_L4.0-W3.5-TL_LM61460AASQRJRRQ1"
 				(at 0.508 -28.448 0)
 				(show_name no)
 				(do_not_autoplace no)
@@ -2567,7 +2567,7 @@
 			(symbol "LM61460AASQRJRRQ1_1_1_1")
 			(embedded_fonts no)
 		)
-		(symbol "Oscillator:SiT8008xx-7x-xxS"
+		(symbol "parsnip-node:SiT8008xx-7x-xxS"
 			(exclude_from_sim no)
 			(in_bom yes)
 			(on_board yes)
@@ -3109,7 +3109,7 @@
 			)
 			(embedded_fonts no)
 		)
-		(symbol "easyeda2kicad:LM61460AASQRJRRQ1"
+		(symbol "parsnip-node:LM61460AASQRJRRQ1"
 			(exclude_from_sim no)
 			(in_bom yes)
 			(on_board yes)
@@ -3135,7 +3135,7 @@
 					)
 				)
 			)
-			(property "Footprint" "easyeda2kicad:VQFN-14-HR_L4.0-W3.5-TL_LM61460AASQRJRRQ1"
+			(property "Footprint" "footprints:VQFN-14-HR_L4.0-W3.5-TL_LM61460AASQRJRRQ1"
 				(at 0.508 -28.448 0)
 				(show_name no)
 				(do_not_autoplace no)
@@ -3491,7 +3491,7 @@
 			(symbol "LM61460AASQRJRRQ1_1_1")
 			(embedded_fonts no)
 		)
-		(symbol "easyeda2kicad:TPS259474ARPWR"
+		(symbol "parsnip-node:TPS259474ARPWR"
 			(exclude_from_sim no)
 			(in_bom yes)
 			(on_board yes)
@@ -3517,7 +3517,7 @@
 					)
 				)
 			)
-			(property "Footprint" "easyeda2kicad:VQFN-10_L2.0-W2.0-P0.45-TL"
+			(property "Footprint" "footprints:VQFN-10_L2.0-W2.0-P0.45-TL"
 				(at 0 -12.7 0)
 				(show_name no)
 				(do_not_autoplace no)
@@ -9980,7 +9980,7 @@
 		)
 	)
 	(symbol
-		(lib_id "easyeda2kicad:TPS259474ARPWR")
+		(lib_id "parsnip-node:TPS259474ARPWR")
 		(at 212.09 74.93 0)
 		(unit 1)
 		(body_style 1)
@@ -10010,7 +10010,7 @@
 				)
 			)
 		)
-		(property "Footprint" "easyeda2kicad:VQFN-10_L2.0-W2.0-P0.45-TL"
+		(property "Footprint" "footprints:VQFN-10_L2.0-W2.0-P0.45-TL"
 			(at 212.09 87.63 0)
 			(hide yes)
 			(show_name no)
@@ -10649,8 +10649,7 @@
 		)
 	)
 	(symbol
-		(lib_name "LM61460AASQRJRRQ1_1")
-		(lib_id "easyeda2kicad:LM61460AASQRJRRQ1")
+		(lib_id "parsnip-node:LM61460AASQRJRRQ1_1")
 		(at 86.36 166.37 0)
 		(unit 1)
 		(body_style 1)
@@ -10681,7 +10680,7 @@
 				)
 			)
 		)
-		(property "Footprint" "easyeda2kicad:VQFN-14-HR_L4.0-W3.5-TL_LM61460AASQRJRRQ1"
+		(property "Footprint" "footprints:VQFN-14-HR_L4.0-W3.5-TL_LM61460AASQRJRRQ1"
 			(at 86.868 194.818 0)
 			(hide yes)
 			(show_name no)
@@ -14824,7 +14823,7 @@
 		)
 	)
 	(symbol
-		(lib_id "74xGxx:74LVC2G74")
+		(lib_id "parsnip-node:74LVC2G74")
 		(at 203.2 139.7 0)
 		(unit 1)
 		(body_style 1)
@@ -22822,7 +22821,7 @@
 		)
 	)
 	(symbol
-		(lib_id "easyeda2kicad:LM61460AASQRJRRQ1")
+		(lib_id "parsnip-node:LM61460AASQRJRRQ1")
 		(at 96.52 82.55 0)
 		(unit 1)
 		(body_style 1)
@@ -22853,7 +22852,7 @@
 				)
 			)
 		)
-		(property "Footprint" "easyeda2kicad:VQFN-14-HR_L4.0-W3.5-TL_LM61460AASQRJRRQ1"
+		(property "Footprint" "footprints:VQFN-14-HR_L4.0-W3.5-TL_LM61460AASQRJRRQ1"
 			(at 97.028 110.998 0)
 			(hide yes)
 			(show_name no)
@@ -23537,7 +23536,7 @@
 		)
 	)
 	(symbol
-		(lib_id "Oscillator:SiT8008xx-7x-xxS")
+		(lib_id "parsnip-node:SiT8008xx-7x-xxS")
 		(at 238.76 137.16 0)
 		(unit 1)
 		(body_style 1)

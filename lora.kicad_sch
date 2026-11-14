@@ -1827,7 +1827,7 @@
 			)
 			(embedded_fonts no)
 		)
-		(symbol "easyeda2kicad:0900LP15B0063001E"
+		(symbol "parsnip-node:0900LP15B0063001E"
 			(exclude_from_sim no)
 			(in_bom yes)
 			(on_board yes)
@@ -1853,7 +1853,7 @@
 					)
 				)
 			)
-			(property "Footprint" "easyeda2kicad:FILTER-SMD_0805-8P-L2.0-W1.2-TL"
+			(property "Footprint" "footprints:FILTER-SMD_0805-8P-L2.0-W1.2-TL"
 				(at 0 -11.43 0)
 				(show_name no)
 				(do_not_autoplace no)
@@ -2090,7 +2090,7 @@
 			(symbol "0900LP15B0063001E_1_1")
 			(embedded_fonts no)
 		)
-		(symbol "easyeda2kicad:E22P-915M30S"
+		(symbol "parsnip-node:E22P-915M30S"
 			(exclude_from_sim no)
 			(in_bom yes)
 			(on_board yes)
@@ -5577,7 +5577,7 @@
 		)
 	)
 	(symbol
-		(lib_id "easyeda2kicad:0900LP15B0063001E")
+		(lib_id "parsnip-node:0900LP15B0063001E")
 		(at 105.41 158.75 0)
 		(unit 1)
 		(body_style 1)
@@ -5608,7 +5608,7 @@
 				)
 			)
 		)
-		(property "Footprint" "easyeda2kicad:FILTER-SMD_0805-8P-L2.0-W1.2-TL"
+		(property "Footprint" "footprints:FILTER-SMD_0805-8P-L2.0-W1.2-TL"
 			(at 105.41 170.18 0)
 			(hide yes)
 			(show_name no)
@@ -6584,7 +6584,7 @@
 		)
 	)
 	(symbol
-		(lib_id "easyeda2kicad:E22P-915M30S")
+		(lib_id "parsnip-node:E22P-915M30S")
 		(at 170.18 93.98 0)
 		(unit 1)
 		(body_style 1)

@@ -10,7 +10,7 @@
 		(company "LimesKey")
 	)
 	(lib_symbols
-		(symbol "CSD17581Q3A_1"
+		(symbol "parsnip-node:CSD17581Q3A"
 			(pin_names
 				(offset 0)
 				(hide yes)
@@ -40,7 +40,7 @@
 					)
 				)
 			)
-			(property "Footprint" "easyeda2kicad:TSON-8_L3.1-W3.1-P0.65-LS3.3-BL-EP"
+			(property "Footprint" "footprints:TSON-8_L3.1-W3.1-P0.65-LS3.3-BL-EP"
 				(at 5.08 -1.905 0)
 				(show_name no)
 				(do_not_autoplace no)
@@ -142,7 +142,7 @@
 					)
 				)
 			)
-			(symbol "CSD17581Q3A_1_0_1"
+			(symbol "CSD17581Q3A_0_1"
 				(polyline
 					(pts
 						(xy 0.254 1.905) (xy 0.254 -1.905)
@@ -309,7 +309,7 @@
 					)
 				)
 			)
-			(symbol "CSD17581Q3A_1_1_1"
+			(symbol "CSD17581Q3A_1_1"
 				(pin passive line
 					(at 2.54 -5.08 90)
 					(length 2.54)
@@ -2941,7 +2941,7 @@
 			)
 			(embedded_fonts no)
 		)
-		(symbol "easyeda2kicad:AON7534-ES"
+		(symbol "parsnip-node:AON7534-ES"
 			(exclude_from_sim no)
 			(in_bom yes)
 			(on_board yes)
@@ -2967,7 +2967,7 @@
 					)
 				)
 			)
-			(property "Footprint" "easyeda2kicad:PQFN-8_L3.1-W3.1-P0.65-LS3.3-BL"
+			(property "Footprint" "footprints:PQFN-8_L3.1-W3.1-P0.65-LS3.3-BL"
 				(at 0 -11.43 0)
 				(show_name no)
 				(do_not_autoplace no)
@@ -3204,7 +3204,7 @@
 			(symbol "AON7534-ES_1_1")
 			(embedded_fonts no)
 		)
-		(symbol "easyeda2kicad:MAX17320G22+"
+		(symbol "parsnip-node:MAX17320G22+"
 			(exclude_from_sim no)
 			(in_bom yes)
 			(on_board yes)
@@ -3230,7 +3230,7 @@
 					)
 				)
 			)
-			(property "Footprint" "easyeda2kicad:QFN-24_L4.0-W4.0-P0.50-BL-EP2.6"
+			(property "Footprint" "footprints:QFN-24_L4.0-W4.0-P0.50-BL-EP2.6"
 				(at -1.016 -78.74 0)
 				(show_name no)
 				(do_not_autoplace no)
@@ -7560,7 +7560,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "easyeda2kicad:BAT-SMD_L82.5.5-W25-BH-21700-B1BJ001"
+		(property "Footprint" "footprints:BAT-SMD_L82.5.5-W25-BH-21700-B1BJ001"
 			(at 67.31 91.186 90)
 			(hide yes)
 			(show_name no)
@@ -8655,7 +8655,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "easyeda2kicad:BAT-SMD_L82.5.5-W25-BH-21700-B1BJ001"
+		(property "Footprint" "footprints:BAT-SMD_L82.5.5-W25-BH-21700-B1BJ001"
 			(at 67.31 105.156 90)
 			(hide yes)
 			(show_name no)
@@ -10620,7 +10620,7 @@
 		)
 	)
 	(symbol
-		(lib_id "easyeda2kicad:MAX17320G22+")
+		(lib_id "parsnip-node:MAX17320G22+")
 		(at 153.67 88.9 0)
 		(unit 1)
 		(body_style 1)
@@ -10651,7 +10651,7 @@
 				)
 			)
 		)
-		(property "Footprint" "easyeda2kicad:QFN-24_L4.0-W4.0-P0.50-BL-EP2.6"
+		(property "Footprint" "footprints:QFN-24_L4.0-W4.0-P0.50-BL-EP2.6"
 			(at 152.654 167.64 0)
 			(hide yes)
 			(show_name no)
@@ -12550,8 +12550,7 @@
 		)
 	)
 	(symbol
-		(lib_name "CSD17581Q3A_1")
-		(lib_id "Transistor_FET:CSD17581Q3A")
+		(lib_id "parsnip-node:CSD17581Q3A")
 		(at 59.69 121.92 0)
 		(unit 1)
 		(body_style 1)
@@ -12581,7 +12580,7 @@
 				)
 			)
 		)
-		(property "Footprint" "easyeda2kicad:TSON-8_L3.1-W3.1-P0.65-LS3.3-BL-EP"
+		(property "Footprint" "footprints:TSON-8_L3.1-W3.1-P0.65-LS3.3-BL-EP"
 			(at 64.77 123.825 0)
 			(hide yes)
 			(show_name no)
@@ -12691,7 +12690,7 @@
 		)
 	)
 	(symbol
-		(lib_id "easyeda2kicad:AON7534-ES")
+		(lib_id "parsnip-node:AON7534-ES")
 		(at 232.41 59.69 180)
 		(unit 1)
 		(body_style 1)
@@ -12722,7 +12721,7 @@
 				)
 			)
 		)
-		(property "Footprint" "easyeda2kicad:PQFN-8_L3.1-W3.1-P0.65-LS3.3-BL"
+		(property "Footprint" "footprints:PQFN-8_L3.1-W3.1-P0.65-LS3.3-BL"
 			(at 232.41 48.26 0)
 			(hide yes)
 			(show_name no)
@@ -14114,7 +14113,7 @@
 		)
 	)
 	(symbol
-		(lib_id "easyeda2kicad:AON7534-ES")
+		(lib_id "parsnip-node:AON7534-ES")
 		(at 212.09 59.69 0)
 		(unit 1)
 		(body_style 1)
@@ -14145,7 +14144,7 @@
 				)
 			)
 		)
-		(property "Footprint" "easyeda2kicad:PQFN-8_L3.1-W3.1-P0.65-LS3.3-BL"
+		(property "Footprint" "footprints:PQFN-8_L3.1-W3.1-P0.65-LS3.3-BL"
 			(at 212.09 71.12 0)
 			(hide yes)
 			(show_name no)

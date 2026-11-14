@@ -2070,7 +2070,7 @@
 			)
 			(embedded_fonts no)
 		)
-		(symbol "easyeda2kicad:ESDS314DBVR-TP"
+		(symbol "parsnip-node:ESDS314DBVR-TP"
 			(exclude_from_sim no)
 			(in_bom yes)
 			(on_board yes)
@@ -2096,7 +2096,7 @@
 					)
 				)
 			)
-			(property "Footprint" "easyeda2kicad:SOT-23-5_L2.9-W1.6-P0.95-LS2.8-BR"
+			(property "Footprint" "footprints:SOT-23-5_L2.9-W1.6-P0.95-LS2.8-BR"
 				(at 0 -12.7 0)
 				(show_name no)
 				(do_not_autoplace no)
@@ -2461,7 +2461,7 @@
 			(symbol "ESDS314DBVR-TP_1_1")
 			(embedded_fonts no)
 		)
-		(symbol "easyeda2kicad:TPS22945DCKR"
+		(symbol "parsnip-node:TPS22945DCKR"
 			(exclude_from_sim no)
 			(in_bom yes)
 			(on_board yes)
@@ -5877,7 +5877,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "easyeda2kicad:CONN-SMD_4P-P2.54_HX-PM2.54-1X4PWT"
+		(property "Footprint" "footprints:CONN-SMD_4P-P2.54_HX-PM2.54-1X4PWT"
 			(at 54.61 127 0)
 			(hide yes)
 			(show_name no)
@@ -6231,7 +6231,7 @@
 		)
 	)
 	(symbol
-		(lib_id "easyeda2kicad:ESDS314DBVR-TP")
+		(lib_id "parsnip-node:ESDS314DBVR-TP")
 		(at 85.09 87.63 90)
 		(unit 1)
 		(body_style 1)
@@ -6971,7 +6971,7 @@
 		)
 	)
 	(symbol
-		(lib_id "easyeda2kicad:ESDS314DBVR-TP")
+		(lib_id "parsnip-node:ESDS314DBVR-TP")
 		(at 81.28 166.37 90)
 		(unit 1)
 		(body_style 1)
@@ -8629,7 +8629,7 @@
 		)
 	)
 	(symbol
-		(lib_id "easyeda2kicad:ESDS314DBVR-TP")
+		(lib_id "parsnip-node:ESDS314DBVR-TP")
 		(at 179.07 85.09 90)
 		(unit 1)
 		(body_style 1)
@@ -10286,7 +10286,7 @@
 		)
 	)
 	(symbol
-		(lib_id "easyeda2kicad:ESDS314DBVR-TP")
+		(lib_id "parsnip-node:ESDS314DBVR-TP")
 		(at 179.07 115.57 90)
 		(unit 1)
 		(body_style 1)
@@ -11617,7 +11617,7 @@
 		)
 	)
 	(symbol
-		(lib_id "easyeda2kicad:TPS22945DCKR")
+		(lib_id "parsnip-node:TPS22945DCKR")
 		(at 149.86 39.37 0)
 		(unit 1)
 		(body_style 1)
@@ -11951,7 +11951,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "easyeda2kicad:HDR-SMD_6P-P2.54-H-F-W11.7"
+		(property "Footprint" "footprints:HDR-SMD_6P-P2.54-H-F-W11.7"
 			(at 57.15 165.1 0)
 			(hide yes)
 			(show_name no)
@@ -12067,7 +12067,7 @@
 		)
 	)
 	(symbol
-		(lib_id "easyeda2kicad:ESDS314DBVR-TP")
+		(lib_id "parsnip-node:ESDS314DBVR-TP")
 		(at 262.89 85.09 90)
 		(unit 1)
 		(body_style 1)
@@ -13143,7 +13143,7 @@
 		)
 	)
 	(symbol
-		(lib_id "easyeda2kicad:ESDS314DBVR-TP")
+		(lib_id "parsnip-node:ESDS314DBVR-TP")
 		(at 83.82 128.27 90)
 		(unit 1)
 		(body_style 1)

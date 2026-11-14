@@ -3113,7 +3113,7 @@
 			)
 			(embedded_fonts no)
 		)
-		(symbol "easyeda2kicad:M24512-DFMC6TG"
+		(symbol "parsnip-node:M24512-DFMC6TG"
 			(exclude_from_sim no)
 			(in_bom yes)
 			(on_board yes)
@@ -3406,7 +3406,7 @@
 			)
 			(embedded_fonts no)
 		)
-		(symbol "easyeda2kicad:TPD8S300ARUKR"
+		(symbol "parsnip-node:TPD8S300ARUKR"
 			(exclude_from_sim no)
 			(in_bom yes)
 			(on_board yes)
@@ -3432,7 +3432,7 @@
 					)
 				)
 			)
-			(property "Footprint" "easyeda2kicad:WQFN-20_L3.0-W3.0-P0.40-TL-EP1.7"
+			(property "Footprint" "footprints:WQFN-20_L3.0-W3.0-P0.40-TL-EP1.7"
 				(at 0 -20.32 0)
 				(show_name no)
 				(do_not_autoplace no)
@@ -16264,7 +16264,7 @@
 		)
 	)
 	(symbol
-		(lib_id "easyeda2kicad:M24512-DFMC6TG")
+		(lib_id "parsnip-node:M24512-DFMC6TG")
 		(at 242.57 86.36 0)
 		(unit 1)
 		(body_style 1)
@@ -17397,7 +17397,7 @@
 		)
 	)
 	(symbol
-		(lib_id "easyeda2kicad:TPD8S300ARUKR")
+		(lib_id "parsnip-node:TPD8S300ARUKR")
 		(at 50.8 39.37 0)
 		(unit 1)
 		(body_style 1)
@@ -17428,7 +17428,7 @@
 				)
 			)
 		)
-		(property "Footprint" "easyeda2kicad:WQFN-20_L3.0-W3.0-P0.40-TL-EP1.7"
+		(property "Footprint" "footprints:WQFN-20_L3.0-W3.0-P0.40-TL-EP1.7"
 			(at 50.8 59.69 0)
 			(hide yes)
 			(show_name no)

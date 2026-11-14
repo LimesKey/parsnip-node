@@ -6,40 +6,141 @@
 	(descr "QST QMC6309 WLCSP-4, body 0.79x0.79 mm (0.77-0.81), 0.4 mm pitch, 0.23 mm balls. Land per QMC6309 datasheet Rev A Fig. 7: 0.24 mm round pads, 100% paste on a 4 mil (0.10 mm) stencil (sec 4.3.1). Replaces easyeda2kicad X1-WLB0808-4_L0.8-W0.8-P0.40-TL (0.18 mm pads, no courtyard, no body outline).")
 	(tags "WLCSP CSP magnetometer QMC6309")
 	(property "Reference" "REF**"
-		(at 0 -1 0)
+		(at 0 -1.35 0)
 		(layer "F.SilkS")
-		(effects (font (size 1 1) (thickness 0.15)))
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
 	)
 	(property "Value" "QMC6309_WLCSP-4_0.79x0.79mm_P0.4mm"
 		(at 0 1 0)
 		(layer "F.Fab")
-		(effects (font (size 0.2 0.2) (thickness 0.03)))
+		(effects
+			(font
+				(size 0.2 0.2)
+				(thickness 0.03)
+			)
+		)
 	)
 	(attr smd)
-	(fp_line (start -0.52 -0.52) (end -0.52 0.52) (stroke (width 0.17) (type solid)) (layer "F.SilkS"))
-	(fp_line (start -0.52 0.52) (end 0.53 0.52) (stroke (width 0.17) (type solid)) (layer "F.SilkS"))
-	(fp_line (start 0.53 0.52) (end 0.53 -0.52) (stroke (width 0.17) (type solid)) (layer "F.SilkS"))
-	(fp_line (start 0.53 -0.52) (end -0.52 -0.52) (stroke (width 0.17) (type solid)) (layer "F.SilkS"))
-	(fp_circle (center -0.76 -0.51) (end -0.72 -0.51) (stroke (width 0.1) (type solid)) (fill none) (layer "F.SilkS"))
+	(fp_circle
+		(center -0.53 -0.53)
+		(end -0.48 -0.53)
+		(stroke
+			(width 0.1)
+			(type solid)
+		)
+		(fill yes)
+		(layer "F.SilkS")
+	)
 	(fp_poly
-		(pts (xy -0.195 -0.395) (xy 0.395 -0.395) (xy 0.395 0.395) (xy -0.395 0.395) (xy -0.395 -0.195))
-		(stroke (width 0.1) (type solid)) (fill none) (layer "F.Fab")
+		(pts
+			(xy -0.195 -0.395)
+			(xy 0.395 -0.395)
+			(xy 0.395 0.395)
+			(xy -0.395 0.395)
+			(xy -0.395 -0.195)
+		)
+		(stroke
+			(width 0.1)
+			(type solid)
+		)
+		(fill none)
+		(layer "F.Fab")
 	)
-	(fp_circle (center -0.2 -0.2) (end -0.15 -0.2) (stroke (width 0.11) (type solid)) (fill none) (layer "F.Fab"))
-	(fp_circle (center 0.2 -0.2) (end 0.25 -0.2) (stroke (width 0.11) (type solid)) (fill none) (layer "F.Fab"))
-	(fp_circle (center -0.2 0.2) (end -0.15 0.2) (stroke (width 0.11) (type solid)) (fill none) (layer "F.Fab"))
-	(fp_circle (center 0.2 0.2) (end 0.25 0.2) (stroke (width 0.11) (type solid)) (fill none) (layer "F.Fab"))
-	(fp_rect (start -0.56 -0.56) (end 0.56 0.56) (stroke (width 0.05) (type solid)) (fill none) (layer "F.CrtYd"))
-	(fp_text user "${REFERENCE}" (at 0 0 0) (layer "F.Fab")
-		(effects (font (size 0.2 0.2) (thickness 0.03)))
+	(fp_circle
+		(center -0.2 -0.2)
+		(end -0.15 -0.2)
+		(stroke
+			(width 0.11)
+			(type solid)
+		)
+		(fill none)
+		(layer "F.Fab")
 	)
-	(pad "A1" smd circle (at -0.2 -0.2) (size 0.24 0.24) (layers "F.Cu" "F.Paste" "F.Mask"))
-	(pad "A2" smd circle (at 0.2 -0.2) (size 0.24 0.24) (layers "F.Cu" "F.Paste" "F.Mask"))
-	(pad "B1" smd circle (at -0.2 0.2) (size 0.24 0.24) (layers "F.Cu" "F.Paste" "F.Mask"))
-	(pad "B2" smd circle (at 0.2 0.2) (size 0.24 0.24) (layers "F.Cu" "F.Paste" "F.Mask"))
-	(model "${EASYEDA2KICAD}/easyeda2kicad.3dshapes/X1-WLB0808-4_L0.8-W0.8-P0.40-TL.step"
-		(offset (xyz 0 0 0))
-		(scale (xyz 1 1 1))
-		(rotate (xyz 0 0 0))
+	(fp_circle
+		(center 0.2 -0.2)
+		(end 0.25 -0.2)
+		(stroke
+			(width 0.11)
+			(type solid)
+		)
+		(fill none)
+		(layer "F.Fab")
+	)
+	(fp_circle
+		(center -0.2 0.2)
+		(end -0.15 0.2)
+		(stroke
+			(width 0.11)
+			(type solid)
+		)
+		(fill none)
+		(layer "F.Fab")
+	)
+	(fp_circle
+		(center 0.2 0.2)
+		(end 0.25 0.2)
+		(stroke
+			(width 0.11)
+			(type solid)
+		)
+		(fill none)
+		(layer "F.Fab")
+	)
+	(fp_text user "${REFERENCE}"
+		(at 0 0 0)
+		(layer "F.Fab")
+		(effects
+			(font
+				(size 0.2 0.2)
+				(thickness 0.03)
+			)
+		)
+	)
+	(fp_rect
+		(start -0.65 -0.65)
+		(end 0.65 0.65)
+		(stroke
+			(width 0.05)
+			(type solid)
+		)
+		(fill no)
+		(layer "F.CrtYd")
+		(uuid "2268608c-c223-498b-9b94-42c21f3990e4")
+	)
+	(pad "A1" smd circle
+		(at -0.2 -0.2)
+		(size 0.24 0.24)
+		(layers "F.Cu" "F.Paste" "F.Mask")
+	)
+	(pad "A2" smd circle
+		(at 0.2 -0.2)
+		(size 0.24 0.24)
+		(layers "F.Cu" "F.Paste" "F.Mask")
+	)
+	(pad "B1" smd circle
+		(at -0.2 0.2)
+		(size 0.24 0.24)
+		(layers "F.Cu" "F.Paste" "F.Mask")
+	)
+	(pad "B2" smd circle
+		(at 0.2 0.2)
+		(size 0.24 0.24)
+		(layers "F.Cu" "F.Paste" "F.Mask")
+	)
+	(model "${KIPRJMOD}/lib/3d-models/X1-WLB0808-4_L0.8-W0.8-P0.40-TL.wrl"
+		(offset
+			(xyz 0 0 0)
+		)
+		(scale
+			(xyz 1 1 1)
+		)
+		(rotate
+			(xyz 0 0 0)
+		)
 	)
 )

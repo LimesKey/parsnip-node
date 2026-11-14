@@ -1219,7 +1219,7 @@
 			)
 			(embedded_fonts no)
 		)
-		(symbol "RF_Module:ESP32-S3-WROOM-1"
+		(symbol "parsnip-node:ESP32-S3-WROOM-1"
 			(exclude_from_sim no)
 			(in_bom yes)
 			(on_board yes)
@@ -5406,7 +5406,7 @@
 		)
 	)
 	(symbol
-		(lib_id "RF_Module:ESP32-S3-WROOM-1")
+		(lib_id "parsnip-node:ESP32-S3-WROOM-1")
 		(at 107.95 104.14 0)
 		(unit 1)
 		(body_style 1)

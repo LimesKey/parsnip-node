@@ -1,0 +1,257 @@
+(footprint "FILTER-SMD_0805-8P-L2.0-W1.2-TL"
+	(version 20261031)
+	(generator "kfp")
+	(layer "F.Cu")
+	(property "Reference" "REF**"
+		(at 0.1 -1.6 0)
+		(layer "F.SilkS")
+		(uuid "32144ff6-e0b6-4e53-9760-86340d2cd70d")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property "Value" "0900LP15B0063001E"
+		(at 0 4.65 0)
+		(layer "F.Fab")
+		(uuid "0cdcc395-bd78-420c-8673-6132dd5848c6")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property "Datasheet" "https://www.johansontechnology.com/datasheets/0900LP15B0063/0900LP15B0063.pdf"
+		(at 0 0 0)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "36ee7898-cc43-447d-aa59-85a4ad9a1c8a")
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+	)
+	(property "Description" "FILTER LPF 863-960MHz, 0.9dB IL max, 2fo/3fo 46/50dB min, 50Ω, 2.0x1.25mm"
+		(at 0 0 0)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "8b5afb55-0ef0-4482-b8a1-78e9112853d8")
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+	)
+	(property "LCSC Part" "C17287560"
+		(at 0 0 0)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "7ba176ce-85e7-4f93-8003-c4492a9a2892")
+		(effects
+			(font
+				(size 1.27 1.27)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property "Manufacturer" "Johanson Technology"
+		(at 0 0 0)
+		(unlocked yes)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "b41cdd7c-a9d2-4b4c-8fe7-d65e2ab73f43")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property "MPN" "0900LP15B0063001E"
+		(at 0 0 0)
+		(unlocked yes)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "52019a8b-9954-4e2b-8015-4bf0c47323e1")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(attr smd)
+	(duplicate_pad_numbers_are_jumpers no)
+	(fp_line
+		(start -1.2 -0.7)
+		(end -1.2 -0.41)
+		(stroke
+			(width 0.25)
+			(type solid)
+		)
+		(layer "F.SilkS")
+		(uuid "20230e48-9502-4da7-bf41-26a0137409bb")
+	)
+	(fp_line
+		(start -1.2 0.41)
+		(end -1.2 0.7)
+		(stroke
+			(width 0.25)
+			(type solid)
+		)
+		(layer "F.SilkS")
+		(uuid "9d3fdab5-2679-4c9d-a13f-fdd5b2a84522")
+	)
+	(fp_line
+		(start -0.48 0)
+		(end -0.33 0)
+		(stroke
+			(width 0.25)
+			(type solid)
+		)
+		(layer "F.SilkS")
+		(uuid "2657c0f0-f6eb-4c66-822c-3d9edb87bdef")
+	)
+	(fp_line
+		(start 1.2 -0.7)
+		(end 1.2 -0.41)
+		(stroke
+			(width 0.25)
+			(type solid)
+		)
+		(layer "F.SilkS")
+		(uuid "ddc25e0d-6d63-4b9c-8510-52eb500edbee")
+	)
+	(fp_line
+		(start 1.2 0.41)
+		(end 1.2 0.7)
+		(stroke
+			(width 0.25)
+			(type solid)
+		)
+		(layer "F.SilkS")
+		(uuid "d46c809f-c7c1-4f70-ba58-97d7db2202d4")
+	)
+	(fp_circle
+		(center -1 -0.6)
+		(end -0.97 -0.6)
+		(stroke
+			(width 0.06)
+			(type solid)
+		)
+		(fill no)
+		(layer "F.SilkS")
+		(uuid "dd1f20f7-540a-4abe-a8e0-dab2cd38fc97")
+	)
+	(fp_line
+		(start -1 -0.6)
+		(end 1 -0.6)
+		(stroke
+			(width 0.05)
+			(type solid)
+		)
+		(layer "F.CrtYd")
+		(uuid "30da8b9a-33bd-4ade-86a3-235289076f81")
+	)
+	(fp_line
+		(start -1 0.6)
+		(end -1 -0.6)
+		(stroke
+			(width 0.05)
+			(type solid)
+		)
+		(layer "F.CrtYd")
+		(uuid "84977057-b4d9-460f-b89a-27cdabcfd543")
+	)
+	(fp_line
+		(start 1 -0.6)
+		(end 1 0.6)
+		(stroke
+			(width 0.05)
+			(type solid)
+		)
+		(layer "F.CrtYd")
+		(uuid "5cc2cd69-fcad-480c-b67c-3b9092e72105")
+	)
+	(fp_line
+		(start 1 0.6)
+		(end -1 0.6)
+		(stroke
+			(width 0.05)
+			(type solid)
+		)
+		(layer "F.CrtYd")
+		(uuid "fb7e885c-abe4-4335-b3fd-37f0d5037c4a")
+	)
+	(fp_text user "${REFERENCE}"
+		(at 0 0 0)
+		(layer "F.Fab")
+		(uuid "ddfbe92c-a6ec-4c3f-be26-78d9cbed1c33")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(pad "1" smd rect
+		(at -0.65 -0.65 -90)
+		(size 0.5 0.35)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+		(zone_connect 2)
+	)
+	(pad "2" smd rect
+		(at 0 -0.65 -90)
+		(size 0.5 0.35)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+	)
+	(pad "3" smd rect
+		(at 0.65 -0.65 -90)
+		(size 0.5 0.35)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+		(zone_connect 2)
+	)
+	(pad "4" smd rect
+		(at 1 0 -180)
+		(size 0.5 0.35)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+	)
+	(pad "5" smd rect
+		(at 0.65 0.65 90)
+		(size 0.5 0.35)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+		(zone_connect 2)
+	)
+	(pad "6" smd rect
+		(at 0 0.65 90)
+		(size 0.5 0.35)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+	)
+	(pad "7" smd rect
+		(at -0.65 0.65 90)
+		(size 0.5 0.35)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+		(zone_connect 2)
+	)
+	(pad "8" smd rect
+		(at -1 0)
+		(size 0.5 0.35)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+	)
+	(embedded_fonts no)
+	(model "${KIPRJMOD}/lib/3d-models/FILTER-SMD_L2.0-W1.3-H1.0-P0.65.step"
+		(offset
+			(xyz 0 0 0)
+		)
+		(scale
+			(xyz 1 1 1)
+		)
+		(rotate
+			(xyz 0 0 0)
+		)
+	)
+)
