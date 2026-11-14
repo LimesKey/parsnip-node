@@ -11,7 +11,8 @@ longest-range, best-value LoRa front ends, accurate GNSS, days of runtime, and p
 on every external port.
 
 <p align="center">
-  <a href="lib/img/render-iso.png"><img src="lib/img/render-iso.png" alt="parsnip-node v2, 3D render, front" width="720"></a>
+  <img src="lib/img/render-spin.gif" alt="parsnip-node v2 spinning: E-Ink module on the front, two 21700 cells on the back" width="420">
+  <br><sub>Render with two 21700 cells and the optional WeAct 3.7" E-Ink module on M2 standoffs and a clear top plate. The display mount is a mock-up, not part of the board yet.</sub>
 </p>
 
 ## Status
@@ -116,17 +117,23 @@ block diagram, power tree, then the circuit sheets). Click a page for full size.
 
 <table>
   <tr>
-    <td align="center" width="33%">
+    <td align="center" width="50%">
+      <a href="lib/img/render-iso.png"><img src="lib/img/render-iso.png" alt="PCB render, front at an angle" width="400"></a>
+      <br><sub><b>Front</b></sub>
+    </td>
+    <td align="center" width="50%">
+      <a href="lib/img/render-iso-back.png"><img src="lib/img/render-iso-back.png" alt="PCB render, back at an angle" width="400"></a>
+      <br><sub><b>Back</b></sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" width="50%">
       <a href="lib/img/render-top.png"><img src="lib/img/render-top.png" alt="PCB render, top" width="250"></a>
       <br><sub><b>Top</b></sub>
     </td>
-    <td align="center" width="33%">
+    <td align="center" width="50%">
       <a href="lib/img/render-bottom.png"><img src="lib/img/render-bottom.png" alt="PCB render, bottom" width="250"></a>
       <br><sub><b>Bottom (21700 holders)</b></sub>
-    </td>
-    <td align="center" width="33%">
-      <a href="lib/img/render-iso-back.png"><img src="lib/img/render-iso-back.png" alt="PCB render, back at an angle" width="250"></a>
-      <br><sub><b>Back</b></sub>
     </td>
   </tr>
 </table>
@@ -138,15 +145,14 @@ block diagram, power tree, then the circuit sheets). Click a page for full size.
   field-solved with mask, mostly CPWG with GND via fences well under lambda/20
 - ~2100 vias (0.3 mm and 0.2 mm drill), most of them GND stitching
 - The cell holders take most of the back, so everything above them is single-sided
-- Fab notes: [docs/fab/goals.md](docs/fab/goals.md)
 
 ## Hardware
 
 | Part | Price |
 | --- | --- |
-| PCB + assembly ([BOM](production/parsnip-bom.csv)) | being quoted, see [docs/fab/](docs/fab/) |
+| PCB + assembly ([BOM](production/parsnip-bom.csv)) | being quoted |
 | 2 x Samsung 58E 21700 cells [18650batterystore.com](https://www.18650batterystore.com/products/samsung-58e-21700-battery) | $40 CAD |
-| E-Ink display, optional [AliExpress](https://www.aliexpress.com/item/1005009712001279.html?mp=1) | $24 CAD |
+| WeAct 3.7" E-Ink module, 240 x 416, optional [AliExpress](https://www.aliexpress.com/item/1005009712001279.html?mp=1) | $25 CAD |
 
 Production files (gerbers, BOM, pick-and-place) are in [production/](production/).
 Datasheets for every IC, module and connector are in
@@ -236,7 +242,7 @@ git clone --recurse-submodules https://github.com/LimesKey/parsnip-node.git
 | `parsnip.kicad_pcb` | Board |
 | `lib/` | Project symbols, footprints and 3D models |
 | `production/` | Gerbers, BOM, pick-and-place |
-| `docs/` | Design intent, TODO, fab notes, datasheets |
+| `docs/` | Datasheets and photos |
 | `JOURNAL.md` | Design log |
 | `v1/` | The previous single-cell board |
 
