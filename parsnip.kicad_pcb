@@ -113403,7 +113403,7 @@
 				(extension_offset 0.5)
 			)
 			(gr_text "Teethies"
-				(at 152.75 193.825 0)
+				(at 152.81 193.813 0)
 				(layer "User.2")
 				(uuid "39a1d66c-eaa3-4b6a-a884-6c82fb2b75ef")
 				(effects
@@ -113437,7 +113437,7 @@
 				(extension_offset 0.5)
 			)
 			(gr_text "Boopsnoot"
-				(at 152.75 193.825 0)
+				(at 152.81 193.813 0)
 				(layer "User.2")
 				(uuid "5b29bbb8-be1e-420a-8d22-43de61308ddc")
 				(effects
@@ -113471,7 +113471,7 @@
 				(extension_offset 0.5)
 			)
 			(gr_text "Flosse"
-				(at 152.75 193.825 0)
+				(at 152.81 193.813 0)
 				(layer "User.2")
 				(uuid "75bedbd7-051a-4f8d-a747-592ef1a13934")
 				(effects
@@ -113505,7 +113505,7 @@
 				(extension_offset 0.5)
 			)
 			(gr_text "Antenna"
-				(at 152.75 193.825 0)
+				(at 152.81 193.813 0)
 				(layer "User.2")
 				(uuid "8eaab89d-4def-48ae-9c4e-2f56d88ebbbb")
 				(effects
@@ -375240,7 +375240,7 @@
 		(uuid "3f92ef3f-711e-4440-9142-5359fa8048ec")
 		(members "854ebab4-f6e8-43c5-ac50-1cf3bb068660" "85cbf243-d9fe-4948-b985-ee77b37a1c16")
 	)
-	(group ""
+	(group "PCBWay Logo"
 		(uuid "4bc8c873-9038-434c-b3b1-583a95b2928a")
 		(members "6ee26d3e-83ee-4786-9c9a-b4e2aafd7ed0" "7c921731-a1f8-48b6-ac6f-a4b3af301c84"
 			"84d20399-7eae-4966-ab31-2a9b7fc5b17f" "cdc58e2e-4fb4-454e-89ab-8f12859d6a33"
