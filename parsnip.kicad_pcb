@@ -142137,7 +142137,7 @@
 			(uuid "efe2bf66-ebae-4648-bd49-2878a9d29254")
 		)
 		(embedded_fonts no)
-		(model "${KICAD10_3DMODEL_DIR}/Connector_PinSocket_2.54mm.3dshapes/PinSocket_2x08_P2.54mm_Vertical_SMD.step"
+		(model "${KIPRJMOD}/lib/3d-models/HDR-SMD_16P-P2.54_HXPM2.54-2X8PWT.step"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -142145,7 +142145,7 @@
 				(xyz 1 1 1)
 			)
 			(rotate
-				(xyz 0 0 90)
+				(xyz 0 0 0)
 			)
 		)
 	)

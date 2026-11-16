@@ -11,8 +11,12 @@
 # part is no larger than the flat encode's. Preset 0 is +0.2 dB over preset 1; 32-frame pyramids add nothing.
 # Keyframes get +1.2 dB by default (a sharpening step every 2 s): use-fixed-qindex-offsets=2 keeps the layered
 # quantizers but honours key-frame-qindex-offset, and +16 flattens the step at no size cost.
-# Variance boost, QM, SCM, dlf=2: no gain on this content. Decode: Chrome 60 fps, Firefox ~10.5 ms/frame.
-# usage: [PRESET=0] [KFQ=16] encode.sh FRAMES_DIR BG.png OUT_W CRF OUT.avif [PIXFMT]   (longencode.sh: PRESET=-1)
+# Variance boost, QM, SCM, dlf=2: no gain on this content. Equal-size screen at preset 0 (2026-11-15, 136 frames):
+# hbd-mds=1 (full 10-bit mode decision) +0.03 dB PSNR / +0.13 dB PSNR-HVS; tune 0/2/4, tf-strength 1/4, enable-tf=2,
+# ac-bias 1, sharpness +-2 all lose (tune 2/4 by ~0.6 dB); qp-scale-compress-strength=2 halves the 30/15 Hz swing
+# for -0.13 dB. Decode: Chrome 60 fps, Firefox ~10.5 ms/frame.
+# usage: [PRESET=0] [KFQ=16] [XP=:k=v...] encode.sh FRAMES_DIR BG.png OUT_W CRF OUT.avif [PIXFMT]
+# (longencode.sh: PRESET=-1, XP=:qindex-offsets=d,d,d,d,d for quarter-CRF steps, honoured in this mode)
 set -euo pipefail
 FR=$1 BG=$2 OW=$3 CRF=$4 OUT=$5 PF=${6:-yuv420p10le}
 ffmpeg -hide_banner -loglevel error -y \
@@ -23,5 +27,5 @@ setparams=color_primaries=bt709:color_trc=iec61966-2-1:colorspace=bt709:range=fu
   -fps_mode passthrough -enc_time_base 1/100000 \
   -bsf:v "setts=pts=N*1670:dts=N*1670:duration=1670" \
   -c:v libsvtav1 -preset "${PRESET:-0}" -crf "$CRF" -g 120 \
-  -svtav1-params "pred-struct=2:hierarchical-levels=4:use-fixed-qindex-offsets=2:key-frame-qindex-offset=${KFQ:-16}" \
+  -svtav1-params "pred-struct=2:hierarchical-levels=4:use-fixed-qindex-offsets=2:key-frame-qindex-offset=${KFQ:-16}:hbd-mds=1${XP:-}" \
   "$OUT" 2> >(grep -v '^Svt' >&2)
