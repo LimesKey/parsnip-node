@@ -6325,7 +6325,7 @@
 				)
 			)
 		)
-		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/49b70b003dccd16cc3fa313c34a02bab.pdf?productCode=C54916656"
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/09fe2daf22580a99fa7fea93ccb20fb7.pdf?productCode=C53547"
 			(at 53.34 172.72 0)
 			(hide yes)
 			(show_name no)
@@ -6347,7 +6347,7 @@
 				)
 			)
 		)
-		(property "MPN" "CC0402CG50V102JN"
+		(property "MPN" "0402CG102J500NT"
 			(at 53.34 172.72 0)
 			(hide yes)
 			(show_name no)
@@ -6358,7 +6358,7 @@
 				)
 			)
 		)
-		(property "Manufacturer" "TORCH"
+		(property "Manufacturer" "FH (Fenghua)"
 			(at 53.34 172.72 0)
 			(hide yes)
 			(show_name no)
@@ -6369,7 +6369,7 @@
 				)
 			)
 		)
-		(property "LCSC Part" "C54916656"
+		(property "LCSC Part" "C53547"
 			(at 53.34 172.72 0)
 			(hide yes)
 			(show_name no)

@@ -60,7 +60,7 @@ URLs checked 2026-11-13 (served a PDF) unless marked otherwise.
 
 | File | MPN | LCSC | Rev on disk | Source | Note |
 |---|---|---|---|---|---|
-| TCAL9539-Q1.pdf | TCAL9539RTWRQ1 | C5377958 | SCPS285A (2023-08) | https://www.ti.com/lit/ds/symlink/tcal9539-q1.pdf |  |
+| TCAL9539.pdf | TCAL9539RTWR | C22445413 | SCPS241 (2022-07) | https://www.ti.com/lit/ds/symlink/tcal9539.pdf |  |
 | LSM6DSV16X.pdf | LSM6DSV16XTR | C5267406 | DS13510 Rev 4 | https://www.st.com/resource/en/datasheet/lsm6dsv16x.pdf (blocks scripted fetch; LCSC copy below): https://datasheet.lcsc.com/datasheet/pdf/7d66556bb254f99e058243c7371e051d.pdf?productCode=C5267406 |  |
 | QMC6309.pdf | QMC6309 | C5439871 | Rev A (PDF 2023-02) | https://datasheet.lcsc.com/datasheet/pdf/205911d993bf6331650635faa1d02faa.pdf?productCode=C5439871 |  |
 | 74LV1T34.pdf | 74LV1T34GWH | C5199768 | Rev. 4 (2023-12-06) | https://assets.nexperia.com/documents/data-sheet/74LV1T34.pdf (blocks scripted fetch; LCSC copy below): https://datasheet.lcsc.com/datasheet/pdf/df19ec8cb2d6ea0eac24c61fbab5c99e.pdf?productCode=C5199768 |  |
@@ -104,7 +104,7 @@ URLs checked 2026-11-13 (served a PDF) unless marked otherwise.
 | BZX585-C15.pdf | BZX585-C15,135 | C550633 | Rev. 9 (2026-09-11) | https://assets.nexperia.com/documents/data-sheet/BZX585_SER.pdf (blocks scripted fetch; LCSC copy below): https://datasheet.lcsc.com/datasheet/pdf/14f361462d28dd8161b8ec04bb35ef76.pdf?productCode=C550633 |  |
 | BSMD2920L-1000-21V.pdf | BSMD2920L-1000-21V | C50338483 | 2025 (PDF 2025-08) | https://datasheet.lcsc.com/datasheet/pdf/14d81d7958d374dbae10273735207212.pdf?productCode=C50338483 |  |
 | YHR0805SE1DR005F5.pdf | YHR0805SE1DR005F5 | C42454064 | 2025-04-22 | https://datasheet.lcsc.com/datasheet/pdf/0b4e40e8836ae059409dd4c822a860ed.pdf?productCode=C42454064 |  |
-| NCP18XH103F03RB.pdf | NCP18XH103D03RB | C89600 | Murata cat. R44E-15 (2012-12-17) | https://datasheet.lcsc.com/datasheet/pdf/235eb95183ff04d8ebcd64ad74d822ff.pdf?productCode=C89600 | NCP18 series catalog; thermistors are on BMS and Charger |
+| NCP18XH103F03RB.pdf | NCP18XH103F03RB | C13564 | Murata cat. R44E-15 (2012-12-17) | https://datasheet.lcsc.com/datasheet/pdf/235eb95183ff04d8ebcd64ad74d822ff.pdf?productCode=C89600 | NCP18 series catalog; thermistors are on BMS and Charger |
 | BH-21700-B1BJ001.pdf | BH-21700-B1BJ001 | C20606791 | undated (PDF 2023-11) | https://datasheet.lcsc.com/datasheet/pdf/f19fdde684eed5e7f56342763817f937.pdf?productCode=C20606791 |  |
 | 1.25-2PWB.pdf | 1.25-2PWB | C2905009 | undated (PDF 2023-11) | https://datasheet.lcsc.com/datasheet/pdf/06ca0829dd2139bfdbe6671a038f533c.pdf?productCode=C2905009 | BAT_PORT, DNP |
 

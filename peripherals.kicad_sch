@@ -6294,7 +6294,7 @@
 				)
 			)
 		)
-		(property "Value" "TCAL9539RTWRQ1"
+		(property "Value" "TCAL9539RTWR"
 			(at 86.36 80.01 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -6315,7 +6315,7 @@
 				)
 			)
 		)
-		(property "Datasheet" "https://www.ti.com/lit/ds/symlink/tcal9539-q1.pdf"
+		(property "Datasheet" "https://www.ti.com/lit/ds/symlink/tcal9539.pdf"
 			(at 86.36 156.21 0)
 			(hide yes)
 			(show_name no)
@@ -6326,7 +6326,7 @@
 				)
 			)
 		)
-		(property "Description" "IC I/O EXPANDER 16-bit I2C/SMBus, interrupt, reset, 1.08-3.6V, AEC-Q100, WQFN-24 4x4"
+		(property "Description" "IC I/O EXPANDER 16-bit I2C/SMBus, interrupt, reset, 1.08-3.6V, WQFN-24 4x4"
 			(at 86.36 115.57 0)
 			(hide yes)
 			(show_name no)
@@ -6337,7 +6337,7 @@
 				)
 			)
 		)
-		(property "MPN" "TCAL9539RTWRQ1"
+		(property "MPN" "TCAL9539RTWR"
 			(at 86.36 161.29 0)
 			(hide yes)
 			(show_name no)
@@ -6359,7 +6359,7 @@
 				)
 			)
 		)
-		(property "LCSC Part" "C5377958"
+		(property "LCSC Part" "C22445413"
 			(at 86.36 163.83 0)
 			(hide yes)
 			(show_name no)

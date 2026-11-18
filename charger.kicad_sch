@@ -16260,7 +16260,7 @@
 				)
 			)
 		)
-		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/235eb95183ff04d8ebcd64ad74d822ff.pdf?productCode=C89600"
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/d3311229bbd8423e9b8e18a78c95060b.pdf?productCode=C13564"
 			(at 200.66 149.86 0)
 			(hide yes)
 			(show_name no)
@@ -16271,7 +16271,7 @@
 				)
 			)
 		)
-		(property "Description" "THERMISTOR NTC 10kΩ ±0.5%, B25/50 3380K, B25/85 3434K, 0603"
+		(property "Description" "THERMISTOR NTC 10kΩ ±1%, B25/50 3380K, B25/85 3434K, 0603"
 			(at 200.66 151.13 0)
 			(hide yes)
 			(show_name no)
@@ -16282,7 +16282,7 @@
 				)
 			)
 		)
-		(property "MPN" "NCP18XH103D03RB"
+		(property "MPN" "NCP18XH103F03RB"
 			(at 200.66 149.86 0)
 			(hide yes)
 			(show_name no)
@@ -16304,7 +16304,7 @@
 				)
 			)
 		)
-		(property "LCSC Part" "C89600"
+		(property "LCSC Part" "C13564"
 			(at 200.66 151.13 0)
 			(hide yes)
 			(show_name no)
@@ -16315,7 +16315,7 @@
 				)
 			)
 		)
-		(property "Tolerance" "0.5%"
+		(property "Tolerance" "1%"
 			(at 200.66 151.13 0)
 			(hide yes)
 			(show_name no)

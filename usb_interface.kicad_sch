@@ -11347,7 +11347,7 @@
 				)
 			)
 		)
-		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/a787d81013d5a35f6592045f155fa14b.pdf?productCode=C414600"
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/27ea7f29d169b3fd0e42802e546ced43.pdf?productCode=C25725"
 			(at 227.33 97.79 0)
 			(hide yes)
 			(show_name no)
@@ -11358,7 +11358,7 @@
 				)
 			)
 		)
-		(property "Description" "RES ARRAY 4x 10kΩ ±1% 62.5mW, isolated, 0402x4"
+		(property "Description" "RES ARRAY 4x 10kΩ ±5% 62.5mW, isolated, 0402x4"
 			(at 227.33 97.79 0)
 			(hide yes)
 			(show_name no)
@@ -11369,7 +11369,7 @@
 				)
 			)
 		)
-		(property "MPN" "4D02WGF1002TCE"
+		(property "MPN" "4D02WGJ0103TCE"
 			(at 234.315 97.79 90)
 			(hide yes)
 			(show_name no)
@@ -11391,7 +11391,7 @@
 				)
 			)
 		)
-		(property "LCSC Part" "C414600"
+		(property "LCSC Part" "C25725"
 			(at 227.33 97.79 0)
 			(hide yes)
 			(show_name no)
@@ -11402,7 +11402,7 @@
 				)
 			)
 		)
-		(property "Tolerance" "1%"
+		(property "Tolerance" "5%"
 			(at 227.33 97.79 0)
 			(hide yes)
 			(show_name no)
