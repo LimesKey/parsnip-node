@@ -6,8 +6,9 @@
 # (~7% of size apart), so d = 0-3 rides on qindex-offsets for every layer and the keyframe (~1.8% and ~0.05 dB per
 # step here). Secant on ln(size) from Q: typically 2-3 attempts to the finest Q that fits under the current
 # lib/img/render-spin.avif (or TARGET bytes). Installs it only if it also has a higher mean PSNR against the rendered
-# frames (old one kept as $W/render-spin.prev.avif). KFQ 16 keeps keyframes level with their neighbours at preset -1
-# too (8 put them +0.3 dB above, a one-frame sharpening blink every 2 s).
+# frames (old one kept as $W/render-spin.prev.avif). KFQ 12 keeps keyframes level with their neighbours at preset -1:
+# on the 2026-11-15 frames at Q 103, 16 left them 0.24 dB below (a softening blink), 12 -0.04 dB for +0.10 dB mean at
+# +0.4% bytes; 8 put them +0.3 dB above (a sharpening blink every 2 s). encode.sh's 16 is for preset 0.
 # Needs the frames render.sh left in $W (don't re-run render.sh meanwhile: it deletes them).
 # render.sh --detach runs this after the render, on render-spin.
 #
@@ -20,7 +21,7 @@ HERE=$(cd "$(dirname "$0")" && pwd)
 ROOT=$(cd "$HERE/../.." && pwd)
 W=${W:-${XDG_CACHE_HOME:-$HOME/.cache}/parsnip-render}
 DST=${DST:-$ROOT/lib/img/render-spin.avif}
-HOURS=${HOURS:-15} Q=${Q:-} KFQ=${KFQ:-16} TARGET=${TARGET:-}   # Q unset: the seed below
+HOURS=${HOURS:-15} Q=${Q:-} KFQ=${KFQ:-12} TARGET=${TARGET:-}   # Q unset: the seed below
 
 if [ "${1:-}" = --detach ]; then
   exec systemd-run --user --unit=parsnip-longencode --collect --nice=10 \

@@ -820,6 +820,8 @@ cy.film_transparent_glass = True
 sc.render.use_motion_blur, sc.render.motion_blur_shutter = True, 0.5
 # Persistent data off: with it and motion blur, Blender 5.2 renders the first still frame after a move without its
 # object sync (the 2026-11-15 run: frames 406 and 827 came out dark, silkscreen gone). Costs ~0.3 s a frame.
+# Blender 5.3 renders those frames right with it (695-699, 721, 771-773 matched to 80 dB) but it saves nothing
+# there (134 s vs 135 s for the nine), so it stays off.
 sc.render.use_persistent_data = False
 sc.render.fps = FPS
 sc.render.resolution_x, sc.render.resolution_y, sc.render.resolution_percentage = RES[0], RES[1], 100

@@ -25,22 +25,38 @@ if [ -n "$DETACH" ]; then
     "$HERE/render.sh" "$BOARD" "$OUT"
 fi
 blender() { PATH=/usr/bin:$PATH command blender -b "$@"; }  # a uv python3.x earlier on PATH breaks Blender's stdlib
+# Blender 5.3.0 Cycles HIP page-faults in shade_surface as a render starts when its path-state pool is the default
+# size (any ROCm; 5.2.3 is clean): 0.45 of it renders, 26% faster than 0.25, and 0.6 and up fault every time.
+export CYCLES_CONCURRENT_STATES_FACTOR=${CYCLES_CONCURRENT_STATES_FACTOR:-0.45}
+ulimit -c 0   # each fault would otherwise leave a ~320 MB core in /var/lib/systemd/coredump
 if [ -n "${PREVIEW:-}" ]; then SW=360 SH=504 SPP=16; else SW=1080 SH=1512 SPP=200; fi
 rm -rf "$W"/{frames,plain,bare,r_full,r_bare} && mkdir -p "$W"/{r_full,r_bare}
 
-kicad-cli-nightly pcb export glb --no-dnp --subst-models --include-tracks --include-pads --include-zones \
-  --include-silkscreen --include-soldermask -f -o "$W/board.glb" "$BOARD"
-blender --factory-startup --python-expr "import bpy; bpy.ops.wm.read_factory_settings(use_empty=True); \
-bpy.ops.import_scene.gltf(filepath='$W/board.glb'); bpy.ops.wm.save_as_mainfile(filepath='$W/base.blend')"
-python3 "$HERE/screen.py" "$W/screen.png"
-blender "$W/base.blend" --python "$HERE/dress.py" -- "$W/scene.blend" "$W/screen.png" 15 --res $SW $SH --spp $SPP \
-  --dxf "$ROOT/docs/display-plate.dxf"
+"$HERE/scene.sh" "$BOARD" "$W" --res $SW $SH --spp $SPP --dxf "$ROOT/docs/display-plate.dxf"
 # Two passes, the second with the display mount hidden; dress.py's seq_*.txt give the rendered frame for every output
 # frame of each loop, then each loop is a directory of hard links (render-spin's is frames/, what longencode reads).
 frames_of() { sort -nu "$W/seq_$1.txt" | paste -sd,; }
-blender "$W/scene.blend" -o "$W/r_full/f####" -f "$(frames_of spin)"
-blender "$W/scene.blend" --python-expr "import bpy; bpy.data.collections['stack'].hide_render = True" \
-  -o "$W/r_bare/f####" -f "$(frames_of bare)"
+# A crashed pass is re-run: with overwrite off Blender skips the frames already written. The Cycles device is a user
+# preference, not saved in the .blend: Blender 5.3 starts from fresh preferences and renders on the CPU (72 s a frame).
+# HIP-RT off: every frame rebuilds the BVH (no persistent data, see dress.py), and HIP-RT's build costs more than its
+# tracing saves at 200 spp: 15 s a frame vs 18 (frames 1/7/16, 2026-11-19), the same image to 64 dB.
+GPU="import bpy; p = bpy.context.preferences.addons['cycles'].preferences; p.compute_device_type = 'HIP'
+p.use_hiprt = False
+p.get_devices()
+for d in p.devices: d.use = d.type == 'HIP'
+assert any(d.use for d in p.devices), 'no HIP device'
+bpy.context.scene.render.use_overwrite = False"
+pass() {   # pass PYTHON OUT FRAMES
+  local try
+  for try in 1 2 3 4 5 6 7 8; do
+    blender "$W/scene.blend" --python-exit-code 1 --python-expr "$GPU$1" -o "$2" -f "$3" && return
+    echo "render.sh: Blender failed (try $try), resuming" >&2
+  done
+  return 1
+}
+pass "" "$W/r_full/f####" "$(frames_of spin)"
+pass "
+bpy.data.collections['stack'].hide_render = True" "$W/r_bare/f####" "$(frames_of bare)"
 link() {   # link SEQ SRC DST
   mkdir -p "$W/$3"; local i=0 f
   while read -r f; do i=$((i + 1)); ln "$W/$2/$(printf f%04d.png "$f")" "$W/$3/$(printf f%04d.png "$i")"; done < "$W/seq_$1.txt"

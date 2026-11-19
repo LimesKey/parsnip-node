@@ -121,21 +121,21 @@ block diagram, power tree, then the circuit sheets). Click a page for full size.
 <table>
   <tr>
     <td align="center" width="50%">
-      <a href="lib/img/render-iso.png"><img src="lib/img/render-iso.png" alt="PCB render, front at an angle" width="400"></a>
+      <a href="lib/img/render-iso.png"><picture><source srcset="lib/img/render-iso.avif" type="image/avif"><img src="lib/img/render-iso.png" alt="PCB render, front at an angle" width="400"></picture></a>
       <br><sub><b>Front</b></sub>
     </td>
     <td align="center" width="50%">
-      <a href="lib/img/render-iso-back.png"><img src="lib/img/render-iso-back.png" alt="PCB render, back at an angle" width="400"></a>
+      <a href="lib/img/render-iso-back.png"><picture><source srcset="lib/img/render-iso-back.avif" type="image/avif"><img src="lib/img/render-iso-back.png" alt="PCB render, back at an angle" width="400"></picture></a>
       <br><sub><b>Back</b></sub>
     </td>
   </tr>
   <tr>
     <td align="center" width="50%">
-      <a href="lib/img/render-top.png"><img src="lib/img/render-top.png" alt="PCB render, top" width="250"></a>
+      <a href="lib/img/render-top.png"><picture><source srcset="lib/img/render-top.avif" type="image/avif"><img src="lib/img/render-top.png" alt="PCB render, top" width="250"></picture></a>
       <br><sub><b>Top</b></sub>
     </td>
     <td align="center" width="50%">
-      <a href="lib/img/render-bottom.png"><img src="lib/img/render-bottom.png" alt="PCB render, bottom" width="250"></a>
+      <a href="lib/img/render-bottom.png"><picture><source srcset="lib/img/render-bottom.avif" type="image/avif"><img src="lib/img/render-bottom.png" alt="PCB render, bottom" width="250"></picture></a>
       <br><sub><b>Bottom (21700 holders)</b></sub>
     </td>
   </tr>
