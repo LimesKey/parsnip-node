@@ -8,9 +8,10 @@
 # display plate's laser-cut file, docs/display-plate.dxf.
 # usage: code/render/render.sh [--detach] [BOARD.kicad_pcb] [OUT_DIR]      (defaults: parsnip.kicad_pcb, lib/img)
 #   --detach: the whole job as the systemd user unit parsnip-render (survives the terminal and Claude Code, blocks
-#   idle suspend), then longencode.sh on render-spin unless PREVIEW (~5 h more, notifies when done). Logs in $W.
+#   idle suspend), then longencode.sh on all three AVIFs at once unless PREVIEW (~2.5-5 h more, ~7.5 GB RAM, notifies
+#   after each). Logs in $W.
 #   systemctl --user status parsnip-render / stop parsnip-render;  tail -f ~/.cache/parsnip-render/render.log
-# Needs kicad-cli-nightly, blender (Cycles HIP), ffmpeg with libsvtav1, python3 with numpy + Pillow.
+# Needs kicad-cli-nightly, the Blender in blender.sh (Cycles HIP), ffmpeg with libsvtav1, python3 with numpy + Pillow.
 set -euo pipefail
 HERE=$(cd "$(dirname "$0")" && pwd)
 ROOT=$(cd "$HERE/../.." && pwd)
@@ -21,14 +22,11 @@ if [ -n "$DETACH" ]; then
   mkdir -p "$W"
   exec systemd-run --user --unit=parsnip-render --collect --expand-environment=no -E W="$W" -E PREVIEW="${PREVIEW:-}" -E PATH="/usr/bin:$PATH" \
     systemd-inhibit --what=idle:sleep --who=parsnip-render --why="README render + AV1 long encode" \
-    bash -c '"$0" "$1" "$2" > "$W/render.log" 2>&1 && { [ -n "$PREVIEW" ] || DST="$2/render-spin.avif" nice -n 10 "${0%/*}/longencode.sh"; }' \
+    bash -c '"$0" "$1" "$2" > "$W/render.log" 2>&1 && { [ -n "$PREVIEW" ] || for n in spin assembled bare; do DST="$2/render-$n.avif" nice -n 10 "${0%/*}/longencode.sh" & done; wait; }' \
     "$HERE/render.sh" "$BOARD" "$OUT"
 fi
-blender() { PATH=/usr/bin:$PATH command blender -b "$@"; }  # a uv python3.x earlier on PATH breaks Blender's stdlib
-# Blender 5.3.0 Cycles HIP page-faults in shade_surface as a render starts when its path-state pool is the default
-# size (any ROCm; 5.2.3 is clean): 0.45 of it renders, 26% faster than 0.25, and 0.6 and up fault every time.
-export CYCLES_CONCURRENT_STATES_FACTOR=${CYCLES_CONCURRENT_STATES_FACTOR:-0.45}
-ulimit -c 0   # each fault would otherwise leave a ~320 MB core in /var/lib/systemd/coredump
+blender() { "$HERE/blender.sh" "$@"; }   # the pinned build, and why
+ulimit -c 0   # a crash would otherwise leave a ~320 MB core in /var/lib/systemd/coredump
 if [ -n "${PREVIEW:-}" ]; then SW=360 SH=504 SPP=16; else SW=1080 SH=1512 SPP=200; fi
 rm -rf "$W"/{frames,plain,bare,r_full,r_bare} && mkdir -p "$W"/{r_full,r_bare}
 
@@ -37,7 +35,7 @@ rm -rf "$W"/{frames,plain,bare,r_full,r_bare} && mkdir -p "$W"/{r_full,r_bare}
 # frame of each loop, then each loop is a directory of hard links (render-spin's is frames/, what longencode reads).
 frames_of() { sort -nu "$W/seq_$1.txt" | paste -sd,; }
 # A crashed pass is re-run: with overwrite off Blender skips the frames already written. The Cycles device is a user
-# preference, not saved in the .blend: Blender 5.3 starts from fresh preferences and renders on the CPU (72 s a frame).
+# preference, not saved in the .blend: a new Blender version starts from fresh preferences, on the CPU (72 s a frame).
 # HIP-RT off: every frame rebuilds the BVH (no persistent data, see dress.py), and HIP-RT's build costs more than its
 # tracing saves at 200 spp: 15 s a frame vs 18 (frames 1/7/16, 2026-11-19), the same image to 64 dB.
 GPU="import bpy; p = bpy.context.preferences.addons['cycles'].preferences; p.compute_device_type = 'HIP'

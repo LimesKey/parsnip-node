@@ -21,18 +21,15 @@ V="iso:400 iso-back:400 top:250 bottom:250"   # view : its width in the README, 
 # the same too. Adaptive threshold 0.004 vs 0.008 saves nothing at this cap; lower bounce limits gain no speed;
 # HIP-RT off is 18% slower; light tree off is 41% faster but changes the can and edge highlights (2026-11-19).
 if [ -n "${PREVIEW:-}" ]; then S=0.25 SPP=64; else S=2 SPP=${SPP:-512}; fi
-# Blender 5.3.0 Cycles HIP page-faults in shade_surface as a render starts when its path-state pool is the default
-# size (any ROCm; 5.2.3 is clean; the "Local memory reserved 16.00E" debug line is unrelated). 0.45 of it renders,
-# 26% faster than 0.25; 0.6 and up fault every time. A fault costs seconds, so the views not written yet are re-run.
-export CYCLES_CONCURRENT_STATES_FACTOR=${CYCLES_CONCURRENT_STATES_FACTOR:-0.45}
-ulimit -c 0   # each fault would otherwise leave a ~320 MB core in /var/lib/systemd/coredump
+# A crash costs seconds, so the views not written yet are re-run (blender.sh: the pinned build, and 5.3.0's fault).
+ulimit -c 0   # a crash would otherwise leave a ~320 MB core in /var/lib/systemd/coredump
 touch "$W/.start"
 for try in 1 2 3 4 5 6; do
   [ -n "${ENCODE:-}" ] && break
   todo=; for v in $V; do [ "$W/${v%:*}.png" -nt "$W/.start" ] || todo+=" ${v%:*}"; done
   [ -z "$todo" ] && break
   [ "$try" = 6 ] && { echo "stills.sh: Blender kept failing on$todo" >&2; exit 1; }
-  PATH=/usr/bin:$PATH blender -b "$W/scene.blend" --python "$HERE/stills.py" -- "$W" $S $SPP $todo ||
+  "$HERE/blender.sh" "$W/scene.blend" --python "$HERE/stills.py" -- "$W" $S $SPP $todo ||
     echo "stills.sh: Blender failed (try $try), re-running$todo" >&2
 done
 [ -n "${PREVIEW:-}" ] && exit

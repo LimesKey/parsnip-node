@@ -4,7 +4,7 @@
 set -euo pipefail
 HERE=$(cd "$(dirname "$0")" && pwd)
 BOARD=$1 W=$2; shift 2
-blender() { PATH=/usr/bin:$PATH command blender -b "$@"; }  # a uv python3.x earlier on PATH breaks Blender's stdlib
+blender() { "$HERE/blender.sh" --python-exit-code 1 "$@"; }   # the pinned build; a Python error fails the run
 mkdir -p "$W"
 kicad-cli-nightly pcb export glb --no-dnp --subst-models --include-tracks --include-pads --include-zones \
   --include-silkscreen --include-soldermask -f -o "$W/board.glb" "$BOARD"
